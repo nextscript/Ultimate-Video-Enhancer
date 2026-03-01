@@ -199,9 +199,9 @@ The GPU Pipeline Mode is an alternative rendering mode for maximum performance. 
 </ul>
 <hr>
 <h2>LUT Filter Feature <b style="color:red;">(New)</b></h2>
-<b>LUT Filter System:</b><br>
+<b>LUT Filter System:</b><br><p>
 The system converts a tiled 2D LUT PNG (e.g. 512×512) and 3D LUT .cube into a 4×5 row-major color matrix using least-squares approximation.<br>
-The resulting matrix is applied in real-time via feColorMatrix, enabling instant color transformation without page reload.
+The resulting matrix is applied in real-time via feColorMatrix, enabling instant color transformation without page reload.<p>
 <br><p>
 <b>LUT Profile Manager:</b><br>
 <ul>
