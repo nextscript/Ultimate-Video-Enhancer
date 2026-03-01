@@ -3,7 +3,7 @@
 // @name:de      Globale Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.6.4
+// @version      1.6.5
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, and pseudo-HDR. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Globale Video Filter Overlay verbessert jedes HTML5-Video in Ihrem Browser mit Echtzeit-Farbkorrektur, Schärfung und Pseudo-HDR. Es bietet sofortiges Profilwechseln und Steuerelemente direkt im Video, um die Bildqualität ohne Neucodierung oder Downloads zu verbessern.
 // @match        *://*/*
@@ -346,6 +346,341 @@
         const nextProfile = userProfiles[nextIndex];
 
         switchToUserProfile(nextProfile.id);
+    }
+
+    // -------------------------
+    // Profile Import / Export (ZIP per-profile JSON)
+    // -------------------------
+    function sanitizeProfileFilename(name) {
+        const base = String(name || 'profile').trim() || 'profile';
+        // Keep it Windows-safe and URL-safe
+        const safe = base
+            .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .slice(0, 80);
+        return safe || 'profile';
+    }
+
+    function _u16le(v) { return [v & 255, (v >>> 8) & 255]; }
+    function _u32le(v) { return [v & 255, (v >>> 8) & 255, (v >>> 16) & 255, (v >>> 24) & 255]; }
+
+    // CRC32 (for ZIP)
+    const _CRC32_TABLE = (() => {
+        const t = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+            t[i] = c >>> 0;
+        }
+        return t;
+    })();
+
+    function crc32(u8) {
+        let c = 0xFFFFFFFF;
+        for (let i = 0; i < u8.length; i++) c = _CRC32_TABLE[(c ^ u8[i]) & 255] ^ (c >>> 8);
+        return (c ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function makeZipBlob(fileEntries) {
+        // Minimal ZIP writer (store-only, no compression).
+        // fileEntries: [{name: "x.json", data: Uint8Array}]
+        const parts = [];
+        const cdParts = [];
+        let offset = 0;
+
+        const enc = new TextEncoder();
+
+        for (const f of fileEntries) {
+            const nameBytes = enc.encode(String(f.name || 'file.bin'));
+            const dataBytes = (f.data instanceof Uint8Array) ? f.data : new Uint8Array(f.data || []);
+            const c = crc32(dataBytes);
+            const size = dataBytes.length >>> 0;
+
+            // Local file header
+            const local = [];
+            local.push(..._u32le(0x04034b50)); // sig
+            local.push(..._u16le(20));         // ver
+            local.push(..._u16le(0));          // flags
+            local.push(..._u16le(0));          // method=store
+            local.push(..._u16le(0));          // mod time
+            local.push(..._u16le(0));          // mod date
+            local.push(..._u32le(c));          // crc
+            local.push(..._u32le(size));       // comp size
+            local.push(..._u32le(size));       // uncomp size
+            local.push(..._u16le(nameBytes.length)); // name len
+            local.push(..._u16le(0));          // extra len
+
+            const localHdr = new Uint8Array(local);
+            parts.push(localHdr, nameBytes, dataBytes);
+
+            // Central directory header
+            const cd = [];
+            cd.push(..._u32le(0x02014b50)); // sig
+            cd.push(..._u16le(20));         // ver made
+            cd.push(..._u16le(20));         // ver needed
+            cd.push(..._u16le(0));          // flags
+            cd.push(..._u16le(0));          // method
+            cd.push(..._u16le(0));          // mod time
+            cd.push(..._u16le(0));          // mod date
+            cd.push(..._u32le(c));          // crc
+            cd.push(..._u32le(size));       // comp size
+            cd.push(..._u32le(size));       // uncomp size
+            cd.push(..._u16le(nameBytes.length)); // name len
+            cd.push(..._u16le(0));          // extra len
+            cd.push(..._u16le(0));          // comment len
+            cd.push(..._u16le(0));          // disk start
+            cd.push(..._u16le(0));          // int attrs
+            cd.push(..._u32le(0));          // ext attrs
+            cd.push(..._u32le(offset));     // local hdr offset
+
+            const cdHdr = new Uint8Array(cd);
+            cdParts.push(cdHdr, nameBytes);
+
+            offset += localHdr.length + nameBytes.length + dataBytes.length;
+        }
+
+        const cdStart = offset;
+        for (const part of cdParts) {
+            parts.push(part);
+            offset += part.length;
+        }
+        const cdSize = offset - cdStart;
+
+        // EOCD
+        const eocd = [];
+        eocd.push(..._u32le(0x06054b50)); // sig
+        eocd.push(..._u16le(0)); // disk
+        eocd.push(..._u16le(0)); // cd start disk
+        eocd.push(..._u16le(fileEntries.length)); // entries this disk
+        eocd.push(..._u16le(fileEntries.length)); // entries total
+        eocd.push(..._u32le(cdSize)); // cd size
+        eocd.push(..._u32le(cdStart)); // cd offset
+        eocd.push(..._u16le(0)); // comment len
+
+        parts.push(new Uint8Array(eocd));
+
+        return new Blob(parts, { type: 'application/zip' });
+    }
+
+    function _zipName(prefix) {
+        const d = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        return `${prefix}_${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}.zip`;
+    }
+
+    function exportAllUserProfilesAsZip() {
+        // Always persist latest current settings into active profile before export
+        try { updateCurrentProfileSettings(); } catch (_) { }
+
+        const enc = new TextEncoder();
+        const entries = [];
+
+        (userProfiles || []).forEach((p) => {
+            try {
+                const fileBase = sanitizeProfileFilename(p && p.name);
+                const fileName = `${fileBase}.json`;
+                const jsonStr = JSON.stringify(p, null, 2);
+                entries.push({ name: fileName, data: enc.encode(jsonStr) });
+            } catch (_) { }
+        });
+
+        if (!entries.length) return null;
+        return makeZipBlob(entries);
+    }
+
+    function downloadBlob(blob, filename) {
+        try {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1500);
+        } catch (_) { }
+    }
+
+    async function importProfilesFromZipOrJsonFile(file, statusEl) {
+        const name = String(file && file.name || '').toLowerCase();
+        const isZip = name.endsWith('.zip') || (file && file.type === 'application/zip');
+
+        const setStatus = (t) => { if (statusEl) statusEl.textContent = t; };
+
+        try {
+            const buf = await file.arrayBuffer();
+            if (!buf || !buf.byteLength) { setStatus('Import failed (empty file).'); return false; }
+
+            if (!isZip) {
+                // Single JSON profile
+                const raw = new TextDecoder().decode(new Uint8Array(buf));
+                const obj = JSON.parse(String(raw || '').trim());
+
+                const ok = importSingleUserProfileObject(obj, setStatus);
+                if (ok) {
+                    saveUserProfiles();
+                    updateProfileList();
+                    const activeInfo = document.getElementById('gvf-active-profile-info');
+                    if (activeInfo) setActiveProfileInfo(activeInfo, activeUserProfile?.name);
+                }
+                return ok;
+            }
+
+            // ZIP (store-only or deflate if DecompressionStream supports it)
+            const files = await unzipToFiles(new Uint8Array(buf), setStatus);
+            if (!files || !files.length) { setStatus('Import failed (no files in zip).'); return false; }
+
+            let imported = 0;
+            for (const f of files) {
+                if (!f || !f.name || !f.data) continue;
+                if (!String(f.name).toLowerCase().endsWith('.json')) continue;
+                try {
+                    const raw = new TextDecoder().decode(f.data);
+                    const obj = JSON.parse(String(raw || '').trim());
+                    if (importSingleUserProfileObject(obj, setStatus)) imported++;
+                } catch (_) { }
+            }
+
+            if (imported > 0) {
+                saveUserProfiles();
+                updateProfileList();
+                const activeInfo = document.getElementById('gvf-active-profile-info');
+                if (activeInfo) setActiveProfileInfo(activeInfo, activeUserProfile?.name);
+                setStatus(`Imported ${imported} profile(s) from ZIP.`);
+                return true;
+            }
+
+            setStatus('Import failed (no valid profile JSON found).');
+            return false;
+        } catch (e) {
+            logW('Profile import error:', e);
+            setStatus('Import failed (invalid file).');
+            return false;
+        }
+    }
+
+    function importSingleUserProfileObject(obj, setStatus) {
+        if (!obj || typeof obj !== 'object') return false;
+
+        // Accept either a full profile object {id,name,settings} or a plain settings object {enabled,...}
+        const isProfileObj = (obj && typeof obj.name === 'string' && obj.settings && typeof obj.settings === 'object');
+        const settingsObj = isProfileObj ? obj.settings : obj;
+
+        // Minimal settings validation
+        if (!settingsObj || typeof settingsObj !== 'object' || (!('renderMode' in settingsObj) && !('profile' in settingsObj))) {
+            return false;
+        }
+
+        const profileName = sanitizeProfileFilename(isProfileObj ? obj.name : ('Imported ' + new Date().toLocaleString()));
+
+        // Overwrite existing profiles with the same name (case-insensitive, normalized)
+        const norm = (s) => sanitizeProfileFilename(String(s || '')).toLowerCase();
+        const targetNorm = norm(profileName);
+        let target = null;
+
+        for (const p of (userProfiles || [])) {
+            if (norm(p && p.name) === targetNorm) { target = p; break; }
+        }
+
+        // Create if missing
+        if (!target) {
+            target = createNewUserProfile(profileName);
+        }
+
+        try {
+            // Merge settings into the target profile
+            target.settings = { ...target.settings, ...settingsObj };
+            target.updatedAt = Date.now();
+
+            // Keep active profile reference consistent if needed
+            if (activeUserProfile && target && activeUserProfile.id === target.id) {
+                activeUserProfile = target;
+            }
+
+            if (typeof setStatus === 'function') {
+                setStatus(target ? (`${(target && target.createdAt && target.updatedAt && (target.createdAt !== target.updatedAt)) ? 'Replaced' : 'Imported'}: ${target.name}`) : 'Imported.');
+            }
+
+            log(target ? (target.createdAt !== target.updatedAt ? 'Profile replaced:' : 'Profile imported:') : 'Profile imported:', profileName);
+
+            return true;
+        } catch (e) {
+            logW('Profile import failed:', e);
+            return false;
+        }
+    }
+
+    // Minimal ZIP reader (supports STORE, and DEFLATE when DecompressionStream is available).
+    async function unzipToFiles(zipU8, setStatus) {
+        const dv = new DataView(zipU8.buffer, zipU8.byteOffset, zipU8.byteLength);
+        const u16 = (o) => dv.getUint16(o, true);
+        const u32 = (o) => dv.getUint32(o, true);
+
+        // Find EOCD by scanning from end (max comment 64k)
+        let eocd = -1;
+        for (let i = zipU8.length - 22; i >= Math.max(0, zipU8.length - 22 - 65535); i--) {
+            if (u32(i) === 0x06054b50) { eocd = i; break; }
+        }
+        if (eocd < 0) return [];
+
+        const cdSize = u32(eocd + 12);
+        const cdOff = u32(eocd + 16);
+
+        let ptr = cdOff;
+        const files = [];
+        const dec = new TextDecoder();
+
+        const canInflate = (typeof DecompressionStream !== 'undefined');
+
+        while (ptr < cdOff + cdSize) {
+            if (u32(ptr) !== 0x02014b50) break;
+
+            const method = u16(ptr + 10);
+            const cSize = u32(ptr + 20);
+            const uSize = u32(ptr + 24);
+            const nLen = u16(ptr + 28);
+            const xLen = u16(ptr + 30);
+            const cLen = u16(ptr + 32);
+            const lho = u32(ptr + 42);
+
+            const name = dec.decode(zipU8.subarray(ptr + 46, ptr + 46 + nLen));
+
+            // Local header
+            if (u32(lho) !== 0x04034b50) { ptr += 46 + nLen + xLen + cLen; continue; }
+            const lnLen = u16(lho + 26);
+            const lxLen = u16(lho + 28);
+            const dataOff = lho + 30 + lnLen + lxLen;
+
+            const comp = zipU8.subarray(dataOff, dataOff + cSize);
+
+            let out;
+            if (method === 0) {
+                out = comp;
+            } else if (method === 8 && canInflate) {
+                // deflate (raw)
+                try {
+                    const ds = new DecompressionStream('deflate-raw');
+                    const stream = new Blob([comp]).stream().pipeThrough(ds);
+                    const ab = await new Response(stream).arrayBuffer();
+                    out = new Uint8Array(ab);
+                } catch (e) {
+                    if (typeof setStatus === 'function') setStatus('Import failed (ZIP deflate unsupported).');
+                    out = null;
+                }
+            } else {
+                if (typeof setStatus === 'function') setStatus('Import failed (ZIP compression not supported).');
+                out = null;
+            }
+
+            if (out && (uSize === 0 || out.length === uSize)) {
+                files.push({ name, data: out });
+            }
+
+            ptr += 46 + nLen + xLen + cLen;
+        }
+
+        return files;
     }
 
     // Profile notification system
@@ -3174,247 +3509,8 @@ if (!gl) {
         }
     }
 
-    // ===================== PROFILE EXPORT/IMPORT WITH ZIP =====================
-    /**
-     * Export all profiles as individual JSON files and pack them into a ZIP archive
-     */
-    async function exportProfilesToZip() {
-        if (!userProfiles || userProfiles.length === 0) {
-            logW('No profiles to export');
-            return;
-        }
-
-        try {
-            // Show loading notification
-            const notif = createNotificationElement();
-            const textEl = document.getElementById('gvf-notification-text');
-            if (textEl) textEl.textContent = 'Creating ZIP archive...';
-            notif.style.display = 'flex';
-
-            // Check if JSZip is available, if not load it dynamically
-            if (typeof JSZip === 'undefined') {
-                await loadJSZip();
-            }
-
-            const zip = new JSZip();
-
-            // Add each profile as a separate JSON file
-            userProfiles.forEach((profile, index) => {
-                // Sanitize filename - remove invalid characters
-                let safeName = profile.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-                if (!safeName) safeName = `profile_${index + 1}`;
-
-                const fileName = `${safeName}.json`;
-                const profileData = {
-                    id: profile.id,
-                    name: profile.name,
-                    createdAt: profile.createdAt,
-                    settings: profile.settings
-                };
-
-                zip.file(fileName, JSON.stringify(profileData, null, 2));
-            });
-
-            // Add a manifest file with export info
-            const manifest = {
-                exportDate: new Date().toISOString(),
-                totalProfiles: userProfiles.length,
-                activeProfile: activeUserProfile?.name || 'None',
-                version: '1.6.4',
-                description: 'Global Video Filter Overlay - Profiles Export'
-            };
-            zip.file('manifest.json', JSON.stringify(manifest, null, 2));
-
-            // Generate ZIP file
-            const zipBlob = await zip.generateAsync({ type: 'blob' });
-
-            // Create filename with current date
-            const d = new Date();
-            const pad = (n) => String(n).padStart(2, '0');
-            const zipName = `gvf_profiles_${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.zip`;
-
-            // Download the ZIP
-            dlBlob(zipBlob, zipName);
-
-            log(`Profiles exported to ${zipName} (${userProfiles.length} profiles)`);
-
-            // Show success notification
-            if (textEl) textEl.textContent = `✅ Exported ${userProfiles.length} profiles to ZIP`;
-            setTimeout(() => {
-                if (notif.style.display === 'flex') {
-                    notif.style.display = 'none';
-                }
-            }, 3000);
-
-        } catch (e) {
-            logW('Error exporting profiles to ZIP:', e);
-            alert('Error creating ZIP archive. See console for details.');
-        }
-    }
-
-    /**
-     * Import profiles from a ZIP file
-     */
-    async function importProfilesFromZip(file) {
-        if (!file) return;
-
-        try {
-            // Show loading notification
-            const notif = createNotificationElement();
-            const textEl = document.getElementById('gvf-notification-text');
-            if (textEl) textEl.textContent = 'Reading ZIP file...';
-            notif.style.display = 'flex';
-
-            // Check if JSZip is available
-            if (typeof JSZip === 'undefined') {
-                await loadJSZip();
-            }
-
-            // Read the file as ArrayBuffer
-            const arrayBuffer = await file.arrayBuffer();
-            const zip = await JSZip.loadAsync(arrayBuffer);
-
-            const importedProfiles = [];
-            const profileFiles = [];
-
-            // Find all JSON files in the zip
-            zip.forEach((relativePath, zipEntry) => {
-                if (!zipEntry.dir && relativePath.endsWith('.json') && relativePath !== 'manifest.json') {
-                    profileFiles.push(zipEntry);
-                }
-            });
-
-            if (profileFiles.length === 0) {
-                if (textEl) textEl.textContent = '❌ No profile JSON files found in ZIP';
-                setTimeout(() => {
-                    if (notif.style.display === 'flex') {
-                        notif.style.display = 'none';
-                    }
-                }, 2000);
-                return;
-            }
-
-            // Parse each profile file
-            for (const zipEntry of profileFiles) {
-                try {
-                    const content = await zipEntry.async('string');
-                    const profileData = JSON.parse(content);
-
-                    // Validate profile structure
-                    if (profileData.id && profileData.name && profileData.settings) {
-                        importedProfiles.push(profileData);
-                    } else {
-                        logW('Invalid profile structure in file:', zipEntry.name);
-                    }
-                } catch (e) {
-                    logW('Error parsing profile file:', zipEntry.name, e);
-                }
-            }
-
-            if (importedProfiles.length === 0) {
-                if (textEl) textEl.textContent = '❌ No valid profiles found';
-                setTimeout(() => {
-                    if (notif.style.display === 'flex') {
-                        notif.style.display = 'none';
-                    }
-                }, 2000);
-                return;
-            }
-
-            // Ask user how to handle import
-            const action = confirm(
-                `Found ${importedProfiles.length} profiles in ZIP.\n\n` +
-                `OK: Replace all existing profiles (${userProfiles.length} profiles will be replaced)\n` +
-                `Cancel: Merge with existing profiles (new profiles will be added)`
-            );
-
-            if (action) {
-                // Replace all profiles
-                userProfiles = importedProfiles;
-                log('Replaced all profiles with imported ones');
-            } else {
-                // Merge profiles (avoid duplicates by ID)
-                const existingIds = new Set(userProfiles.map(p => p.id));
-
-                importedProfiles.forEach(profile => {
-                    if (!existingIds.has(profile.id)) {
-                        userProfiles.push(profile);
-                        existingIds.add(profile.id);
-                    } else {
-                        log('Skipped duplicate profile ID:', profile.id);
-                    }
-                });
-
-                log('Merged profiles, total:', userProfiles.length);
-            }
-
-            // Ensure default profile exists
-            const hasDefault = userProfiles.some(p => p.id === 'default');
-            if (!hasDefault) {
-                const isFirefoxBrowser = isFirefox();
-                const defaultProfile = isFirefoxBrowser ? DEFAULT_USER_PROFILE_FIREFOX : DEFAULT_USER_PROFILE;
-                userProfiles.unshift(defaultProfile);
-            }
-
-            // Save profiles
-            saveUserProfiles();
-
-            // Update active profile if it was removed
-            if (!userProfiles.some(p => p.id === activeUserProfile?.id)) {
-                switchToUserProfile('default');
-            }
-
-            // Update UI
-            updateProfileList();
-            const activeInfo = document.getElementById('gvf-active-profile-info');
-            if (activeInfo) {
-                setActiveProfileInfo(activeInfo, activeUserProfile?.name);
-            }
-
-            // Show success notification
-            if (textEl) textEl.textContent = `✅ Imported ${importedProfiles.length} profiles`;
-            setTimeout(() => {
-                if (notif.style.display === 'flex') {
-                    notif.style.display = 'none';
-                }
-            }, 3000);
-
-            log('Profiles imported successfully');
-
-        } catch (e) {
-            logW('Error importing profiles from ZIP:', e);
-            alert('Error importing ZIP file. See console for details.');
-        }
-    }
-
-    /**
-     * Load JSZip library dynamically if not available
-     */
-    function loadJSZip() {
-        return new Promise((resolve, reject) => {
-            if (typeof JSZip !== 'undefined') {
-                resolve();
-                return;
-            }
-
-            log('Loading JSZip library...');
-
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-            script.onload = () => {
-                log('JSZip loaded successfully');
-                resolve();
-            };
-            script.onerror = () => {
-                logW('Failed to load JSZip');
-                reject(new Error('Failed to load JSZip library'));
-            };
-            document.head.appendChild(script);
-        });
-    }
-
     // -------------------------
-    // Config Menu (User Profile Management) with Import/Export
+    // Config Menu (User Profile Management)
     // -------------------------
     let configMenuVisible = false;
 
@@ -3432,9 +3528,9 @@ if (!gl) {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 600px;
-            max-width: 95vw;
-            max-height: 85vh;
+            width: 500px;
+            max-width: 90vw;
+            max-height: 80vh;
             background: rgba(20, 20, 20, 0.98);
             backdrop-filter: blur(10px);
             border: 2px solid #2a6fdb;
@@ -3467,11 +3563,8 @@ if (!gl) {
             font-weight: 900;
             color: #fff;
             text-shadow: 0 0 10px #2a6fdb;
-            display: flex;
-            align-items: center;
-            gap: 8px;
         `;
-        title.innerHTML = '👤 User Profile Manager <span style="font-size:12px; color:#888;">v1.6.4</span>';
+        title.textContent = '👤 User Profile Manager';
 
         const closeBtn = document.createElement('button');
         closeBtn.textContent = '✕';
@@ -3508,7 +3601,7 @@ if (!gl) {
         header.appendChild(closeBtn);
         menu.appendChild(header);
 
-        // Active profile display
+        // Aktives Profil anzeigen
         const activeInfo = document.createElement('div');
         activeInfo.id = 'gvf-active-profile-info';
         activeInfo.style.cssText = `
@@ -3636,86 +3729,6 @@ if (!gl) {
         inputContainer.appendChild(addBtn);
         menu.appendChild(inputContainer);
 
-        // Import/Export buttons row
-        const importExportRow = document.createElement('div');
-        importExportRow.style.cssText = `
-            display: flex;
-            gap: 8px;
-            margin-bottom: 16px;
-        `;
-
-        const exportZipBtn = document.createElement('button');
-        exportZipBtn.textContent = '📦 Export All to ZIP';
-        exportZipBtn.style.cssText = `
-            background: rgba(42, 111, 219, 0.6);
-            border: 2px solid #2a6fdb;
-            color: #fff;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 900;
-            cursor: pointer;
-            transition: all 0.2s;
-            flex: 1;
-        `;
-        exportZipBtn.addEventListener('mouseenter', () => {
-            exportZipBtn.style.background = 'rgba(42, 111, 219, 0.8)';
-        });
-        exportZipBtn.addEventListener('mouseleave', () => {
-            exportZipBtn.style.background = 'rgba(42, 111, 219, 0.6)';
-        });
-        exportZipBtn.addEventListener('click', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            await exportProfilesToZip();
-        });
-
-        const importZipBtn = document.createElement('button');
-        importZipBtn.textContent = '📂 Import from ZIP';
-        importZipBtn.style.cssText = `
-            background: rgba(76, 175, 80, 0.6);
-            border: 2px solid #4CAF50;
-            color: #fff;
-            padding: 10px 16px;
-            border-radius: 8px;
-            font-size: 13px;
-            font-weight: 900;
-            cursor: pointer;
-            transition: all 0.2s;
-            flex: 1;
-        `;
-        importZipBtn.addEventListener('mouseenter', () => {
-            importZipBtn.style.background = 'rgba(76, 175, 80, 0.8)';
-        });
-        importZipBtn.addEventListener('mouseleave', () => {
-            importZipBtn.style.background = 'rgba(76, 175, 80, 0.6)';
-        });
-
-        // Hidden file input for ZIP import
-        const zipFileInput = document.createElement('input');
-        zipFileInput.type = 'file';
-        zipFileInput.accept = '.zip,application/zip';
-        zipFileInput.style.display = 'none';
-        zipFileInput.addEventListener('change', async (e) => {
-            const file = e.target.files?.[0];
-            if (file) {
-                await importProfilesFromZip(file);
-                // Clear input so same file can be selected again
-                zipFileInput.value = '';
-            }
-        });
-
-        importZipBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            zipFileInput.click();
-        });
-
-        importExportRow.appendChild(exportZipBtn);
-        importExportRow.appendChild(importZipBtn);
-        importExportRow.appendChild(zipFileInput);
-        menu.appendChild(importExportRow);
-
         // Buttons
         const buttonContainer = document.createElement('div');
         buttonContainer.style.cssText = `
@@ -3760,13 +3773,129 @@ if (!gl) {
             }, 1000);
         });
 
+
         buttonContainer.appendChild(saveCurrentBtn);
+
+        // Import / Export (profiles as ZIP of per-profile JSON)
+        const importExportRow = document.createElement('div');
+        importExportRow.style.cssText = `
+            display: flex;
+            gap: 8px;
+            justify-content: space-between;
+            margin-top: 8px;
+        `;
+
+        const exportProfilesBtn = document.createElement('button');
+        exportProfilesBtn.textContent = '📦 Export profiles (ZIP)';
+        exportProfilesBtn.style.cssText = `
+            background: rgba(42, 111, 219, 0.25);
+            border: 1px solid rgba(42, 111, 219, 0.6);
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+        `;
+
+        const importProfilesBtn = document.createElement('button');
+        importProfilesBtn.textContent = '📥 Import profiles (ZIP/JSON)';
+        importProfilesBtn.style.cssText = `
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.2s;
+            flex: 1;
+        `;
+
+        const profileFileInput = document.createElement('input');
+        profileFileInput.type = 'file';
+        profileFileInput.accept = '.zip,application/zip,.json,application/json';
+        profileFileInput.style.display = 'none';
+        stopEventsOn(profileFileInput);
+
+        const setTmpStatus = (msg) => {
+            // Reuse existing "activeInfo" line as a small status area without adding new UI noise.
+            const el = document.getElementById('gvf-active-profile-info');
+            if (!el) return;
+            el.title = String(msg || '');
+        };
+
+        exportProfilesBtn.addEventListener('mouseenter', () => {
+            exportProfilesBtn.style.background = 'rgba(42, 111, 219, 0.35)';
+            exportProfilesBtn.style.borderColor = '#2a6fdb';
+        });
+        exportProfilesBtn.addEventListener('mouseleave', () => {
+            exportProfilesBtn.style.background = 'rgba(42, 111, 219, 0.25)';
+            exportProfilesBtn.style.borderColor = 'rgba(42, 111, 219, 0.6)';
+        });
+
+        importProfilesBtn.addEventListener('mouseenter', () => {
+            importProfilesBtn.style.background = 'rgba(255, 255, 255, 0.14)';
+            importProfilesBtn.style.borderColor = '#2a6fdb';
+        });
+        importProfilesBtn.addEventListener('mouseleave', () => {
+            importProfilesBtn.style.background = 'rgba(255, 255, 255, 0.08)';
+            importProfilesBtn.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+        });
+
+        exportProfilesBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+
+            try {
+                const zipBlob = exportAllUserProfilesAsZip();
+                if (!zipBlob) {
+                    logW('No profiles to export.');
+                    setTmpStatus('No profiles to export.');
+                    return;
+                }
+
+                const zipName = _zipName('gvf_user_profiles');
+                downloadBlob(zipBlob, zipName);
+
+                log('Exported profiles ZIP:', zipName);
+                setTmpStatus('Profiles exported as ZIP.');
+            } catch (err) {
+                logW('Profile export failed:', err);
+                setTmpStatus('Profile export failed.');
+            }
+        });
+
+        importProfilesBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            try { profileFileInput.value = ''; } catch (_) { }
+            profileFileInput.click();
+        });
+
+        profileFileInput.addEventListener('change', async () => {
+            const f = profileFileInput.files && profileFileInput.files[0];
+            if (!f) return;
+            setTmpStatus('Importing profiles...');
+            const ok = await importProfilesFromZipOrJsonFile(f, null);
+            setTmpStatus(ok ? 'Profiles imported.' : 'Profile import failed.');
+            try { profileFileInput.value = ''; } catch (_) { }
+        });
+
+        importExportRow.appendChild(exportProfilesBtn);
+        importExportRow.appendChild(importProfilesBtn);
+
+        menu.appendChild(importExportRow);
+        menu.appendChild(profileFileInput);
         menu.appendChild(buttonContainer);
 
         // Add to body
         if (document.body) {
             document.body.appendChild(menu);
-            log('Config menu created with ZIP import/export');
+            log('Config menu created and added to the body');
         }
 
         return menu;
@@ -6910,7 +7039,7 @@ if (!gl) {
             bugfixes: 'REC.stopRequested evaluated, AUTO.blink reset, null check in updateAutoMatrixInSvg',
             userProfiles: userProfiles.length,
             activeProfile: activeUserProfile?.name,
-            newFeatures: 'Shift+Q profile cycling, 3-second on-screen notification, clean edge detection for anime, ZIP import/export for profiles'
+            newFeatures: 'Shift+Q profile cycling, 3-second on-screen notification, clean edge detection for anime'
         });
 
         document.addEventListener('keydown', (e) => {
