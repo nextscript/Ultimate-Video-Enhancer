@@ -40,12 +40,13 @@ All shortcuts use: CTRL + ALT + key
 <li>CTRL + ALT + V → Toggle Vibrant & Saturated</li>
 <li>CTRL + ALT + P → Toggle HDR</li>
 <li>CTRL + ALT + C → Profile Cycle (Color Grading)</li>
-<li>CTRL + ALT + G → Show/Hide Grading Settings (For User Profile) + Assistive-Recoloring Filters (Experimental) <b style="color:red;">(New)</b></li>
+<li>CTRL + ALT + G → Show/Hide Grading Settings (For User Profile) + Assistive-Recoloring Filters (Experimental) + LUT Profiles <b style="color:red;">(New)</b></li>
 <li>CTRL + ALT + A → Toggle Auto-Scene-Match </li>
 <li>CTRL + ALT + I → Show/Hide Export/Import JSON (Screenshot & Recording) + Debug ON/OFF </li>
 <li>CTRL + ALT + S → Show/Hide Scopes HUD</li>
 <li>CTRL + ALT + X → Toggle GPU Pipeline Mode </li>
 <li>CTRL + ALT + H → Show/Hide the overlay UI (icons + sliders)</li>
+<li>Shift + Q  → Switch profiles from Config menu </b></li>
 <hr>
 Notes:
 <ul>
@@ -142,13 +143,13 @@ The function continuously analyzes the playing video image and calculates optima
 <li>Cannot analyze DRM-protected videos (uses last good values)</li>
 </ul>
 <br>
-<b>Visual feedback:</b><br>
+<b>Visual feedback:</b>
 A small dot in the video shows the status(If debug=true Default: false):
 
-<br>🟢 Green = Active, no changes<br>
-🟢 Light Green = Active and currently adjusting<br>
+🟢 Green = Active, no changes
+🟢 Light Green = Active and currently adjusting
 🔴 Red = No updates (e.g., with DRM)
-<br><p>
+<br>
 <b>Goal:</b>
 Always optimally looking videos without manual intervention – especially useful for changing scenes or different video sources.
 <hr>
@@ -189,13 +190,39 @@ The GPU Pipeline Mode is an alternative rendering mode for maximum performance. 
 <li>Maximum performance with minimal quality loss</li>
 </ul>
 <hr>
-<h2>Assistive-Recoloring Filters (Experimental)<b style="color:red;">(New)</b></h2>
+<h2>Assistive-Recoloring Filters (Experimental)</h2>
 <b>These filters help people with color blindness distinguish colors better:</b>
 <ul>
 <li>Protanopia (Red-Blind): Enhances red-cyan contrast and shifts red tones to more perceptible orange hues</li>
 <li>Deuteranopia (Green-Blind): Enhances green-magenta contrast and shifts green tones to more distinguishable blue hues</li>
 <li>Tritanopia (Blue-Blind): Enhances blue-yellow contrast and optimizes blue tones for better recognition</li>
 </ul>
+<hr>
+<h2>LUT Filter Feature <b style="color:red;">(New)</b></h2>
+<b>LUT Filter System:</b>
+The system converts a tiled 2D LUT PNG (e.g. 512×512) and 3D LUT .cube into a 4×5 row-major color matrix using least-squares approximation.<br>
+The resulting matrix is applied in real-time via feColorMatrix, enabling instant color transformation without page reload.
+<br>
+<b>LUT Profile Manager:</b>
+<ul>
+<li>Unterstützt gekachelte 2D-LUT-PNGs (512×512) und 3D-LUT-.cube-Dateien</li>
+<li>Create, edit, delete</li>
+<li>Export all profiles as ZIP</li>
+<li>Import JSON or ZIP (same-name overwrite)</li>
+</ul>
+<hr>
+<h2>⚙️ Config-Button</b></h2>
+A button in the IO-HUD (which you open with Ctrl+Alt+I) that opens the Profile Manager menu. There you can:
+<ul>
+<li>Create and manage multiple user profiles</li>
+<li>Switch between different profile settings</li>
+<li>Name, save and delete profiles</li>
+<li>See the active profile at a glance</li>
+</ul>
+<b>Only one profile can be active at a time!</b>
+<hr>
+<h2>On-Screen Notification:</h2>
+<b>A brief overlay in the top-left corner of the video that shows which profile is currently active for 3 seconds.(Shift + Q)</b>
 <hr>
 <h2>Recommended starting presets</h2>
 <b>Clean / natural</b>
@@ -219,5 +246,6 @@ The GPU Pipeline Mode is an alternative rendering mode for maximum performance. 
 <h2>My Profile:</h2>
 <b>SVG Mode (Recommended)</b><br>
 <a href="https://raw.githubusercontent.com/nextscript/Globale-Video-Filter-Overlay/refs/heads/main/My_Profile.json" target="_blank">My_Profile.json</a><br>
+<a href="https://raw.githubusercontent.com/nextscript/Globale-Video-Filter-Overlay/refs/heads/main/My_Profile_firefoxFIX.json" target="_blank">My_Profile_firefoxFIX.json</a><br>
 <b>GPU Mode</b><br>
 <a href="https://raw.githubusercontent.com/nextscript/Globale-Video-Filter-Overlay/refs/heads/main/GPU_Mode_Profile.json" target="_blank">GPU_Mode_Profile.json</a>
