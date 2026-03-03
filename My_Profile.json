@@ -13,6 +13,7 @@
   "dn": -0.8,
   "hdr": 0,
   "profile": "user",
+  "lutProfile": "none",
   "renderMode": "svg",
   "gradingHudShown": false,
   "scopesHudShown": false,
@@ -36,9 +37,9 @@
     "gamma": 1.2,
     "grain": -0.8,
     "hue": 0,
-    "r_gain": 130,
+    "r_gain": 128,
     "g_gain": 128,
-    "b_gain": 126
+    "b_gain": 128
   },
   "debug": false,
   "logs": true,
