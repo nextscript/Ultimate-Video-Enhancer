@@ -246,6 +246,5 @@ A button in the IO-HUD (which you open with Ctrl+Alt+I) that opens the Profile M
 <h2>My Profile:</h2>
 <b>SVG Mode (Recommended)</b><br>
 <a href="https://raw.githubusercontent.com/nextscript/Globale-Video-Filter-Overlay/refs/heads/main/My_Profile.json" target="_blank">My_Profile.json</a><br>
-<a href="https://raw.githubusercontent.com/nextscript/Globale-Video-Filter-Overlay/refs/heads/main/My_Profile_firefoxFIX.json" target="_blank">My_Profile_firefoxFIX.json</a><br>
 <b>GPU Mode</b><br>
 <a href="https://raw.githubusercontent.com/nextscript/Globale-Video-Filter-Overlay/refs/heads/main/GPU_Mode_Profile.json" target="_blank">GPU_Mode_Profile.json</a>
