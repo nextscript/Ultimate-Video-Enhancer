@@ -10,7 +10,7 @@
   "sr": 0.8,
   "bl": -0.4,
   "wl": 0.6,
-  "dn": 0,
+  "dn": 0.0,
   "hdr": 0.1,
   "profile": "user",
   "lutProfile": "Cinematic 1",
