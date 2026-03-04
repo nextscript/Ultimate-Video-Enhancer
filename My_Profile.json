@@ -3,19 +3,19 @@
   "ver": "1.10",
   "enabled": false,
   "darkMoody": true,
-  "tealOrange": false,
+  "tealOrange": true,
   "vibrantSat": false,
   "iconsShown": false,
   "sl": 1.1,
   "sr": 0.8,
   "bl": -0.4,
   "wl": 0.6,
-  "dn": 0.0,
+  "dn": 0,
   "hdr": 0.1,
   "profile": "user",
-  "lutProfile": "Cinematic 1",
+  "lutProfile": "Fresh LUTs||Cinematic 1",
   "renderMode": "svg",
-  "gradingHudShown": false,
+  "gradingHudShown": true,
   "scopesHudShown": false,
   "autoOn": true,
   "autoStrength": 0.5,
@@ -23,7 +23,7 @@
   "adaptiveFps": {
     "min": 2,
     "max": 10,
-    "current": 3.5
+    "current": 2.5
   },
   "user": {
     "contrast": 1.9,
