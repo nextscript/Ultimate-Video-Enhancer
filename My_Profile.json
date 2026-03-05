@@ -15,7 +15,7 @@
   "profile": "user",
   "lutProfile": "Fresh LUTs||Cinematic 1",
   "renderMode": "svg",
-  "gradingHudShown": true,
+  "gradingHudShown": false,
   "scopesHudShown": false,
   "autoOn": true,
   "autoStrength": 0.5,
