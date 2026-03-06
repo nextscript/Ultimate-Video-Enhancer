@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name         Global Video Filter Overlay
-// @name:de      Globale Video Filter Overlay
+// @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.7.0
+// @version      1.7.1
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
-// @description:de  Globale Video Filter Overlay verbessert jedes HTML5-Video in Ihrem Browser mit Echtzeit-Farbkorrektur, Schärfung, HDR und LUTs. Es bietet sofortiges Profilwechseln und Steuerelemente direkt im Video, um die Bildqualität ohne Neucodierung oder Downloads zu verbessern.
+// @description:de  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @match        *://*/*
 // @run-at       document-idle
 // @grant        GM_getValue
@@ -53,7 +53,7 @@
     // Throttling for less computationally intensive operations
     // -------------------------
     let lastRenderTime = 0;
-    const RENDER_THROTTLE = 33; // ~30 FPS cap to reduce GPU load // ~60fps
+    const RENDER_THROTTLE = 41; // ~24 FPS cap to reduce GPU load
 
     function throttledRender(timestamp) {
         if (timestamp - lastRenderTime >= RENDER_THROTTLE) {
@@ -61,6 +61,58 @@
             render();
         }
         requestAnimationFrame(throttledRender);
+    }
+
+    function isVideoRenderable(video) {
+        if (!video) return false;
+        if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return false;
+        if (video.paused || video.ended) return false;
+        const cs = window.getComputedStyle(video);
+        if (!cs || cs.display === 'none' || cs.visibility === 'hidden') return false;
+        const r = video.getBoundingClientRect();
+        if (!r || r.width < 40 || r.height < 40) return false;
+        if (r.bottom <= 0 || r.right <= 0) return false;
+        if (r.top >= (window.innerHeight || 0) || r.left >= (window.innerWidth || 0)) return false;
+        return true;
+    }
+
+    function isHudHostTabActive() {
+        try {
+            if (document.hidden) return false;
+            if (document.visibilityState && document.visibilityState !== 'visible') return false;
+            if (typeof document.hasFocus === 'function' && !document.hasFocus()) return false;
+        } catch (_) { }
+        return true;
+    }
+
+    function isHudVideoVisible(video) {
+        if (!video) return false;
+        if (!isHudHostTabActive()) return false;
+        if (video.readyState < 1) return false;
+        const cs = window.getComputedStyle(video);
+        if (!cs || cs.display === 'none' || cs.visibility === 'hidden') return false;
+        const r = video.getBoundingClientRect();
+        if (!r || r.width < 40 || r.height < 40) return false;
+        if (r.bottom <= 0 || r.right <= 0) return false;
+        if (r.top >= (window.innerHeight || 0) || r.left >= (window.innerWidth || 0)) return false;
+        return true;
+    }
+
+    function getHudPrimaryVideo() {
+        if (!isHudHostTabActive()) return null;
+        const videos = Array.from(document.querySelectorAll('video'));
+        let best = null;
+        let bestArea = 0;
+        for (const video of videos) {
+            if (!isHudVideoVisible(video)) continue;
+            const r = video.getBoundingClientRect();
+            const area = Math.max(0, r.width) * Math.max(0, r.height);
+            if (area > bestArea) {
+                bestArea = area;
+                best = video;
+            }
+        }
+        return best;
     }
 
     // -------------------------
@@ -211,7 +263,7 @@
     let lutSelectEl = null;
     let refreshLutDropdownFn = null;
 
-    // Standard-User-Profile
+    // Default user profile
     const DEFAULT_USER_PROFILE = {
         id: 'default',
         name: 'Default',
@@ -1563,12 +1615,41 @@ function downloadBlob(blob, filename) {
         }, 3000);
     }
 
+    let _autoSaveProfileTimer = null;
+    let _autoSaveProfileReason = '';
+
     function updateCurrentProfileSettings() {
         if (!activeUserProfile) return;
 
         const currentSettings = getCurrentSettings();
         activeUserProfile.settings = { ...currentSettings };
+        activeUserProfile.updatedAt = Date.now();
         saveUserProfiles();
+    }
+
+    function scheduleAutoSaveCurrentProfile(reason = '') {
+        if (!activeUserProfile || _suspendSync) return;
+
+        _autoSaveProfileReason = String(reason || '').trim();
+
+        if (_autoSaveProfileTimer) {
+            clearTimeout(_autoSaveProfileTimer);
+        }
+
+        _autoSaveProfileTimer = setTimeout(() => {
+            _autoSaveProfileTimer = null;
+            try {
+                updateCurrentProfileSettings();
+                const activeInfo = document.getElementById('gvf-active-profile-info');
+                if (activeInfo && activeUserProfile) {
+                    const suffix = _autoSaveProfileReason ? ` • auto-saved (${_autoSaveProfileReason})` : ' • auto-saved';
+                    activeInfo.title = `Active profile: ${activeUserProfile.name}${suffix}`;
+                }
+                log('User profile auto-saved:', activeUserProfile && activeUserProfile.name ? activeUserProfile.name : 'unknown', _autoSaveProfileReason || 'change');
+            } catch (e) {
+                logW('User profile auto-save failed:', e);
+            }
+        }, 180);
     }
 
     function getCurrentSettings() {
@@ -2898,6 +2979,74 @@ function downloadBlob(blob, filename) {
                 black: 0.0,
                 white: 1.0
             };
+
+            // HDR startup smoothing / GPU protection
+            this.hdrWarmupUntil = 0;
+            this.hdrWarmupDurationMs = 2200;
+            this.hdrStartDelayUntil = 0;
+            this.hdrStartDelayMs = 650;
+            this._boundWarmupHandler = null;
+            this._boundVisibilityHandler = null;
+        }
+
+        markHdrWarmup(durationMs) {
+            const now = nowMs();
+            const ms = Math.max(700, Number(durationMs) || this.hdrWarmupDurationMs || 2200);
+            this.hdrStartDelayUntil = now + Math.max(250, this.hdrStartDelayMs || 650);
+            this.hdrWarmupUntil = this.hdrStartDelayUntil + ms;
+        }
+
+        getHdrWarmupFactor() {
+            const hdrTarget = Math.max(0, Number(normHDR()) || 0);
+            if (hdrTarget <= 0.0001) return 1.0;
+
+            const now = nowMs();
+            if (this.hdrStartDelayUntil > now) return 0.0;
+
+            const left = this.hdrWarmupUntil - now;
+            if (left <= 0) return 1.0;
+
+            const dur = Math.max(700, this.hdrWarmupDurationMs || 2200);
+            const progress = clamp(1 - (left / dur), 0, 1);
+
+            // Very soft HDR ramp to avoid start spikes and sustained GPU overload.
+            return clamp(progress * progress * 0.9, 0.0, 0.9);
+        }
+
+        bindHdrWarmupEvents(video) {
+            if (!video) return;
+            if (this._boundWarmupHandler) return;
+
+            const warm = () => {
+                if ((Number(normHDR()) || 0) > 0.0001) {
+                    this.markHdrWarmup();
+                }
+            };
+
+            this._boundWarmupHandler = warm;
+            ['play', 'playing', 'seeking', 'seeked', 'loadeddata', 'canplay'].forEach((evt) => {
+                try { video.addEventListener(evt, warm, true); } catch (_) { }
+            });
+
+            this._boundVisibilityHandler = () => {
+                if (!document.hidden && video && !video.paused && (Number(normHDR()) || 0) > 0.0001) {
+                    this.markHdrWarmup(900);
+                }
+            };
+            try { document.addEventListener('visibilitychange', this._boundVisibilityHandler, true); } catch (_) { }
+        }
+
+        unbindHdrWarmupEvents(video) {
+            if (video && this._boundWarmupHandler) {
+                ['play', 'playing', 'seeking', 'seeked', 'loadeddata', 'canplay'].forEach((evt) => {
+                    try { video.removeEventListener(evt, this._boundWarmupHandler, true); } catch (_) { }
+                });
+            }
+            if (this._boundVisibilityHandler) {
+                try { document.removeEventListener('visibilitychange', this._boundVisibilityHandler, true); } catch (_) { }
+            }
+            this._boundWarmupHandler = null;
+            this._boundVisibilityHandler = null;
         }
 
         init() {
@@ -2914,7 +3063,7 @@ function downloadBlob(blob, filename) {
                 let gl = this.canvas.getContext('webgl2', {
                     alpha: false,
                     antialias: false,
-                    preserveDrawingBuffer: true,
+                    preserveDrawingBuffer: false,
                     powerPreference: 'high-performance'
                 });
 
@@ -2922,10 +3071,11 @@ function downloadBlob(blob, filename) {
                     gl = this.canvas.getContext('webgl', {
                         alpha: false,
                         antialias: false,
-                        preserveDrawingBuffer: true
+                        preserveDrawingBuffer: false
                     }) || this.canvas.getContext('experimental-webgl', {
                         alpha: false,
-                        antialias: false
+                        antialias: false,
+                        preserveDrawingBuffer: false
                     });
                 }
 
@@ -3226,6 +3376,8 @@ if (!gl) {
             }
 
             this.video = video;
+            this.bindHdrWarmupEvents(video);
+            this.markHdrWarmup();
 
             // Save original position in DOM
             this.originalParent = video.parentNode;
@@ -3319,6 +3471,15 @@ if (!gl) {
             }
             let hueRad = hue * Math.PI / 180;
 
+            const hdrWarmupFactor = this.getHdrWarmupFactor();
+            const activeVisibleVideos = this.getActiveRenderableVideoCount();
+            let effectiveHdr = clamp(hdrVal, -1.0, 2.0);
+            if (effectiveHdr > 0) {
+                // Clamp HDR intensity in GPU mode so the shader does not run at the most expensive path.
+                effectiveHdr = Math.min(effectiveHdr, activeVisibleVideos >= 2 ? 0.42 : 0.65);
+                effectiveHdr *= hdrWarmupFactor;
+            }
+
             this.params = {
                 contrast: clamp(contrast, 0.5, 2.0),
                 saturation: clamp(saturation, 0.0, 3.0),
@@ -3327,7 +3488,7 @@ if (!gl) {
                 gamma: clamp(gamma, 0.5, 2.0),
                 grain: clamp(grain, 0.0, 0.5),
                 vibrance: clamp(vibrance, 0.0, 2.0),
-                hdr: clamp(hdrVal, -1.0, 2.0),
+                hdr: effectiveHdr,
                 rGain: clamp(rGain, 0.0, 2.0),
                 gGain: clamp(gGain, 0.0, 2.0),
                 bGain: clamp(bGain, 0.0, 2.0),
@@ -3339,6 +3500,66 @@ if (!gl) {
             if (LOG.on && (performance.now() - LOG.lastTickMs) > 5000) {
                 log('RGB Gain:', this.params.rGain.toFixed(2), this.params.gGain.toFixed(2), this.params.bGain.toFixed(2));
             }
+        }
+
+        getActiveRenderableVideoCount() {
+            try {
+                return Array.from(document.querySelectorAll('video')).filter(v => isVideoRenderable(v)).length;
+            } catch (_) {
+                return 1;
+            }
+        }
+
+        getRenderThrottleMs() {
+            const hdrActive = normHDR() > 0.0001;
+            const activeVisibleVideos = this.getActiveRenderableVideoCount();
+            const hdrWarmupFactor = this.getHdrWarmupFactor();
+            let throttle = RENDER_THROTTLE;
+
+            if (activeVisibleVideos >= 2) throttle = Math.max(throttle, 60);
+
+            if (hdrActive) {
+                throttle = Math.max(throttle, 95);
+                if (activeVisibleVideos >= 2) throttle = Math.max(throttle, 145);
+                if (hdrWarmupFactor < 0.999) throttle = Math.max(throttle, activeVisibleVideos >= 2 ? 185 : 150);
+                if (this.hdrStartDelayUntil > nowMs()) throttle = Math.max(throttle, activeVisibleVideos >= 2 ? 210 : 170);
+            }
+
+            return throttle;
+        }
+
+        getRenderScale(srcWidth, srcHeight) {
+            const hdrActive = normHDR() > 0.0001;
+            const activeVisibleVideos = this.getActiveRenderableVideoCount();
+            const pixelCount = Math.max(1, (srcWidth || 0) * (srcHeight || 0));
+            const hdrWarmupFactor = this.getHdrWarmupFactor();
+
+            let scale = 1.0;
+
+            if (hdrActive) scale = Math.min(scale, 0.56);
+            if (pixelCount >= (2560 * 1440)) scale = Math.min(scale, hdrActive ? 0.38 : 0.82);
+            else if (pixelCount >= (1920 * 1080)) scale = Math.min(scale, hdrActive ? 0.46 : 0.9);
+            else if (pixelCount >= (1280 * 720)) scale = Math.min(scale, hdrActive ? 0.54 : 0.95);
+
+            if (activeVisibleVideos >= 2) scale = Math.min(scale, hdrActive ? 0.34 : 0.8);
+
+            if (hdrActive) {
+                if (this.hdrStartDelayUntil > nowMs()) {
+                    scale = Math.min(scale, activeVisibleVideos >= 2 ? 0.28 : 0.34);
+                } else if (hdrWarmupFactor < 0.999) {
+                    const startupScale = activeVisibleVideos >= 2 ? 0.30 : 0.36;
+                    scale = Math.min(scale, startupScale + (0.14 * hdrWarmupFactor));
+                }
+            }
+
+            return clamp(scale, 0.28, 1.0);
+        }
+
+        shouldRenderNow() {
+            if (!this.active || !this.video) return false;
+            if (document.hidden) return false;
+            if (!isVideoRenderable(this.video)) return false;
+            return true;
         }
 
         render() {
@@ -3354,13 +3575,16 @@ if (!gl) {
             try {
                 const width = video.videoWidth;
                 const height = video.videoHeight;
+                const renderScale = this.getRenderScale(width, height);
+                const targetWidth = Math.max(2, Math.round(width * renderScale));
+                const targetHeight = Math.max(2, Math.round(height * renderScale));
 
-                if (this.canvas.width !== width || this.canvas.height !== height) {
-                    this.canvas.width = width;
-                    this.canvas.height = height;
-                    gl.viewport(0, 0, width, height);
+                if (this.canvas.width !== targetWidth || this.canvas.height !== targetHeight) {
+                    this.canvas.width = targetWidth;
+                    this.canvas.height = targetHeight;
+                    gl.viewport(0, 0, targetWidth, targetHeight);
                     if (this.uResolution) {
-                        gl.uniform2f(this.uResolution, width, height);
+                        gl.uniform2f(this.uResolution, targetWidth, targetHeight);
                     }
                 }
 
@@ -3424,29 +3648,18 @@ if (!gl) {
         }
 
         startRenderLoop() {
-            // Reduce GPU usage:
-            // - Cap rendering to ~30 FPS (RENDER_THROTTLE)
-            // - Render only when the video is playing and the tab is visible
-            // - Prefer requestVideoFrameCallback when available (ties work to decoded frames)
             this.stopRenderLoop();
 
             const canRVFC = this.video && typeof this.video.requestVideoFrameCallback === 'function';
-            const shouldRenderNow = () => {
-                if (!this.active || !this.video) return false;
-                if (document.hidden) return false;
-                if (this.video.paused || this.video.ended) return false;
-                if (this.video.readyState < 2) return false;
-                return true;
-            };
 
             if (canRVFC) {
                 const onFrame = (now) => {
                     if (!this.active || !this.video) { this.rafId = null; return; }
-                    if (shouldRenderNow() && (now - lastRenderTime >= RENDER_THROTTLE)) {
+                    const throttle = this.getRenderThrottleMs();
+                    if (this.shouldRenderNow() && (now - lastRenderTime >= throttle)) {
                         lastRenderTime = now;
                         this.render();
                     }
-                    // Schedule next decoded frame callback
                     this.rafId = this.video.requestVideoFrameCallback(onFrame);
                 };
                 this.rafId = this.video.requestVideoFrameCallback(onFrame);
@@ -3455,7 +3668,8 @@ if (!gl) {
 
             const loop = (timestamp) => {
                 if (!this.active || !this.video) { this.rafId = null; return; }
-                if (shouldRenderNow() && (timestamp - lastRenderTime >= RENDER_THROTTLE)) {
+                const throttle = this.getRenderThrottleMs();
+                if (this.shouldRenderNow() && (timestamp - lastRenderTime >= throttle)) {
                     lastRenderTime = timestamp;
                     this.render();
                 }
@@ -3480,6 +3694,7 @@ if (!gl) {
         shutdown() {
             this.active = false;
             this.stopRenderLoop();
+            this.unbindHdrWarmupEvents(this.video);
 
 // Restore original video
             if (this.video && this.originalParent) {
@@ -3603,7 +3818,7 @@ if (!gl) {
             filters.push('brightness(1.01) contrast(1.08) saturate(1.08)');
         } else if (profile === 'anime') {
             filters.push('brightness(1.03) contrast(1.10) saturate(1.16)');
-            // SANFTE CSS-Filter für GPU-Modus (keine Flecken)
+            // Soft CSS filters for GPU mode (avoid artifacts)
             filters.push('contrast(1.15) brightness(0.98)');
         } else if (profile === 'gaming') {
             filters.push('brightness(1.01) contrast(1.12) saturate(1.06)');
@@ -4449,7 +4664,7 @@ if (!gl) {
         header.appendChild(closeBtn);
         menu.appendChild(header);
 
-        // Aktives Profil anzeigen
+        // Show active profile
         const activeInfo = document.createElement('div');
         activeInfo.id = 'gvf-active-profile-info';
         activeInfo.style.cssText = `
@@ -4788,7 +5003,7 @@ if (!gl) {
                 }
             });
 
-            // Profil-Info
+            // Profile info
             const info = document.createElement('div');
             info.style.cssText = `
                 display: flex;
@@ -6588,7 +6803,7 @@ const fileInput = document.createElement('input');
 
         overlay.appendChild(box);
 
-        // Direkt zum body hinzufügen
+        // Append directly to the body
         if (document.body) {
             document.body.appendChild(overlay);
             log('IO overlay created and added to the body');
@@ -7829,6 +8044,7 @@ if ('lutProfile' in obj) {
         ensureOverlays();
 
         const primary = choosePrimaryVideo();
+        const hudPrimary = getHudPrimaryVideo();
 
         document.querySelectorAll('video').forEach(v => {
             const oMain = overlaysMain.get(v);
@@ -7836,28 +8052,43 @@ if ('lutProfile' in obj) {
             const oIO = overlaysIO.get(v);
             const oScopes = overlaysScopes.get(v);
             const oDot = overlaysAutoDot.get(v);
+            const visible = isVideoRenderable(v);
+            const hudVisible = isHudVideoVisible(v);
 
             if (oMain) {
                 updateMainOverlayState(oMain);
-                if (iconsShown) positionOverlayAt(v, oMain, 10, 10);
+                if (iconsShown && hudVisible && hudPrimary === v) positionOverlayAt(v, oMain, 10, 10);
+                else oMain.style.display = 'none';
             }
             if (oGr) {
-                updateGradingOverlayState(oGr);
-                if (gradingHudShown) positionOverlayAt(v, oGr, 10, 10 + 280);
+                if (gradingHudShown && hudVisible && hudPrimary === v) {
+                    updateGradingOverlayState(oGr);
+                    positionOverlayAt(v, oGr, 10, 10 + 280);
+                } else {
+                    oGr.style.display = 'none';
+                }
             }
             if (oIO) {
-                updateIOOverlayState(oIO);
-                if (ioHudShown) positionOverlayAt(v, oIO, 10, 10 + 560);
+                if (ioHudShown && hudVisible && hudPrimary === v) {
+                    updateIOOverlayState(oIO);
+                    positionOverlayAt(v, oIO, 10, 10 + 560);
+                } else {
+                    oIO.style.display = 'none';
+                }
             }
             if (oScopes) {
-                updateScopesOverlayState(oScopes);
-                if (scopesHudShown) positionOverlayAt(v, oScopes, 10, 10);
+                if (scopesHudShown && hudVisible && hudPrimary === v) {
+                    updateScopesOverlayState(oScopes);
+                    positionOverlayAt(v, oScopes, 10, 10);
+                } else {
+                    oScopes.style.display = 'none';
+                }
             }
 
             if (oDot) {
                 applyAutoDotStyle(oDot);
 
-                if (!debug || !autoOn || !primary || v !== primary) {
+                if (!debug || !autoOn || !primary || v !== primary || !visible) {
                     oDot.style.display = 'none';
                 } else {
                     positionOverlayAt(v, oDot, 10, 10);
@@ -7885,6 +8116,10 @@ if ('lutProfile' in obj) {
         }
         scheduleOverlayUpdate();
     }
+
+    document.addEventListener('visibilitychange', scheduleOverlayUpdate, { passive: true });
+    window.addEventListener('focus', scheduleOverlayUpdate, { passive: true });
+    window.addEventListener('blur', scheduleOverlayUpdate, { passive: true });
 
     function mkGamma(ch, amp, exp, off) {
         const f = document.createElementNS(svgNS, ch);
@@ -8655,7 +8890,41 @@ if ('lutProfile' in obj) {
     }
 
     function listenGlobalSync() {
-        const sync = () => {
+        const profileAutoSaveKeys = new Set([
+            K.enabled,
+            K.moody,
+            K.teal,
+            K.vib,
+            K.SL,
+            K.SR,
+            K.BL,
+            K.WL,
+            K.DN,
+            K.HDR,
+            K.PROF,
+            K.RENDER_MODE,
+            K.AUTO_ON,
+            K.AUTO_STRENGTH,
+            K.AUTO_LOCK_WB,
+            K.U_CONTRAST,
+            K.U_BLACK,
+            K.U_WHITE,
+            K.U_HIGHLIGHTS,
+            K.U_SHADOWS,
+            K.U_SAT,
+            K.U_VIB,
+            K.U_SHARP,
+            K.U_GAMMA,
+            K.U_GRAIN,
+            K.U_HUE,
+            K.U_R_GAIN,
+            K.U_G_GAIN,
+            K.U_B_GAIN,
+            K.CB_FILTER,
+            K.LUT_ACTIVE_PROFILE
+        ]);
+
+        const sync = (changedKey) => {
             if (_suspendSync) return;
 
             _inSync = true;
@@ -8719,13 +8988,21 @@ if ('lutProfile' in obj) {
                     regenerateSvgImmediately();
                 }
                 scheduleOverlayUpdate();
+
+                if (profileAutoSaveKeys.has(changedKey)) {
+                    scheduleAutoSaveCurrentProfile(String(changedKey || 'setting change'));
+                }
             } finally {
                 _inSync = false;
             }
         };
 
         Object.values(K).forEach(key => {
-            try { GM_addValueChangeListener(key, sync); } catch (_) { }
+            try {
+                GM_addValueChangeListener(key, function() {
+                    sync(key);
+                });
+            } catch (_) { }
         });
     }
 
