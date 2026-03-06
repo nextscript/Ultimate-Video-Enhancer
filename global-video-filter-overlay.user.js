@@ -2655,7 +2655,7 @@ function downloadBlob(blob, filename) {
     function normBL() { return snap0(roundTo(clamp(Number(bl) || 0, -2, 2), 0.1), 0.05); }
     function normWL() { return snap0(roundTo(clamp(Number(wl) || 0, -2, 2), 0.1), 0.05); }
     function normDN() { return snap0(roundTo(clamp(Number(dn) || 0, -1.5, 1.5), 0.1), 0.05); }
-    function normHDR() { return snap0(roundTo(clamp(Number(hdr) || 0, -1.0, 2.0), 0.1), 0.05); }
+    function normHDR() { return snap0(roundTo(clamp(Number(hdr) || 0, -1.0, 2.0), 0.01), 0.005); }
     function normU(v) { return roundTo(clamp(Number(v) || 0, -10, 10), 0.1); }
     function uDelta(v) { return normU(v); }
     function normRGB(v) { return clamp(Math.round(Number(v) || 128), 0, 255); }
@@ -3245,15 +3245,22 @@ if (!gl) {
                     color.g = pow(color.g, gInv);
                     color.b = pow(color.b, gInv);
 
-                    // HDR (WebGL HDR-like: linear-light + ACES tonemapping)
+                    // HDR (WebGL HDR-like: linear-light + exposure lift + ACES tonemapping)
                     float hdr = clampFast(uParams2.w, 0.0, 1.0);
                     if (hdr > 0.0001) {
-                        // Interpret hdr as exposure-strength (0..1) mapped to up to +1.5 stops
+                        // Keep the low-end response soft, but make exposure changes visibly affect the image.
                         vec3 lin = srgbToLinear(color);
-                        float exposure = pow(2.0, hdr * 1.5);
-                        lin *= exposure;
+                        float sceneLuma = dot(lin, LUMA);
+                        float hdrCurve = pow(hdr, 1.85);
+                        float exposureStops = hdrCurve * 1.10;
+                        float exposure = pow(2.0, exposureStops);
+                        float shadowMask = 1.0 - clampFast(sceneLuma * 2.25, 0.0, 1.0);
+                        float shadowLift = 1.0 + hdrCurve * 0.85 * shadowMask;
+                        lin *= exposure * shadowLift;
                         lin = tonemapACES(lin);
                         color = linearToSrgb(lin);
+                        float postLift = 1.0 + hdrCurve * 0.14;
+                        color = clamp(color * postLift, 0.0, 1.0);
                     }
                     // Grain
                     float noise = fract(sin(vTexCoord.x * 12.9898 + vTexCoord.y * 78.233) * 43758.5453);
@@ -6110,7 +6117,7 @@ const fileInput = document.createElement('input');
 
             rng.addEventListener('input', () => {
                 let v = clamp(parseFloat(rng.value), min, max);
-                if (snapZero) v = snap0(v, 0.05);
+                if (snapZero) v = snap0(v, Math.max(0.005, Number(step) / 2));
                 v = roundTo(v, step);
 
                 setVal(v);
@@ -6141,7 +6148,7 @@ const fileInput = document.createElement('input');
         overlay.appendChild(mkSliderRow('BL', 'BL', -2, 2, 0.1, () => normBL(), (v) => { bl = v; }, K.BL, true));
         overlay.appendChild(mkSliderRow('WL', 'WL', -2, 2, 0.1, () => normWL(), (v) => { wl = v; }, K.WL, true));
         overlay.appendChild(mkSliderRow('DN', 'DN', -1.5, 1.5, 0.1, () => normDN(), (v) => { dn = v; }, K.DN, true));
-        overlay.appendChild(mkSliderRow('HDR', 'HDR', -1.0, 2.0, 0.1, () => normHDR(), (v) => { hdr = v; }, K.HDR, true));
+        overlay.appendChild(mkSliderRow('HDR', 'HDR', -1.0, 2.0, 0.01, () => normHDR(), (v) => { hdr = v; }, K.HDR, true, v => Number(v).toFixed(2)));
 
         (document.body || document.documentElement).appendChild(overlay);
         return overlay;
@@ -7219,7 +7226,7 @@ const fileInput = document.createElement('input');
             wl: nFix(normWL(), 1),
             dn: nFix(normDN(), 1),
 
-            hdr: nFix(normHDR(), 1),
+            hdr: nFix(normHDR(), 2),
             profile: String(profile),
             lutProfile: String((typeof activeLutProfileKey==='string' && activeLutProfileKey.trim()) ? activeLutProfileKey.trim() : 'none'),
             renderMode: String(renderMode),
@@ -7777,7 +7784,7 @@ if ('lutProfile' in obj) {
             const r = overlay.querySelector(`[data-gvf-range="${cssEscape(name)}"]`);
             const t = overlay.querySelector(`[data-gvf-val="${cssEscape(name)}"]`);
             if (r) r.value = String(v);
-            if (t) t.textContent = Number(v).toFixed(1);
+            if (t) t.textContent = name === 'HDR' ? Number(v).toFixed(2) : Number(v).toFixed(1);
         };
 
         setPair('SL', normSL());
@@ -8712,7 +8719,7 @@ if ('lutProfile' in obj) {
         const BL = Number(normBL().toFixed(1));
         const WL = Number(normWL().toFixed(1));
         const DN = Number(normDN().toFixed(1));
-        const HDR = Number(normHDR().toFixed(1));
+        const HDR = Number(normHDR().toFixed(2));
         const P = (profile || 'off');
         const CB = cbFilter;
 
@@ -9217,7 +9224,7 @@ if ('lutProfile' in obj) {
                 if (cur === 0) {
                     const last = Number(gmGet(K.HDR_LAST, 0.3));
                     hdr = clamp(last || 1.2, -1.0, 2.0);
-                    logToggle('HDR (Ctrl+Alt+P)', true, `value=${normHDR().toFixed(1)}`);
+                    logToggle('HDR (Ctrl+Alt+P)', true, `value=${normHDR().toFixed(2)}`);
                 } else {
                     gmSet(K.HDR_LAST, cur);
                     hdr = 0;
