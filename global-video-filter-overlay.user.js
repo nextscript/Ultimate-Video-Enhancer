@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.7.2
+// @version      1.7.3
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @match        *://*/*
@@ -6818,6 +6818,7 @@ const fileInput = document.createElement('input');
                     sl: 1.3, sr: -1.1, bl: 0.3, wl: 0.2, dn: 0.6,
                     hdr: 0.0, profile: 'off',
                     gradingHudShown: false,
+                    ioHudShown: false,
                     renderMode: 'svg',
             lutProfile: 'none',
                     autoOn: true,
@@ -6838,6 +6839,7 @@ const fileInput = document.createElement('input');
                     sl: 1.0, sr: 0.5, bl: -1.2, wl: 0.2, dn: -0.6,
                     hdr: 0.0, profile: 'user',
                     gradingHudShown: false,
+                    ioHudShown: false,
                     renderMode: 'svg',
             lutProfile: 'none',
                     autoOn: true,
@@ -7313,6 +7315,7 @@ const fileInput = document.createElement('input');
             renderMode: String(renderMode),
 
             gradingHudShown: !!gradingHudShown,
+            ioHudShown: !!ioHudShown,
             scopesHudShown: !!scopesHudShown,
 
             autoOn: !!autoOn,
@@ -7382,6 +7385,7 @@ const fileInput = document.createElement('input');
             }
 
             if ('gradingHudShown' in obj) gradingHudShown = !!obj.gradingHudShown;
+            if ('ioHudShown' in obj) ioHudShown = !!obj.ioHudShown;
             if ('scopesHudShown' in obj) scopesHudShown = !!obj.scopesHudShown;
 
             if ('autoOn' in obj) autoOn = !!obj.autoOn;
