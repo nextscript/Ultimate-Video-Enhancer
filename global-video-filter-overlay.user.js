@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.7.3
+// @version      1.7.4
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @match        *://*/*
@@ -2727,11 +2727,11 @@ function downloadBlob(blob, filename) {
 
     const HK = { base: 'b', moody: 'd', teal: 'o', vib: 'v', icons: 'h' };
 
-    function normSL() { return snap0(roundTo(clamp(Number(sl) || 0, -2, 2), 0.1), 0.05); }
-    function normSR() { return snap0(roundTo(clamp(Number(sr) || 0, -2, 2), 0.1), 0.05); }
-    function normBL() { return snap0(roundTo(clamp(Number(bl) || 0, -2, 2), 0.1), 0.05); }
-    function normWL() { return snap0(roundTo(clamp(Number(wl) || 0, -2, 2), 0.1), 0.05); }
-    function normDN() { return snap0(roundTo(clamp(Number(dn) || 0, -1.5, 1.5), 0.1), 0.05); }
+    function normSL() { return snap0(roundTo(clamp(Number(sl) || 0, -2, 2), 0.01), 0.005); }
+    function normSR() { return snap0(roundTo(clamp(Number(sr) || 0, -2, 2), 0.01), 0.005); }
+    function normBL() { return snap0(roundTo(clamp(Number(bl) || 0, -2, 2), 0.01), 0.005); }
+    function normWL() { return snap0(roundTo(clamp(Number(wl) || 0, -2, 2), 0.01), 0.005); }
+    function normDN() { return snap0(roundTo(clamp(Number(dn) || 0, -1.5, 1.5), 0.01), 0.005); }
     function normHDR() { return snap0(roundTo(clamp(Number(hdr) || 0, -1.0, 2.0), 0.01), 0.005); }
     function normU(v) { return roundTo(clamp(Number(v) || 0, -10, 10), 0.1); }
     function uDelta(v) { return normU(v); }
@@ -6224,11 +6224,11 @@ const fileInput = document.createElement('input');
             return wrap;
         };
 
-        overlay.appendChild(mkSliderRow('SL', 'SL', -2, 2, 0.1, () => normSL(), (v) => { sl = v; }, K.SL, true));
-        overlay.appendChild(mkSliderRow('SR', 'SR', -2, 2, 0.1, () => normSR(), (v) => { sr = v; }, K.SR, true));
-        overlay.appendChild(mkSliderRow('BL', 'BL', -2, 2, 0.1, () => normBL(), (v) => { bl = v; }, K.BL, true));
-        overlay.appendChild(mkSliderRow('WL', 'WL', -2, 2, 0.1, () => normWL(), (v) => { wl = v; }, K.WL, true));
-        overlay.appendChild(mkSliderRow('DN', 'DN', -1.5, 1.5, 0.1, () => normDN(), (v) => { dn = v; }, K.DN, true));
+        overlay.appendChild(mkSliderRow('SL', 'SL', -2, 2, 0.01, () => normSL(), (v) => { sl = v; }, K.SL, true, v => Number(v).toFixed(2)));
+        overlay.appendChild(mkSliderRow('SR', 'SR', -2, 2, 0.01, () => normSR(), (v) => { sr = v; }, K.SR, true, v => Number(v).toFixed(2)));
+        overlay.appendChild(mkSliderRow('BL', 'BL', -2, 2, 0.01, () => normBL(), (v) => { bl = v; }, K.BL, true, v => Number(v).toFixed(2)));
+        overlay.appendChild(mkSliderRow('WL', 'WL', -2, 2, 0.01, () => normWL(), (v) => { wl = v; }, K.WL, true, v => Number(v).toFixed(2)));
+        overlay.appendChild(mkSliderRow('DN', 'DN', -1.5, 1.5, 0.01, () => normDN(), (v) => { dn = v; }, K.DN, true, v => Number(v).toFixed(2)));
         overlay.appendChild(mkSliderRow('HDR', 'HDR', -1.0, 2.0, 0.01, () => normHDR(), (v) => { hdr = v; }, K.HDR, true, v => Number(v).toFixed(2)));
 
         (document.body || document.documentElement).appendChild(overlay);
@@ -7869,7 +7869,7 @@ if ('lutProfile' in obj) {
             const r = overlay.querySelector(`[data-gvf-range="${cssEscape(name)}"]`);
             const t = overlay.querySelector(`[data-gvf-val="${cssEscape(name)}"]`);
             if (r) r.value = String(v);
-            if (t) t.textContent = name === 'HDR' ? Number(v).toFixed(2) : Number(v).toFixed(1);
+            if (t) t.textContent = Number(v).toFixed(2);
         };
 
         setPair('SL', normSL());
