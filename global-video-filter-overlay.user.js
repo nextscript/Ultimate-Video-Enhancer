@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.7.5
+// @version      1.7.6
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @match        *://*/*
@@ -144,6 +144,7 @@
         BL: 'gvf_bl',
         WL: 'gvf_wl',
         DN: 'gvf_dn',
+        EDGE: 'gvf_edge',
 
         HDR: 'gvf_hdr',
         HDR_LAST: 'gvf_hdr_last',
@@ -186,6 +187,7 @@
         // Profile Management
         ACTIVE_USER_PROFILE: 'gvf_active_user_profile',
         USER_PROFILES: 'gvf_user_profiles',
+        USER_PROFILES_REV: 'gvf_user_profiles_rev',
 
         // LUT Profile Management
         LUT_ACTIVE_PROFILE: 'gvf_lut_active_profile',
@@ -278,7 +280,8 @@
             sr: 0.5,
             bl: -1.2,
             wl: 0.2,
-            dn: -0.6,
+            dn: 0.0,
+            edge: 0.3,
             hdr: 0.0,
             profile: 'user',
             renderMode: 'svg',
@@ -318,7 +321,8 @@
             sr: -1.1,
             bl: 0.3,
             wl: 0.2,
-            dn: 0.6,
+            dn: 0.0,
+            edge: 0.0,
             hdr: 0.0,
             profile: 'off',
             renderMode: 'svg',
@@ -384,9 +388,29 @@
         }
     }
 
-    function writeUserProfilesToLocalStorage(profiles, activeId) {
+    function writeUserProfilesToLocalStorage(profiles, activeId, rev) {
         try { localStorage.setItem(K.USER_PROFILES, JSON.stringify(profiles)); } catch (_) { }
         try { localStorage.setItem(K.ACTIVE_USER_PROFILE, String(activeId || 'default')); } catch (_) { }
+        try { localStorage.setItem(K.USER_PROFILES_REV, String(Number(rev || Date.now()) || Date.now())); } catch (_) { }
+    }
+
+    function readUserProfilesRevFromLocalStorage() {
+        try {
+            const raw = localStorage.getItem(K.USER_PROFILES_REV);
+            const n = Number(raw);
+            return Number.isFinite(n) && n > 0 ? n : 0;
+        } catch (_) {
+            return 0;
+        }
+    }
+
+    function readUserProfilesRevFromGM() {
+        try {
+            const n = Number(gmGet(K.USER_PROFILES_REV, 0));
+            return Number.isFinite(n) && n > 0 ? n : 0;
+        } catch (_) {
+            return 0;
+        }
     }
 
     function loadUserProfiles() {
@@ -395,9 +419,10 @@
             const normalizedGm = normalizeUserProfilesForStorage(storedGm);
             const storedLs = readUserProfilesFromLocalStorage();
 
-            if (normalizedGm.length && storedLs && storedLs.length > normalizedGm.length) {
-                userProfiles = storedLs;
-            } else if (normalizedGm.length) {
+            // GM storage is the source of truth.
+            // localStorage is legacy fallback / mirror only and must not win over GM,
+            // otherwise deleted profiles can come back after script updates.
+            if (normalizedGm.length) {
                 userProfiles = normalizedGm;
             } else if (storedLs && storedLs.length) {
                 userProfiles = storedLs;
@@ -406,7 +431,7 @@
             }
 
             let activeId = String(gmGet(K.ACTIVE_USER_PROFILE, '') || '').trim();
-            if (!activeId) {
+            if (!activeId && !normalizedGm.length) {
                 try { activeId = String(localStorage.getItem(K.ACTIVE_USER_PROFILE) || '').trim(); } catch (_) { }
             }
             if (!activeId) activeId = 'default';
@@ -443,15 +468,26 @@
             }
 
             const snapshot = JSON.parse(JSON.stringify(userProfiles));
+            const rev = Date.now();
             gmSet(K.USER_PROFILES, snapshot);
+            gmSet(K.USER_PROFILES_REV, rev);
             if (activeUserProfile) {
                 gmSet(K.ACTIVE_USER_PROFILE, activeUserProfile.id);
             }
-            writeUserProfilesToLocalStorage(snapshot, activeUserProfile ? activeUserProfile.id : 'default');
+            writeUserProfilesToLocalStorage(snapshot, activeUserProfile ? activeUserProfile.id : 'default', rev);
         } catch (e) {
             logW('Error saving user profiles:', e);
             try {
-                writeUserProfilesToLocalStorage(normalizeUserProfilesForStorage(userProfiles), activeUserProfile ? activeUserProfile.id : 'default');
+                const snapshot = JSON.parse(JSON.stringify(normalizeUserProfilesForStorage(userProfiles)));
+                const rev = Date.now();
+                if (snapshot.length) {
+                    try { gmSet(K.USER_PROFILES, snapshot); } catch (_) { }
+                    try { gmSet(K.USER_PROFILES_REV, rev); } catch (_) { }
+                    if (activeUserProfile) {
+                        try { gmSet(K.ACTIVE_USER_PROFILE, activeUserProfile.id); } catch (_) { }
+                    }
+                }
+                writeUserProfilesToLocalStorage(snapshot, activeUserProfile ? activeUserProfile.id : 'default', rev);
             } catch (_) { }
         }
     }
@@ -1687,6 +1723,7 @@ function downloadBlob(blob, filename) {
             gvf_bl: 'Black Level',
             gvf_wl: 'White Level',
             gvf_dn: 'Denoise',
+            gvf_edge: 'Edge Detection',
             gvf_hdr: 'HDR',
             gvf_profile: 'Profile',
             gvf_g_hud: 'Grading HUD',
@@ -1723,6 +1760,7 @@ function downloadBlob(blob, filename) {
             bl: 'Black Level',
             wl: 'White Level',
             dn: 'Denoise',
+            edge: 'Edge Detection',
             hdr: 'HDR',
             profile: 'Profile',
             renderMode: 'Render Mode',
@@ -1756,6 +1794,7 @@ function downloadBlob(blob, filename) {
             gvf_bl: 'bl',
             gvf_wl: 'wl',
             gvf_dn: 'dn',
+            gvf_edge: 'edge',
             gvf_hdr: 'hdr',
             gvf_profile: 'profile',
             gvf_g_hud: 'gradingHudShown',
@@ -1944,6 +1983,7 @@ function downloadBlob(blob, filename) {
             bl: bl,
             wl: wl,
             dn: dn,
+            edge: edge,
             hdr: hdr,
             profile: profile,
             renderMode: renderMode,
@@ -1984,6 +2024,7 @@ function downloadBlob(blob, filename) {
             bl = settings.bl ?? bl;
             wl = settings.wl ?? wl;
             dn = settings.dn ?? dn;
+            edge = settings.edge ?? edge;
 
             hdr = settings.hdr ?? hdr;
             profile = settings.profile ?? profile;
@@ -2028,6 +2069,7 @@ function downloadBlob(blob, filename) {
             gmSet(K.BL, bl);
             gmSet(K.WL, wl);
             gmSet(K.DN, dn);
+            gmSet(K.EDGE, edge);
 
             gmSet(K.HDR, hdr);
             if (hdr !== 0) gmSet(K.HDR_LAST, hdr);
@@ -2891,6 +2933,7 @@ function downloadBlob(blob, filename) {
     }
 
     let hdr = Number(gmGet(K.HDR, 0.0));
+    let edge = Number(gmGet(K.EDGE, 0.0));
 
     if (!['off', 'film', 'anime', 'gaming', 'eyecare', 'user'].includes(profile)) profile = 'off';
 
@@ -2939,6 +2982,7 @@ function downloadBlob(blob, filename) {
     function normWL() { return snap0(roundTo(clamp(Number(wl) || 0, -2, 2), 0.01), 0.005); }
     function normDN() { return snap0(roundTo(clamp(Number(dn) || 0, -1.5, 1.5), 0.01), 0.005); }
     function normHDR() { return snap0(roundTo(clamp(Number(hdr) || 0, -1.0, 2.0), 0.01), 0.005); }
+    function normEDGE() { return snap0(roundTo(clamp(Number(edge) || 0, 0, 1.0), 0.01), 0.005); }
     function normU(v) { return roundTo(clamp(Number(v) || 0, -10, 10), 0.1); }
     function uDelta(v) { return normU(v); }
     function normRGB(v) { return clamp(Math.round(Number(v) || 128), 0, 255); }
@@ -3418,8 +3462,13 @@ if (!gl) {
                 uniform vec2 uHueRotate;    // x:cosHue, y:sinHue
                 uniform mat4 uProfileMatrix;
                 uniform mat4 uAutoMatrix;
+                uniform float uEdge;
 
                 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+
+                float sampleLuma(vec2 uv) {
+                    return dot(texture2D(uVideoTex, uv).rgb, LUMA);
+                }
 
                 float clampFast(float x, float minVal, float maxVal) {
                     return min(max(x, minVal), maxVal);
@@ -3554,9 +3603,33 @@ if (!gl) {
                     if (uParams.w > 0.0) {
                         float lumaSharp = dot(color, LUMA);
                         vec3 sharpColor = color + (color - lumaSharp) * uParams.w;
-                        color = clampFast(sharpColor.r, 0.0, 1.0);
-                        color = clampFast(sharpColor.g, 0.0, 1.0);
-                        color = clampFast(sharpColor.b, 0.0, 1.0);
+                        color = vec3(
+                            clampFast(sharpColor.r, 0.0, 1.0),
+                            clampFast(sharpColor.g, 0.0, 1.0),
+                            clampFast(sharpColor.b, 0.0, 1.0)
+                        );
+                    }
+
+                    // Real edge detection: Sobel on source luma, then darken only true edges.
+                    // Use a non-linear strength curve so tiny slider values stay subtle and controllable.
+                    if (uEdge > 0.0001) {
+                        float edgeStrength = pow(clamp(uEdge, 0.0, 1.0), 2.2);
+                        vec2 px = vec2(1.0 / max(uResolution.x, 1.0), 1.0 / max(uResolution.y, 1.0));
+                        float tl = sampleLuma(vTexCoord + px * vec2(-1.0, -1.0));
+                        float  t = sampleLuma(vTexCoord + px * vec2( 0.0, -1.0));
+                        float tr = sampleLuma(vTexCoord + px * vec2( 1.0, -1.0));
+                        float  l = sampleLuma(vTexCoord + px * vec2(-1.0,  0.0));
+                        float  r = sampleLuma(vTexCoord + px * vec2( 1.0,  0.0));
+                        float bl = sampleLuma(vTexCoord + px * vec2(-1.0,  1.0));
+                        float  b = sampleLuma(vTexCoord + px * vec2( 0.0,  1.0));
+                        float br = sampleLuma(vTexCoord + px * vec2( 1.0,  1.0));
+
+                        float gx = -tl + tr - 2.0*l + 2.0*r - bl + br;
+                        float gy = -tl - 2.0*t - tr + bl + 2.0*b + br;
+                        float edgeMag = length(vec2(gx, gy));
+                        float edgeMask = smoothstep(0.18, 0.60, edgeMag) * edgeStrength;
+                        float darken = 1.0 - edgeMask * 0.92;
+                        color *= darken;
                     }
 
                     gl_FragColor = vec4(clampFast(color.r, 0.0, 1.0),
@@ -3625,6 +3698,7 @@ if (!gl) {
             this.uHueRotate = gl.getUniformLocation(this.program, 'uHueRotate');
             this.uProfileMatrix = gl.getUniformLocation(this.program, 'uProfileMatrix');
             this.uAutoMatrix = gl.getUniformLocation(this.program, 'uAutoMatrix');
+            this.uEdge = gl.getUniformLocation(this.program, 'uEdge');
 
             this.aPosition = gl.getAttribLocation(this.program, 'aPosition');
             this.aTexCoord = gl.getAttribLocation(this.program, 'aTexCoord');
@@ -3754,6 +3828,7 @@ if (!gl) {
             let gamma = 1.0 + u_gamma * 0.025;
             let vibrance = 1.0 + u_vib * 0.02;
             let hdrVal = normHDR();
+            let edgeVal = normEDGE();
 
             let hue = u_hue * 3;
             if (tealOrange) {
@@ -3779,6 +3854,7 @@ if (!gl) {
                 grain: clamp(grain, 0.0, 0.5),
                 vibrance: clamp(vibrance, 0.0, 2.0),
                 hdr: effectiveHdr,
+                edge: clamp(edgeVal, 0.0, 1.0),
                 rGain: clamp(rGain, 0.0, 2.0),
                 gGain: clamp(gGain, 0.0, 2.0),
                 bGain: clamp(bGain, 0.0, 2.0),
@@ -3902,6 +3978,10 @@ if (!gl) {
                     this.params.bGain,
                     1.0
                 );
+
+                if (this.uEdge !== null) {
+                    gl.uniform1f(this.uEdge, this.params.edge);
+                }
 
                 gl.uniform2f(this.uHueRotate,
                     this.params.cosHue,
@@ -5122,6 +5202,11 @@ if (!gl) {
             updateCurrentProfileSettings();
             saveUserProfiles();
             updateProfileList();
+            showScreenNotification('', {
+                title: `Profile "${String(activeUserProfile?.name || 'Default')}" saved`,
+                detail: 'User Profile Manager',
+                detailColor: '#4cff6a'
+            });
 
             // Brief feedback
             saveCurrentBtn.textContent = '✓ Saved!';
@@ -6368,6 +6453,7 @@ const fileInput = document.createElement('input');
         top.appendChild(row);
 
         const badgeRow = document.createElement('div');
+
         badgeRow.style.cssText = `display:flex;align-items:center;gap:4px;`;
         badgeRow.appendChild(profBadge);
         badgeRow.appendChild(renderBadge);
@@ -6844,7 +6930,11 @@ const fileInput = document.createElement('input');
         stopEventsOn(ta);
 
         const setDirty = (on) => { if (on) ta.dataset.dirty = '1'; else delete ta.dataset.dirty; };
-        ta.addEventListener('input', () => setDirty(true));
+
+        ta.addEventListener('input', () => {
+            setDirty(true);
+            status.textContent = 'JSON changed. Click Save to apply.';
+        });
 
         const row = document.createElement('div');
         row.style.cssText = `display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;`;
@@ -7002,9 +7092,18 @@ const fileInput = document.createElement('input');
                 const ok = importSettings(obj);
                 if (!ok) { status.textContent = 'Invalid JSON structure.'; return; }
 
+                updateCurrentProfileSettings();
+                saveUserProfiles();
+                try { updateProfileList(); } catch (_) { }
+
                 setDirty(false);
                 ta.value = JSON.stringify(exportSettings(), null, 2);
                 status.textContent = 'Saved + applied.';
+                showScreenNotification('', {
+                    title: `Profile "${String(activeUserProfile?.name || 'Default')}" saved`,
+                    detail: 'IO HUD JSON saved + applied',
+                    detailColor: '#4cff6a'
+                });
             } catch (_) {
                 status.textContent = 'JSON parse error.';
             }
@@ -7021,7 +7120,8 @@ const fileInput = document.createElement('input');
 
                 defaults = {
                     enabled: true, notify: true, darkMoody: true, tealOrange: false, vibrantSat: false, iconsShown: false,
-                    sl: 1.3, sr: -1.1, bl: 0.3, wl: 0.2, dn: 0.6,
+                    sl: 1.3, sr: -1.1, bl: 0.3, wl: 0.2, dn: 0.0,
+                    edge: 0.0,
                     hdr: 0.0, profile: 'off',
                     gradingHudShown: false,
                     ioHudShown: false,
@@ -7042,7 +7142,8 @@ const fileInput = document.createElement('input');
 
                 defaults = {
                     enabled: true, notify: true, darkMoody: true, tealOrange: false, vibrantSat: false, iconsShown: false,
-                    sl: 1.0, sr: 0.5, bl: -1.2, wl: 0.2, dn: -0.6,
+                    sl: 1.0, sr: 0.5, bl: -1.2, wl: 0.2, dn: 0.0,
+                    edge: 0.3,
                     hdr: 0.0, profile: 'user',
                     gradingHudShown: false,
                     ioHudShown: false,
@@ -7062,9 +7163,17 @@ const fileInput = document.createElement('input');
             }
 
             importSettings(defaults);
+            updateCurrentProfileSettings();
+            saveUserProfiles();
+            try { updateProfileList(); } catch (_) { }
             setDirty(false);
             ta.value = JSON.stringify(exportSettings(), null, 2);
             status.textContent = 'Reset + applied.';
+            showScreenNotification('', {
+                title: `Profile "${String(activeUserProfile?.name || 'Default')}" reset`,
+                detail: 'Defaults restored',
+                detailColor: '#ffcc66'
+            });
 
             // Update Debug button
             btnDebug.textContent = '🐞 Debug: OFF';
@@ -7515,6 +7624,7 @@ const fileInput = document.createElement('input');
             bl: nFix(normBL(), 1),
             wl: nFix(normWL(), 1),
             dn: nFix(normDN(), 1),
+            edge: nFix(normEDGE(), 2),
 
             hdr: nFix(normHDR(), 2),
             profile: String(profile),
@@ -7582,6 +7692,7 @@ const fileInput = document.createElement('input');
             if ('bl' in obj) bl = clamp(Number(obj.bl), -2, 2);
             if ('wl' in obj) wl = clamp(Number(obj.wl), -2, 2);
             if ('dn' in obj) dn = clamp(Number(obj.dn), -1.5, 1.5);
+            if ('edge' in obj) edge = clamp(Number(obj.edge), 0, 1);
 
             if ('hdr' in obj) hdr = clamp(Number(obj.hdr), -1, 2);
 
@@ -7972,7 +8083,7 @@ if ('lutProfile' in obj) {
         let style = document.getElementById(STYLE_ID);
 
         const nothingOn =
-            !enabled && !darkMoody && !tealOrange && !vibrantSat && normHDR() === 0 && (profile === 'off') && !autoOn && cbFilter === 'none'
+            !enabled && !darkMoody && !tealOrange && !vibrantSat && normEDGE() === 0 && normHDR() === 0 && (profile === 'off') && !autoOn && cbFilter === 'none'
             && (!activeLutMatrix4x5 || String(activeLutProfileKey || 'none') === 'none');
 
         if (nothingOn) {
@@ -8687,7 +8798,7 @@ if ('lutProfile' in obj) {
         return ` brightness(${(br * gBr).toFixed(3)}) contrast(${(c * gCt).toFixed(3)}) saturate(${(sat * vib).toFixed(3)}) hue-rotate(${hue.toFixed(1)}deg)${cssSharp}`;
     }
 
-    function buildFilter(svg, id, opts, radius, sharpenA, blurSigma, blackOffset, whiteAdj, dnVal, hdrVal, prof) {
+    function buildFilter(svg, id, opts, radius, sharpenA, blurSigma, blackOffset, whiteAdj, dnVal, edgeVal, hdrVal, prof) {
         const { moody, teal, vib } = opts;
 
         const filter = document.createElementNS(svgNS, 'filter');
@@ -8989,6 +9100,81 @@ if ('lutProfile' in obj) {
             last = 'r_anime_lines';
         }
 
+
+        if (edgeVal > 0.0001) {
+            const edgeStrength = Math.pow(clamp(edgeVal, 0.0, 1.0), 2.2);
+            const edgeSigma = 0.30 + edgeStrength * 0.70;
+            const preBlur = document.createElementNS(svgNS, 'feGaussianBlur');
+            preBlur.setAttribute('stdDeviation', String(edgeSigma));
+            preBlur.setAttribute('in', last);
+            preBlur.setAttribute('result', 'r_edge_pre');
+            filter.appendChild(preBlur);
+
+            const sobelX = document.createElementNS(svgNS, 'feConvolveMatrix');
+            sobelX.setAttribute('order', '3');
+            sobelX.setAttribute('kernelMatrix', '-1 0 1 -2 0 2 -1 0 1');
+            sobelX.setAttribute('divisor', '1');
+            sobelX.setAttribute('bias', '0');
+            sobelX.setAttribute('preserveAlpha', 'true');
+            sobelX.setAttribute('in', 'r_edge_pre');
+            sobelX.setAttribute('result', 'r_edge_sx');
+            filter.appendChild(sobelX);
+
+            const sobelY = document.createElementNS(svgNS, 'feConvolveMatrix');
+            sobelY.setAttribute('order', '3');
+            sobelY.setAttribute('kernelMatrix', '-1 -2 -1 0 0 0 1 2 1');
+            sobelY.setAttribute('divisor', '1');
+            sobelY.setAttribute('bias', '0');
+            sobelY.setAttribute('preserveAlpha', 'true');
+            sobelY.setAttribute('in', 'r_edge_pre');
+            sobelY.setAttribute('result', 'r_edge_sy');
+            filter.appendChild(sobelY);
+
+            const edgeMix = document.createElementNS(svgNS, 'feBlend');
+            edgeMix.setAttribute('mode', 'lighten');
+            edgeMix.setAttribute('in', 'r_edge_sx');
+            edgeMix.setAttribute('in2', 'r_edge_sy');
+            edgeMix.setAttribute('result', 'r_edge_mix');
+            filter.appendChild(edgeMix);
+
+            const edgeMask = document.createElementNS(svgNS, 'feComponentTransfer');
+            edgeMask.setAttribute('in', 'r_edge_mix');
+            edgeMask.setAttribute('result', 'r_edge_mask');
+
+            const edgeSlope = -(0.35 + edgeStrength * 3.65);
+            const edgeIntercept = 1.0;
+            const feR = document.createElementNS(svgNS, 'feFuncR');
+            feR.setAttribute('type', 'linear');
+            feR.setAttribute('slope', String(edgeSlope));
+            feR.setAttribute('intercept', String(edgeIntercept));
+            edgeMask.appendChild(feR);
+
+            const feG = document.createElementNS(svgNS, 'feFuncG');
+            feG.setAttribute('type', 'linear');
+            feG.setAttribute('slope', String(edgeSlope));
+            feG.setAttribute('intercept', String(edgeIntercept));
+            edgeMask.appendChild(feG);
+
+            const feB = document.createElementNS(svgNS, 'feFuncB');
+            feB.setAttribute('type', 'linear');
+            feB.setAttribute('slope', String(edgeSlope));
+            feB.setAttribute('intercept', String(edgeIntercept));
+            edgeMask.appendChild(feB);
+
+            const feA = document.createElementNS(svgNS, 'feFuncA');
+            feA.setAttribute('type', 'identity');
+            edgeMask.appendChild(feA);
+            filter.appendChild(edgeMask);
+
+            const edgeComposite = document.createElementNS(svgNS, 'feBlend');
+            edgeComposite.setAttribute('mode', 'multiply');
+            edgeComposite.setAttribute('in', last);
+            edgeComposite.setAttribute('in2', 'r_edge_mask');
+            edgeComposite.setAttribute('result', 'r_edge_final');
+            filter.appendChild(edgeComposite);
+            last = 'r_edge_final';
+        }
+
         const autoCM = document.createElementNS(svgNS, 'feColorMatrix');
         autoCM.setAttribute('type', 'matrix');
         autoCM.setAttribute('in', last);
@@ -9017,6 +9203,7 @@ if ('lutProfile' in obj) {
         const WL = Number(normWL().toFixed(1));
         const DN = Number(normDN().toFixed(1));
         const HDR = Number(normHDR().toFixed(2));
+        const EDGE = Number(normEDGE().toFixed(2));
         const P = (profile || 'off');
         const CB = cbFilter;
 
@@ -9027,7 +9214,7 @@ if ('lutProfile' in obj) {
             normRGB(u_r_gain), normRGB(u_g_gain), normRGB(u_b_gain)
         ].map(x => Number(x).toFixed(1)).join(',');
 
-        const want = `${SL}|${SR}|${R}|${A}|${BS}|${BL}|${WL}|${DN}|${HDR}|${P}|U:${uSig}|CB:${CB}|LUT:${LUTN}`;
+        const want = `${SL}|${SR}|${R}|${A}|${BS}|${BL}|${WL}|${DN}|${EDGE}|${HDR}|${P}|U:${uSig}|CB:${CB}|LUT:${LUTN}`;
 
         const existing = document.getElementById(SVG_ID);
         if (existing) {
@@ -9060,14 +9247,14 @@ if ('lutProfile' in obj) {
         const blackOffset = blackToOffset(BL);
         const whiteAdj = whiteToHiAdj(WL);
 
-        buildFilter(svg, 'gvf_s', { moody: false, teal: false, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, HDR, P);
-        buildFilter(svg, 'gvf_sm', { moody: true, teal: false, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, HDR, P);
-        buildFilter(svg, 'gvf_st', { moody: false, teal: true, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, HDR, P);
-        buildFilter(svg, 'gvf_sv', { moody: false, teal: false, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, HDR, P);
-        buildFilter(svg, 'gvf_smt', { moody: true, teal: true, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, HDR, P);
-        buildFilter(svg, 'gvf_smv', { moody: true, teal: false, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, HDR, P);
-        buildFilter(svg, 'gvf_stv', { moody: false, teal: true, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, HDR, P);
-        buildFilter(svg, 'gvf_smtv', { moody: true, teal: true, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, HDR, P);
+        buildFilter(svg, 'gvf_s', { moody: false, teal: false, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
+        buildFilter(svg, 'gvf_sm', { moody: true, teal: false, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
+        buildFilter(svg, 'gvf_st', { moody: false, teal: true, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
+        buildFilter(svg, 'gvf_sv', { moody: false, teal: false, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
+        buildFilter(svg, 'gvf_smt', { moody: true, teal: true, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
+        buildFilter(svg, 'gvf_smv', { moody: true, teal: false, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
+        buildFilter(svg, 'gvf_stv', { moody: false, teal: true, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
+        buildFilter(svg, 'gvf_smtv', { moody: true, teal: true, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
 
         (document.body || document.documentElement).appendChild(svg);
 
@@ -9106,7 +9293,7 @@ if ('lutProfile' in obj) {
         let style = document.getElementById(STYLE_ID);
 
         const nothingOn =
-            !enabled && !darkMoody && !tealOrange && !vibrantSat && normHDR() === 0 && (profile === 'off') && !autoOn && cbFilter === 'none';
+            !enabled && !darkMoody && !tealOrange && !vibrantSat && normEDGE() === 0 && normHDR() === 0 && (profile === 'off') && !autoOn && cbFilter === 'none';
 
         if (nothingOn) {
             if (style) style.remove();
@@ -9469,7 +9656,7 @@ if ('lutProfile' in obj) {
             bugfixes: 'REC.stopRequested evaluated, AUTO.blink reset, null check in updateAutoMatrixInSvg',
             userProfiles: userProfiles.length,
             activeProfile: activeUserProfile?.name,
-            newFeatures: 'Shift+Q profile cycling, 3-second on-screen notification, clean edge detection for anime'
+            newFeatures: 'Shift+Q profile cycling, 3-second on-screen notification, real EDG slider with dark-edge Sobel detection'
         });
 
         document.addEventListener('keydown', (e) => {
