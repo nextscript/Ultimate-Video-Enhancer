@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.7.6
+// @version      1.7.7
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @match        *://*/*
@@ -209,6 +209,7 @@
         // LUT Profile Management
         LUT_ACTIVE_PROFILE: 'gvf_lut_active_profile',
         LUT_PROFILES: 'gvf_lut_profiles',
+        LUT_PROFILES_REV: 'gvf_lut_profiles_rev',
         LUT_GROUPS: 'gvf_lut_groups'
     };
 
@@ -436,10 +437,14 @@
             const normalizedGm = normalizeUserProfilesForStorage(storedGm);
             const storedLs = readUserProfilesFromLocalStorage();
 
-            // GM storage is the source of truth.
-            // localStorage is legacy fallback / mirror only and must not win over GM,
-            // otherwise deleted profiles can come back after script updates.
-            if (normalizedGm.length) {
+            const gmRev = readUserProfilesRevFromGM();
+            const lsRev = readUserProfilesRevFromLocalStorage();
+            const useLs = (!!storedLs && storedLs.length && lsRev > gmRev);
+            const useGm = (!!normalizedGm.length && !useLs);
+
+            if (useLs) {
+                userProfiles = storedLs;
+            } else if (useGm) {
                 userProfiles = normalizedGm;
             } else if (storedLs && storedLs.length) {
                 userProfiles = storedLs;
@@ -447,8 +452,12 @@
                 userProfiles = getDefaultUserProfilesFallback();
             }
 
-            let activeId = String(gmGet(K.ACTIVE_USER_PROFILE, '') || '').trim();
-            if (!activeId && !normalizedGm.length) {
+            let activeId = '';
+            if (useLs) {
+                try { activeId = String(localStorage.getItem(K.ACTIVE_USER_PROFILE) || '').trim(); } catch (_) { }
+            }
+            if (!activeId) activeId = String(gmGet(K.ACTIVE_USER_PROFILE, '') || '').trim();
+            if (!activeId) {
                 try { activeId = String(localStorage.getItem(K.ACTIVE_USER_PROFILE) || '').trim(); } catch (_) { }
             }
             if (!activeId) activeId = 'default';
@@ -461,7 +470,7 @@
             }
 
             saveUserProfiles();
-            log('User profiles loaded:', userProfiles.length, 'Active:', activeUserProfile?.name);
+            log('User profiles loaded:', userProfiles.length, 'Active:', activeUserProfile?.name, 'Source:', useLs ? 'localStorage' : (useGm ? 'GM' : 'fallback'));
         } catch (e) {
             logW('Error loading user profiles:', e);
             userProfiles = getDefaultUserProfilesFallback();
@@ -488,34 +497,97 @@
             const rev = Date.now();
             gmSet(K.USER_PROFILES, snapshot);
             gmSet(K.USER_PROFILES_REV, rev);
-            if (activeUserProfile) {
-                gmSet(K.ACTIVE_USER_PROFILE, activeUserProfile.id);
-            }
+            gmSet(K.ACTIVE_USER_PROFILE, activeUserProfile ? activeUserProfile.id : 'default');
             writeUserProfilesToLocalStorage(snapshot, activeUserProfile ? activeUserProfile.id : 'default', rev);
         } catch (e) {
             logW('Error saving user profiles:', e);
             try {
                 const snapshot = JSON.parse(JSON.stringify(normalizeUserProfilesForStorage(userProfiles)));
                 const rev = Date.now();
-                if (snapshot.length) {
-                    try { gmSet(K.USER_PROFILES, snapshot); } catch (_) { }
-                    try { gmSet(K.USER_PROFILES_REV, rev); } catch (_) { }
-                    if (activeUserProfile) {
-                        try { gmSet(K.ACTIVE_USER_PROFILE, activeUserProfile.id); } catch (_) { }
-                    }
-                }
+                try { gmSet(K.USER_PROFILES, snapshot); } catch (_) { }
+                try { gmSet(K.USER_PROFILES_REV, rev); } catch (_) { }
+                try { gmSet(K.ACTIVE_USER_PROFILE, activeUserProfile ? activeUserProfile.id : 'default'); } catch (_) { }
                 writeUserProfilesToLocalStorage(snapshot, activeUserProfile ? activeUserProfile.id : 'default', rev);
             } catch (_) { }
         }
     }
 
-
     // LUT Profiles (Storage + Apply)
     // -------------------------
+    function normalizeLutProfilesForStorage(input) {
+        const list = Array.isArray(input) ? input : [];
+        const out = [];
+        const seen = new Set();
+        for (const raw of list) {
+            if (!raw || typeof raw !== 'object') continue;
+            const name = String(raw.name || '').trim();
+            if (!name) continue;
+            const group = (raw.group === undefined || raw.group === null) ? undefined : String(raw.group).trim();
+            const key = `${_lutNormGroup(group)}||${_lutNormName(name)}`;
+            if (seen.has(key)) continue;
+            const m = Array.isArray(raw.matrix4x5) ? raw.matrix4x5.map(v => Number(v)) : [];
+            if (m.length !== 20 || m.some(v => !Number.isFinite(v))) continue;
+            seen.add(key);
+            out.push({
+                name,
+                group: group || undefined,
+                createdAt: Number(raw.createdAt || Date.now()),
+                updatedAt: Number(raw.updatedAt || raw.createdAt || Date.now()),
+                matrix4x5: m
+            });
+        }
+        return out;
+    }
+
+    function readLutProfilesFromLocalStorage() {
+        try {
+            const raw = localStorage.getItem(K.LUT_PROFILES);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const normalized = normalizeLutProfilesForStorage(parsed);
+            return normalized.length ? normalized : null;
+        } catch (_) {
+            return null;
+        }
+    }
+
+    function writeLutProfilesToLocalStorage(profiles, activeKey, rev) {
+        try { localStorage.setItem(K.LUT_PROFILES, JSON.stringify(profiles)); } catch (_) { }
+        try { localStorage.setItem(K.LUT_ACTIVE_PROFILE, String(activeKey || 'none')); } catch (_) { }
+        try { localStorage.setItem(K.LUT_PROFILES_REV, String(Number(rev || Date.now()) || Date.now())); } catch (_) { }
+    }
+
+    function readLutProfilesRevFromLocalStorage() {
+        try {
+            const raw = localStorage.getItem(K.LUT_PROFILES_REV);
+            const n = Number(raw);
+            return Number.isFinite(n) && n > 0 ? n : 0;
+        } catch (_) {
+            return 0;
+        }
+    }
+
+    function readLutProfilesRevFromGM() {
+        try {
+            const n = Number(gmGet(K.LUT_PROFILES_REV, 0));
+            return Number.isFinite(n) && n > 0 ? n : 0;
+        } catch (_) {
+            return 0;
+        }
+    }
+
     function loadLutProfiles() {
         try {
-            const stored = gmGet(K.LUT_PROFILES, null);
-            lutProfiles = (stored && Array.isArray(stored)) ? stored : [];
+            const storedGm = normalizeLutProfilesForStorage(gmGet(K.LUT_PROFILES, null));
+            const storedLs = readLutProfilesFromLocalStorage();
+            const gmRev = readLutProfilesRevFromGM();
+            const lsRev = readLutProfilesRevFromLocalStorage();
+            const useLs = (!!storedLs && storedLs.length && lsRev > gmRev);
+            const useGm = (!!storedGm.length && !useLs);
+
+            if (useLs) lutProfiles = storedLs;
+            else if (useGm) lutProfiles = storedGm;
+            else lutProfiles = storedLs || storedGm || [];
         } catch (e) {
             lutProfiles = [];
             logW('Error loading LUT profiles:', e);
@@ -524,32 +596,26 @@
         // Load and normalize LUT group list (supports empty groups)
         loadLutGroups();
         try {
-            let changed = false;
             const set = new Set(Array.isArray(lutGroups) ? lutGroups.map(g => String(g || '').trim()).filter(Boolean) : []);
             for (const p of (Array.isArray(lutProfiles) ? lutProfiles : [])) {
                 const g = (p && p.group) ? String(p.group).trim() : '';
-                if (g && !set.has(g)) { set.add(g); changed = true; }
+                if (g) set.add(g);
             }
-            if (changed) {
-                lutGroups = Array.from(set).sort((a, b) => a.localeCompare(b));
-                saveLutGroups();
-            } else {
-                lutGroups = Array.from(set).sort((a, b) => a.localeCompare(b));
-            }
+            lutGroups = Array.from(set).sort((a, b) => a.localeCompare(b));
+            saveLutGroups();
         } catch (_) { }
 
-        // Active LUT profile key (supports legacy name-only values)
-        activeLutProfileKey = String(gmGet(K.LUT_ACTIVE_PROFILE, 'none') || 'none');
+        let storedActiveLs = '';
+        try { storedActiveLs = String(localStorage.getItem(K.LUT_ACTIVE_PROFILE) || '').trim(); } catch (_) { }
+        let storedActiveGm = String(gmGet(K.LUT_ACTIVE_PROFILE, 'none') || 'none');
+        activeLutProfileKey = (storedActiveLs && readLutProfilesRevFromLocalStorage() > readLutProfilesRevFromGM()) ? storedActiveLs : storedActiveGm;
         if (!activeLutProfileKey) activeLutProfileKey = 'none';
 
         const want = lutParseKey(activeLutProfileKey);
         let p = null;
 
         if (want.key !== 'none') {
-            // First try exact key match
             p = (Array.isArray(lutProfiles) ? lutProfiles : []).find(x => lutKeyFromProfile(x) === want.key) || null;
-
-            // Back-compat: if legacy name-only was stored, pick the first match by name.
             if (!p && want.name && want.name !== 'none') {
                 p = (Array.isArray(lutProfiles) ? lutProfiles : []).find(x => _lutNormName(x && x.name) === want.name) || null;
                 if (p) activeLutProfileKey = lutKeyFromProfile(p);
@@ -557,15 +623,29 @@
         }
 
         activeLutMatrix4x5 = (p && Array.isArray(p.matrix4x5) && p.matrix4x5.length === 20) ? p.matrix4x5 : null;
+        saveLutProfiles();
         log('LUT profiles loaded:', lutProfiles.length, 'Active:', activeLutProfileKey);
     }
 
     function saveLutProfiles() {
         try {
-            gmSet(K.LUT_PROFILES, lutProfiles);
-            gmSet(K.LUT_ACTIVE_PROFILE, activeLutProfileKey);
+            lutProfiles = normalizeLutProfilesForStorage(lutProfiles);
+            const snapshot = JSON.parse(JSON.stringify(lutProfiles));
+            const rev = Date.now();
+            gmSet(K.LUT_PROFILES, snapshot);
+            gmSet(K.LUT_ACTIVE_PROFILE, activeLutProfileKey || 'none');
+            gmSet(K.LUT_PROFILES_REV, rev);
+            writeLutProfilesToLocalStorage(snapshot, activeLutProfileKey || 'none', rev);
         } catch (e) {
             logW('Error saving LUT profiles:', e);
+            try {
+                const snapshot = JSON.parse(JSON.stringify(normalizeLutProfilesForStorage(lutProfiles)));
+                const rev = Date.now();
+                try { gmSet(K.LUT_PROFILES, snapshot); } catch (_) { }
+                try { gmSet(K.LUT_ACTIVE_PROFILE, activeLutProfileKey || 'none'); } catch (_) { }
+                try { gmSet(K.LUT_PROFILES_REV, rev); } catch (_) { }
+                writeLutProfilesToLocalStorage(snapshot, activeLutProfileKey || 'none', rev);
+            } catch (_) { }
         }
     }
 
@@ -1553,52 +1633,59 @@ function downloadBlob(blob, filename) {
     function importSingleUserProfileObject(obj, setStatus) {
         if (!obj || typeof obj !== 'object') return false;
 
-        // Accept either a full profile object {id,name,settings} or a plain settings object {enabled,...}
         const isProfileObj = (obj && typeof obj.name === 'string' && obj.settings && typeof obj.settings === 'object');
         const settingsObj = isProfileObj ? obj.settings : obj;
 
-        // Minimal settings validation
         if (!settingsObj || typeof settingsObj !== 'object' || (!('renderMode' in settingsObj) && !('profile' in settingsObj))) {
             return false;
         }
 
         const profileName = sanitizeProfileFilename(isProfileObj ? obj.name : ('Imported ' + new Date().toLocaleString()));
-
-        // Overwrite existing profiles with the same name (case-insensitive, normalized)
         const norm = (s) => sanitizeProfileFilename(String(s || '')).toLowerCase();
         const targetNorm = norm(profileName);
-        let target = null;
 
-        for (const p of (userProfiles || [])) {
-            if (norm(p && p.name) === targetNorm) { target = p; break; }
+        let existingIdx = -1;
+        for (let i = 0; i < (userProfiles || []).length; i++) {
+            const p = userProfiles[i];
+            if (norm(p && p.name) === targetNorm) { existingIdx = i; break; }
         }
 
-        // Create if missing
-        if (!target) {
-            target = createNewUserProfile(profileName);
+        const now = Date.now();
+        const baseSettings = JSON.parse(JSON.stringify(settingsObj));
+        let nextProfile = null;
+
+        if (existingIdx >= 0) {
+            const prev = userProfiles[existingIdx];
+            nextProfile = {
+                ...prev,
+                name: profileName,
+                settings: baseSettings,
+                updatedAt: now
+            };
+            userProfiles[existingIdx] = nextProfile;
+        } else {
+            nextProfile = {
+                id: (isProfileObj && obj.id) ? String(obj.id) : ('profile_' + now + '_' + Math.random().toString(36).slice(2, 11)),
+                name: profileName,
+                createdAt: (isProfileObj && Number(obj.createdAt)) ? Number(obj.createdAt) : now,
+                updatedAt: now,
+                settings: baseSettings
+            };
+            userProfiles = normalizeUserProfilesForStorage([...(Array.isArray(userProfiles) ? userProfiles : []), nextProfile]);
+            nextProfile = userProfiles.find(p => p.id === nextProfile.id) || nextProfile;
         }
 
-        try {
-            // Merge settings into the target profile
-            target.settings = { ...target.settings, ...settingsObj };
-            target.updatedAt = Date.now();
-
-            // Keep active profile reference consistent if needed
-            if (activeUserProfile && target && activeUserProfile.id === target.id) {
-                activeUserProfile = target;
-            }
-
-            if (typeof setStatus === 'function') {
-                setStatus(target ? (`${(target && target.createdAt && target.updatedAt && (target.createdAt !== target.updatedAt)) ? 'Replaced' : 'Imported'}: ${target.name}`) : 'Imported.');
-            }
-
-            log(target ? (target.createdAt !== target.updatedAt ? 'Profile replaced:' : 'Profile imported:') : 'Profile imported:', profileName);
-
-            return true;
-        } catch (e) {
-            logW('Profile import failed:', e);
-            return false;
+        if (activeUserProfile && nextProfile && activeUserProfile.id === nextProfile.id) {
+            activeUserProfile = nextProfile;
+            try { applyUserProfileSettings(nextProfile.settings); } catch (_) { }
         }
+
+        if (typeof setStatus === 'function') {
+            setStatus(`${existingIdx >= 0 ? 'Replaced' : 'Imported'}: ${profileName}`);
+        }
+
+        log(existingIdx >= 0 ? 'Profile replaced:' : 'Profile imported:', profileName);
+        return true;
     }
 
     // Minimal ZIP reader (supports STORE, and DEFLATE when DecompressionStream is available).
@@ -1954,8 +2041,24 @@ function downloadBlob(blob, filename) {
         if (!activeUserProfile) return;
 
         const currentSettings = getCurrentSettings();
-        activeUserProfile.settings = { ...currentSettings };
-        activeUserProfile.updatedAt = Date.now();
+        const nextProfile = {
+            ...activeUserProfile,
+            settings: JSON.parse(JSON.stringify(currentSettings)),
+            updatedAt: Date.now()
+        };
+
+        const idx = Array.isArray(userProfiles)
+            ? userProfiles.findIndex(p => p && p.id === nextProfile.id)
+            : -1;
+
+        if (idx >= 0) {
+            userProfiles[idx] = nextProfile;
+            activeUserProfile = userProfiles[idx];
+        } else {
+            userProfiles = normalizeUserProfilesForStorage([...(Array.isArray(userProfiles) ? userProfiles : []), nextProfile]);
+            activeUserProfile = userProfiles.find(p => p.id === nextProfile.id) || nextProfile;
+        }
+
         saveUserProfiles();
     }
 
@@ -1992,9 +2095,11 @@ function downloadBlob(blob, filename) {
     function getCurrentSettings() {
         return {
             enabled: enabled,
+            notify: notify,
             darkMoody: darkMoody,
             tealOrange: tealOrange,
             vibrantSat: vibrantSat,
+            iconsShown: iconsShown,
             sl: sl,
             sr: sr,
             bl: bl,
@@ -2005,6 +2110,9 @@ function downloadBlob(blob, filename) {
             profile: profile,
             renderMode: renderMode,
             lutProfile: activeLutProfileKey,
+            gradingHudShown: gradingHudShown,
+            ioHudShown: ioHudShown,
+            scopesHudShown: scopesHudShown,
             autoOn: autoOn,
             autoStrength: autoStrength,
             autoLockWB: autoLockWB,
@@ -2022,6 +2130,8 @@ function downloadBlob(blob, filename) {
             u_r_gain: u_r_gain,
             u_g_gain: u_g_gain,
             u_b_gain: u_b_gain,
+            debug: debug,
+            logs: logs,
             cbFilter: cbFilter
         };
     }
@@ -2032,9 +2142,11 @@ function downloadBlob(blob, filename) {
 
         try {
             enabled = settings.enabled ?? enabled;
+            notify = settings.notify ?? notify;
             darkMoody = settings.darkMoody ?? darkMoody;
             tealOrange = settings.tealOrange ?? tealOrange;
             vibrantSat = settings.vibrantSat ?? vibrantSat;
+            iconsShown = settings.iconsShown ?? iconsShown;
 
             sl = settings.sl ?? sl;
             sr = settings.sr ?? sr;
@@ -2046,6 +2158,9 @@ function downloadBlob(blob, filename) {
             hdr = settings.hdr ?? hdr;
             profile = settings.profile ?? profile;
             renderMode = settings.renderMode ?? renderMode;
+            gradingHudShown = settings.gradingHudShown ?? gradingHudShown;
+            ioHudShown = settings.ioHudShown ?? ioHudShown;
+            scopesHudShown = settings.scopesHudShown ?? scopesHudShown;
 
             // Restore LUT profile for this user profile (if present)
             if (Object.prototype.hasOwnProperty.call(settings, 'lutProfile')) {
@@ -2077,9 +2192,11 @@ function downloadBlob(blob, filename) {
 
             // Save in GM
             gmSet(K.enabled, enabled);
+            gmSet(K.NOTIFY, notify);
             gmSet(K.moody, darkMoody);
             gmSet(K.teal, tealOrange);
             gmSet(K.vib, vibrantSat);
+            gmSet(K.icons, iconsShown);
 
             gmSet(K.SL, sl);
             gmSet(K.SR, sr);
@@ -2115,6 +2232,8 @@ function downloadBlob(blob, filename) {
             gmSet(K.U_G_GAIN, u_g_gain);
             gmSet(K.U_B_GAIN, u_b_gain);
 
+            gmSet(K.LOGS, logs);
+            gmSet(K.DEBUG, debug);
             gmSet(K.CB_FILTER, cbFilter);
 
             // Apply filter
@@ -3406,6 +3525,7 @@ function downloadBlob(blob, filename) {
                 this.canvas.style.width = '100%';
                 this.canvas.style.height = '100%';
                 this.canvas.style.objectFit = 'contain';
+                this.canvas.style.transform = 'none';
                 this.canvas.style.display = 'block';
                 this.canvas.style.pointerEvents = 'none';
                 this.canvas.style.zIndex = '2147483646';
@@ -3748,10 +3868,10 @@ if (!gl) {
             gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
             const texCoords = new Float32Array([
-                0.0, 0.0,
-                1.0, 0.0,
                 0.0, 1.0,
-                1.0, 1.0
+                1.0, 1.0,
+                0.0, 0.0,
+                1.0, 0.0
             ]);
 
             this.texCoordBuffer = gl.createBuffer();
@@ -3794,6 +3914,7 @@ if (!gl) {
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
             }
 
             if (!this.wrapper || !this.wrapper.isConnected) {
@@ -4040,6 +4161,7 @@ if (!gl) {
 
                 gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, this.videoTexture);
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
                 gl.clearColor(0.0, 0.0, 0.0, 0.0);
                 gl.clear(gl.COLOR_BUFFER_BIT);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
@@ -7850,6 +7972,7 @@ if ('lutProfile' in obj) {
             gmSet(K.BL, bl);
             gmSet(K.WL, wl);
             gmSet(K.DN, dn);
+            gmSet(K.EDGE, edge);
 
             gmSet(K.HDR, hdr);
             if (hdr !== 0) gmSet(K.HDR_LAST, hdr);
@@ -9616,6 +9739,14 @@ if ('lutProfile' in obj) {
     }
 
     function init() {
+        if (activeUserProfile && activeUserProfile.settings && typeof activeUserProfile.settings === 'object') {
+            try {
+                applyUserProfileSettings(activeUserProfile.settings);
+            } catch (e) {
+                logW('Failed to restore active user profile on init:', e);
+            }
+        }
+
         sl = normSL(); gmSet(K.SL, sl);
         sr = normSR(); gmSet(K.SR, sr);
         bl = normBL(); gmSet(K.BL, bl);
