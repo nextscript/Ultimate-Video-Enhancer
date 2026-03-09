@@ -240,6 +240,21 @@
     // -------------------------
     let userProfiles = [];
     let activeUserProfile = null;
+    let _lastProfileStorageRev = 0;
+    let _lastProfileStorageActiveId = '';
+    let _applyingRemoteProfileSync = false;
+    let _isApplyingUserProfileSettings = false;
+    let _isSwitchingUserProfile = false;
+    let _suppressValueSyncUntil = 0;
+
+    function suppressValueSync(ms = 250) {
+        const until = Date.now() + Math.max(0, Number(ms) || 0);
+        if (until > _suppressValueSyncUntil) _suppressValueSyncUntil = until;
+    }
+
+    function isValueSyncSuppressed() {
+        return Date.now() < _suppressValueSyncUntil;
+    }
 
     // -------------------------
     // LUT Profile Management
@@ -373,6 +388,21 @@
         return [JSON.parse(JSON.stringify(defaultProfile))];
     }
 
+    function getDefaultUserProfileSettingsSnapshot() {
+        const isFirefoxBrowser = isFirefox();
+        const defaults = isFirefoxBrowser ? DEFAULT_USER_PROFILE_FIREFOX.settings : DEFAULT_USER_PROFILE.settings;
+        return JSON.parse(JSON.stringify(defaults || {}));
+    }
+
+    function buildImportedUserProfileSettings(settingsObj) {
+        const defaults = getDefaultUserProfileSettingsSnapshot();
+        const src = (settingsObj && typeof settingsObj === 'object') ? JSON.parse(JSON.stringify(settingsObj)) : {};
+        return {
+            ...defaults,
+            ...src
+        };
+    }
+
     function normalizeUserProfilesForStorage(list) {
         const src = Array.isArray(list) ? list : [];
         const out = [];
@@ -431,6 +461,24 @@
         }
     }
 
+    function resolveStoredActiveUserProfileId(profiles, preferLocal = false) {
+        const list = Array.isArray(profiles) ? profiles : [];
+        const hasId = (id) => !!id && list.some(p => p && p.id === id);
+
+        let lsId = '';
+        let gmId = '';
+        try { lsId = String(localStorage.getItem(K.ACTIVE_USER_PROFILE) || '').trim(); } catch (_) { }
+        try { gmId = String(gmGet(K.ACTIVE_USER_PROFILE, '') || '').trim(); } catch (_) { }
+
+        if (preferLocal && hasId(lsId)) return lsId;
+        if (hasId(gmId)) return gmId;
+        if (hasId(lsId)) return lsId;
+        if (hasId(_lastProfileStorageActiveId)) return String(_lastProfileStorageActiveId || '').trim();
+
+        const first = list[0] && list[0].id ? String(list[0].id).trim() : '';
+        return first || 'default';
+    }
+
     function loadUserProfiles() {
         try {
             const storedGm = gmGet(K.USER_PROFILES, null);
@@ -439,8 +487,10 @@
 
             const gmRev = readUserProfilesRevFromGM();
             const lsRev = readUserProfilesRevFromLocalStorage();
-            const useLs = (!!storedLs && storedLs.length && lsRev > gmRev);
+            const useLs = (!!storedLs && storedLs.length && lsRev >= gmRev);
             const useGm = (!!normalizedGm.length && !useLs);
+
+            let needsPersist = false;
 
             if (useLs) {
                 userProfiles = storedLs;
@@ -450,26 +500,27 @@
                 userProfiles = storedLs;
             } else {
                 userProfiles = getDefaultUserProfilesFallback();
+                needsPersist = true;
             }
 
-            let activeId = '';
-            if (useLs) {
-                try { activeId = String(localStorage.getItem(K.ACTIVE_USER_PROFILE) || '').trim(); } catch (_) { }
-            }
-            if (!activeId) activeId = String(gmGet(K.ACTIVE_USER_PROFILE, '') || '').trim();
-            if (!activeId) {
-                try { activeId = String(localStorage.getItem(K.ACTIVE_USER_PROFILE) || '').trim(); } catch (_) { }
-            }
-            if (!activeId) activeId = 'default';
-
+            const activeId = resolveStoredActiveUserProfileId(userProfiles, useLs || (!!storedLs && storedLs.length && lsRev >= gmRev));
             activeUserProfile = userProfiles.find(p => p.id === activeId) || userProfiles[0] || null;
             if (!activeUserProfile && userProfiles.length) activeUserProfile = userProfiles[0];
             if (!activeUserProfile) {
                 userProfiles = getDefaultUserProfilesFallback();
                 activeUserProfile = userProfiles[0] || null;
+                needsPersist = true;
             }
 
-            saveUserProfiles();
+            _lastProfileStorageRev = Math.max(gmRev, lsRev, 0);
+            _lastProfileStorageActiveId = String(activeUserProfile && activeUserProfile.id ? activeUserProfile.id : 'default');
+
+            if (needsPersist || !normalizedGm.length || !storedLs || !storedLs.length) {
+                saveUserProfiles();
+            } else {
+                writeUserProfilesToLocalStorage(JSON.parse(JSON.stringify(userProfiles)), _lastProfileStorageActiveId, _lastProfileStorageRev || Date.now());
+            }
+
             log('User profiles loaded:', userProfiles.length, 'Active:', activeUserProfile?.name, 'Source:', useLs ? 'localStorage' : (useGm ? 'GM' : 'fallback'));
         } catch (e) {
             logW('Error loading user profiles:', e);
@@ -479,8 +530,26 @@
         }
     }
 
-    function saveUserProfiles() {
+    function persistActiveUserProfileSelection(profileId, revMaybe) {
+        const nextActiveId = String(profileId || 'default').trim() || 'default';
+        const rev = Number(revMaybe);
+        const nextRev = Number.isFinite(rev) && rev > 0 ? rev : Date.now();
+
+        _lastProfileStorageRev = nextRev;
+        _lastProfileStorageActiveId = nextActiveId;
+
+        try { gmSet(K.ACTIVE_USER_PROFILE, nextActiveId); } catch (_) { }
+        try { gmSet(K.USER_PROFILES_REV, nextRev); } catch (_) { }
+
+        try { localStorage.setItem(K.ACTIVE_USER_PROFILE, nextActiveId); } catch (_) { }
+        try { localStorage.setItem(K.USER_PROFILES_REV, String(nextRev)); } catch (_) { }
+
+        return nextRev;
+    }
+
+    function saveUserProfiles(revMaybe) {
         try {
+            suppressValueSync(300);
             userProfiles = normalizeUserProfilesForStorage(userProfiles);
             if (!userProfiles.length) {
                 userProfiles = getDefaultUserProfilesFallback();
@@ -494,22 +563,114 @@
             }
 
             const snapshot = JSON.parse(JSON.stringify(userProfiles));
-            const rev = Date.now();
+            const rev = persistActiveUserProfileSelection(activeUserProfile ? activeUserProfile.id : 'default', revMaybe);
             gmSet(K.USER_PROFILES, snapshot);
             gmSet(K.USER_PROFILES_REV, rev);
-            gmSet(K.ACTIVE_USER_PROFILE, activeUserProfile ? activeUserProfile.id : 'default');
             writeUserProfilesToLocalStorage(snapshot, activeUserProfile ? activeUserProfile.id : 'default', rev);
         } catch (e) {
             logW('Error saving user profiles:', e);
             try {
                 const snapshot = JSON.parse(JSON.stringify(normalizeUserProfilesForStorage(userProfiles)));
-                const rev = Date.now();
+                const rev = persistActiveUserProfileSelection(activeUserProfile ? activeUserProfile.id : 'default', revMaybe);
                 try { gmSet(K.USER_PROFILES, snapshot); } catch (_) { }
                 try { gmSet(K.USER_PROFILES_REV, rev); } catch (_) { }
-                try { gmSet(K.ACTIVE_USER_PROFILE, activeUserProfile ? activeUserProfile.id : 'default'); } catch (_) { }
                 writeUserProfilesToLocalStorage(snapshot, activeUserProfile ? activeUserProfile.id : 'default', rev);
             } catch (_) { }
         }
+    }
+
+    function refreshUserProfileManagerUi() {
+        try { updateProfileList(); } catch (_) { }
+        try {
+            const activeInfo = document.getElementById('gvf-active-profile-info');
+            if (activeInfo) {
+                setActiveProfileInfo(activeInfo, activeUserProfile?.name);
+            }
+        } catch (_) { }
+    }
+
+    function pullUserProfilesFromSharedStorage(reason = '', force = false) {
+        if (_applyingRemoteProfileSync || _isSwitchingUserProfile) return false;
+
+        try {
+            const storedGm = gmGet(K.USER_PROFILES, null);
+            const normalizedGm = normalizeUserProfilesForStorage(storedGm);
+            const storedLs = readUserProfilesFromLocalStorage();
+            const gmRev = readUserProfilesRevFromGM();
+            const lsRev = readUserProfilesRevFromLocalStorage();
+            const newestRev = Math.max(gmRev, lsRev, 0);
+
+            let nextProfiles = [];
+            if (storedLs && storedLs.length && lsRev > gmRev) {
+                nextProfiles = storedLs;
+            } else if (normalizedGm.length) {
+                nextProfiles = normalizedGm;
+            } else if (storedLs && storedLs.length) {
+                nextProfiles = storedLs;
+            } else {
+                nextProfiles = getDefaultUserProfilesFallback();
+            }
+
+            const nextActiveId = resolveStoredActiveUserProfileId(
+                nextProfiles,
+                !!(storedLs && storedLs.length && lsRev >= gmRev)
+            );
+
+            const currentSnapshot = JSON.stringify(normalizeUserProfilesForStorage(userProfiles));
+            const nextSnapshot = JSON.stringify(normalizeUserProfilesForStorage(nextProfiles));
+            const currentActiveId = String(activeUserProfile && activeUserProfile.id ? activeUserProfile.id : '');
+            const snapshotChanged = nextSnapshot != currentSnapshot;
+            const activeChanged = nextActiveId !== currentActiveId;
+
+            if (!force) {
+                if (newestRev < _lastProfileStorageRev) return false;
+                if (activeChanged && !snapshotChanged && newestRev <= _lastProfileStorageRev) {
+                    log('Ignored stale active-profile sync:', reason || 'unknown', 'Incoming:', nextActiveId, 'Current:', currentActiveId);
+                    return false;
+                }
+            }
+
+            const hasChanged = force
+                || newestRev > _lastProfileStorageRev
+                || activeChanged
+                || snapshotChanged;
+
+            if (!hasChanged) return false;
+
+            userProfiles = normalizeUserProfilesForStorage(nextProfiles);
+            if (!userProfiles.length) userProfiles = getDefaultUserProfilesFallback();
+            activeUserProfile = userProfiles.find(p => p.id === nextActiveId) || userProfiles[0] || null;
+            if (!activeUserProfile && userProfiles.length) activeUserProfile = userProfiles[0] || null;
+
+            _lastProfileStorageRev = newestRev || Date.now();
+            _lastProfileStorageActiveId = String(activeUserProfile && activeUserProfile.id ? activeUserProfile.id : 'default');
+
+            if (activeUserProfile && activeUserProfile.settings && typeof activeUserProfile.settings === 'object') {
+                _applyingRemoteProfileSync = true;
+                try {
+                    applyUserProfileSettings(activeUserProfile.settings);
+                } finally {
+                    _applyingRemoteProfileSync = false;
+                }
+            }
+
+            refreshUserProfileManagerUi();
+            log('User profiles synced from shared storage:', reason || 'unknown', 'Active:', activeUserProfile && activeUserProfile.name ? activeUserProfile.name : 'none');
+            return true;
+        } catch (e) {
+            _applyingRemoteProfileSync = false;
+            logW('User profile sync from shared storage failed:', reason, e);
+            return false;
+        }
+    }
+
+    let _remoteProfilePullTimer = null;
+    function schedulePullUserProfilesFromSharedStorage(reason = '', force = false, delay = 60) {
+        if (_remoteProfilePullTimer) clearTimeout(_remoteProfilePullTimer);
+        _remoteProfilePullTimer = setTimeout(() => {
+            _remoteProfilePullTimer = null;
+            pullUserProfilesFromSharedStorage(reason, force);
+        }, Math.max(0, Number(delay) || 0));
     }
 
     // LUT Profiles (Storage + Apply)
@@ -684,7 +845,7 @@
         }
     }
 
-    function setActiveLutProfile(keyOrName, groupMaybe) {
+    function setActiveLutProfile(keyOrName, groupMaybe, opts = {}) {
         const inVal = String(keyOrName || 'none').trim() || 'none';
         const key = (inVal.includes('||') || inVal === 'none') ? inVal : lutMakeKey(inVal, groupMaybe);
         activeLutProfileKey = key;
@@ -710,17 +871,23 @@
             if (lutSelectEl) lutSelectEl.value = String(activeLutProfileKey || 'none');
             if (typeof refreshLutDropdownFn === 'function') refreshLutDropdownFn();
         } catch (_) { }
-// Apply immediately (no page reload, no artificial delay)
-        updateCurrentProfileSettings();
 
-        if (renderMode === 'gpu') {
-            applyGpuFilter();
-        } else {
-            ensureSvgFilter(true);
-            applyFilter({ skipSvgIfPossible: false });
+        const skipProfileSave = !!(opts && opts.skipProfileSave);
+        const skipVisualApply = !!(opts && opts.skipVisualApply);
+
+        if (!skipProfileSave && !_isApplyingUserProfileSettings && !_applyingRemoteProfileSync) {
+            updateCurrentProfileSettings();
         }
 
-        scheduleOverlayUpdate();
+        if (!skipVisualApply) {
+            if (renderMode === 'gpu') {
+                applyGpuFilter();
+            } else {
+                ensureSvgFilter(true);
+                applyFilter({ skipSvgIfPossible: false });
+            }
+            scheduleOverlayUpdate();
+        }
     }
 
     function getActiveLutProfile() {
@@ -1238,20 +1405,31 @@
             return false;
         }
 
-        // Save current settings (if desired)
-        if (activeUserProfile) {
-            updateCurrentProfileSettings();
+        if (activeUserProfile && activeUserProfile.id === profile.id) {
+            refreshUserProfileManagerUi();
+            return true;
         }
 
-        // Switch profile
-        activeUserProfile = profile;
-        applyUserProfileSettings(profile.settings);
-        saveUserProfiles();
+        if (_autoSaveProfileTimer) {
+            clearTimeout(_autoSaveProfileTimer);
+            _autoSaveProfileTimer = null;
+        }
+
+        _isSwitchingUserProfile = true;
+        try {
+            activeUserProfile = profile;
+            persistActiveUserProfileSelection(profile.id || 'default');
+            try { localStorage.setItem(K.ACTIVE_USER_PROFILE, String(profile.id || 'default')); } catch (_) { }
+            try { gmSet(K.ACTIVE_USER_PROFILE, String(profile.id || 'default')); } catch (_) { }
+            applyUserProfileSettings(profile.settings || {});
+        } finally {
+            _isSwitchingUserProfile = false;
+        }
 
         log('Switched to profile:', profile.name);
 
-        // Show notification
         showProfileNotification(profile.name);
+        refreshUserProfileManagerUi();
 
         return true;
     }
@@ -1651,18 +1829,21 @@ function downloadBlob(blob, filename) {
         }
 
         const now = Date.now();
-        const baseSettings = JSON.parse(JSON.stringify(settingsObj));
+        const baseSettings = buildImportedUserProfileSettings(settingsObj);
         let nextProfile = null;
 
         if (existingIdx >= 0) {
             const prev = userProfiles[existingIdx];
+            const preservedId = prev && prev.id ? String(prev.id) : ((isProfileObj && obj.id) ? String(obj.id) : ('profile_' + now + '_' + Math.random().toString(36).slice(2, 11)));
+            const preservedCreatedAt = (prev && Number(prev.createdAt)) ? Number(prev.createdAt) : ((isProfileObj && Number(obj.createdAt)) ? Number(obj.createdAt) : now);
             nextProfile = {
-                ...prev,
+                id: preservedId,
                 name: profileName,
-                settings: baseSettings,
-                updatedAt: now
+                createdAt: preservedCreatedAt,
+                updatedAt: now,
+                settings: baseSettings
             };
-            userProfiles[existingIdx] = nextProfile;
+            userProfiles.splice(existingIdx, 1, nextProfile);
         } else {
             nextProfile = {
                 id: (isProfileObj && obj.id) ? String(obj.id) : ('profile_' + now + '_' + Math.random().toString(36).slice(2, 11)),
@@ -2037,8 +2218,8 @@ function downloadBlob(blob, filename) {
     let _autoSaveProfileTimer = null;
     let _autoSaveProfileReason = '';
 
-    function updateCurrentProfileSettings() {
-        if (!activeUserProfile) return;
+    function writeCurrentSettingsIntoActiveProfile(saveToStorage = false) {
+        if (!activeUserProfile) return null;
 
         const currentSettings = getCurrentSettings();
         const nextProfile = {
@@ -2059,37 +2240,29 @@ function downloadBlob(blob, filename) {
             activeUserProfile = userProfiles.find(p => p.id === nextProfile.id) || nextProfile;
         }
 
-        saveUserProfiles();
+        if (saveToStorage) {
+            saveUserProfiles();
+        }
+
+        return activeUserProfile;
+    }
+
+    function updateCurrentProfileSettings(force = false) {
+        if (!force) return false;
+        if (!activeUserProfile || _isSwitchingUserProfile) return false;
+
+        writeCurrentSettingsIntoActiveProfile(true);
+        return true;
     }
 
     function scheduleAutoSaveCurrentProfile(reason = '') {
-        if (!activeUserProfile || _suspendSync) return;
-
-        _autoSaveProfileReason = String(reason || '').trim();
-
+        void reason;
         if (_autoSaveProfileTimer) {
             clearTimeout(_autoSaveProfileTimer);
-        }
-
-        _autoSaveProfileTimer = setTimeout(() => {
             _autoSaveProfileTimer = null;
-            try {
-                updateCurrentProfileSettings();
-                const currentSettings = getCurrentSettings();
-                const activeInfo = document.getElementById('gvf-active-profile-info');
-                if (activeInfo && activeUserProfile) {
-                    const suffix = _autoSaveProfileReason ? ` • auto-saved (${_autoSaveProfileReason})` : ' • auto-saved';
-                    activeInfo.title = `Active profile: ${activeUserProfile.name}${suffix}`;
-                }
-                if (notify) {
-                    const profileName = activeUserProfile && activeUserProfile.name ? activeUserProfile.name : 'Unknown';
-                    showAutoSaveNotification(profileName, _autoSaveProfileReason, currentSettings);
-                }
-                log('User profile auto-saved:', activeUserProfile && activeUserProfile.name ? activeUserProfile.name : 'unknown', _autoSaveProfileReason || 'change');
-            } catch (e) {
-                logW('User profile auto-save failed:', e);
-            }
-        }, 180);
+        }
+        _autoSaveProfileReason = '';
+        return false;
     }
 
     function getCurrentSettings() {
@@ -2139,6 +2312,8 @@ function downloadBlob(blob, filename) {
     function applyUserProfileSettings(settings) {
         _suspendSync = true;
         _inSync = true;
+        _isApplyingUserProfileSettings = true;
+        suppressValueSync(700);
 
         try {
             enabled = settings.enabled ?? enabled;
@@ -2165,7 +2340,7 @@ function downloadBlob(blob, filename) {
             // Restore LUT profile for this user profile (if present)
             if (Object.prototype.hasOwnProperty.call(settings, 'lutProfile')) {
                 const lpRaw = String(settings.lutProfile || 'none').trim() || 'none';
-                try { setActiveLutProfile(lpRaw); } catch (_) { }
+                try { setActiveLutProfile(lpRaw, undefined, { skipProfileSave: true, skipVisualApply: true }); } catch (_) { }
             }
 
             autoOn = settings.autoOn ?? autoOn;
@@ -2248,6 +2423,7 @@ function downloadBlob(blob, filename) {
 
             log('Profile settings applied');
         } finally {
+            _isApplyingUserProfileSettings = false;
             _inSync = false;
             _suspendSync = false;
         }
@@ -3867,11 +4043,13 @@ if (!gl) {
             gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
             gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
 
+            // Use standard top-left texture coordinates and flip exactly once on upload.
+            // The previous mixed approach caused the GPU image to look wrong again.
             const texCoords = new Float32Array([
-                0.0, 1.0,
-                1.0, 1.0,
                 0.0, 0.0,
-                1.0, 0.0
+                1.0, 0.0,
+                0.0, 1.0,
+                1.0, 1.0
             ]);
 
             this.texCoordBuffer = gl.createBuffer();
@@ -3914,7 +4092,8 @@ if (!gl) {
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
                 gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+                gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+                gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
             }
 
             if (!this.wrapper || !this.wrapper.isConnected) {
@@ -5371,7 +5550,7 @@ if (!gl) {
             if (!activeUserProfile && Array.isArray(userProfiles) && userProfiles.length) {
                 activeUserProfile = userProfiles[0];
             }
-            updateCurrentProfileSettings();
+            updateCurrentProfileSettings(true);
             saveUserProfiles();
             updateProfileList();
             showScreenNotification('', {
@@ -7264,7 +7443,7 @@ const fileInput = document.createElement('input');
                 const ok = importSettings(obj);
                 if (!ok) { status.textContent = 'Invalid JSON structure.'; return; }
 
-                updateCurrentProfileSettings();
+                updateCurrentProfileSettings(true);
                 saveUserProfiles();
                 try { updateProfileList(); } catch (_) { }
 
@@ -7335,12 +7514,10 @@ const fileInput = document.createElement('input');
             }
 
             importSettings(defaults);
-            updateCurrentProfileSettings();
-            saveUserProfiles();
             try { updateProfileList(); } catch (_) { }
-            setDirty(false);
+            setDirty(true);
             ta.value = JSON.stringify(exportSettings(), null, 2);
-            status.textContent = 'Reset + applied.';
+            status.textContent = 'Reset applied. Use Save to store it in the active profile.';
             showScreenNotification('', {
                 title: `Profile "${String(activeUserProfile?.name || 'Default')}" reset`,
                 detail: 'Defaults restored',
@@ -8012,9 +8189,6 @@ if ('lutProfile' in obj) {
                 regenerateSvgImmediately();
             }
             scheduleOverlayUpdate();
-
-            // Update current profile
-            updateCurrentProfileSettings();
 
             return true;
         } catch (_) {
@@ -9553,6 +9727,25 @@ if ('lutProfile' in obj) {
         new MutationObserver(scan).observe(document.documentElement, { childList: true, subtree: true });
     }
 
+    let _globalSyncApplyTimer = null;
+    function scheduleGlobalSyncApply(delay = 50) {
+        if (_globalSyncApplyTimer) clearTimeout(_globalSyncApplyTimer);
+        _globalSyncApplyTimer = setTimeout(() => {
+            _globalSyncApplyTimer = null;
+            try {
+                setAutoOn(autoOn);
+                if (renderMode === 'gpu') {
+                    applyGpuFilter();
+                } else {
+                    regenerateSvgImmediately();
+                }
+                scheduleOverlayUpdate();
+            } catch (e) {
+                logW('Global sync apply failed:', e);
+            }
+        }, Math.max(0, Number(delay) || 0));
+    }
+
     function listenGlobalSync() {
         const profileAutoSaveKeys = new Set([
             K.enabled,
@@ -9589,6 +9782,12 @@ if ('lutProfile' in obj) {
         ]);
 
         const sync = (changedKey) => {
+            if (_isSwitchingUserProfile) return;
+            if (isValueSyncSuppressed()) return;
+            if (!_applyingRemoteProfileSync && (changedKey === K.USER_PROFILES || changedKey === K.USER_PROFILES_REV || changedKey === K.ACTIVE_USER_PROFILE)) {
+                // Manual save only: ignore automatic user-profile sync events to prevent profile reverts.
+                return;
+            }
             if (_suspendSync) return;
 
             _inSync = true;
@@ -9645,18 +9844,7 @@ if ('lutProfile' in obj) {
                 debug = !!gmGet(K.DEBUG, debug);
                 LOG.on = logs;
 
-                setAutoOn(autoOn);
-
-                if (renderMode === 'gpu') {
-                    applyGpuFilter();
-                } else {
-                    regenerateSvgImmediately();
-                }
-                scheduleOverlayUpdate();
-
-                if (profileAutoSaveKeys.has(changedKey)) {
-                    scheduleAutoSaveCurrentProfile(String(changedKey || 'setting change'));
-                }
+                scheduleGlobalSyncApply(profileAutoSaveKeys.has(changedKey) ? 70 : 40);
             } finally {
                 _inSync = false;
             }
@@ -9669,6 +9857,15 @@ if ('lutProfile' in obj) {
                 });
             } catch (_) { }
         });
+
+        try {
+            window.addEventListener('storage', function(ev) {
+                const key = ev && ev.key ? String(ev.key) : '';
+                if (!key) return;
+                // User profile storage sync is intentionally disabled here.
+                // Manual save only: do not auto-switch or auto-merge profiles across tabs.
+            }, false);
+        } catch (_) { }
     }
 
     function cycleProfile() {
@@ -9790,8 +9987,7 @@ if ('lutProfile' in obj) {
         gmSet(K.LOGS, logs);
         gmSet(K.DEBUG, debug);
 
-        // Save user profiles
-        saveUserProfiles();
+        // Manual save only: do not auto-save user profiles during init.
 
         setAutoDotState(autoOn ? (debug ? 'idle' : 'off') : 'off');
 
