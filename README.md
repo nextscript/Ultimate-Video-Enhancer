@@ -1,5 +1,8 @@
 <img src="https://raw.githubusercontent.com/nextscript/Globale-Video-Filter-Overlay/refs/heads/main/preview.png">
 <hr>
+<img src="https://raw.githubusercontent.com/nextscript/Globale-Video-Filter-Overlay/refs/heads/main/before.png">
+<img src="https://raw.githubusercontent.com/nextscript/Globale-Video-Filter-Overlay/refs/heads/main/after.png">
+<hr>
 <h2>What this script does</h2>
 <hr>
 This userscript adds a global video filter pipeline to all HTML5 "video" elements on any website you visit.
