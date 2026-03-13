@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.7.9
+// @version      1.8.0
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @match        *://*/*
@@ -218,7 +218,10 @@
         LUT_ACTIVE_PROFILE: 'gvf_lut_active_profile',
         LUT_PROFILES: 'gvf_lut_profiles',
         LUT_PROFILES_REV: 'gvf_lut_profiles_rev',
-        LUT_GROUPS: 'gvf_lut_groups'
+        LUT_GROUPS: 'gvf_lut_groups',
+
+        USER_PROFILE_MANAGER_POS: 'gvf_user_profile_manager_pos',
+        LUT_PROFILE_MANAGER_POS: 'gvf_lut_profile_manager_pos'
     };
 
     // -------------------------
@@ -2201,6 +2204,30 @@ function downloadBlob(blob, filename) {
 
     function showProfileNotification(profileName) {
         showScreenNotification(`Profile: ${profileName}`);
+    }
+
+    function showToggleNotification(label, isEnabled, detail = '') {
+        showScreenNotification('', {
+            title: String(label || 'Toggle').trim() || 'Toggle',
+            detail: detail || ((isEnabled ? 'Enabled' : 'Disabled')),
+            detailColor: isEnabled ? '#4cff6a' : '#ff4c4c'
+        });
+    }
+
+    function showValueNotification(label, valueText, color = '#88ccff') {
+        showScreenNotification('', {
+            title: String(label || 'Value').trim() || 'Value',
+            detail: String(valueText || '').trim(),
+            detailColor: color
+        });
+    }
+
+    function showProfileCycleNotification(profileName) {
+        showScreenNotification('', {
+            title: 'Profile Cycle',
+            detail: String(profileName || 'Default').trim() || 'Default',
+            detailColor: '#88ccff'
+        });
     }
 
     function showAutoSaveNotification(profileName, reason, currentSettings) {
@@ -5273,6 +5300,7 @@ if (!gl) {
         if (!_inSync) gmSet(K.AUTO_ON, autoOn);
 
         logToggle('Auto Scene Match (Ctrl+Alt+A)', autoOn, `(strength=${autoStrength.toFixed(2)}, lockWB=${autoLockWB ? 'yes' : 'no'}, adaptive FPS 2-10)`);
+        if (!silent) showToggleNotification('Auto-Scene-Match', autoOn);
 
         if (!autoOn) {
             AUTO.lastSig = null;
@@ -5358,6 +5386,7 @@ if (!gl) {
             user-select: none;
             pointer-events: auto;
         `;
+        stopEventsOn(menu);
 
         // Header
         const header = document.createElement('div');
@@ -5413,6 +5442,8 @@ if (!gl) {
         header.appendChild(title);
         header.appendChild(closeBtn);
         menu.appendChild(header);
+
+        makeFloatingManagerDraggable(menu, header, K.USER_PROFILE_MANAGER_POS);
 
         // Show active profile
         const activeInfo = document.createElement('div');
@@ -5717,6 +5748,7 @@ if (!gl) {
         // Add to body
         if (document.body) {
             document.body.appendChild(menu);
+            applyManagerPosition(menu, K.USER_PROFILE_MANAGER_POS);
             log('Config menu created and added to the body');
         }
 
@@ -5986,6 +6018,8 @@ if (!gl) {
         header.appendChild(title);
         header.appendChild(closeBtn);
         menu.appendChild(header);
+
+        makeFloatingManagerDraggable(menu, header, K.LUT_PROFILE_MANAGER_POS);
 
         const activeInfo = document.createElement('div');
         activeInfo.id = 'gvf-active-lut-profile-info';
@@ -6706,6 +6740,7 @@ const fileInput = document.createElement('input');
         updateLutProfileListInner();
 
         (document.body || document.documentElement).appendChild(menu);
+        applyManagerPosition(menu, K.LUT_PROFILE_MANAGER_POS);
         return menu;
     }
 
@@ -6767,6 +6802,119 @@ const fileInput = document.createElement('input');
             'touchstart', 'touchmove', 'touchend',
             'wheel', 'keydown', 'keyup'
         ].forEach(ev => el.addEventListener(ev, stop, { passive: true }));
+    }
+
+
+    function readManagerPosition(key) {
+        try {
+            const raw = gmGet(key, null);
+            if (raw && typeof raw === 'object') {
+                const x = Number(raw.x);
+                const y = Number(raw.y);
+                if (Number.isFinite(x) && Number.isFinite(y)) return { x, y };
+            }
+        } catch (_) { }
+        try {
+            const raw = localStorage.getItem(key);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            const x = Number(parsed && parsed.x);
+            const y = Number(parsed && parsed.y);
+            if (Number.isFinite(x) && Number.isFinite(y)) return { x, y };
+        } catch (_) { }
+        return null;
+    }
+
+    function writeManagerPosition(key, pos) {
+        if (!pos || !Number.isFinite(Number(pos.x)) || !Number.isFinite(Number(pos.y))) return;
+        const safe = { x: Math.round(Number(pos.x)), y: Math.round(Number(pos.y)) };
+        try { gmSet(key, safe); } catch (_) { }
+        try { localStorage.setItem(key, JSON.stringify(safe)); } catch (_) { }
+    }
+
+    function clampManagerPosition(menu, x, y) {
+        const rect = (menu && typeof menu.getBoundingClientRect === 'function') ? menu.getBoundingClientRect() : null;
+        const width = rect && rect.width ? rect.width : (menu ? menu.offsetWidth : 0);
+        const height = rect && rect.height ? rect.height : (menu ? menu.offsetHeight : 0);
+        const vw = Math.max(document.documentElement ? document.documentElement.clientWidth : 0, window.innerWidth || 0);
+        const vh = Math.max(document.documentElement ? document.documentElement.clientHeight : 0, window.innerHeight || 0);
+        const margin = 12;
+        const maxX = Math.max(margin, vw - width - margin);
+        const maxY = Math.max(margin, vh - height - margin);
+        return {
+            x: clamp(Number(x) || margin, margin, maxX),
+            y: clamp(Number(y) || margin, margin, maxY)
+        };
+    }
+
+    function applyManagerPosition(menu, storageKey) {
+        if (!menu) return;
+        const stored = readManagerPosition(storageKey);
+        const pos = stored
+            ? clampManagerPosition(menu, stored.x, stored.y)
+            : clampManagerPosition(menu, (window.innerWidth - menu.offsetWidth) / 2, (window.innerHeight - menu.offsetHeight) / 2);
+        menu.style.left = pos.x + 'px';
+        menu.style.top = pos.y + 'px';
+        menu.style.transform = 'none';
+    }
+
+    function makeFloatingManagerDraggable(menu, header, storageKey) {
+        if (!menu || !header || !storageKey) return;
+        header.style.cursor = 'move';
+        header.style.touchAction = 'none';
+
+        let dragState = null;
+
+        const finishDrag = () => {
+            if (!dragState) return;
+            const pos = clampManagerPosition(menu, parseFloat(menu.style.left), parseFloat(menu.style.top));
+            menu.style.left = pos.x + 'px';
+            menu.style.top = pos.y + 'px';
+            menu.style.transform = 'none';
+            writeManagerPosition(storageKey, pos);
+            dragState = null;
+        };
+
+        const onPointerMove = (e) => {
+            if (!dragState) return;
+            const clientX = Number(e && e.clientX);
+            const clientY = Number(e && e.clientY);
+            if (!Number.isFinite(clientX) || !Number.isFinite(clientY)) return;
+            const pos = clampManagerPosition(menu, clientX - dragState.offsetX, clientY - dragState.offsetY);
+            menu.style.left = pos.x + 'px';
+            menu.style.top = pos.y + 'px';
+            menu.style.transform = 'none';
+        };
+
+        const onPointerUp = () => finishDrag();
+
+        header.addEventListener('pointerdown', (e) => {
+            if (!e || e.button !== 0) return;
+            const target = e.target;
+            if (target && typeof target.closest === 'function' && target.closest('button, input, select, textarea, a, label')) return;
+            const rect = menu.getBoundingClientRect();
+            dragState = {
+                offsetX: e.clientX - rect.left,
+                offsetY: e.clientY - rect.top
+            };
+            menu.style.transform = 'none';
+            menu.style.left = rect.left + 'px';
+            menu.style.top = rect.top + 'px';
+            try { header.setPointerCapture(e.pointerId); } catch (_) { }
+            e.preventDefault();
+            e.stopPropagation();
+        });
+
+        header.addEventListener('pointermove', onPointerMove);
+        header.addEventListener('pointerup', onPointerUp);
+        header.addEventListener('pointercancel', onPointerUp);
+        window.addEventListener('resize', () => {
+            const pos = clampManagerPosition(menu, parseFloat(menu.style.left), parseFloat(menu.style.top));
+            menu.style.left = pos.x + 'px';
+            menu.style.top = pos.y + 'px';
+            menu.style.transform = 'none';
+            writeManagerPosition(storageKey, pos);
+        });
     }
 
     function mkMainOverlay() {
@@ -9926,6 +10074,7 @@ if ('lutProfile' in obj) {
         profile = order[(cur < 0 ? 0 : (cur + 1)) % order.length];
         gmSet(K.PROF, profile);
         log('Profile cycled:', profile);
+        showProfileCycleNotification(profile);
 
         // Save current settings in active profile
         updateCurrentProfileSettings();
@@ -10140,10 +10289,12 @@ if ('lutProfile' in obj) {
                     const last = Number(gmGet(K.HDR_LAST, 0.3));
                     hdr = clamp(last || 1.2, -1.0, 2.0);
                     logToggle('HDR (Ctrl+Alt+P)', true, `value=${normHDR().toFixed(2)}`);
+                    showValueNotification('HDR', `Enabled (${normHDR().toFixed(2)})`, '#4cff6a');
                 } else {
                     gmSet(K.HDR_LAST, cur);
                     hdr = 0;
                     logToggle('HDR (Ctrl+Alt+P)', false);
+                    showToggleNotification('HDR', false);
                 }
                 gmSet(K.HDR, normHDR());
 
@@ -10167,22 +10318,22 @@ if ('lutProfile' in obj) {
             if (!(e.ctrlKey && e.altKey) || e.shiftKey) return;
 
             if (k === HK.base) {
-                enabled = !enabled; gmSet(K.enabled, enabled); e.preventDefault(); logToggle('Base (Ctrl+Alt+B)', enabled);
+                enabled = !enabled; gmSet(K.enabled, enabled); e.preventDefault(); logToggle('Base (Ctrl+Alt+B)', enabled); showToggleNotification('Base Tone Chain', enabled);
                 updateCurrentProfileSettings();
                 if (renderMode === 'gpu') applyGpuFilter(); else regenerateSvgImmediately(); return;
             }
             if (k === HK.moody) {
-                darkMoody = !darkMoody; gmSet(K.moody, darkMoody); e.preventDefault(); logToggle('Dark&Moody (Ctrl+Alt+D)', darkMoody);
+                darkMoody = !darkMoody; gmSet(K.moody, darkMoody); e.preventDefault(); logToggle('Dark&Moody (Ctrl+Alt+D)', darkMoody); showToggleNotification('Dark & Moody', darkMoody);
                 updateCurrentProfileSettings();
                 if (renderMode === 'gpu') applyGpuFilter(); else regenerateSvgImmediately(); return;
             }
             if (k === HK.teal) {
-                tealOrange = !tealOrange; gmSet(K.teal, tealOrange); e.preventDefault(); logToggle('Teal&Orange (Ctrl+Alt+O)', tealOrange);
+                tealOrange = !tealOrange; gmSet(K.teal, tealOrange); e.preventDefault(); logToggle('Teal&Orange (Ctrl+Alt+O)', tealOrange); showToggleNotification('Teal & Orange', tealOrange);
                 updateCurrentProfileSettings();
                 if (renderMode === 'gpu') applyGpuFilter(); else regenerateSvgImmediately(); return;
             }
             if (k === HK.vib) {
-                vibrantSat = !vibrantSat; gmSet(K.vib, vibrantSat); e.preventDefault(); logToggle('Vibrant (Ctrl+Alt+V)', vibrantSat);
+                vibrantSat = !vibrantSat; gmSet(K.vib, vibrantSat); e.preventDefault(); logToggle('Vibrant (Ctrl+Alt+V)', vibrantSat); showToggleNotification('Vibrant & Saturated', vibrantSat);
                 updateCurrentProfileSettings();
                 if (renderMode === 'gpu') applyGpuFilter(); else regenerateSvgImmediately(); return;
             }
