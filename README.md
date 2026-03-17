@@ -219,7 +219,7 @@ The resulting matrix is applied in real-time via feColorMatrix, enabling instant
 </ul>
 <hr>
 <b>LUTs Profiles:</b><br>
-<a href="https://github.com/nextscript/Globale-Video-Filter-Overlay/raw/refs/heads/main/LUTs1.7.3_v1.1.zip" target="_blank">LUTs Profiles Examples</a>
+<a href="https://github.com/nextscript/Globale-Video-Filter-Overlay/raw/refs/heads/main/LUTsProfiles_v2.0.zip" target="_blank">LUTs Profiles Examples</a>
 <hr>
 <h2>⚙️ Config-Button</b></h2>
 <hr>
