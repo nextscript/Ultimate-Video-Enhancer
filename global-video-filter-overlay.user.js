@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.8.2
+// @version      1.8.3
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Globale Video Filter Overlay verbessert jedes HTML5-Video in Ihrem Browser mit Echtzeit-Farbkorrektur, Schärfung, HDR und LUTs. Es bietet sofortiges Profilwechseln und Steuerelemente direkt im Video, um die Bildqualität ohne Neucodierung oder Downloads zu verbessern.
 // @match        *://*/*
@@ -5945,6 +5945,85 @@ if (!gl) {
     // -------------------------
     let lutConfigMenuVisible = false;
 
+    /**
+     * Applies a 4x5 feColorMatrix (row-major, 20 floats) to ImageData in-place.
+     * Runs on a downscaled buffer for speed; caller handles up/downscaling.
+     */
+    function applyLut4x5ToImageData(imageData, matrix4x5) {
+        if (!imageData || !Array.isArray(matrix4x5) || matrix4x5.length !== 20) return;
+        const d = imageData.data;
+        const m = matrix4x5.map(Number);
+        const m0=m[0],m1=m[1],m2=m[2],m4=m[4]*255;
+        const m5=m[5],m6=m[6],m7=m[7],m9=m[9]*255;
+        const m10=m[10],m11=m[11],m12=m[12],m14=m[14]*255;
+        for (let i = 0; i < d.length; i += 4) {
+            const r=d[i], g=d[i+1], b=d[i+2];
+            d[i]   = m0*r+m1*g+m2*b+m4   < 0 ? 0 : m0*r+m1*g+m2*b+m4   > 255 ? 255 : m0*r+m1*g+m2*b+m4;
+            d[i+1] = m5*r+m6*g+m7*b+m9   < 0 ? 0 : m5*r+m6*g+m7*b+m9   > 255 ? 255 : m5*r+m6*g+m7*b+m9;
+            d[i+2] = m10*r+m11*g+m12*b+m14 < 0 ? 0 : m10*r+m11*g+m12*b+m14 > 255 ? 255 : m10*r+m11*g+m12*b+m14;
+        }
+    }
+
+    /**
+     * Captures one shared raw ImageData at 320x180 from the current video frame
+     * (or gradient fallback). Used as the base for all LUT previews this session.
+     */
+    function captureLutPreviewFrame() {
+        const W = 1280, H = 720;
+        const c = document.createElement('canvas');
+        c.width = W; c.height = H;
+        const ctx = c.getContext('2d', { alpha: false, willReadFrequently: true });
+        if (!ctx) return null;
+        let drew = false;
+        const video = getHudPrimaryVideo();
+        if (video && video.readyState >= 2 && video.videoWidth > 0) {
+            try {
+                ctx.drawImage(video, 0, 0, W, H);
+                ctx.getImageData(0, 0, 1, 1);
+                drew = true;
+            } catch(_) {}
+        }
+        if (!drew) {
+            const grad = ctx.createLinearGradient(0, 0, W, H);
+            grad.addColorStop(0, '#1a3a5c'); grad.addColorStop(0.25, '#c85032');
+            grad.addColorStop(0.5, '#f0c040'); grad.addColorStop(0.75, '#3ab56a');
+            grad.addColorStop(1, '#8040c0');
+            ctx.fillStyle = grad; ctx.fillRect(0, 0, W, H);
+        }
+        try { return ctx.getImageData(0, 0, W, H); } catch(_) { return null; }
+    }
+
+    /**
+     * Applies LUT to ImageData in async chunks to avoid blocking the main thread.
+     * Calls onDone() when finished.
+     */
+    function applyLut4x5Async(imageData, matrix4x5, onDone) {
+        const d = imageData.data;
+        const m = matrix4x5.map(Number);
+        const m0=m[0],m1=m[1],m2=m[2],m4=m[4]*255;
+        const m5=m[5],m6=m[6],m7=m[7],m9=m[9]*255;
+        const m10=m[10],m11=m[11],m12=m[12],m14=m[14]*255;
+        const total = d.length;
+        const CHUNK = 1280 * 60 * 4; // 60 rows per chunk
+        let offset = 0;
+        function processChunk() {
+            const end = Math.min(offset + CHUNK, total);
+            for (let i = offset; i < end; i += 4) {
+                const r=d[i], g=d[i+1], b=d[i+2];
+                d[i]   = m0*r+m1*g+m2*b+m4   < 0 ? 0 : m0*r+m1*g+m2*b+m4   > 255 ? 255 : m0*r+m1*g+m2*b+m4;
+                d[i+1] = m5*r+m6*g+m7*b+m9   < 0 ? 0 : m5*r+m6*g+m7*b+m9   > 255 ? 255 : m5*r+m6*g+m7*b+m9;
+                d[i+2] = m10*r+m11*g+m12*b+m14 < 0 ? 0 : m10*r+m11*g+m12*b+m14 > 255 ? 255 : m10*r+m11*g+m12*b+m14;
+            }
+            offset = end;
+            if (offset < total) {
+                setTimeout(processChunk, 0);
+            } else {
+                onDone(imageData);
+            }
+        }
+        setTimeout(processChunk, 0);
+    }
+
     function createLutConfigMenu() {
         let existingMenu = document.getElementById(LUT_CONFIG_MENU_ID);
         if (existingMenu) existingMenu.remove();
@@ -5956,9 +6035,9 @@ if (!gl) {
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 520px;
-            max-width: 92vw;
-            max-height: 82vh;
+            width: 820px;
+            max-width: 98vw;
+            max-height: 88vh;
             background: rgba(20, 20, 20, 0.98);
             backdrop-filter: blur(10px);
             border: 2px solid #ff8a00;
@@ -6692,6 +6771,9 @@ const fileInput = document.createElement('input');
                 return;
             }
 
+            // Capture ONE shared raw frame (320x180) for all profiles — fast, done once
+            const sharedRaw = captureLutPreviewFrame(); // ImageData 320x180 or null
+
             const mkBtn = (text, bg, fg) => {
                 const b = document.createElement('button');
                 b.type = 'button';
@@ -6712,18 +6794,18 @@ const fileInput = document.createElement('input');
             for (const p of filtered) {
                 const row = document.createElement('div');
                 row.style.cssText = `
-                    display:flex;align-items:center;justify-content:space-between;gap:10px;
+                    display:flex;align-items:center;gap:12px;
                     padding: 10px 10px;border-radius: 10px;
                     background: rgba(0,0,0,0.35);
                     border: 1px solid rgba(255,255,255,0.12);
                 `;
 
                 const left = document.createElement('div');
-                left.style.cssText = 'display:flex;flex-direction:column;gap:2px;';
+                left.style.cssText = 'display:flex;flex-direction:column;gap:2px;flex:1;min-width:120px;overflow:hidden;';
 
                 const nm = document.createElement('div');
                 nm.textContent = String(p.name);
-                nm.style.cssText = `font-weight:900;font-size:14px;color:#fff;`;
+                nm.style.cssText = `font-weight:900;font-size:14px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
 
                 const meta = document.createElement('div');
                 const isActive = (lutKeyFromProfile(p) === String(activeLutProfileKey));
@@ -6740,6 +6822,114 @@ const fileInput = document.createElement('input');
                     gEl.style.cssText = 'font-size:12px;opacity:0.75;';
                     left.appendChild(gEl);
                 }
+
+                // --- LUT Preview Canvas (thumbnail 160x90, built once in background) ---
+                const PW = 160, PH = 90;
+                const previewWrap = document.createElement('div');
+                previewWrap.style.cssText = `
+                    flex-shrink:0;border-radius:8px;overflow:hidden;
+                    border:1px solid rgba(255,138,0,0.35);
+                    width:${PW}px;height:${PH}px;position:relative;
+                    background:#111;cursor:zoom-in;
+                `;
+                const thumbCanvas = document.createElement('canvas');
+                thumbCanvas.width = PW; thumbCanvas.height = PH;
+                thumbCanvas.style.cssText = `display:block;width:${PW}px;height:${PH}px;`;
+                previewWrap.appendChild(thumbCanvas);
+
+                // Big canvas for lightbox (1280x720) — pre-rendered, never re-rendered
+                const LW = 1280, LH = 720;
+                const bigCanvas = document.createElement('canvas');
+                bigCanvas.width = LW; bigCanvas.height = LH;
+                bigCanvas.style.cssText = 'display:block;width:auto;height:auto;max-width:90vw;max-height:65vh;border-radius:10px;';
+                let bigReady = false;
+
+                // Build both canvases in background — LUT applied async in chunks, no main-thread block
+                setTimeout(() => {
+                    try {
+                    if (!sharedRaw) return; // sharedRaw is already 1280x720
+
+                    const applyAndRender = (id) => {
+                        try {
+                            // Write LUT-processed frame into bigCanvas (1280x720)
+                            const bCtx = bigCanvas.getContext('2d', { alpha: false });
+                            if (bCtx) {
+                                bCtx.putImageData(id, 0, 0);
+                                bigReady = true;
+                            }
+                            // Scale down to thumbnail 160x90
+                            const tCtx = thumbCanvas.getContext('2d', { alpha: false });
+                            if (tCtx) {
+                                tCtx.imageSmoothingEnabled = true;
+                                try { tCtx.imageSmoothingQuality = 'high'; } catch(_) {}
+                                tCtx.drawImage(bigCanvas, 0, 0, PW, PH);
+                            }
+                        } catch(_) {}
+                    };
+
+                    // Clone sharedRaw so each profile gets its own copy to mutate
+                    const idCopy = new ImageData(
+                        new Uint8ClampedArray(sharedRaw.data),
+                        sharedRaw.width, sharedRaw.height
+                    );
+
+                    if (Array.isArray(p.matrix4x5) && p.matrix4x5.length === 20) {
+                        applyLut4x5Async(idCopy, p.matrix4x5, applyAndRender);
+                    } else {
+                        applyAndRender(idCopy);
+                    }
+
+                    } catch(_) {}
+                }, 0);
+
+                // Lightbox click — show pre-rendered bigCanvas, no re-render
+                const openLightbox = (e) => {
+                    e.stopPropagation();
+                    const overlay = document.createElement('div');
+                    overlay.style.cssText = `
+                        position:fixed;inset:0;z-index:2147483647;
+                        background:rgba(0,0,0,0.82);backdrop-filter:blur(6px);
+                        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+                        cursor:zoom-out;
+                    `;
+                    stopEventsOn(overlay);
+
+                    const lbTitle = document.createElement('div');
+                    lbTitle.textContent = '🎨 ' + String(p.name) + (grp ? '  ·  ' + grp : '');
+                    lbTitle.style.cssText = `color:#fff;font-size:18px;font-weight:900;
+                        text-shadow:0 0 12px rgba(255,138,0,0.7);pointer-events:none;`;
+
+                    const lbClose = document.createElement('button');
+                    lbClose.type = 'button';
+                    lbClose.textContent = '✕';
+                    lbClose.style.cssText = `
+                        position:absolute;top:16px;right:16px;
+                        background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);
+                        color:#fff;font-size:18px;font-weight:900;width:36px;height:36px;
+                        border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+                    `;
+                    lbClose.addEventListener('click', (ev) => { ev.stopPropagation(); overlay.remove(); });
+                    stopEventsOn(lbClose);
+
+                    const content = bigReady ? bigCanvas : (() => {
+                        const msg = document.createElement('div');
+                        msg.textContent = 'Vorschau wird geladen…';
+                        msg.style.cssText = 'color:#fff;opacity:0.7;font-size:14px;';
+                        return msg;
+                    })();
+
+                    overlay.addEventListener('click', () => overlay.remove());
+                    bigCanvas.addEventListener('click', (ev) => ev.stopPropagation());
+
+                    overlay.appendChild(lbTitle);
+                    overlay.appendChild(content);
+                    overlay.appendChild(lbClose);
+                    (document.body || document.documentElement).appendChild(overlay);
+                };
+
+                previewWrap.addEventListener('click', openLightbox);
+                stopEventsOn(previewWrap);
+                // --- end LUT Preview Canvas ---
 
                 const right = document.createElement('div');
                 right.style.cssText = 'display:flex;gap:8px;align-items:center;';
@@ -6766,7 +6956,7 @@ const fileInput = document.createElement('input');
 
                 const delBtn = mkBtn('Delete', 'rgba(255, 68, 68, 0.20)', '#ffd0d0');
                 delBtn.addEventListener('click', () => {
-                    deleteLutProfile(lutKeyFromProfile(p)); // no confirm
+                    deleteLutProfile(lutKeyFromProfile(p));
                     setActiveLutInfo();
                     updateLutProfileListInner();
                 });
@@ -6775,6 +6965,7 @@ const fileInput = document.createElement('input');
                 right.appendChild(editBtn);
                 right.appendChild(delBtn);
 
+                row.appendChild(previewWrap);
                 row.appendChild(left);
                 row.appendChild(right);
                 container.appendChild(row);
@@ -6784,7 +6975,7 @@ const fileInput = document.createElement('input');
         menu._gvfUpdateLutProfileList = updateLutProfileListInner;
         menu._gvfSetActiveLutInfo = setActiveLutInfo;
 
-        updateLutProfileListInner();
+        try { updateLutProfileListInner(); } catch(_) {}
 
         (document.body || document.documentElement).appendChild(menu);
         applyManagerPosition(menu, K.LUT_PROFILE_MANAGER_POS);
