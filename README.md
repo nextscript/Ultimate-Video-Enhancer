@@ -234,7 +234,7 @@ A button in the IO-HUD (which you open with Ctrl+Alt+I) that opens the Profile M
 <h2>On-Screen Notification:</h2>
 <b>A brief overlay in the top-left corner of the video that shows which profile is currently active for 3 seconds.(Shift + Q)</b>
 <hr>
-<h2>Edge Detection <b style="color:red;">(New)</b></h2>
+<h2>Edge Detection</h2>
 Edge detection finds the edges and lines in an image or video.
 It looks for places where brightness or colors change strongly.
 <br>
@@ -249,6 +249,19 @@ It looks for places where brightness or colors change strongly.
 <b>Note:</b><br>
 The edge value can be changed in the Ctrl + Alt + I menu inside the JSON settings.
 After pressing Save, the filter updates immediately and the change becomes visible in the video.
+<hr>
+<h2>Custom SVG Filter Codes <b style="color:red;">(New)</b></h2>
+
+The new <b>Custom SVG Filter Codes</b> feature lets you inject your own SVG filter primitives directly into the video filter pipeline — no script editing required. A „Manage" button in the Grading HUD opens a window where you can add, edit, and delete any number of filter entries (Ctrl+Alt+G). Each entry can be toggled on or off individually via checkbox. Filters are injected after the automatic color correction stage in the SVG pipeline and applied to the live video instantly on save.
+<br><p>
+<b>Useful for:</b><br>
+custom sharpening kernels (feConvolveMatrix), color matrix effects (feColorMatrix), experimental image processing — anything expressible as an SVG filter primitive, without touching the source code.
+<br><p>
+<b>Example:</b><br>
+<pre><code>&lt;feConvolveMatrix kernelMatrix="
+0 -1 0 
+-1 5 -1 
+0 -1 0"/&gt;</code></pre>
 <hr>
 <ul>
 <li>0.01 = almost invisible</li>
