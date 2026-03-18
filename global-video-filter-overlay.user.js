@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.8.4
+// @version      1.8.5
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Globale Video Filter Overlay verbessert jedes HTML5-Video in Ihrem Browser mit Echtzeit-Farbkorrektur, Schärfung, HDR und LUTs. Es bietet sofortiges Profilwechseln und Steuerelemente direkt im Video, um die Bildqualität ohne Neucodierung oder Downloads zu verbessern.
 // @match        *://*/*
@@ -24,6 +24,74 @@
 (function () {
     'use strict';
     if (typeof window === 'undefined') return;
+
+    // -------------------------
+    // GVF SVG Import Page Handler
+    // -------------------------
+    (function handleImportPage() {
+        try {
+            const host = (location.hostname || '').toLowerCase();
+            const isImportPage = host === 'svg.ts3x.cc' || document.documentElement.hasAttribute('data-gvf-import-page');
+            if (!isImportPage) return;
+            window.__GVF_IMPORT_PAGE__ = true;
+            window.GVF_DETECTED = true;
+            // Dispatch event so the page can detect GVF regardless of timing
+            try {
+                document.dispatchEvent(new CustomEvent('gvf-detected'));
+            } catch (_) {}
+
+            function wireButtons() {
+                document.querySelectorAll('[data-gvf-install]').forEach(btn => {
+                    if (btn.__gvfWired) return;
+                    btn.__gvfWired = true;
+                    btn.addEventListener('click', () => {
+                        try {
+                            const entry = JSON.parse(btn.getAttribute('data-gvf-install') || '{}');
+                            if (!entry.label || !entry.code) { alert('Invalid entry.'); return; }
+
+                            let codes = [];
+                            try {
+                                const raw = GM_getValue('gvf_custom_svg_codes', null);
+                                if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) codes = p; }
+                            } catch (_) {}
+
+                            const exists = codes.find(e => e.label === entry.label);
+                            if (exists) {
+                                if (!confirm(`"${entry.label}" already exists. Overwrite?`)) return;
+                                exists.code = entry.code;
+                                exists.enabled = true;
+                            } else {
+                                codes.push({ id: 'csvg_' + Date.now(), label: entry.label, code: entry.code, enabled: true });
+                            }
+
+                            GM_setValue('gvf_custom_svg_codes', JSON.stringify(codes));
+
+                            const orig = btn.innerHTML;
+                            btn.innerHTML = '✓ Installed!';
+                            btn.disabled = true;
+                            btn.classList.remove('btn-success');
+                            btn.classList.add('btn-outline-success');
+                            setTimeout(() => {
+                                btn.innerHTML = orig;
+                                btn.disabled = false;
+                                btn.classList.add('btn-success');
+                                btn.classList.remove('btn-outline-success');
+                            }, 2000);
+                        } catch (e) { alert('Install failed: ' + e.message); }
+                    });
+                });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', wireButtons, { once: true });
+            } else {
+                wireButtons();
+            }
+            new MutationObserver(wireButtons).observe(document.documentElement, { childList: true, subtree: true });
+        } catch (_) {}
+    })();
+
+    if (window.__GVF_IMPORT_PAGE__) return;
     if (window.__GLOBAL_VIDEO_FILTER__) return;
     window.__GLOBAL_VIDEO_FILTER__ = true;
 
@@ -312,11 +380,26 @@
         const htitle = document.createElement('div');
         htitle.textContent = '⬡ Custom SVG Filter Codes';
         htitle.style.cssText = `font-size:16px;font-weight:900;color:#fff;text-shadow:0 0 8px #4a9eff;`;
+
+        const hbtns = document.createElement('div');
+        hbtns.style.cssText = `display:flex;gap:6px;align-items:center;flex-shrink:0;`;
+
+        const libBtn = document.createElement('button');
+        libBtn.textContent = '📚 Library';
+        libBtn.title = 'Open SVG Filter Library';
+        libBtn.style.cssText = `padding:4px 10px;background:rgba(100,180,255,0.18);color:#a0d4ff;border:1px solid rgba(100,180,255,0.45);border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;`;
+        libBtn.addEventListener('mouseenter', () => { libBtn.style.background = 'rgba(100,180,255,0.32)'; });
+        libBtn.addEventListener('mouseleave', () => { libBtn.style.background = 'rgba(100,180,255,0.18)'; });
+        libBtn.addEventListener('click', () => { window.open('https://svg.ts3x.cc/', '_blank'); });
+
         const hclose = document.createElement('button');
         hclose.textContent = '✕';
         hclose.style.cssText = `background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;font-size:18px;cursor:pointer;width:32px;height:32px;border-radius:7px;flex-shrink:0;`;
         hclose.addEventListener('click', () => modal.remove());
-        hdr.appendChild(htitle); hdr.appendChild(hclose);
+
+        hbtns.appendChild(libBtn);
+        hbtns.appendChild(hclose);
+        hdr.appendChild(htitle); hdr.appendChild(hbtns);
         modal.appendChild(hdr);
 
         // List area
@@ -325,6 +408,7 @@
         modal.appendChild(listWrap);
 
         function renderList() {
+            const scrollTop = listWrap.scrollTop;
             while (listWrap.firstChild) listWrap.removeChild(listWrap.firstChild);
             if (!customSvgCodes.length) {
                 const empty = document.createElement('div');
@@ -375,6 +459,7 @@
                 row.appendChild(chk); row.appendChild(lbl); row.appendChild(editBtn); row.appendChild(delBtn);
                 listWrap.appendChild(row);
             });
+            listWrap.scrollTop = scrollTop;
         }
 
         // Edit / Add form
@@ -451,6 +536,8 @@
         renderList();
         renderEditArea();
         makeFloatingManagerDraggable(modal, hdr, 'gvf_custom_svg_modal_pos');
+        // Expose renderList so the sync handler can refresh the modal live
+        modal._gvfRenderList = renderList;
         (document.body || document.documentElement).appendChild(modal);
     }
 
@@ -10880,6 +10967,21 @@ if ('lutProfile' in obj) {
 
                 cbFilter = String(gmGet(K.CB_FILTER, cbFilter)).toLowerCase();
                 if (!['none', 'protanopia', 'deuteranopia', 'tritanomaly'].includes(cbFilter)) cbFilter = 'none';
+
+                // Reload custom SVG codes and refresh modal if open
+                if (changedKey === K.CUSTOM_SVG_CODES) {
+                    loadCustomSvgCodes();
+                    regenerateSvgImmediately();
+                    const modal = document.getElementById('gvf-custom-svg-modal');
+                    if (modal && modal._gvfRenderList) modal._gvfRenderList();
+                    const badge = document.getElementById('gvf-svg-codes-count');
+                    if (badge) {
+                        const ac = customSvgCodes.filter(e => e.enabled).length;
+                        badge.textContent = customSvgCodes.length ? `${ac}/${customSvgCodes.length} active` : '';
+                    }
+                    _inSync = false;
+                    return;
+                }
 
                 // Debug/Load settings from storage
                 logs = !!gmGet(K.LOGS, logs);
