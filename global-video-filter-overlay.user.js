@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.8.5
+// @version      1.8.6
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Globale Video Filter Overlay verbessert jedes HTML5-Video in Ihrem Browser mit Echtzeit-Farbkorrektur, Schärfung, HDR und LUTs. Es bietet sofortiges Profilwechseln und Steuerelemente direkt im Video, um die Bildqualität ohne Neucodierung oder Downloads zu verbessern.
 // @match        *://*/*
@@ -160,7 +160,13 @@
         try {
             if (document.hidden) return false;
             if (document.visibilityState && document.visibilityState !== 'visible') return false;
-            if (typeof document.hasFocus === 'function' && !document.hasFocus()) return false;
+            if (typeof document.hasFocus === 'function' && !document.hasFocus()) {
+                // Don't hide HUD if a GVF element currently has focus (e.g. slider, textarea, button)
+                const focused = document.activeElement;
+                if (!focused || !focused.closest(
+                    '.gvf-video-overlay-io, .gvf-video-overlay-grade, .gvf-video-overlay, [id^="gvf-"]'
+                )) return false;
+            }
         } catch (_) { }
         return true;
     }
@@ -7640,7 +7646,7 @@ const fileInput = document.createElement('input');
             'pointerdown', 'pointerup', 'pointermove',
             'mousedown', 'mouseup', 'mousemove',
             'touchstart', 'touchmove', 'touchend',
-            'wheel', 'keydown', 'keyup'
+            'wheel'
         ].forEach(ev => el.addEventListener(ev, stop, { passive: true }));
     }
 
@@ -10006,7 +10012,7 @@ if ('lutProfile' in obj) {
 
     document.addEventListener('visibilitychange', scheduleOverlayUpdate, { passive: true });
     window.addEventListener('focus', scheduleOverlayUpdate, { passive: true });
-    window.addEventListener('blur', scheduleOverlayUpdate, { passive: true });
+    window.addEventListener('blur', () => setTimeout(scheduleOverlayUpdate, 100), { passive: true });
 
     function mkGamma(ch, amp, exp, off) {
         const f = document.createElementNS(svgNS, ch);
