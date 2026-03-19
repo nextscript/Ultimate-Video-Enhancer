@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.8.6
+// @version      1.8.7
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Globale Video Filter Overlay verbessert jedes HTML5-Video in Ihrem Browser mit Echtzeit-Farbkorrektur, Schärfung, HDR und LUTs. Es bietet sofortiges Profilwechseln und Steuerelemente direkt im Video, um die Bildqualität ohne Neucodierung oder Downloads zu verbessern.
 // @match        *://*/*
@@ -426,6 +426,8 @@
         listWrap.style.cssText = `overflow-y:auto;max-height:220px;background:rgba(0,0,0,0.3);border-radius:8px;padding:6px;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;`;
         modal.appendChild(listWrap);
 
+        let dragSrcIndex = null;
+
         function renderList() {
             const scrollTop = listWrap.scrollTop;
             while (listWrap.firstChild) listWrap.removeChild(listWrap.firstChild);
@@ -438,7 +440,48 @@
             }
             customSvgCodes.forEach((entry, i) => {
                 const row = document.createElement('div');
-                row.style.cssText = `display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(255,255,255,0.05);border-radius:8px;border:1px solid rgba(255,255,255,0.1);`;
+                row.draggable = true;
+                row.dataset.idx = String(i);
+                row.style.cssText = `display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(255,255,255,0.05);border-radius:8px;border:1px solid rgba(255,255,255,0.1);cursor:default;transition:opacity 0.15s,border-color 0.15s;`;
+
+                // Drag handle
+                const handle = document.createElement('div');
+                handle.textContent = '⠿';
+                handle.title = 'Drag to reorder';
+                handle.style.cssText = `font-size:14px;color:#666;cursor:grab;flex-shrink:0;line-height:1;padding:0 2px;`;
+
+                // Drag events
+                row.addEventListener('dragstart', (e) => {
+                    dragSrcIndex = i;
+                    e.dataTransfer.effectAllowed = 'move';
+                    setTimeout(() => { row.style.opacity = '0.4'; }, 0);
+                });
+                row.addEventListener('dragend', () => {
+                    row.style.opacity = '1';
+                    listWrap.querySelectorAll('[data-idx]').forEach(r => {
+                        r.style.borderColor = 'rgba(255,255,255,0.1)';
+                        r.style.borderStyle = 'solid';
+                    });
+                });
+                row.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    if (dragSrcIndex !== i) row.style.borderColor = '#4a9eff';
+                });
+                row.addEventListener('dragleave', () => {
+                    row.style.borderColor = 'rgba(255,255,255,0.1)';
+                });
+                row.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    row.style.borderColor = 'rgba(255,255,255,0.1)';
+                    if (dragSrcIndex === null || dragSrcIndex === i) return;
+                    const moved = customSvgCodes.splice(dragSrcIndex, 1)[0];
+                    customSvgCodes.splice(i, 0, moved);
+                    dragSrcIndex = null;
+                    saveCustomSvgCodes();
+                    regenerateSvgImmediately();
+                    renderList();
+                });
 
                 const chk = document.createElement('input');
                 chk.type = 'checkbox';
@@ -475,11 +518,25 @@
                     renderEditArea();
                 });
 
-                row.appendChild(chk); row.appendChild(lbl); row.appendChild(editBtn); row.appendChild(delBtn);
+                row.appendChild(handle); row.appendChild(chk); row.appendChild(lbl); row.appendChild(editBtn); row.appendChild(delBtn);
                 listWrap.appendChild(row);
             });
             listWrap.scrollTop = scrollTop;
         }
+
+        // Allow dropping onto the list container itself (drop at end)
+        listWrap.addEventListener('dragover', (e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; });
+        listWrap.addEventListener('drop', (e) => {
+            e.preventDefault();
+            if (dragSrcIndex === null) return;
+            // Only fires if dropped on listWrap background (not a row) → move to end
+            const moved = customSvgCodes.splice(dragSrcIndex, 1)[0];
+            customSvgCodes.push(moved);
+            dragSrcIndex = null;
+            saveCustomSvgCodes();
+            regenerateSvgImmediately();
+            renderList();
+        });
 
         // Edit / Add form
         const editArea = document.createElement('div');
