@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.8.8
+// @version      1.8.9
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Globale Video Filter Overlay verbessert jedes HTML5-Video in Ihrem Browser mit Echtzeit-Farbkorrektur, Schärfung, HDR und LUTs. Es bietet sofortiges Profilwechseln und Steuerelemente direkt im Video, um die Bildqualität ohne Neucodierung oder Downloads zu verbessern.
 // @match        *://*/*
@@ -432,22 +432,83 @@ void main(){
         }
 
         // Normalize user GLSL300 fragment code to use internal uniform names
-        // Maps: u_video->u_video, u_res->u_res, v_uv->v_uv (already correct)
-        // We also accept texture2D -> texture if user wrote GLSL100 style
         function _normalizeUserFrag(src) {
             // Strip #version if present — we prepend our own
-            let s = src.replace(/^\s*#version\s+\S+\s*/m, '');
-            // Upgrade texture2D -> texture
+            let s = src.replace(/^\s*#version\s+\S+[\t ]*/mg, '');
+            // Strip duplicate precision qualifiers — we provide precision highp float
+            s = s.replace(/^\s*precision\s+\w+\s+\w+\s*;\s*/mg, '');
+            // Strip duplicate declarations of our injected uniforms/ins/outs
+            s = s.replace(/^\s*uniform\s+sampler2D\s+u_video\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+vec2\s+u_res\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+float\s+u_time\s*;\s*/mg, '');
+            s = s.replace(/^\s*in\s+vec2\s+v_uv\s*;\s*/mg, '');
+            s = s.replace(/^\s*out\s+vec4\s+fragColor\s*;\s*/mg, '');
+            // Upgrade texture2D -> texture (GLSL100 style)
             s = s.replace(/\btexture2D\b/g, 'texture');
-            // Replace common alternate uniform names users might use
-            // (fragColor as out name is fine, we just need to ensure out vec4 fragColor is declared)
+            // Shadertoy: iResolution -> u_res, iTime -> u_time, iChannel0 -> u_video
+            s = s.replace(/\biResolution\b/g, 'vec3(u_res, 0.0)');
+            s = s.replace(/\biTime\b/g, 'u_time');
+            s = s.replace(/\biChannel0\b/g, 'u_video');
+            // Shadertoy: mainImage(out vec4 fragColor, in vec2 fragCoord) -> void main()
+            // wrap it: call mainImage and map fragCoord = v_uv * u_res
+            if (/\bmainImage\s*\(/.test(s) && !s.includes('void main')) {
+                s = s + '\nvoid main(){\n    mainImage(fragColor, v_uv * u_res);\n}';
+            }
             return s;
         }
 
         function _buildFragSrc(userSrc) {
             const body = _normalizeUserFrag(userSrc);
-            // If user provided their own uniforms block, strip duplicates — just wrap safely
-            // We inject standard header and let user body follow. User declares their own uniforms.
+
+            let mainBlock;
+            if (body.includes('void main')) {
+                // User provided full main — use as-is
+                mainBlock = body;
+            } else {
+                // No main — detect last defined function: return type + name + params
+                // Matches: vec3 foo(sampler2D tex, vec2 uv, ...) or vec4 bar(...)
+                const fnRe = /\b(vec4|vec3|vec2|float|void)\s+(\w+)\s*\(([^)]*)\)/g;
+                let lastFn = null;
+                let m;
+                while ((m = fnRe.exec(body)) !== null) lastFn = { ret: m[1], name: m[2], params: m[3] };
+
+                if (lastFn && lastFn.ret !== 'void') {
+                    // Build argument list: supply standard uniforms/vars by type
+                    const argMap = {
+                        'sampler2D': 'u_video',
+                        'vec2':      null, // resolved by position below
+                        'float':     '1.0',
+                        'vec3':      'vec3(1.0)',
+                        'vec4':      'vec4(1.0)',
+                        'int':       '1',
+                        'bool':      'false'
+                    };
+                    // For vec2 params: first = uv, second = res
+                    let vec2Count = 0;
+                    const args = lastFn.params.split(',').map(p => {
+                        p = p.trim();
+                        if (!p) return '';
+                        const type = p.split(/\s+/)[0];
+                        if (type === 'vec2') {
+                            return vec2Count++ === 0 ? 'v_uv' : 'u_res';
+                        }
+                        return argMap[type] !== undefined ? argMap[type] : '0.0';
+                    }).filter(Boolean).join(', ');
+
+                    const call = `${lastFn.name}(${args})`;
+                    const fragAssign = lastFn.ret === 'vec4'
+                        ? `fragColor = ${call};`
+                        : lastFn.ret === 'vec3'
+                            ? `fragColor = vec4(${call}, 1.0);`
+                            : `float _r = ${call}; fragColor = vec4(_r, _r, _r, 1.0);`;
+
+                    mainBlock = `${body}\nvoid main(){\n    ${fragAssign}\n}`;
+                } else {
+                    // Fallback: wrap body directly
+                    mainBlock = `void main(){\n${body}\n}`;
+                }
+            }
+
             return `#version 300 es
 precision highp float;
 uniform sampler2D u_video;
@@ -455,7 +516,7 @@ uniform vec2 u_res;
 uniform float u_time;
 in vec2 v_uv;
 out vec4 fragColor;
-${body.includes('void main') ? body : ('void main(){\n' + body + '\n}')}`;
+${mainBlock}`;
         }
 
         function _createInstance(entry, video) {
@@ -686,24 +747,54 @@ ${body.includes('void main') ? body : ('void main(){\n' + body + '\n}')}`;
         try {
             const canvas = document.createElement('canvas');
             const gl = canvas.getContext('webgl2');
-            if (!gl) return null; // can't validate without WebGL2, allow it
-            const fragSrc = `#version 300 es
-precision highp float;
-uniform sampler2D u_video;
-uniform vec2 u_res;
-uniform float u_time;
-in vec2 v_uv;
-out vec4 fragColor;
-${src.replace(/^\s*#version\s+\S+\s*/m, '').replace(/\btexture2D\b/g, 'texture')}`;
+            if (!gl) return null;
+            // Apply same normalization as _buildFragSrc/_normalizeUserFrag
+            let s = src.replace(/^\s*#version\s+\S+[\t ]*/mg, '');
+            s = s.replace(/^\s*precision\s+\w+\s+\w+\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+sampler2D\s+u_video\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+vec2\s+u_res\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+float\s+u_time\s*;\s*/mg, '');
+            s = s.replace(/^\s*in\s+vec2\s+v_uv\s*;\s*/mg, '');
+            s = s.replace(/^\s*out\s+vec4\s+fragColor\s*;\s*/mg, '');
+            s = s.replace(/\btexture2D\b/g, 'texture');
+            s = s.replace(/\biResolution\b/g, 'vec3(u_res, 0.0)');
+            s = s.replace(/\biTime\b/g, 'u_time');
+            s = s.replace(/\biChannel0\b/g, 'u_video');
+            if (/\bmainImage\s*\(/.test(s) && !s.includes('void main')) {
+                s = s + '\nvoid main(){\n    mainImage(fragColor, v_uv * u_res);\n}';
+            } else if (!s.includes('void main')) {
+                // helper-only: find last non-void function and wrap
+                const fnRe = /\b(vec4|vec3|vec2|float)\s+(\w+)\s*\(([^)]*)\)/g;
+                let lastFn = null, m;
+                while ((m = fnRe.exec(s)) !== null) lastFn = { ret: m[1], name: m[2], params: m[3] };
+                if (lastFn) {
+                    let vec2Count = 0;
+                    const args = lastFn.params.split(',').map(p => {
+                        const type = (p.trim().split(/\s+/)[0] || '');
+                        if (type === 'sampler2D') return 'u_video';
+                        if (type === 'vec2') return vec2Count++ === 0 ? 'v_uv' : 'u_res';
+                        if (type === 'float') return '1.0';
+                        return '0.0';
+                    }).filter(Boolean).join(', ');
+                    const call = `${lastFn.name}(${args})`;
+                    const assign = lastFn.ret === 'vec4' ? `fragColor = ${call};`
+                        : lastFn.ret === 'vec3' ? `fragColor = vec4(${call}, 1.0);`
+                        : `float _r = ${call}; fragColor = vec4(_r,_r,_r,1.0);`;
+                    s = s + `\nvoid main(){\n    ${assign}\n}`;
+                } else {
+                    s = `void main(){\n${s}\n}`;
+                }
+            }
+            const fragSrc = `#version 300 es\nprecision highp float;\nuniform sampler2D u_video;\nuniform vec2 u_res;\nuniform float u_time;\nin vec2 v_uv;\nout vec4 fragColor;\n${s}`;
             const sh = gl.createShader(gl.FRAGMENT_SHADER);
             gl.shaderSource(sh, fragSrc);
             gl.compileShader(sh);
             const ok = gl.getShaderParameter(sh, gl.COMPILE_STATUS);
             const info = ok ? null : (gl.getShaderInfoLog(sh) || 'Unknown error');
             gl.deleteShader(sh);
-            return info; // null = OK, string = error
+            return info;
         } catch (e) {
-            return null; // silently pass if canvas unavailable
+            return null;
         }
     }
 
@@ -929,7 +1020,7 @@ ${src.replace(/^\s*#version\s+\S+\s*/m, '').replace(/\btexture2D\b/g, 'texture')
             editArea.appendChild(topRow);
 
             const svgPlaceholder = 'SVG Filter-Primitive Code, z.B.:\n<feConvolveMatrix kernelMatrix="0 -1 0 -1 5 -1 0 -1 0"/>';
-            const glslPlaceholder = `GLSL Fragment Shader (WebGL2 / GLSL300).\nVerfügbare Uniforms:\n  uniform sampler2D u_video;  // Videoframe\n  uniform vec2 u_res;          // Canvas-Auflösung (px)\n  in vec2 v_uv;                // UV-Koordinaten 0..1\n  out vec4 fragColor;\n\n// Beispiel:\nvoid main(){\n    fragColor = texture(u_video, v_uv);\n}`;
+            const glslPlaceholder = `GLSL Fragment Shader (WebGL2 / GLSL300).\nVerfügbare Uniforms:\n  uniform sampler2D u_video;  // Videoframe\n  uniform vec2 u_res;          // Canvas-Auflösung (px)\n  in vec2 v_uv;                // UV-Koordinaten 0..1\n  out vec4 fragColor;\n\n// Option A — voller Shader:\nvoid main(){\n    fragColor = texture(u_video, v_uv);\n}\n\n// Option B — nur Hilfsfunktion (main wird auto-generiert):\nvec3 myEffect(sampler2D tex, vec2 uv, vec2 res) {\n    return texture(tex, uv).rgb;\n}`;
 
             const codeInput = document.createElement('textarea');
             codeInput.placeholder = currentType === 'webgl' ? glslPlaceholder : svgPlaceholder;
