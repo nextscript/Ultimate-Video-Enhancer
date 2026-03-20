@@ -248,15 +248,15 @@ It looks for places where brightness or colors change strongly.
 The edge value can be changed in the Ctrl + Alt + I menu inside the JSON settings.
 After pressing Save, the filter updates immediately and the change becomes visible in the video.
 <hr>
-<h2>Custom SVG Filter Codes <b style="color:red;">(New)</b></h2>
+<h2>Custom SVG/GLSL Filter Codes <b style="color:red;">(New)</b></h2>
 
-The new <b>Custom SVG Filter Codes</b> feature lets you inject your own SVG filter primitives directly into the video filter pipeline — no script editing required. A „Manage" button in the Grading HUD opens a window where you can add, edit, and delete any number of filter entries (Ctrl+Alt+G). Each entry can be toggled on or off individually via checkbox. Filters are injected after the automatic color correction stage in the SVG pipeline and applied to the live video instantly on save.
+The new <b>Custom SVG/GLSL Filter Codes</b> feature lets you inject your own SVG/GLSL filter primitives directly into the video filter pipeline — no script editing required. A „Manage" button in the Grading HUD opens a window where you can add, edit, and delete any number of filter entries (Ctrl+Alt+G). Each entry can be toggled on or off individually via checkbox. Filters are injected after the automatic color correction stage in the SVG/GLSL pipeline and applied to the live video instantly on save.
 <br><p>
 <b>Useful for:</b><br>
-custom sharpening kernels (feConvolveMatrix), color matrix effects (feColorMatrix), experimental image processing — anything expressible as an SVG filter primitive, without touching the source code.
+custom sharpening kernels (feConvolveMatrix), color matrix effects (feColorMatrix), experimental image processing — anything expressible as an SVG/GLSL filter primitive, without touching the source code.
 <br><p>
 <b>Example:</b><br>
-<a href="https://svg.ts3x.cc/" target="_blank">GVF SVG Filter Library</a><br>
+<a href="https://svg.ts3x.cc/" target="_blank">GVF SVG/GLSL Filter Library</a><br>
 
 <hr>
 <ul>
