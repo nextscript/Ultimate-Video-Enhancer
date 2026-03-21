@@ -3,7 +3,7 @@
 // @name:de      Global Video Filter Overlay
 // @namespace    gvf
 // @author       Freak288
-// @version      1.8.9
+// @version      1.9.0
 // @description  Global Video Filter Overlay enhances any HTML5 video in your browser with real-time color grading, sharpening, HDR and LUTs. It provides instant profile switching and on-video controls to improve visual quality without re-encoding or downloads.
 // @description:de  Globale Video Filter Overlay verbessert jedes HTML5-Video in Ihrem Browser mit Echtzeit-Farbkorrektur, Schärfung, HDR und LUTs. Es bietet sofortiges Profilwechseln und Steuerelemente direkt im Video, um die Bildqualität ohne Neucodierung oder Downloads zu verbessern.
 // @match        *://*/*
@@ -527,7 +527,7 @@ ${mainBlock}`;
 
             let gl;
             try {
-                gl = canvas.getContext('webgl2', { alpha: true, antialias: false, premultipliedAlpha: false });
+                gl = canvas.getContext('webgl2', { alpha: true, antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: true });
                 if (!gl) throw new Error('webgl2 unavailable');
             } catch (e) {
                 logW('[GVF WebGL Overlay] WebGL2 not available:', e);
@@ -3533,6 +3533,25 @@ function downloadBlob(blob, filename) {
     // -------------------------
     // Screenshot / Recording helpers
     // -------------------------
+
+    /**
+     * Draws all active GLSL (WebGL-type) Custom Filter Code canvases onto a 2D ctx.
+     * Must be called AFTER ctx.drawImage(video, ...) so the overlay composites on top.
+     * Uses 'source-over' (default) to respect each shader's alpha output.
+     */
+    function bakeWebglOverlaysOntoCanvas(ctx, w, h) {
+        try {
+            document.querySelectorAll('[data-gvf-custom-webgl]').forEach(webglCanvas => {
+                try {
+                    ctx.save();
+                    ctx.globalCompositeOperation = 'source-over';
+                    ctx.drawImage(webglCanvas, 0, 0, w, h);
+                    ctx.restore();
+                } catch (_) { }
+            });
+        } catch (_) { }
+    }
+
     function dlBlob(blob, filename) {
         try {
             const url = URL.createObjectURL(blob);
@@ -3718,6 +3737,8 @@ function downloadBlob(blob, filename) {
                 ctx.filter = filterString || 'none';
                 ctx.drawImage(video, 0, 0, w, h);
                 ctx.restore();
+                // Composite active GLSL (WebGL-type) Custom Filter Code overlays onto recording frame
+                bakeWebglOverlaysOntoCanvas(ctx, w, h);
             } catch (e) {
                 if (statusEl) statusEl.textContent = 'Recording stopped: blocked (DRM/cross-origin).';
                 // FIX: Evaluate REC.stopRequested
@@ -4022,6 +4043,9 @@ function downloadBlob(blob, filename) {
             if (statusEl) statusEl.textContent = 'Screenshot blocked (cross-origin/DRM).';
             return;
         }
+
+        // Composite active GLSL (WebGL-type) Custom Filter Code overlays onto screenshot
+        bakeWebglOverlaysOntoCanvas(ctx, w, h);
 
         c.toBlob((blob) => {
             if (!blob) { if (statusEl) statusEl.textContent = 'Screenshot failed.'; return; }
