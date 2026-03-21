@@ -103,6 +103,7 @@ Add your own filters without editing the script.
 <li>Install the script</li>
 <li>Open any video</li>
 <li>Press CTRL + ALT + H</li>
+<li>Press CTRL + ALT + G</li>
 <li>Done ✅</li>
 </ul>
 
