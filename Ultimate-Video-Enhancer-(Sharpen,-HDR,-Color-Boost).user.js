@@ -523,7 +523,7 @@ ${mainBlock}`;
             const canvas = document.createElement('canvas');
             canvas.setAttribute('data-gvf-custom-webgl', entry.id);
             // fixed to body — tracks video BCR in drawLoop, never inside player DOM so controls stay untouched
-            canvas.style.cssText = `position:absolute;pointer-events:none;z-index:1;display:block;top:0;left:0;`;
+            canvas.style.cssText = `position:absolute;pointer-events:none;z-index:0;display:block;top:0;left:0;`;
 
             // Canvas z-index:0 inside player container — controls (z-index:59) paint above it naturally.
 
@@ -599,14 +599,15 @@ ${mainBlock}`;
             let lastPaused = false;
 
             function _reparentCanvas() {
-                // Insert canvas as first child of the video's parent (player container).
-                // Canvas is now inside the player's stacking context, so z-index comparisons
-                // happen against siblings (controls at z-index:59) — canvas at z-index:0 loses.
-                // Also avoids interfering with YouTube's hover detection at the document level.
+                // Insert canvas directly after the video element.
+                // DOM order: video → canvas → controls
+                // canvas has no z-index (auto) so it paints above video (same z-index:auto,
+                // but later in DOM) and controls come even later → controls paint above canvas.
                 const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
                 const parent = (fsEl && fsEl.contains(video) ? fsEl : null) || video.parentElement || document.body;
-                if (canvas.parentNode !== parent) {
-                    parent.insertBefore(canvas, parent.firstChild);
+                const after = video.nextSibling;
+                if (canvas.parentNode !== parent || canvas.previousSibling !== video) {
+                    parent.insertBefore(canvas, after !== canvas ? after : null);
                 }
             }
 
@@ -643,18 +644,34 @@ ${mainBlock}`;
                 gl.bindVertexArray(null);
             }
 
+            let _hasRenderedFrame = false;
             function drawLoop() {
                 if (!alive) return;
                 requestAnimationFrame(drawLoop);
                 const paused = !video || video.paused || video.ended;
                 if (paused) {
-                    // Always re-render while paused so fullscreen/position changes apply instantly
-                    doRender();
+                    if (_hasRenderedFrame) {
+                        // Keep last frame visible — just update position/size, skip texImage2D
+                        _reparentCanvas();
+                        const pr = (canvas.parentElement || document.body).getBoundingClientRect();
+                        const r = video.getBoundingClientRect();
+                        if (r && r.width > 0) {
+                            canvas.style.display = 'block';
+                            canvas.style.position = 'absolute';
+                            canvas.style.left = (r.left - pr.left) + 'px';
+                            canvas.style.top  = (r.top  - pr.top)  + 'px';
+                            canvas.style.width  = r.width  + 'px';
+                            canvas.style.height = r.height + 'px';
+                        }
+                    } else {
+                        doRender();
+                    }
                     lastPaused = true;
                     return;
                 }
                 lastPaused = false;
                 doRender();
+                _hasRenderedFrame = true;
             }
 
             // Also render immediately on pause/seek so the frame stays visible
@@ -672,10 +689,10 @@ ${mainBlock}`;
             }};
             requestAnimationFrame(drawLoop);
 
-            // Attach as first child of player container — inside its stacking context,
-            // so canvas z-index:0 sits below controls (z-index:59) automatically.
+            // Insert canvas directly after video — DOM order ensures canvas paints
+            // above video but controls (later siblings) paint above canvas.
             const _initParent = video.parentElement || document.body;
-            _initParent.insertBefore(canvas, _initParent.firstChild);
+            _initParent.insertBefore(canvas, video.nextSibling);
 
 
 
@@ -718,10 +735,10 @@ ${mainBlock}`;
                         _destroyInstance(existing);
                         _instances.delete(entry.id);
                     } else {
-                        // Ensure canvas is still in DOM (as first child of player container)
+                        // Ensure canvas is still in DOM (directly after video)
                         if (!existing.canvas.isConnected) {
                             const parent = video.parentElement || document.body;
-                            parent.insertBefore(existing.canvas, parent.firstChild);
+                            parent.insertBefore(existing.canvas, video.nextSibling);
                         }
                         continue;
                     }
