@@ -408,6 +408,18 @@
     // -------------------------
     // ── GLSL overlay shared state ─────────────────────────────────────────────
     let _mouseX = 0.5, _mouseY = 0.5;
+    let _scrollZoom = 1.0;
+    const _ZOOM_MIN = 0.5, _ZOOM_MAX = 8.0, _ZOOM_STEP = 0.15;
+    document.addEventListener('wheel', e => {
+        // Only zoom when mouse is over a video element
+        const vid = document.querySelector('video');
+        if (!vid) return;
+        const r = vid.getBoundingClientRect();
+        if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -_ZOOM_STEP : _ZOOM_STEP;
+        _scrollZoom = Math.min(_ZOOM_MAX, Math.max(_ZOOM_MIN, _scrollZoom + delta));
+    }, { passive: false });
     let _rawMouseClientX = 0, _rawMouseClientY = 0;
     document.addEventListener('mousemove', e => {
         // Store raw client coords — each instance computes relative to its own video BCR
@@ -479,6 +491,7 @@ void main(){
             s = s.replace(/^\s*uniform\s+vec2\s+u_mouse\s*;\s*/mg, '');
             s = s.replace(/^\s*uniform\s+float\s+u_strength\s*;\s*/mg, '');
             s = s.replace(/^\s*uniform\s+float\s+u_layers\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+float\s+u_zoom\s*;\s*/mg, '');
             // Shadertoy: iChannel1 -> u_video_raw
             s = s.replace(/iChannel1/g, 'u_video_raw');
             s = s.replace(/^\s*in\s+vec2\s+v_uv\s*;\s*/mg, '');
@@ -558,6 +571,7 @@ uniform float u_time;
 uniform vec2 u_mouse;             // normalized mouse position [0..1]
 uniform float u_strength;         // current GVF filter strength
 uniform float u_layers;           // number of active GVF layers
+uniform float u_zoom;             // scroll-controlled zoom level (default 1.0)
 in vec2 v_uv;
 out vec4 fragColor;
 ${mainBlock}`;
@@ -655,6 +669,7 @@ ${mainBlock}`;
             const uMouse    = gl.getUniformLocation(program, 'u_mouse');
             const uStrength = gl.getUniformLocation(program, 'u_strength');
             const uLayers   = gl.getUniformLocation(program, 'u_layers');
+            const uZoom     = gl.getUniformLocation(program, 'u_zoom');
 
             gl.uniform1i(uVideo, 0);
             gl.uniform1i(uVideoRaw, 1);
@@ -734,12 +749,25 @@ ${mainBlock}`;
                 if (uTime     !== null) gl.uniform1f(uTime, performance.now() * 0.001);
                 if (uMouse !== null) {
                     const _vr = video.getBoundingClientRect();
-                    const _mx =       (_rawMouseClientX - _vr.left) / (_vr.width  || 1);
-                    const _my = 1.0 - (_rawMouseClientY - _vr.top)  / (_vr.height || 1);
+                    // Letterbox correction: map mouse into actual content area, not full BCR
+                    const _vAsp = video.videoWidth / (video.videoHeight || 1);
+                    const _bAsp = _vr.width / (_vr.height || 1);
+                    let _contentL = _vr.left, _contentT = _vr.top;
+                    let _contentW = _vr.width, _contentH = _vr.height;
+                    if (_vAsp > _bAsp) {
+                        _contentH = _vr.width / _vAsp;
+                        _contentT = _vr.top + (_vr.height - _contentH) / 2;
+                    } else if (_vAsp < _bAsp) {
+                        _contentW = _vr.height * _vAsp;
+                        _contentL = _vr.left + (_vr.width - _contentW) / 2;
+                    }
+                    const _mx =       (_rawMouseClientX - _contentL) / (_contentW || 1);
+                    const _my = 1.0 - (_rawMouseClientY - _contentT) / (_contentH || 1);
                     gl.uniform2f(uMouse, _mx, _my);
                 }
                 if (uStrength !== null) gl.uniform1f(uStrength, _getStrength());
                 if (uLayers   !== null) gl.uniform1f(uLayers,   _getLayers());
+                if (uZoom     !== null) gl.uniform1f(uZoom,     _scrollZoom);
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                 gl.bindVertexArray(null);
             }
@@ -767,13 +795,26 @@ ${mainBlock}`;
                 gl.bindVertexArray(vao);
                 if (uMouse !== null) {
                     const _vr = video.getBoundingClientRect();
-                    const _mx =       (_rawMouseClientX - _vr.left) / (_vr.width  || 1);
-                    const _my = 1.0 - (_rawMouseClientY - _vr.top)  / (_vr.height || 1);
+                    // Letterbox correction: map mouse into actual content area, not full BCR
+                    const _vAsp = video.videoWidth / (video.videoHeight || 1);
+                    const _bAsp = _vr.width / (_vr.height || 1);
+                    let _contentL = _vr.left, _contentT = _vr.top;
+                    let _contentW = _vr.width, _contentH = _vr.height;
+                    if (_vAsp > _bAsp) {
+                        _contentH = _vr.width / _vAsp;
+                        _contentT = _vr.top + (_vr.height - _contentH) / 2;
+                    } else if (_vAsp < _bAsp) {
+                        _contentW = _vr.height * _vAsp;
+                        _contentL = _vr.left + (_vr.width - _contentW) / 2;
+                    }
+                    const _mx =       (_rawMouseClientX - _contentL) / (_contentW || 1);
+                    const _my = 1.0 - (_rawMouseClientY - _contentT) / (_contentH || 1);
                     gl.uniform2f(uMouse, _mx, _my);
                 }
                 if (uTime     !== null) gl.uniform1f(uTime, performance.now() * 0.001);
                 if (uStrength !== null) gl.uniform1f(uStrength, _getStrength());
                 if (uLayers   !== null) gl.uniform1f(uLayers,   _getLayers());
+                if (uZoom     !== null) gl.uniform1f(uZoom,     _scrollZoom);
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                 gl.bindVertexArray(null);
             }
@@ -928,7 +969,7 @@ ${mainBlock}`;
                     s = `void main(){\n${s}\n}`;
                 }
             }
-            const fragSrc = `#version 300 es\nprecision highp float;\nuniform sampler2D u_video;\nuniform sampler2D u_video_raw;\nuniform vec2 u_res;\nuniform float u_time;\nuniform vec2 u_mouse;\nuniform float u_strength;\nuniform float u_layers;\nin vec2 v_uv;\nout vec4 fragColor;\n${s}`;
+            const fragSrc = `#version 300 es\nprecision highp float;\nuniform sampler2D u_video;\nuniform sampler2D u_video_raw;\nuniform vec2 u_res;\nuniform float u_time;\nuniform vec2 u_mouse;\nuniform float u_strength;\nuniform float u_layers;\nuniform float u_zoom;\nin vec2 v_uv;\nout vec4 fragColor;\n${s}`;
             const sh = gl.createShader(gl.FRAGMENT_SHADER);
             gl.shaderSource(sh, fragSrc);
             gl.compileShader(sh);
