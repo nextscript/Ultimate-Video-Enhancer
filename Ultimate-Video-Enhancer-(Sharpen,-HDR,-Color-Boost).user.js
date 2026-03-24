@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.9.5
+// @version      1.9.6
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -1081,6 +1081,73 @@ ${mainBlock}`;
                 lbl.appendChild(lblText);
                 lbl.appendChild(typeBadge);
 
+                // Hotkey badge in label
+                if (entry.hotkey) {
+                    const hkBadge = document.createElement('span');
+                    hkBadge.textContent = entry.hotkey.toUpperCase();
+                    hkBadge.title = 'Hotkey: ' + entry.hotkey.toUpperCase();
+                    hkBadge.style.cssText = `flex-shrink:0;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;background:rgba(255,200,80,0.15);color:#ffc850;border:1px solid rgba(255,200,80,0.4);font-family:monospace;`;
+                    lbl.appendChild(hkBadge);
+                }
+
+                // Hotkey button
+                const hkBtn = document.createElement('button');
+                hkBtn.textContent = '⌨';
+                hkBtn.title = entry.hotkey ? `Hotkey: ${entry.hotkey.toUpperCase()} (click to change/clear)` : 'Set hotkey';
+                hkBtn.style.cssText = `padding:3px 8px;background:${entry.hotkey ? 'rgba(255,200,80,0.18)' : 'rgba(255,255,255,0.07)'};color:${entry.hotkey ? '#ffc850' : '#888'};border:1px solid ${entry.hotkey ? 'rgba(255,200,80,0.4)' : 'rgba(255,255,255,0.15)'};border-radius:5px;font-size:12px;cursor:pointer;`;
+                stopEventsOn(hkBtn);
+                hkBtn.addEventListener('click', () => {
+                    // If already has hotkey, offer clear or re-assign
+                    const existing2 = customSvgCodes[i].hotkey;
+
+                    // Create inline capture overlay on the button
+                    const popup = document.createElement('div');
+                    popup.style.cssText = `position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);`;
+                    const box = document.createElement('div');
+                    box.style.cssText = `background:rgba(18,18,22,0.98);border:2px solid #ffc850;border-radius:12px;padding:20px 28px;display:flex;flex-direction:column;align-items:center;gap:12px;font-family:system-ui,sans-serif;color:#eaeaea;min-width:240px;`;
+                    const title2 = document.createElement('div');
+                    title2.textContent = '⌨ Set Hotkey';
+                    title2.style.cssText = `font-size:14px;font-weight:900;color:#ffc850;`;
+                    const sub = document.createElement('div');
+                    sub.textContent = `Filter: ${entry.label || 'Untitled'}`;
+                    sub.style.cssText = `font-size:11px;color:#888;`;
+                    const hint = document.createElement('div');
+                    hint.textContent = 'Press any key to assign…';
+                    hint.style.cssText = `font-size:13px;color:#ccc;text-align:center;`;
+                    const clearBtn2 = document.createElement('button');
+                    clearBtn2.textContent = existing2 ? `Clear (${existing2.toUpperCase()})` : 'Cancel';
+                    clearBtn2.style.cssText = `padding:6px 16px;background:rgba(255,80,80,0.15);color:#ff8080;border:1px solid rgba(255,80,80,0.4);border-radius:7px;font-size:12px;cursor:pointer;`;
+                    box.appendChild(title2); box.appendChild(sub); box.appendChild(hint); box.appendChild(clearBtn2);
+                    popup.appendChild(box);
+                    document.body.appendChild(popup);
+
+                    const onKey2 = (e2) => {
+                        e2.preventDefault(); e2.stopPropagation();
+                        const key = e2.key;
+                        // Ignore modifier-only keys
+                        if (['Control','Alt','Shift','Meta','CapsLock','Tab','Escape'].includes(key)) {
+                            if (key === 'Escape') { cleanup(); }
+                            return;
+                        }
+                        customSvgCodes[i].hotkey = key.toLowerCase();
+                        saveCustomSvgCodes();
+                        cleanup();
+                        renderList();
+                    };
+                    const cleanup = () => {
+                        document.removeEventListener('keydown', onKey2, true);
+                        popup.remove();
+                    };
+                    clearBtn2.addEventListener('click', () => {
+                        customSvgCodes[i].hotkey = '';
+                        saveCustomSvgCodes();
+                        cleanup();
+                        renderList();
+                    });
+                    popup.addEventListener('click', (e2) => { if (e2.target === popup) cleanup(); });
+                    document.addEventListener('keydown', onKey2, true);
+                });
+
                 const editBtn = document.createElement('button');
                 editBtn.textContent = '✏';
                 editBtn.title = 'Edit';
@@ -1101,7 +1168,7 @@ ${mainBlock}`;
                     renderEditArea();
                 });
 
-                row.appendChild(handle); row.appendChild(chk); row.appendChild(lbl); row.appendChild(editBtn); row.appendChild(delBtn);
+                row.appendChild(handle); row.appendChild(chk); row.appendChild(lbl); row.appendChild(hkBtn); row.appendChild(editBtn); row.appendChild(delBtn);
                 listWrap.appendChild(row);
             });
             listWrap.scrollTop = scrollTop;
@@ -12081,6 +12148,20 @@ if ('lutProfile' in obj) {
             if (tag === 'input' || tag === 'textarea' || e.isComposing) return;
 
             const k = (e.key || '').toLowerCase();
+
+            // Custom filter hotkeys — single key, no modifier required
+            if (!e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey) {
+                const hkEntry = customSvgCodes.find(e2 => e2.hotkey && e2.hotkey.toLowerCase() === k);
+                if (hkEntry) {
+                    e.preventDefault();
+                    hkEntry.enabled = !hkEntry.enabled;
+                    saveCustomSvgCodes();
+                    regenerateSvgImmediately();
+                    updateCustomWebglOverlays();
+                    showToggleNotification(hkEntry.label || 'Custom Filter', hkEntry.enabled);
+                    return;
+                }
+            }
 
             // NEW: Shift+Q for profile cycling
             if (e.shiftKey && !e.ctrlKey && !e.altKey && k === PROFILE_CYCLE_KEY) {
