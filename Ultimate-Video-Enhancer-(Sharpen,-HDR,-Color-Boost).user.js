@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.9.2
+// @version      1.9.3
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -523,7 +523,9 @@ ${mainBlock}`;
             const canvas = document.createElement('canvas');
             canvas.setAttribute('data-gvf-custom-webgl', entry.id);
             // fixed to body — tracks video BCR in drawLoop, never inside player DOM so controls stay untouched
-            canvas.style.cssText = `position:fixed;pointer-events:none;z-index:2147483645;display:block;top:0;left:0;`;
+            canvas.style.cssText = `position:absolute;pointer-events:none;z-index:1;display:block;top:0;left:0;`;
+
+            // Canvas z-index:0 inside player container — controls (z-index:59) paint above it naturally.
 
             let gl;
             try {
@@ -597,10 +599,15 @@ ${mainBlock}`;
             let lastPaused = false;
 
             function _reparentCanvas() {
+                // Insert canvas as first child of the video's parent (player container).
+                // Canvas is now inside the player's stacking context, so z-index comparisons
+                // happen against siblings (controls at z-index:59) — canvas at z-index:0 loses.
+                // Also avoids interfering with YouTube's hover detection at the document level.
                 const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-                const target = fsEl || document.body || document.documentElement;
-                if (canvas.parentNode !== target) target.appendChild(canvas);
-                return fsEl;
+                const parent = (fsEl && fsEl.contains(video) ? fsEl : null) || video.parentElement || document.body;
+                if (canvas.parentNode !== parent) {
+                    parent.insertBefore(canvas, parent.firstChild);
+                }
             }
 
             function doRender() {
@@ -608,20 +615,14 @@ ${mainBlock}`;
                     canvas.style.display = 'none';
                     return;
                 }
-                const fsEl = _reparentCanvas();
+                _reparentCanvas();
+                const pr = (canvas.parentElement || document.body).getBoundingClientRect();
                 const r = video.getBoundingClientRect();
                 if (!r || r.width < 1 || r.height < 1) { canvas.style.display = 'none'; return; }
                 canvas.style.display = 'block';
-                if (fsEl) {
-                    const fr = fsEl.getBoundingClientRect();
-                    canvas.style.position = 'absolute';
-                    canvas.style.left = (r.left - fr.left) + 'px';
-                    canvas.style.top  = (r.top  - fr.top)  + 'px';
-                } else {
-                    canvas.style.position = 'fixed';
-                    canvas.style.left = r.left + 'px';
-                    canvas.style.top  = r.top  + 'px';
-                }
+                canvas.style.position = 'absolute';
+                canvas.style.left = (r.left - pr.left) + 'px';
+                canvas.style.top  = (r.top  - pr.top)  + 'px';
                 canvas.style.width  = r.width  + 'px';
                 canvas.style.height = r.height + 'px';
 
@@ -671,15 +672,19 @@ ${mainBlock}`;
             }};
             requestAnimationFrame(drawLoop);
 
-            // Attach to body — completely outside player DOM
-            (document.body || document.documentElement).appendChild(canvas);
+            // Attach as first child of player container — inside its stacking context,
+            // so canvas z-index:0 sits below controls (z-index:59) automatically.
+            const _initParent = video.parentElement || document.body;
+            _initParent.insertBefore(canvas, _initParent.firstChild);
+
+
 
             return inst;
         }
 
         function _destroyInstance(inst) {
             try {
-                if (inst._stop) inst._stop();
+                if (inst._stop) inst._stop(); // also restores video opacity
                 if (inst.canvas && inst.canvas.isConnected) inst.canvas.remove();
                 const gl = inst.gl;
                 if (gl) {
@@ -713,10 +718,10 @@ ${mainBlock}`;
                         _destroyInstance(existing);
                         _instances.delete(entry.id);
                     } else {
-                        // Ensure canvas is still in DOM
+                        // Ensure canvas is still in DOM (as first child of player container)
                         if (!existing.canvas.isConnected) {
-                            const parent = video.parentNode;
-                            if (parent) parent.appendChild(existing.canvas);
+                            const parent = video.parentElement || document.body;
+                            parent.insertBefore(existing.canvas, parent.firstChild);
                         }
                         continue;
                     }
@@ -732,11 +737,7 @@ ${mainBlock}`;
         }
 
         function reparentAll() {
-            const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-            const target = fsEl || document.body || document.documentElement;
-            document.querySelectorAll('[data-gvf-custom-webgl]').forEach(c => {
-                if (c.parentNode !== target) target.appendChild(c);
-            });
+            // Handled per-frame in _reparentCanvas() — no-op here
         }
 
         return { update, destroyAll, reparentAll };
