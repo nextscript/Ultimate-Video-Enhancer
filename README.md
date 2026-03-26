@@ -55,7 +55,7 @@ Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-li
 <li>Auto-Scene-Match → auto-adjust brightness & colors</li>
 <li>Scopes HUD → professional video analysis tools</li>
 <li>LUT support → apply real color grading</li>
-<li>Custom SVG / GLSL filters → inject your own effects</li>
+<li>Custom SVG / GLSL / Canvas 2D filters → inject your own effects</li>
 <li>Edge Detection → boost details & outlines</li>
 </ul>
 
