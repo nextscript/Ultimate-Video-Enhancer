@@ -14,6 +14,8 @@
 // @grant        GM_info
 // @grant        GM_download
 // @grant        GM_xmlhttpRequest
+// @grant        unsafeWindow
+// @grant        GM_addElement
 // @connect      raw.githubusercontent.com
 // @connect      github.com
 // @iconURL      https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/refs/heads/main/logomes.png
@@ -733,6 +735,7 @@ ${mainBlock}`;
                     })();
                     _filteredCtx.filter = cssFilter;
                     _filteredCtx.drawImage(video, 0, 0, w, h);
+                    window.__gvfFilteredFrame = _filteredCanvas; // expose for Canvas2D overlays
                     gl.activeTexture(gl.TEXTURE0);
                     gl.bindTexture(gl.TEXTURE_2D, texture);
                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _filteredCanvas);
@@ -1000,34 +1003,108 @@ ${mainBlock}`;
         // Map: entry.id -> { canvas, fn, rafId, lastTime }
         const _instances = new Map();
 
+        // Trusted Types (e.g. YouTube) block new Function().
+        // GM_addElement injects a <script> bypassing CSP/Trusted Types — it's
+        // executed in the page context synchronously before the next microtask.
+        function _compileUserFn(code) {
+            const args = ['ctx','canvas','video','width','height','frame','u_mouse','u_zoom'];
+
+            // 1. Direct new Function (works on most sites)
+            try { return new Function(...args, code); } catch(e) {
+                if (!String(e).includes('Trusted') && !(e instanceof EvalError)) throw e;
+            }
+
+            // 2. unsafeWindow.Function (Tampermonkey sandbox — not page Function)
+            try {
+                if (typeof unsafeWindow !== 'undefined') {
+                    return new unsafeWindow.Function(...args, code);
+                }
+            } catch(_) {}
+
+            // 3. GM_addElement — injects <script> tag bypassing Trusted Types
+            try {
+                if (typeof GM_addElement === 'function') {
+                    const key = '__gvfFn_' + Math.random().toString(36).slice(2);
+                    const wrap = `window["${key}"]=function(${args.join(',')}){${code}}`;
+                    GM_addElement('script', { textContent: wrap });
+                    const fn = unsafeWindow[key];
+                    delete unsafeWindow[key];
+                    if (typeof fn === 'function') return fn;
+                }
+            } catch(_) {}
+
+            return null;
+        }
+
         function _createInstance(entry, video) {
             let fn;
             try {
-                fn = new Function('ctx', 'canvas', 'video', 'width', 'height', 'frame', 'u_mouse', 'u_zoom', entry.code);
+                fn = _compileUserFn(entry.code);
             } catch (e) {
                 console.warn('[GVF Canvas2D] Compile error for', entry.label, e);
                 return null;
             }
+            if (!fn) {
+                console.warn('[GVF Canvas2D] Could not compile:', entry.label);
+                return null;
+            }
             const canvas = document.createElement('canvas');
-            canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;';
-            _reparentCanvas(canvas, video);
+            canvas.style.cssText = 'display:none;position:absolute;pointer-events:none;z-index:5;';
+
+            function _reparentCanvas() {
+                const parent = video.parentElement || document.body;
+                if (canvas.parentNode !== parent || canvas.previousSibling !== video) {
+                    const after = video.nextSibling;
+                    parent.insertBefore(canvas, after !== canvas ? after : null);
+                }
+            }
+            _reparentCanvas();
 
             let lastTime = null;
+            let alive = true;
+
             function drawLoop(now) {
-                const frameMs = lastTime !== null ? now - lastTime : 0;
-                lastTime = now;
+                if (!alive) return;
+
+                if (!video || !video.isConnected || video.readyState < 2) {
+                    canvas.style.display = 'none';
+                    inst.rafId = requestAnimationFrame(drawLoop);
+                    return;
+                }
+
+                _reparentCanvas();
+
+                const pr = (canvas.parentElement || document.body).getBoundingClientRect();
                 const vr = video.getBoundingClientRect();
+                if (!vr || vr.width < 1 || vr.height < 1) {
+                    canvas.style.display = 'none';
+                    inst.rafId = requestAnimationFrame(drawLoop);
+                    return;
+                }
+
+                canvas.style.display   = 'block';
+                canvas.style.position  = 'absolute';
+                canvas.style.left      = (vr.left - pr.left) + 'px';
+                canvas.style.top       = (vr.top  - pr.top)  + 'px';
+                canvas.style.width     = vr.width  + 'px';
+                canvas.style.height    = vr.height + 'px';
+
                 const dpr = window.devicePixelRatio || 1;
-                const w = Math.round(vr.width * dpr);
+                const w = Math.round(vr.width  * dpr);
                 const h = Math.round(vr.height * dpr);
                 if (canvas.width !== w || canvas.height !== h) {
                     canvas.width = w;
                     canvas.height = h;
                 }
-                const ctx = canvas.getContext('2d');
-                ctx.clearRect(0, 0, w, h);
-                // Letterbox correction: only draw over actual video content
-                const vAspect = video.videoWidth / video.videoHeight;
+
+                const frameMs = lastTime !== null ? now - lastTime : 0;
+                lastTime = now;
+
+                const ctx2d = canvas.getContext('2d');
+                ctx2d.clearRect(0, 0, w, h);
+
+                // Letterbox: map canvas coords to actual video content area
+                const vAspect = (video.videoWidth || w) / (video.videoHeight || h);
                 const cAspect = w / h;
                 let vx = 0, vy = 0, vw = w, vh = h;
                 if (vAspect > cAspect) {
@@ -1037,25 +1114,28 @@ ${mainBlock}`;
                     vw = Math.round(h * vAspect);
                     vx = Math.round((w - vw) / 2);
                 }
-                ctx.save();
-                ctx.translate(vx, vy);
-                // u_mouse: relative to video content area, Y=0 at bottom
+
+                ctx2d.save();
+
                 const rawMx = (typeof _rawMouseClientX !== 'undefined' ? _rawMouseClientX : 0);
                 const rawMy = (typeof _rawMouseClientY !== 'undefined' ? _rawMouseClientY : 0);
-                const relX = (rawMx - vr.left) / vr.width;
-                const relY = 1.0 - (rawMy - vr.top) / vr.height;
+                // Map mouse into vw/vh pixel space (letterbox-corrected, DPR-scaled)
+                const relX = ((rawMx - vr.left) / vr.width  * w - vx) / vw;
+                const relY = 1.0 - ((rawMy - vr.top)  / vr.height * h - vy) / vh;
                 const u_mouse = { x: Math.max(0, Math.min(1, relX)), y: Math.max(0, Math.min(1, relY)) };
-                const u_zoom = (typeof _scrollZoom !== 'undefined' ? _scrollZoom : 1.0);
+                const u_zoom  = (typeof _scrollZoom !== 'undefined' ? _scrollZoom : 1.0);
+
+                ctx2d.translate(vx, vy);
                 try {
-                    fn(ctx, canvas, video, vw, vh, frameMs, u_mouse, u_zoom);
-                } catch (e) {
-                    // silently skip bad frames
-                }
-                ctx.restore();
+                    fn(ctx2d, canvas, video, vw, vh, frameMs, u_mouse, u_zoom);
+                } catch (e) { /* silently skip */ }
+
+                ctx2d.restore();
                 inst.rafId = requestAnimationFrame(drawLoop);
             }
 
-            const inst = { canvas, fn, rafId: requestAnimationFrame(drawLoop), lastTime: null };
+            const inst = { canvas, fn, rafId: requestAnimationFrame(drawLoop), alive };
+            inst._stop = () => { alive = false; };
             return inst;
         }
 
@@ -1069,8 +1149,9 @@ ${mainBlock}`;
         }
 
         function _destroyInstance(inst) {
+            if (inst._stop) inst._stop();
             if (inst.rafId) cancelAnimationFrame(inst.rafId);
-            if (inst.canvas && inst.canvas.parentElement) inst.canvas.parentElement.removeChild(inst.canvas);
+            if (inst.canvas && inst.canvas.isConnected) inst.canvas.remove();
         }
 
         function update(video) {
@@ -1100,7 +1181,11 @@ ${mainBlock}`;
             const video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
             if (!video) return;
             for (const inst of _instances.values()) {
-                _reparentCanvas(inst.canvas, video);
+                const parent = video.parentElement || document.body;
+                if (inst.canvas.parentNode !== parent || inst.canvas.previousSibling !== video) {
+                    const after = video.nextSibling;
+                    parent.insertBefore(inst.canvas, after !== inst.canvas ? after : null);
+                }
             }
         }
 
@@ -1109,8 +1194,39 @@ ${mainBlock}`;
             _instances.clear();
         }
 
-        return { update, reparentAll, destroyAll };
+        return { update, reparentAll, destroyAll, _compileUserFn };
     })();
+
+    // Returns the best available filtered frame source for Canvas2D overlays.
+    // WebGL mode: reuses __gvfFilteredFrame (already baked with full filter).
+    // SVG mode: bakes CSS-only part (brightness/contrast/saturate etc.) into a cached canvas.
+    function gvfGetFilteredSource(video) {
+        if (window.__gvfFilteredFrame && window.__gvfFilteredFrame.width > 0) {
+            return window.__gvfFilteredFrame;
+        }
+        // SVG mode fallback: apply CSS filter portion only (no SVG url())
+        try {
+            const w = video.videoWidth || video.clientWidth || 1280;
+            const h = video.videoHeight || video.clientHeight || 720;
+            if (!gvfGetFilteredSource._c) {
+                gvfGetFilteredSource._c = document.createElement('canvas');
+                gvfGetFilteredSource._x = gvfGetFilteredSource._c.getContext('2d', { alpha: false });
+            }
+            const c = gvfGetFilteredSource._c, x = gvfGetFilteredSource._x;
+            if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+            let f = 'none';
+            try {
+                const s = document.getElementById('global-video-filter-style');
+                if (s) {
+                    const m = s.textContent.match(/filter\s*:\s*([^!;]+)/);
+                    if (m && m[1]) f = m[1].trim().replace(/url\([^)]*\)/g, '').replace(/\s+/g, ' ').trim() || 'none';
+                }
+            } catch(_) {}
+            x.filter = f;
+            x.drawImage(video, 0, 0, w, h);
+            return c;
+        } catch(_) { return video; }
+    }
 
     function updateCustomCanvas2DOverlays() {
         if (isFirefox()) return;
@@ -1452,7 +1568,10 @@ ${mainBlock}`;
                     if (!parsed) { errMsg.textContent = '❌ Invalid SVG code — parse error.'; return; }
                 } else if (type === 'canvas2d') {
                     try {
-                        new Function('ctx', 'canvas', 'video', 'width', 'height', 'frame', 'u_mouse', 'u_zoom', code);
+                        const testFn = CustomCanvas2DOverlayManager._compileUserFn
+                            ? CustomCanvas2DOverlayManager._compileUserFn(code)
+                            : new Function('ctx', 'canvas', 'video', 'width', 'height', 'frame', 'u_mouse', 'u_zoom', code);
+                        if (!testFn) throw new Error('Compilation failed');
                     } catch (e) {
                         errMsg.textContent = '❌ Canvas 2D error: ' + e.message; return;
                     }
