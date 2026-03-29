@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.9.9
+// @version      1.10.0
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -18,6 +18,7 @@
 // @grant        GM_addElement
 // @connect      raw.githubusercontent.com
 // @connect      github.com
+// @connect      cdn.jsdelivr.net
 // @iconURL      https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/refs/heads/main/logomes.png
 // @downloadURL https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.user.js
 // @updateURL https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.meta.js
@@ -1211,6 +1212,97 @@ ${mainBlock}`;
         }
 
         return { update, reparentAll, destroyAll, _compileUserFn };
+    })();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MediaPipe Loader
+    // Loads MediaPipe UMD bundles via GM_addElement (bypasses CSP/Trusted Types).
+    // Globals land on unsafeWindow after load.
+    // Usage from a canvas2d overlay entry:
+    //   const mp = await unsafeWindow.__gvfMP('face_mesh');
+    //   mp.FaceMesh, mp.FACEMESH_TESSELATION, mp.drawConnectors
+    // ─────────────────────────────────────────────────────────────────────────
+    (function initGvfMediaPipe() {
+        if (unsafeWindow.__gvfMP) return;
+
+        // Pinned UMD-compatible versions — unpinned jsdelivr paths resolve to
+        // newer ES-module builds that throw "Cannot use import statement outside a module".
+        // These specific versions ship proper IIFE/UMD bundles.
+        const BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/';
+        const VERS = {
+            drawing_utils:       '0.3.1620248257',
+            face_mesh:           '0.4.1633559619',
+            hands:               '0.4.1646424915',
+            pose:                '0.5.1675469404',
+            selfie_segmentation: '0.1.1675465747',
+        };
+        const CDN = (pkg) => `${BASE}${pkg}@${VERS[pkg]}/`;
+
+        const PACKAGES = {
+            face_mesh: {
+                scripts: [CDN('drawing_utils') + 'drawing_utils.js',
+                          CDN('face_mesh')     + 'face_mesh.js'],
+                globals: ['FaceMesh', 'FACEMESH_TESSELATION', 'FACEMESH_RIGHT_EYE',
+                          'FACEMESH_LEFT_EYE', 'FACEMESH_LIPS', 'drawConnectors', 'drawLandmarks'],
+                locateFile: (f) => CDN('face_mesh') + f,
+            },
+            hands: {
+                scripts: [CDN('drawing_utils') + 'drawing_utils.js',
+                          CDN('hands')         + 'hands.js'],
+                globals: ['Hands', 'HAND_CONNECTIONS', 'drawConnectors', 'drawLandmarks'],
+                locateFile: (f) => CDN('hands') + f,
+            },
+            pose: {
+                scripts: [CDN('drawing_utils') + 'drawing_utils.js',
+                          CDN('pose')          + 'pose.js'],
+                globals: ['Pose', 'POSE_CONNECTIONS', 'drawConnectors', 'drawLandmarks'],
+                locateFile: (f) => CDN('pose') + f,
+            },
+            selfie_segmentation: {
+                scripts: [CDN('selfie_segmentation') + 'selfie_segmentation.js'],
+                globals: ['SelfieSegmentation'],
+                locateFile: (f) => CDN('selfie_segmentation') + f,
+            },
+        };
+
+        const _loaded  = new Set();
+        const _pending = new Map();
+
+        function _loadScript(src) {
+            if (_loaded.has(src)) return Promise.resolve();
+            if (_pending.has(src)) return _pending.get(src);
+            const p = new Promise((resolve, reject) => {
+                try {
+                    const el = GM_addElement('script', { src, async: false });
+                    el.onload  = () => { _loaded.add(src); resolve(); };
+                    el.onerror = () => reject(new Error('[GVF MediaPipe] Failed to load: ' + src));
+                } catch(e) { reject(e); }
+            });
+            _pending.set(src, p);
+            p.finally(() => _pending.delete(src));
+            return p;
+        }
+
+        // Returns an object with all globals + locateFile for the requested package.
+        // Resolves after all scripts are loaded.
+        async function loadPackage(name) {
+            const pkg = PACKAGES[name];
+            if (!pkg) throw new Error('[GVF MediaPipe] Unknown package: ' + name + '. Available: ' + Object.keys(PACKAGES).join(', '));
+
+            for (const src of pkg.scripts) {
+                await _loadScript(src);
+            }
+
+            const result = { locateFile: pkg.locateFile };
+            for (const g of pkg.globals) {
+                result[g] = unsafeWindow[g] ?? null;
+            }
+            return result;
+        }
+
+        // Expose on both: unsafeWindow (Tampermonkey sandbox) and window (page context via GM_addElement/blob)
+        unsafeWindow.__gvfMP = loadPackage;
+        window.__gvfMP = loadPackage;
     })();
 
     // ── Deepgram STT ──────────────────────────────────────────────────────────
