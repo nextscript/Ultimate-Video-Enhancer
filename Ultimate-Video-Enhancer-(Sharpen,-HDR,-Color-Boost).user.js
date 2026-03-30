@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.10.0
+// @version      1.10.1
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -6471,15 +6471,15 @@ if (!gl) {
 
         lastLuma: null,
         motionEma: 0,
-        motionAlpha: 0.30,
-        motionThresh: 0.0075,
-        motionMinFrames: 5,
+        motionAlpha: 0.20,
+        motionThresh: 0.015,
+        motionMinFrames: 8,
         motionFrames: 0,
 
         lastAppliedMs: 0,
 
         statsEma: null,
-        statsAlpha: 0.12,
+        statsAlpha: 0.06,
         lastStatsMs: 0,
 
         blink: false,
@@ -6794,7 +6794,7 @@ if (!gl) {
     }
 
     function updateAutoSmoothing(isCut) {
-        const a = isCut ? 0.16 : 0.05;
+        const a = isCut ? 0.10 : 0.025;
         AUTO.cur.br  = approach(AUTO.cur.br,  AUTO.tgt.br,  a, 0.003);
         AUTO.cur.ct  = approach(AUTO.cur.ct,  AUTO.tgt.ct,  a, 0.003);
         AUTO.cur.sat = approach(AUTO.cur.sat, AUTO.tgt.sat, a, 0.004);
@@ -6831,7 +6831,7 @@ if (!gl) {
         AUTO.lastAppliedMs = nowMs();
 
         const t = nowMs();
-        if ((t - _autoLastStyleStamp) < 150) return;
+        if ((t - _autoLastStyleStamp) < 300) return;
         _autoLastStyleStamp = t;
 
         if (LOG.on && (t - LOG.lastToneMs) >= LOG.toneEveryMs) {
