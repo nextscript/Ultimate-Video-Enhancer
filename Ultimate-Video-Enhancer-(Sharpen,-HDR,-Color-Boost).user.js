@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.10.1
+// @version      1.10.2
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -457,6 +457,61 @@
         return n;
     }
 
+    // ── GVF Frame Analyzer ────────────────────────────────────────────────────
+    // Samples the video every 30 frames on a 64x36 canvas.
+    // Results → window.__gvfFrameStats, injected as uniforms into all custom WebGL shaders:
+    //   u_avg_lum, u_avg_r, u_avg_g, u_avg_b, u_contrast
+    const GvfFrameAnalyzer = (() => {
+        const _canvas = document.createElement('canvas');
+        _canvas.width = 64; _canvas.height = 36;
+        const _ctx = _canvas.getContext('2d', { alpha: false, willReadFrequently: true });
+        let _frameCount = 0;
+        let _video = null;
+        window.__gvfFrameStats = { avg_lum: 0.5, avg_r: 0.5, avg_g: 0.5, avg_b: 0.5, contrast: 0.5 };
+
+        function _analyze() {
+            if (!_video || _video.readyState < 2 || _video.paused) return;
+            try {
+                _ctx.drawImage(_video, 0, 0, 64, 36);
+                const d = _ctx.getImageData(0, 0, 64, 36).data;
+                let sumR = 0, sumG = 0, sumB = 0, sumLum = 0;
+                let minLum = 1.0, maxLum = 0.0;
+                const n = d.length / 4;
+                for (let i = 0; i < d.length; i += 4) {
+                    const r = d[i] / 255, g = d[i+1] / 255, b = d[i+2] / 255;
+                    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+                    sumR += r; sumG += g; sumB += b; sumLum += lum;
+                    if (lum < minLum) minLum = lum;
+                    if (lum > maxLum) maxLum = lum;
+                }
+                window.__gvfFrameStats = {
+                    avg_lum:  sumLum / n,
+                    avg_r:    sumR   / n,
+                    avg_g:    sumG   / n,
+                    avg_b:    sumB   / n,
+                    contrast: maxLum - minLum
+                };
+            } catch (_) {}
+        }
+
+        return {
+            setVideo(v) { _video = v; },
+            tick() { if (++_frameCount % 30 === 0) _analyze(); }
+        };
+    })();
+
+    // Parse // @uniform float u_name default min max "Label" annotations from shader code
+    function parseUniformDefs(src) {
+        if (!src) return [];
+        const defs = [];
+        const re = /\/\/\s*@uniform\s+float\s+(\w+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)(?:\s+"([^"]*)")?/g;
+        let m;
+        while ((m = re.exec(src)) !== null)
+            defs.push({ name: m[1], def: parseFloat(m[2]), min: parseFloat(m[3]), max: parseFloat(m[4]), label: m[5] || m[1] });
+        return defs;
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     const CustomWebglOverlayManager = (() => {
         // Map: entry.id -> { canvas, gl, program, texture, rafId, sig }
         const _instances = new Map();
@@ -484,8 +539,10 @@ void main(){
 
         // Normalize user GLSL300 fragment code to use internal uniform names
         function _normalizeUserFrag(src) {
+            // Strip @uniform annotation lines — handled separately, not valid GLSL
+            let s = src.replace(/^\s*\/\/\s*@uniform[^\r\n]*/mg, '');
             // Strip #version if present — we prepend our own
-            let s = src.replace(/^\s*#version\s+\S+[\t ]*/mg, '');
+            s = s.replace(/^\s*#version\s+\S+[\t ]*/mg, '');
             // Strip duplicate precision qualifiers — we provide precision highp float
             s = s.replace(/^\s*precision\s+\w+\s+\w+\s*;\s*/mg, '');
             // Strip duplicate declarations of our injected uniforms/ins/outs
@@ -497,6 +554,11 @@ void main(){
             s = s.replace(/^\s*uniform\s+float\s+u_strength\s*;\s*/mg, '');
             s = s.replace(/^\s*uniform\s+float\s+u_layers\s*;\s*/mg, '');
             s = s.replace(/^\s*uniform\s+float\s+u_zoom\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+float\s+u_avg_lum\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+float\s+u_avg_r\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+float\s+u_avg_g\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+float\s+u_avg_b\s*;\s*/mg, '');
+            s = s.replace(/^\s*uniform\s+float\s+u_contrast\s*;\s*/mg, '');
             // Shadertoy: iChannel1 -> u_video_raw
             s = s.replace(/iChannel1/g, 'u_video_raw');
             s = s.replace(/^\s*in\s+vec2\s+v_uv\s*;\s*/mg, '');
@@ -516,6 +578,7 @@ void main(){
         }
 
         function _buildFragSrc(userSrc) {
+            const _customUniformDecls = parseUniformDefs(userSrc).map(d => `uniform float ${d.name};`).join('\n');
             const body = _normalizeUserFrag(userSrc);
 
             let mainBlock;
@@ -577,6 +640,12 @@ uniform vec2 u_mouse;             // normalized mouse position [0..1]
 uniform float u_strength;         // current GVF filter strength
 uniform float u_layers;           // number of active GVF layers
 uniform float u_zoom;             // scroll-controlled zoom level (default 1.0)
+uniform float u_avg_lum;          // average luminance of current frame [0..1]
+uniform float u_avg_r;            // average red channel [0..1]
+uniform float u_avg_g;            // average green channel [0..1]
+uniform float u_avg_b;            // average blue channel [0..1]
+uniform float u_contrast;         // luminance range (max-min) of current frame [0..1]
+${_customUniformDecls}
 in vec2 v_uv;
 out vec4 fragColor;
 ${mainBlock}`;
@@ -675,6 +744,17 @@ ${mainBlock}`;
             const uStrength = gl.getUniformLocation(program, 'u_strength');
             const uLayers   = gl.getUniformLocation(program, 'u_layers');
             const uZoom     = gl.getUniformLocation(program, 'u_zoom');
+            const uAvgLum   = gl.getUniformLocation(program, 'u_avg_lum');
+            const uAvgR     = gl.getUniformLocation(program, 'u_avg_r');
+            const uAvgG     = gl.getUniformLocation(program, 'u_avg_g');
+            const uAvgB     = gl.getUniformLocation(program, 'u_avg_b');
+            const uContrast = gl.getUniformLocation(program, 'u_contrast');
+            // Custom @uniform locations
+            const _uniformDefs = parseUniformDefs(entry.code);
+            if (!entry.uniforms) entry.uniforms = {};
+            _uniformDefs.forEach(d => { if (entry.uniforms[d.name] === undefined) entry.uniforms[d.name] = d.def; });
+            const _uCustomLocs = {};
+            _uniformDefs.forEach(d => { _uCustomLocs[d.name] = gl.getUniformLocation(program, d.name); });
 
             gl.uniform1i(uVideo, 0);
             gl.uniform1i(uVideoRaw, 1);
@@ -740,7 +820,18 @@ ${mainBlock}`;
                     gl.activeTexture(gl.TEXTURE0);
                     gl.bindTexture(gl.TEXTURE_2D, texture);
                     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _filteredCanvas);
-                } catch (_) { return; }
+                } catch (e) {
+                    // SecurityError: video is tainted (e.g. YouTube CDN) — fall back to
+                    // __gvfFilteredFrame which is drawn by the main GVF pipeline and is not tainted.
+                    const fb = window.__gvfFilteredFrame;
+                    if (fb && fb.width > 0 && fb.height > 0) {
+                        try {
+                            gl.activeTexture(gl.TEXTURE0);
+                            gl.bindTexture(gl.TEXTURE_2D, texture);
+                            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fb);
+                        } catch(_) { return; }
+                    } else { return; }
+                }
 
                 // ── Texture 1: raw frame ─────────────────────────────────────
                 try {
@@ -774,6 +865,14 @@ ${mainBlock}`;
                 if (uStrength !== null) gl.uniform1f(uStrength, _getStrength());
                 if (uLayers   !== null) gl.uniform1f(uLayers,   _getLayers());
                 if (uZoom     !== null) gl.uniform1f(uZoom,     _scrollZoom);
+                const _fs = window.__gvfFrameStats || {};
+                if (uAvgLum   !== null) gl.uniform1f(uAvgLum,   _fs.avg_lum  ?? 0.5);
+                if (uAvgR     !== null) gl.uniform1f(uAvgR,     _fs.avg_r    ?? 0.5);
+                if (uAvgG     !== null) gl.uniform1f(uAvgG,     _fs.avg_g    ?? 0.5);
+                if (uAvgB     !== null) gl.uniform1f(uAvgB,     _fs.avg_b    ?? 0.5);
+                if (uContrast !== null) gl.uniform1f(uContrast, _fs.contrast ?? 0.5);
+                _uniformDefs.forEach(d => { if (_uCustomLocs[d.name] !== null) gl.uniform1f(_uCustomLocs[d.name], entry.uniforms[d.name] ?? d.def); });
+                GvfFrameAnalyzer.tick();
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                 gl.bindVertexArray(null);
             }
@@ -821,6 +920,13 @@ ${mainBlock}`;
                 if (uStrength !== null) gl.uniform1f(uStrength, _getStrength());
                 if (uLayers   !== null) gl.uniform1f(uLayers,   _getLayers());
                 if (uZoom     !== null) gl.uniform1f(uZoom,     _scrollZoom);
+                const _fsp = window.__gvfFrameStats || {};
+                if (uAvgLum   !== null) gl.uniform1f(uAvgLum,   _fsp.avg_lum  ?? 0.5);
+                if (uAvgR     !== null) gl.uniform1f(uAvgR,     _fsp.avg_r    ?? 0.5);
+                if (uAvgG     !== null) gl.uniform1f(uAvgG,     _fsp.avg_g    ?? 0.5);
+                if (uAvgB     !== null) gl.uniform1f(uAvgB,     _fsp.avg_b    ?? 0.5);
+                if (uContrast !== null) gl.uniform1f(uContrast, _fsp.contrast ?? 0.5);
+                _uniformDefs.forEach(d => { if (_uCustomLocs[d.name] !== null) gl.uniform1f(_uCustomLocs[d.name], entry.uniforms[d.name] ?? d.def); });
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                 gl.bindVertexArray(null);
             }
@@ -934,7 +1040,8 @@ ${mainBlock}`;
             const gl = canvas.getContext('webgl2');
             if (!gl) return null;
             // Apply same normalization as _buildFragSrc/_normalizeUserFrag
-            let s = src.replace(/^\s*#version\s+\S+[\t ]*/mg, '');
+            let s = src.replace(/^\s*\/\/\s*@uniform[^\r\n]*/mg, '');
+            s = s.replace(/^\s*#version\s+\S+[\t ]*/mg, '');
             s = s.replace(/^\s*precision\s+\w+\s+\w+\s*;\s*/mg, '');
             s = s.replace(/^\s*uniform\s+sampler2D\s+u_video\s*;\s*/mg, '');
             s = s.replace(/^\s*uniform\s+sampler2D\s+u_video_raw\s*;\s*/mg, '');
@@ -975,7 +1082,8 @@ ${mainBlock}`;
                     s = `void main(){\n${s}\n}`;
                 }
             }
-            const fragSrc = `#version 300 es\nprecision highp float;\nuniform sampler2D u_video;\nuniform sampler2D u_video_raw;\nuniform vec2 u_res;\nuniform float u_time;\nuniform vec2 u_mouse;\nuniform float u_strength;\nuniform float u_layers;\nuniform float u_zoom;\nin vec2 v_uv;\nout vec4 fragColor;\n${s}`;
+            const _customDecls = parseUniformDefs(src).map(d => `uniform float ${d.name};`).join('\n');
+            const fragSrc = `#version 300 es\nprecision highp float;\nuniform sampler2D u_video;\nuniform sampler2D u_video_raw;\nuniform vec2 u_res;\nuniform float u_time;\nuniform vec2 u_mouse;\nuniform float u_strength;\nuniform float u_layers;\nuniform float u_zoom;\nuniform float u_avg_lum;\nuniform float u_avg_r;\nuniform float u_avg_g;\nuniform float u_avg_b;\nuniform float u_contrast;\n${_customDecls}\nin vec2 v_uv;\nout vec4 fragColor;\n${s}`;
             const sh = gl.createShader(gl.FRAGMENT_SHADER);
             gl.shaderSource(sh, fragSrc);
             gl.compileShader(sh);
@@ -991,6 +1099,7 @@ ${mainBlock}`;
     function updateCustomWebglOverlays() {
         if (isFirefox()) return; // Custom Filter Codes not supported in Firefox
         const video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
+        GvfFrameAnalyzer.setVideo(video);
         CustomWebglOverlayManager.update(video);
     }
 
@@ -1015,37 +1124,25 @@ ${mainBlock}`;
                 if (!String(e).includes('Trusted') && !(e instanceof EvalError)) throw e;
             }
 
-            // 2. unsafeWindow.Function (Tampermonkey sandbox)
+            // 2. unsafeWindow.Function (Tampermonkey sandbox bypass)
             try {
                 if (typeof unsafeWindow !== 'undefined') {
                     return new unsafeWindow.Function(...args, code);
                 }
             } catch(_) {}
 
-            // 3. GM_addElement with synchronous script injection
+            // 3. GM_addElement textContent — synchronously injects into page context,
+            //    bypassing Trusted Types CSP (e.g. YouTube). Must use textContent, not src,
+            //    because blob URL scripts are async and fn would be null at return time.
             try {
                 if (typeof GM_addElement === 'function') {
                     const key = '__gvfFn_' + Math.random().toString(36).slice(2);
                     const wrap = `window["${key}"]=function(${args.join(',')}){${code}}`;
-                    // Use a blob URL for synchronous execution
-                    const blob = new Blob([wrap], { type: 'text/javascript' });
-                    const url = URL.createObjectURL(blob);
-                    const script = document.createElement('script');
-                    script.src = url;
-                    // Synchronous: append and wait for load
-                    let done = false;
-                    script.onload = () => { done = true; };
-                    (document.head || document.documentElement).appendChild(script);
-                    // Poll briefly for sync execution (scripts from blob URLs execute sync in same tick on some browsers)
-                    const fn = unsafeWindow[key] || window[key];
-                    script.remove();
-                    URL.revokeObjectURL(url);
-                    if (fn) { delete unsafeWindow[key]; return fn; }
-                    // Fallback: GM_addElement textContent
                     GM_addElement('script', { textContent: wrap });
-                    const fn2 = unsafeWindow[key];
-                    delete unsafeWindow[key];
-                    if (typeof fn2 === 'function') return fn2;
+                    const fn = (typeof unsafeWindow !== 'undefined' ? unsafeWindow[key] : null) || window[key];
+                    try { delete unsafeWindow[key]; } catch(_) {}
+                    try { delete window[key]; } catch(_) {}
+                    if (typeof fn === 'function') return fn;
                 }
             } catch(_) {}
 
@@ -1486,7 +1583,14 @@ ${mainBlock}`;
                 }
             } catch(_) {}
             x.filter = f;
-            x.drawImage(video, 0, 0, w, h);
+            try {
+                x.drawImage(video, 0, 0, w, h);
+            } catch(_) {
+                // SecurityError (e.g. YouTube tainted video) — use __gvfFilteredFrame fallback
+                const fb = window.__gvfFilteredFrame;
+                if (fb && fb.width > 0) { try { x.drawImage(fb, 0, 0, w, h); } catch(__) { return video; } }
+                else return video;
+            }
             return c;
         } catch(_) { return video; }
     }
@@ -1725,6 +1829,40 @@ ${mainBlock}`;
 
                 row.appendChild(handle); row.appendChild(chk); row.appendChild(lbl); row.appendChild(hkBtn); row.appendChild(editBtn); row.appendChild(delBtn);
                 listWrap.appendChild(row);
+
+                // @uniform sliders — only for webgl entries
+                if (entry.type === 'webgl') {
+                    const udefs = parseUniformDefs(entry.code);
+                    if (udefs.length > 0) {
+                        if (!entry.uniforms) entry.uniforms = {};
+                        const slWrap = document.createElement('div');
+                        slWrap.style.cssText = `display:flex;flex-direction:column;gap:4px;padding:6px 10px 8px 32px;background:rgba(120,80,255,0.07);border-radius:0 0 8px 8px;border:1px solid rgba(120,80,255,0.2);border-top:none;margin-top:-4px;`;
+                        udefs.forEach(d => {
+                            if (entry.uniforms[d.name] === undefined) entry.uniforms[d.name] = d.def;
+                            const row2 = document.createElement('div');
+                            row2.style.cssText = `display:flex;align-items:center;gap:8px;`;
+                            const lbl2 = document.createElement('span');
+                            lbl2.textContent = d.label;
+                            lbl2.style.cssText = `font-size:10px;color:#c0a0ff;min-width:90px;flex-shrink:0;`;
+                            const val2 = document.createElement('span');
+                            val2.textContent = entry.uniforms[d.name].toFixed(2);
+                            val2.style.cssText = `font-size:10px;color:#fff;font-family:monospace;min-width:34px;text-align:right;flex-shrink:0;`;
+                            const sl = document.createElement('input');
+                            sl.type = 'range'; sl.min = d.min; sl.max = d.max;
+                            sl.step = (d.max - d.min) / 200; sl.value = entry.uniforms[d.name];
+                            sl.style.cssText = `flex:1;accent-color:#a070ff;cursor:pointer;`;
+                            stopEventsOn(sl);
+                            sl.addEventListener('input', () => {
+                                entry.uniforms[d.name] = parseFloat(sl.value);
+                                val2.textContent = entry.uniforms[d.name].toFixed(2);
+                                saveCustomSvgCodes();
+                            });
+                            row2.appendChild(lbl2); row2.appendChild(sl); row2.appendChild(val2);
+                            slWrap.appendChild(row2);
+                        });
+                        listWrap.appendChild(slWrap);
+                    }
+                }
             });
             listWrap.scrollTop = scrollTop;
         }
