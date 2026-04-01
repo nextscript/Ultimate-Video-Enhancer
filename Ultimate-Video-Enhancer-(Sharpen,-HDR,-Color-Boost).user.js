@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.10.3
+// @version      1.10.4
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -513,8 +513,34 @@
     // ─────────────────────────────────────────────────────────────────────────
 
     const CustomWebglOverlayManager = (() => {
-        // Map: entry.id -> { canvas, gl, program, texture, rafId, sig }
-        const _instances = new Map();
+        // ── Ping-Pong FBO Chain ────────────────────────────────────────────────
+        // All active GLSL entries share ONE WebGL2 context / ONE output canvas.
+        // Each filter pass reads from pingTex and writes into pongTex (then swaps).
+        // The final pass renders to screen (no FBO).  This lets N filters stack
+        // correctly regardless of z-order.
+        //
+        // _compiled: Map<entry.id, { program, vao, vb, ub, unifLocs, uniformDefs, sig }>
+        // _chain: ordered array of entry.ids currently active (matches customSvgCodes order)
+
+        const _compiled = new Map(); // compiled programs, keyed by entry.id
+
+        // Shared GL state (created once, reused across all passes)
+        let _gl = null;
+        let _canvas = null;
+        let _alive = true;
+        let _rafId = null;
+        let _video = null;
+        let _hasFrame = false;
+
+        // FBO ping-pong pair
+        let _pingFbo = null, _pongFbo = null;
+        let _pingTex = null, _pongTex = null;
+        let _fboW = 0, _fboH = 0;
+
+        // Filtered-frame offscreen canvas (CSS filter baked in)
+        let _filteredCanvas = null, _filteredCtx = null;
+        // Raw frame texture (TEXTURE1, never changes between passes)
+        let _texRaw = null;
 
         const _vsSource = `#version 300 es
 in vec2 a_pos;
@@ -560,7 +586,7 @@ void main(){
             s = s.replace(/^\s*uniform\s+float\s+u_avg_b\s*;\s*/mg, '');
             s = s.replace(/^\s*uniform\s+float\s+u_contrast\s*;\s*/mg, '');
             // Shadertoy: iChannel1 -> u_video_raw
-            s = s.replace(/iChannel1/g, 'u_video_raw');
+            s = s.replace(/iChannel1/g, 'u_video_raw');
             s = s.replace(/^\s*in\s+vec2\s+v_uv\s*;\s*/mg, '');
             s = s.replace(/^\s*out\s+vec4\s+fragColor\s*;\s*/mg, '');
             // Upgrade texture2D -> texture (GLSL100 style)
@@ -570,7 +596,6 @@ void main(){
             s = s.replace(/\biTime\b/g, 'u_time');
             s = s.replace(/\biChannel0\b/g, 'u_video');
             // Shadertoy: mainImage(out vec4 fragColor, in vec2 fragCoord) -> void main()
-            // wrap it: call mainImage and map fragCoord = v_uv * u_res
             if (/\bmainImage\s*\(/.test(s) && !s.includes('void main')) {
                 s = s + '\nvoid main(){\n    mainImage(fragColor, v_uv * u_res);\n}';
             }
@@ -583,451 +608,383 @@ void main(){
 
             let mainBlock;
             if (body.includes('void main')) {
-                // User provided full main — use as-is
                 mainBlock = body;
             } else {
-                // No main — detect last defined function: return type + name + params
-                // Matches: vec3 foo(sampler2D tex, vec2 uv, ...) or vec4 bar(...)
                 const fnRe = /\b(vec4|vec3|vec2|float|void)\s+(\w+)\s*\(([^)]*)\)/g;
-                let lastFn = null;
-                let m;
+                let lastFn = null, m;
                 while ((m = fnRe.exec(body)) !== null) lastFn = { ret: m[1], name: m[2], params: m[3] };
-
                 if (lastFn && lastFn.ret !== 'void') {
-                    // Build argument list: supply standard uniforms/vars by type
-                    const argMap = {
-                        'sampler2D': 'u_video',
-                        'vec2':      null, // resolved by position below
-                        'float':     '1.0',
-                        'vec3':      'vec3(1.0)',
-                        'vec4':      'vec4(1.0)',
-                        'int':       '1',
-                        'bool':      'false'
-                    };
-                    // For vec2 params: first = uv, second = res
+                    const argMap = { 'sampler2D': 'u_video', 'float': '1.0', 'vec3': 'vec3(1.0)', 'vec4': 'vec4(1.0)', 'int': '1', 'bool': 'false' };
                     let vec2Count = 0;
                     const args = lastFn.params.split(',').map(p => {
-                        p = p.trim();
-                        if (!p) return '';
+                        p = p.trim(); if (!p) return '';
                         const type = p.split(/\s+/)[0];
-                        if (type === 'vec2') {
-                            return vec2Count++ === 0 ? 'v_uv' : 'u_res';
-                        }
+                        if (type === 'vec2') return vec2Count++ === 0 ? 'v_uv' : 'u_res';
                         return argMap[type] !== undefined ? argMap[type] : '0.0';
                     }).filter(Boolean).join(', ');
-
                     const call = `${lastFn.name}(${args})`;
-                    const fragAssign = lastFn.ret === 'vec4'
-                        ? `fragColor = ${call};`
-                        : lastFn.ret === 'vec3'
-                            ? `fragColor = vec4(${call}, 1.0);`
-                            : `float _r = ${call}; fragColor = vec4(_r, _r, _r, 1.0);`;
-
+                    const fragAssign = lastFn.ret === 'vec4' ? `fragColor = ${call};`
+                        : lastFn.ret === 'vec3' ? `fragColor = vec4(${call}, 1.0);`
+                        : `float _r = ${call}; fragColor = vec4(_r, _r, _r, 1.0);`;
                     mainBlock = `${body}\nvoid main(){\n    ${fragAssign}\n}`;
                 } else {
-                    // Fallback: wrap body directly
                     mainBlock = `void main(){\n${body}\n}`;
                 }
             }
 
             return `#version 300 es
 precision highp float;
-uniform sampler2D u_video;        // filtered frame  (TEXTURE0)
+uniform sampler2D u_video;        // input frame for this pass (TEXTURE0)
 uniform sampler2D u_video_raw;    // raw video frame (TEXTURE1)
 uniform vec2 u_res;
 uniform float u_time;
-uniform vec2 u_mouse;             // normalized mouse position [0..1]
-uniform float u_strength;         // current GVF filter strength
-uniform float u_layers;           // number of active GVF layers
-uniform float u_zoom;             // scroll-controlled zoom level (default 1.0)
-uniform float u_avg_lum;          // average luminance of current frame [0..1]
-uniform float u_avg_r;            // average red channel [0..1]
-uniform float u_avg_g;            // average green channel [0..1]
-uniform float u_avg_b;            // average blue channel [0..1]
-uniform float u_contrast;         // luminance range (max-min) of current frame [0..1]
+uniform vec2 u_mouse;
+uniform float u_strength;
+uniform float u_layers;
+uniform float u_zoom;
+uniform float u_avg_lum;
+uniform float u_avg_r;
+uniform float u_avg_g;
+uniform float u_avg_b;
+uniform float u_contrast;
 ${_customUniformDecls}
 in vec2 v_uv;
 out vec4 fragColor;
 ${mainBlock}`;
         }
 
-        function _createInstance(entry, video) {
-            const canvas = document.createElement('canvas');
-            canvas.setAttribute('data-gvf-custom-webgl', entry.id);
-            // fixed to body — tracks video BCR in drawLoop, never inside player DOM so controls stay untouched
-            canvas.style.cssText = `position:absolute;pointer-events:none;z-index:0;display:block;top:0;left:0;`;
-
-            // Canvas z-index:0 inside player container — controls (z-index:59) paint above it naturally.
-
-            let gl;
+        function _initGL(video) {
+            if (_canvas && _gl) return true; // already initialized
+            _canvas = document.createElement('canvas');
+            _canvas.setAttribute('data-gvf-custom-webgl-chain', '1');
+            _canvas.style.cssText = `position:absolute;pointer-events:none;z-index:0;display:block;top:0;left:0;`;
             try {
-                gl = canvas.getContext('webgl2', { alpha: true, antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: true });
-                if (!gl) throw new Error('webgl2 unavailable');
+                _gl = _canvas.getContext('webgl2', { alpha: true, antialias: false, premultipliedAlpha: false, preserveDrawingBuffer: true });
+                if (!_gl) throw new Error('webgl2 unavailable');
             } catch (e) {
-                logW('[GVF WebGL Overlay] WebGL2 not available:', e);
-                return null;
+                logW('[GVF WebGL Chain] WebGL2 not available:', e);
+                _canvas = null; _gl = null;
+                return false;
             }
+            _filteredCanvas = document.createElement('canvas');
+            _filteredCtx = _filteredCanvas.getContext('2d', { alpha: false, willReadFrequently: false });
+            _texRaw = _gl.createTexture();
+            _gl.bindTexture(_gl.TEXTURE_2D, _texRaw);
+            _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_S, _gl.CLAMP_TO_EDGE);
+            _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_WRAP_T, _gl.CLAMP_TO_EDGE);
+            _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MIN_FILTER, _gl.LINEAR);
+            _gl.texParameteri(_gl.TEXTURE_2D, _gl.TEXTURE_MAG_FILTER, _gl.LINEAR);
+            _gl.pixelStorei(_gl.UNPACK_FLIP_Y_WEBGL, true);
+            _gl.bindTexture(_gl.TEXTURE_2D, null);
 
-            let program;
+            // Insert once, directly after video
+            const parent = video.parentElement || document.body;
+            parent.insertBefore(_canvas, video.nextSibling);
+            return true;
+        }
+
+        function _ensureFbos(w, h) {
+            const gl = _gl;
+            if (_fboW === w && _fboH === h && _pingFbo && _pongFbo) return;
+            // Destroy old
+            if (_pingFbo) { gl.deleteFramebuffer(_pingFbo); gl.deleteTexture(_pingTex); }
+            if (_pongFbo) { gl.deleteFramebuffer(_pongFbo); gl.deleteTexture(_pongTex); }
+            function makeFbo() {
+                const tex = gl.createTexture();
+                gl.bindTexture(gl.TEXTURE_2D, tex);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+                gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+                gl.bindTexture(gl.TEXTURE_2D, null);
+                const fbo = gl.createFramebuffer();
+                gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                return { fbo, tex };
+            }
+            const p = makeFbo(); _pingFbo = p.fbo; _pingTex = p.tex;
+            const q = makeFbo(); _pongFbo = q.fbo; _pongTex = q.tex;
+            _fboW = w; _fboH = h;
+        }
+
+        function _compileEntry(entry) {
+            const gl = _gl;
+            const sig = entry.id + '||' + entry.code;
+            const existing = _compiled.get(entry.id);
+            if (existing && existing.sig === sig) return existing;
+            if (existing) {
+                // recompile — destroy old
+                try { gl.deleteProgram(existing.program); gl.deleteVertexArray(existing.vao); gl.deleteBuffer(existing.vb); gl.deleteBuffer(existing.ub); } catch(_) {}
+                _compiled.delete(entry.id);
+            }
             try {
                 const fragSrc = _buildFragSrc(entry.code);
                 const vs = _compileShader(gl, gl.VERTEX_SHADER, _vsSource);
                 const fs = _compileShader(gl, gl.FRAGMENT_SHADER, fragSrc);
-                program = gl.createProgram();
-                gl.attachShader(program, vs);
-                gl.attachShader(program, fs);
+                const program = gl.createProgram();
+                gl.attachShader(program, vs); gl.attachShader(program, fs);
                 gl.linkProgram(program);
-                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-                    throw new Error(gl.getProgramInfoLog(program));
-                }
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
                 gl.detachShader(program, vs); gl.deleteShader(vs);
                 gl.detachShader(program, fs); gl.deleteShader(fs);
+
+                const vao = gl.createVertexArray();
+                gl.bindVertexArray(vao);
+                const verts = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
+                const uvs   = new Float32Array([ 0, 0, 1, 0,  0,1, 1,1]);
+                const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+                const aPos = gl.getAttribLocation(program, 'a_pos'); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+                const ub = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, ub); gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
+                const aUv = gl.getAttribLocation(program, 'a_uv'); gl.enableVertexAttribArray(aUv); gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 0, 0);
+                gl.bindVertexArray(null);
+
+                const unifLocs = {
+                    uVideo:    gl.getUniformLocation(program, 'u_video'),
+                    uVideoRaw: gl.getUniformLocation(program, 'u_video_raw'),
+                    uRes:      gl.getUniformLocation(program, 'u_res'),
+                    uTime:     gl.getUniformLocation(program, 'u_time'),
+                    uMouse:    gl.getUniformLocation(program, 'u_mouse'),
+                    uStrength: gl.getUniformLocation(program, 'u_strength'),
+                    uLayers:   gl.getUniformLocation(program, 'u_layers'),
+                    uZoom:     gl.getUniformLocation(program, 'u_zoom'),
+                    uAvgLum:   gl.getUniformLocation(program, 'u_avg_lum'),
+                    uAvgR:     gl.getUniformLocation(program, 'u_avg_r'),
+                    uAvgG:     gl.getUniformLocation(program, 'u_avg_g'),
+                    uAvgB:     gl.getUniformLocation(program, 'u_avg_b'),
+                    uContrast: gl.getUniformLocation(program, 'u_contrast'),
+                };
+                const uniformDefs = parseUniformDefs(entry.code);
+                if (!entry.uniforms) entry.uniforms = {};
+                uniformDefs.forEach(d => { if (entry.uniforms[d.name] === undefined) entry.uniforms[d.name] = d.def; });
+                const customLocs = {};
+                uniformDefs.forEach(d => { customLocs[d.name] = gl.getUniformLocation(program, d.name); });
+
+                gl.useProgram(program);
+                gl.uniform1i(unifLocs.uVideo, 0);
+                gl.uniform1i(unifLocs.uVideoRaw, 1);
+
+                const rec = { program, vao, vb, ub, unifLocs, uniformDefs, customLocs, sig };
+                _compiled.set(entry.id, rec);
+                return rec;
             } catch (e) {
-                logW('[GVF WebGL Overlay] Shader compile error for "' + entry.label + '":', e.message);
+                logW('[GVF WebGL Chain] Compile error for "' + entry.label + '":', e.message);
                 return null;
             }
-
-            gl.useProgram(program);
-
-            // VAO — keeps attribute state per-instance, no cross-frame pollution
-            const vao = gl.createVertexArray();
-            gl.bindVertexArray(vao);
-
-            const verts = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
-            const uvs   = new Float32Array([ 0, 0, 1, 0,  0,1, 1,1]);
-
-            const vb = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, vb);
-            gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
-            const aPos = gl.getAttribLocation(program, 'a_pos');
-            gl.enableVertexAttribArray(aPos);
-            gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
-
-            const ub = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, ub);
-            gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
-            const aUv = gl.getAttribLocation(program, 'a_uv');
-            gl.enableVertexAttribArray(aUv);
-            gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 0, 0);
-
-            gl.bindVertexArray(null);
-
-            // Texture 0 — filtered frame (drawn via offscreen 2D canvas with CSS filter)
-            const texture = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, texture);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            gl.bindTexture(gl.TEXTURE_2D, null);
-
-            // Texture 1 — raw video frame
-            const textureRaw = gl.createTexture();
-            gl.bindTexture(gl.TEXTURE_2D, textureRaw);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-            gl.bindTexture(gl.TEXTURE_2D, null);
-
-            // Offscreen 2D canvas used to bake CSS filter onto video frame → texture 0
-            const _filteredCanvas = document.createElement('canvas');
-            const _filteredCtx = _filteredCanvas.getContext('2d', { alpha: false, willReadFrequently: false });
-
-            const uVideo    = gl.getUniformLocation(program, 'u_video');
-            const uVideoRaw = gl.getUniformLocation(program, 'u_video_raw');
-            const uRes      = gl.getUniformLocation(program, 'u_res');
-            const uTime     = gl.getUniformLocation(program, 'u_time');
-            const uMouse    = gl.getUniformLocation(program, 'u_mouse');
-            const uStrength = gl.getUniformLocation(program, 'u_strength');
-            const uLayers   = gl.getUniformLocation(program, 'u_layers');
-            const uZoom     = gl.getUniformLocation(program, 'u_zoom');
-            const uAvgLum   = gl.getUniformLocation(program, 'u_avg_lum');
-            const uAvgR     = gl.getUniformLocation(program, 'u_avg_r');
-            const uAvgG     = gl.getUniformLocation(program, 'u_avg_g');
-            const uAvgB     = gl.getUniformLocation(program, 'u_avg_b');
-            const uContrast = gl.getUniformLocation(program, 'u_contrast');
-            // Custom @uniform locations
-            const _uniformDefs = parseUniformDefs(entry.code);
-            if (!entry.uniforms) entry.uniforms = {};
-            _uniformDefs.forEach(d => { if (entry.uniforms[d.name] === undefined) entry.uniforms[d.name] = d.def; });
-            const _uCustomLocs = {};
-            _uniformDefs.forEach(d => { _uCustomLocs[d.name] = gl.getUniformLocation(program, d.name); });
-
-            gl.uniform1i(uVideo, 0);
-            gl.uniform1i(uVideoRaw, 1);
-
-            let alive = true;
-            let lastPaused = false;
-
-            function _reparentCanvas() {
-                // Always insert canvas directly after the video element.
-                // DOM order: video → canvas → controls — controls always paint above.
-                // This works in both normal and fullscreen mode because we follow
-                // the video element itself, not the fullscreen container.
-                const parent = video.parentElement || document.body;
-                if (canvas.parentNode !== parent || canvas.previousSibling !== video) {
-                    const after = video.nextSibling;
-                    parent.insertBefore(canvas, after !== canvas ? after : null);
-                }
-            }
-
-            function doRender() {
-                if (!video || !video.isConnected || video.readyState < 2) {
-                    canvas.style.display = 'none';
-                    return;
-                }
-                _reparentCanvas();
-                const pr = (canvas.parentElement || document.body).getBoundingClientRect();
-                const r = video.getBoundingClientRect();
-                if (!r || r.width < 1 || r.height < 1) { canvas.style.display = 'none'; return; }
-                canvas.style.display = 'block';
-                canvas.style.position = 'absolute';
-                canvas.style.left = (r.left - pr.left) + 'px';
-                canvas.style.top  = (r.top  - pr.top)  + 'px';
-                canvas.style.width  = r.width  + 'px';
-                canvas.style.height = r.height + 'px';
-
-                const w = video.videoWidth, h = video.videoHeight;
-                if (!w || !h) return;
-                if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-
-                gl.viewport(0, 0, w, h);
-                gl.useProgram(program);
-                gl.bindVertexArray(vao);
-
-                // ── Texture 0: filtered frame ────────────────────────────────
-                // Bake current CSS filter string onto an offscreen 2D canvas,
-                // then upload that as u_video so shaders see the filtered image.
-                try {
-                    if (_filteredCanvas.width !== w || _filteredCanvas.height !== h) {
-                        _filteredCanvas.width = w;
-                        _filteredCanvas.height = h;
-                    }
-                    const cssFilter = (() => {
-                        try {
-                            const s = document.getElementById('global-video-filter-style');
-                            if (!s) return 'none';
-                            const m = s.textContent.match(/filter\s*:\s*([^!;]+)/);
-                            return (m && m[1].trim()) ? m[1].trim() : 'none';
-                        } catch(_) { return 'none'; }
-                    })();
-                    _filteredCtx.filter = cssFilter;
-                    _filteredCtx.drawImage(video, 0, 0, w, h);
-                    window.__gvfFilteredFrame = _filteredCanvas; // expose for Canvas2D overlays
-                    gl.activeTexture(gl.TEXTURE0);
-                    gl.bindTexture(gl.TEXTURE_2D, texture);
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _filteredCanvas);
-                } catch (e) {
-                    // SecurityError: video is tainted (e.g. YouTube CDN) — fall back to
-                    // __gvfFilteredFrame which is drawn by the main GVF pipeline and is not tainted.
-                    const fb = window.__gvfFilteredFrame;
-                    if (fb && fb.width > 0 && fb.height > 0) {
-                        try {
-                            gl.activeTexture(gl.TEXTURE0);
-                            gl.bindTexture(gl.TEXTURE_2D, texture);
-                            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fb);
-                        } catch(_) { return; }
-                    } else { return; }
-                }
-
-                // ── Texture 1: raw frame ─────────────────────────────────────
-                try {
-                    gl.activeTexture(gl.TEXTURE1);
-                    gl.bindTexture(gl.TEXTURE_2D, textureRaw);
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-                } catch (_) { /* raw frame unavailable — leave last */ }
-
-                gl.uniform1i(uVideo, 0);
-                gl.uniform1i(uVideoRaw, 1);
-                gl.uniform2f(uRes, w, h);
-                if (uTime     !== null) gl.uniform1f(uTime, performance.now() * 0.001);
-                if (uMouse !== null) {
-                    const _vr = video.getBoundingClientRect();
-                    // Letterbox correction: map mouse into actual content area, not full BCR
-                    const _vAsp = video.videoWidth / (video.videoHeight || 1);
-                    const _bAsp = _vr.width / (_vr.height || 1);
-                    let _contentL = _vr.left, _contentT = _vr.top;
-                    let _contentW = _vr.width, _contentH = _vr.height;
-                    if (_vAsp > _bAsp) {
-                        _contentH = _vr.width / _vAsp;
-                        _contentT = _vr.top + (_vr.height - _contentH) / 2;
-                    } else if (_vAsp < _bAsp) {
-                        _contentW = _vr.height * _vAsp;
-                        _contentL = _vr.left + (_vr.width - _contentW) / 2;
-                    }
-                    const _mx =       (_rawMouseClientX - _contentL) / (_contentW || 1);
-                    const _my = 1.0 - (_rawMouseClientY - _contentT) / (_contentH || 1);
-                    gl.uniform2f(uMouse, _mx, _my);
-                }
-                if (uStrength !== null) gl.uniform1f(uStrength, _getStrength());
-                if (uLayers   !== null) gl.uniform1f(uLayers,   _getLayers());
-                if (uZoom     !== null) gl.uniform1f(uZoom,     _scrollZoom);
-                const _fs = window.__gvfFrameStats || {};
-                if (uAvgLum   !== null) gl.uniform1f(uAvgLum,   _fs.avg_lum  ?? 0.5);
-                if (uAvgR     !== null) gl.uniform1f(uAvgR,     _fs.avg_r    ?? 0.5);
-                if (uAvgG     !== null) gl.uniform1f(uAvgG,     _fs.avg_g    ?? 0.5);
-                if (uAvgB     !== null) gl.uniform1f(uAvgB,     _fs.avg_b    ?? 0.5);
-                if (uContrast !== null) gl.uniform1f(uContrast, _fs.contrast ?? 0.5);
-                _uniformDefs.forEach(d => { if (_uCustomLocs[d.name] !== null) gl.uniform1f(_uCustomLocs[d.name], entry.uniforms[d.name] ?? d.def); });
-                GvfFrameAnalyzer.tick();
-                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-                gl.bindVertexArray(null);
-            }
-
-            let _hasRenderedFrame = false;
-            let _lastMouseX = _mouseX, _lastMouseY = _mouseY;
-
-            // Paused render: re-draw uniforms (mouse etc.) without re-uploading textures.
-            // preserveDrawingBuffer:true keeps the last frame in the framebuffer;
-            // we only need to re-run the draw call with updated uniforms.
-            function _doRenderPausedUniforms() {
-                if (!_hasRenderedFrame) { doRender(); return; }
-                _reparentCanvas();
-                const pr = (canvas.parentElement || document.body).getBoundingClientRect();
-                const r = video.getBoundingClientRect();
-                if (!r || r.width < 1) { canvas.style.display = 'none'; return; }
-                canvas.style.display = 'block';
-                canvas.style.position = 'absolute';
-                canvas.style.left = (r.left - pr.left) + 'px';
-                canvas.style.top  = (r.top  - pr.top)  + 'px';
-                canvas.style.width  = r.width  + 'px';
-                canvas.style.height = r.height + 'px';
-                // Re-bind textures from preserveDrawingBuffer and redraw with new uniforms
-                gl.useProgram(program);
-                gl.bindVertexArray(vao);
-                if (uMouse !== null) {
-                    const _vr = video.getBoundingClientRect();
-                    // Letterbox correction: map mouse into actual content area, not full BCR
-                    const _vAsp = video.videoWidth / (video.videoHeight || 1);
-                    const _bAsp = _vr.width / (_vr.height || 1);
-                    let _contentL = _vr.left, _contentT = _vr.top;
-                    let _contentW = _vr.width, _contentH = _vr.height;
-                    if (_vAsp > _bAsp) {
-                        _contentH = _vr.width / _vAsp;
-                        _contentT = _vr.top + (_vr.height - _contentH) / 2;
-                    } else if (_vAsp < _bAsp) {
-                        _contentW = _vr.height * _vAsp;
-                        _contentL = _vr.left + (_vr.width - _contentW) / 2;
-                    }
-                    const _mx =       (_rawMouseClientX - _contentL) / (_contentW || 1);
-                    const _my = 1.0 - (_rawMouseClientY - _contentT) / (_contentH || 1);
-                    gl.uniform2f(uMouse, _mx, _my);
-                }
-                if (uTime     !== null) gl.uniform1f(uTime, performance.now() * 0.001);
-                if (uStrength !== null) gl.uniform1f(uStrength, _getStrength());
-                if (uLayers   !== null) gl.uniform1f(uLayers,   _getLayers());
-                if (uZoom     !== null) gl.uniform1f(uZoom,     _scrollZoom);
-                const _fsp = window.__gvfFrameStats || {};
-                if (uAvgLum   !== null) gl.uniform1f(uAvgLum,   _fsp.avg_lum  ?? 0.5);
-                if (uAvgR     !== null) gl.uniform1f(uAvgR,     _fsp.avg_r    ?? 0.5);
-                if (uAvgG     !== null) gl.uniform1f(uAvgG,     _fsp.avg_g    ?? 0.5);
-                if (uAvgB     !== null) gl.uniform1f(uAvgB,     _fsp.avg_b    ?? 0.5);
-                if (uContrast !== null) gl.uniform1f(uContrast, _fsp.contrast ?? 0.5);
-                _uniformDefs.forEach(d => { if (_uCustomLocs[d.name] !== null) gl.uniform1f(_uCustomLocs[d.name], entry.uniforms[d.name] ?? d.def); });
-                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-                gl.bindVertexArray(null);
-            }
-
-            function drawLoop() {
-                if (!alive) return;
-                requestAnimationFrame(drawLoop);
-                const paused = !video || video.paused || video.ended;
-                if (paused) {
-                    // Always redraw on pause so mouse-driven effects (loupe etc.) keep working
-                    _doRenderPausedUniforms();
-                    lastPaused = true;
-                    return;
-                }
-                lastPaused = false;
-                doRender();
-                _hasRenderedFrame = true;
-            }
-
-            // Also render immediately on pause/seek so the frame stays visible
-            const _onPause  = () => { if (alive) doRender(); };
-            const _onSeek   = () => { if (alive) doRender(); };
-            video.addEventListener('pause',    _onPause,  { passive: true });
-            video.addEventListener('seeked',   _onSeek,   { passive: true });
-            video.addEventListener('loadeddata', _onSeek, { passive: true });
-
-            const inst = { canvas, gl, program, texture, textureRaw, vao, vb, ub, sig: entry.id + '||' + entry.code, _stop: () => {
-                alive = false;
-                try { video.removeEventListener('pause',     _onPause); } catch(_){}
-                try { video.removeEventListener('seeked',    _onSeek);  } catch(_){}
-                try { video.removeEventListener('loadeddata',_onSeek);  } catch(_){}
-            }};
-            requestAnimationFrame(drawLoop);
-
-            // Insert canvas directly after video — DOM order ensures canvas paints
-            // above video but controls (later siblings) paint above canvas.
-            const _initParent = video.parentElement || document.body;
-            _initParent.insertBefore(canvas, video.nextSibling);
-
-
-
-            return inst;
         }
 
-        function _destroyInstance(inst) {
+        function _setCommonUniforms(gl, unifLocs, uniformDefs, customLocs, entry, w, h) {
+            const _fs = window.__gvfFrameStats || {};
+            const { uRes, uTime, uMouse, uStrength, uLayers, uZoom, uAvgLum, uAvgR, uAvgG, uAvgB, uContrast } = unifLocs;
+            if (uRes)      gl.uniform2f(uRes, w, h);
+            if (uTime)     gl.uniform1f(uTime, performance.now() * 0.001);
+            if (uMouse) {
+                const _vr = _video.getBoundingClientRect();
+                const _vAsp = _video.videoWidth / (_video.videoHeight || 1);
+                const _bAsp = _vr.width / (_vr.height || 1);
+                let _contentL = _vr.left, _contentT = _vr.top, _contentW = _vr.width, _contentH = _vr.height;
+                if (_vAsp > _bAsp) { _contentH = _vr.width / _vAsp; _contentT = _vr.top + (_vr.height - _contentH) / 2; }
+                else if (_vAsp < _bAsp) { _contentW = _vr.height * _vAsp; _contentL = _vr.left + (_vr.width - _contentW) / 2; }
+                gl.uniform2f(uMouse, (_rawMouseClientX - _contentL) / (_contentW || 1), 1.0 - (_rawMouseClientY - _contentT) / (_contentH || 1));
+            }
+            if (uStrength) gl.uniform1f(uStrength, _getStrength());
+            if (uLayers)   gl.uniform1f(uLayers,   _getLayers());
+            if (uZoom)     gl.uniform1f(uZoom,     _scrollZoom);
+            if (uAvgLum)   gl.uniform1f(uAvgLum,   _fs.avg_lum  ?? 0.5);
+            if (uAvgR)     gl.uniform1f(uAvgR,     _fs.avg_r    ?? 0.5);
+            if (uAvgG)     gl.uniform1f(uAvgG,     _fs.avg_g    ?? 0.5);
+            if (uAvgB)     gl.uniform1f(uAvgB,     _fs.avg_b    ?? 0.5);
+            if (uContrast) gl.uniform1f(uContrast, _fs.contrast ?? 0.5);
+            uniformDefs.forEach(d => { if (customLocs[d.name] != null) gl.uniform1f(customLocs[d.name], entry.uniforms[d.name] ?? d.def); });
+        }
+
+        function _reparentCanvas(video) {
+            if (!_canvas || !video) return;
+            const parent = video.parentElement || document.body;
+            if (_canvas.parentNode !== parent || _canvas.previousSibling !== video) {
+                const after = video.nextSibling;
+                parent.insertBefore(_canvas, after !== _canvas ? after : null);
+            }
+        }
+
+        function _doRender(video) {
+            if (!_gl || !_canvas) return;
+            const gl = _gl;
+            const activeEntries = customSvgCodes.filter(e => e && e.enabled && e.type === 'webgl');
+            if (!activeEntries.length || !video || video.readyState < 2) {
+                _canvas.style.display = 'none';
+                return;
+            }
+
+            _reparentCanvas(video);
+            const pr = (_canvas.parentElement || document.body).getBoundingClientRect();
+            const r = video.getBoundingClientRect();
+            if (!r || r.width < 1 || r.height < 1) { _canvas.style.display = 'none'; return; }
+            _canvas.style.display = 'block';
+            _canvas.style.position = 'absolute';
+            _canvas.style.left = (r.left - pr.left) + 'px';
+            _canvas.style.top  = (r.top  - pr.top)  + 'px';
+            _canvas.style.width  = r.width  + 'px';
+            _canvas.style.height = r.height + 'px';
+
+            const w = video.videoWidth, h = video.videoHeight;
+            if (!w || !h) return;
+            if (_canvas.width !== w || _canvas.height !== h) { _canvas.width = w; _canvas.height = h; }
+
+            gl.viewport(0, 0, w, h);
+            _ensureFbos(w, h);
+
+            // ── Bake filtered frame into TEXTURE0 source ──────────────────────
+            let sourceTex = null;
             try {
-                if (inst._stop) inst._stop(); // also restores video opacity
-                if (inst.canvas && inst.canvas.isConnected) inst.canvas.remove();
-                const gl = inst.gl;
-                if (gl) {
-                    if (inst.texture)    gl.deleteTexture(inst.texture);
-                    if (inst.textureRaw) gl.deleteTexture(inst.textureRaw);
-                    if (inst.program) gl.deleteProgram(inst.program);
-                    if (inst.vao) gl.deleteVertexArray(inst.vao);
-                    if (inst.vb) gl.deleteBuffer(inst.vb);
-                    if (inst.ub) gl.deleteBuffer(inst.ub);
+                if (_filteredCanvas.width !== w || _filteredCanvas.height !== h) { _filteredCanvas.width = w; _filteredCanvas.height = h; }
+                const cssFilter = (() => {
+                    try { const s = document.getElementById('global-video-filter-style'); if (!s) return 'none'; const m = s.textContent.match(/filter\s*:\s*([^!;]+)/); return (m && m[1].trim()) ? m[1].trim() : 'none'; } catch(_) { return 'none'; }
+                })();
+                _filteredCtx.filter = cssFilter;
+                _filteredCtx.drawImage(video, 0, 0, w, h);
+                window.__gvfFilteredFrame = _filteredCanvas;
+                // Upload to ping texture as initial source
+                gl.bindTexture(gl.TEXTURE_2D, _pingTex);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _filteredCanvas);
+                gl.bindTexture(gl.TEXTURE_2D, null);
+                sourceTex = _pingTex;
+            } catch (e) {
+                const fb = window.__gvfFilteredFrame;
+                if (fb && fb.width > 0) {
+                    try {
+                        gl.bindTexture(gl.TEXTURE_2D, _pingTex);
+                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fb);
+                        gl.bindTexture(gl.TEXTURE_2D, null);
+                        sourceTex = _pingTex;
+                    } catch(_) { _canvas.style.display = 'none'; return; }
+                } else { _canvas.style.display = 'none'; return; }
+            }
+
+            // ── Upload raw video to TEXTURE1 (constant across all passes) ──────
+            try {
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, _texRaw);
+                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+                gl.bindTexture(gl.TEXTURE_2D, null);
+            } catch (_) { /* tainted — reuse last upload */ }
+
+            GvfFrameAnalyzer.tick();
+
+            // ── Ping-Pong chain ──────────────────────────────────────────────────
+            // currentSrc = sourceTex (ping or pong), currentDst = the other
+            let currentSrc = _pingTex;
+            let currentDstFbo = _pongFbo; let currentDstTex = _pongTex;
+
+            const n = activeEntries.length;
+            for (let i = 0; i < n; i++) {
+                const entry = activeEntries[i];
+                const rec = _compileEntry(entry);
+                if (!rec) continue;
+
+                const isLast = (i === n - 1);
+
+                // Bind destination: FBO for intermediate, screen for last
+                if (isLast) {
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                } else {
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, currentDstFbo);
                 }
-            } catch (_) {}
+                gl.viewport(0, 0, w, h);
+
+                gl.useProgram(rec.program);
+                gl.bindVertexArray(rec.vao);
+
+                // TEXTURE0 = current source (output of previous pass or initial frame)
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, currentSrc);
+                gl.uniform1i(rec.unifLocs.uVideo, 0);
+
+                // TEXTURE1 = raw video (constant)
+                gl.activeTexture(gl.TEXTURE1);
+                gl.bindTexture(gl.TEXTURE_2D, _texRaw);
+                gl.uniform1i(rec.unifLocs.uVideoRaw, 1);
+
+                _setCommonUniforms(gl, rec.unifLocs, rec.uniformDefs, rec.customLocs, entry, w, h);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                gl.bindVertexArray(null);
+
+                if (!isLast) {
+                    // Swap: output becomes next input
+                    if (currentDstTex === _pongTex) { currentSrc = _pongTex; currentDstFbo = _pingFbo; currentDstTex = _pingTex; }
+                    else { currentSrc = _pingTex; currentDstFbo = _pongFbo; currentDstTex = _pongTex; }
+                }
+            }
+            _hasFrame = true;
+        }
+
+        function _drawLoop() {
+            if (!_alive) return;
+            _rafId = requestAnimationFrame(_drawLoop);
+            if (!_video) return;
+            _doRender(_video);
         }
 
         function update(video) {
+            _video = video;
             const activeEntries = customSvgCodes.filter(e => e && e.enabled && e.type === 'webgl');
 
-            // Remove instances for entries that are gone/disabled
-            for (const [id, inst] of _instances.entries()) {
-                const still = activeEntries.find(e => e.id === id);
-                if (!still) { _destroyInstance(inst); _instances.delete(id); }
-            }
-
-            if (!video) return;
-
-            // Add/update instances for active entries
-            for (const entry of activeEntries) {
-                const sig = entry.id + '||' + entry.code;
-                const existing = _instances.get(entry.id);
-                if (existing) {
-                    // Recompile if code changed
-                    if (existing.sig !== sig) {
-                        _destroyInstance(existing);
-                        _instances.delete(entry.id);
-                    } else {
-                        // Ensure canvas is still in DOM (directly after video)
-                        if (!existing.canvas.isConnected) {
-                            const parent = video.parentElement || document.body;
-                            parent.insertBefore(existing.canvas, video.nextSibling);
-                        }
-                        continue;
+            // Destroy GL state entirely if no active entries
+            if (!activeEntries.length) {
+                if (_canvas) { _canvas.style.display = 'none'; }
+                // Clean up compiled programs that are no longer needed
+                for (const [id] of _compiled.entries()) {
+                    if (!customSvgCodes.find(e => e.id === id)) {
+                        const rec = _compiled.get(id);
+                        try { if (_gl) { _gl.deleteProgram(rec.program); _gl.deleteVertexArray(rec.vao); _gl.deleteBuffer(rec.vb); _gl.deleteBuffer(rec.ub); } } catch(_) {}
+                        _compiled.delete(id);
                     }
                 }
-                const inst = _createInstance(entry, video);
-                if (inst) _instances.set(entry.id, inst);
+                return;
+            }
+
+            // Initialize GL context if needed
+            if (!_gl && video) {
+                if (!_initGL(video)) return;
+                _drawLoop();
+            } else if (_gl && _canvas && video) {
+                _reparentCanvas(video);
+            }
+
+            // Remove compiled programs for entries that no longer exist at all
+            for (const [id] of _compiled.entries()) {
+                if (!customSvgCodes.find(e => e.id === id)) {
+                    const rec = _compiled.get(id);
+                    try { if (_gl) { _gl.deleteProgram(rec.program); _gl.deleteVertexArray(rec.vao); _gl.deleteBuffer(rec.vb); _gl.deleteBuffer(rec.ub); } } catch(_) {}
+                    _compiled.delete(id);
+                }
             }
         }
 
+
         function destroyAll() {
-            for (const inst of _instances.values()) _destroyInstance(inst);
+            _alive = false;
+            if (_rafId) cancelAnimationFrame(_rafId);
+            if (_canvas && _canvas.isConnected) _canvas.remove();
+            if (_gl) {
+                if (_pingFbo) { _gl.deleteFramebuffer(_pingFbo); _gl.deleteTexture(_pingTex); }
+                if (_pongFbo) { _gl.deleteFramebuffer(_pongFbo); _gl.deleteTexture(_pongTex); }
+                if (_texRaw)  _gl.deleteTexture(_texRaw);
+                for (const rec of _compiled.values()) {
+                    try { _gl.deleteProgram(rec.program); _gl.deleteVertexArray(rec.vao); _gl.deleteBuffer(rec.vb); _gl.deleteBuffer(rec.ub); } catch(_) {}
+                }
+            }
+            _compiled.clear();
             _instances.clear();
+            _gl = null; _canvas = null;
+            _pingFbo = _pongFbo = _pingTex = _pongTex = null;
+            _fboW = _fboH = 0;
         }
 
         function reparentAll() {
-            // Handled per-frame in _reparentCanvas() — no-op here
+            if (_video) _reparentCanvas(_video);
         }
 
         return { update, destroyAll, reparentAll };
