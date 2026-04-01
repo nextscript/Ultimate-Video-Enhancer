@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.10.4
+// @version      1.10.5
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -4433,8 +4433,11 @@ function downloadBlob(blob, filename) {
      */
     function bakeWebglOverlaysOntoCanvas(ctx, w, h) {
         try {
-            document.querySelectorAll('[data-gvf-custom-webgl]').forEach(webglCanvas => {
+            // data-gvf-custom-webgl-chain = new single-canvas ping-pong chain (multi-GLSL)
+            // data-gvf-custom-webgl       = legacy per-instance canvases (kept for safety)
+            document.querySelectorAll('[data-gvf-custom-webgl-chain], [data-gvf-custom-webgl]').forEach(webglCanvas => {
                 try {
+                    if (webglCanvas.style.display === 'none') return;
                     ctx.save();
                     ctx.globalCompositeOperation = 'source-over';
                     ctx.drawImage(webglCanvas, 0, 0, w, h);
@@ -12972,7 +12975,7 @@ if ('lutProfile' in obj) {
             bugfixes: 'REC.stopRequested evaluated, AUTO.blink reset, null check in updateAutoMatrixInSvg',
             userProfiles: userProfiles.length,
             activeProfile: activeUserProfile?.name,
-            newFeatures: 'Shift+Q profile cycling, 3-second on-screen notification, real EDG slider with dark-edge Sobel detection'
+            newFeatures: 'v1.10.4: Multi-GLSL via Ping-Pong FBO chain — multiple Custom Filter GLSL shaders can now be active simultaneously and stack correctly'
         });
 
         document.addEventListener('keydown', (e) => {
