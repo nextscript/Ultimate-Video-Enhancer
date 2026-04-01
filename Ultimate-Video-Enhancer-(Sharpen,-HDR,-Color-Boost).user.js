@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.10.8
+// @version      1.10.9
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -628,16 +628,20 @@ void main(){
             // Strip @uniform and @select annotation lines — handled separately, not valid GLSL
             let s = src.replace(/^\s*\/\/\s*@uniform[^\r\n]*/mg, '');
             s = s.replace(/^\s*\/\/\s*@select[^\r\n]*/mg, '');
+
             // Auto-strip #define and local float declarations that match @uniform/@select names
             const uniformNames = parseUniformDefs(src).map(d => d.name);
             uniformNames.forEach(name => {
                 s = s.replace(new RegExp('^\\s*#define\\s+' + name + '\\b[^\\r\\n]*', 'mg'), '');
                 s = s.replace(new RegExp('^\\s*(?:const\\s+)?float\\s+' + name + '\\s*=[^;]+;[^\\r\\n]*', 'mg'), '');
             });
+
             // Strip #version if present — we prepend our own
             s = s.replace(/^\s*#version\s+\S+[\t ]*/mg, '');
-            // Strip duplicate precision qualifiers — we provide precision highp float
+
+            // Strip duplicate precision qualifiers — we provide our own
             s = s.replace(/^\s*precision\s+\w+\s+\w+\s*;\s*/mg, '');
+
             // Strip duplicate declarations of our injected uniforms/ins/outs
             s = s.replace(/^\s*uniform\s+sampler2D\s+u_video\s*;\s*/mg, '');
             s = s.replace(/^\s*uniform\s+sampler2D\s+u_video_raw\s*;\s*/mg, '');
@@ -652,27 +656,42 @@ void main(){
             s = s.replace(/^\s*uniform\s+float\s+u_avg_g\s*;\s*/mg, '');
             s = s.replace(/^\s*uniform\s+float\s+u_avg_b\s*;\s*/mg, '');
             s = s.replace(/^\s*uniform\s+float\s+u_contrast\s*;\s*/mg, '');
-            // Accept legacy GLSL ES 1.00 fragment snippets in the WebGL2 pipeline
-            s = s.replace(/^\s*varying\s+vec2\s+v_uv\s*;\s*/mg, '');
-            s = s.replace(/^\s*varying\s+vec2\s+vTexCoord\s*;\s*/mg, '');
-            s = s.replace(/^\s*out\s+vec4\s+outColor\s*;\s*/mg, '');
-            // Shadertoy: iChannel1 -> u_video_raw
-            s = s.replace(/iChannel1/g, 'u_video_raw');
             s = s.replace(/^\s*in\s+vec2\s+v_uv\s*;\s*/mg, '');
-            s = s.replace(/^\s*out\s+vec4\s+fragColor\s*;\s*/mg, '');
-            // Upgrade legacy GLSL ES 1.00 syntax to GLSL ES 3.00
-            s = s.replace(/\btexture2D\b/g, 'texture');
+            s = s.replace(/^\s*out\s+vec4\s+(?:fragColor|outColor)\s*;\s*/mg, '');
+
+            // Legacy GLSL ES 1.00 / Shadertoy compatibility
             s = s.replace(/\bgl_FragColor\b/g, 'fragColor');
+            s = s.replace(/\bgl_FragData\s*\[\s*\d+\s*\]/g, 'fragColor');
+            s = s.replace(/\btexture2D\b/g, 'texture');
+            s = s.replace(/\btextureCube\b/g, 'texture');
+            s = s.replace(/\btexture2DLod(?:EXT)?\b/g, 'textureLod');
+            s = s.replace(/\btextureCubeLod(?:EXT)?\b/g, 'textureLod');
+            s = s.replace(/\btexture2DProj\b/g, 'textureProj');
+            s = s.replace(/\btextureCubeProj\b/g, 'textureProj');
+            s = s.replace(/\bshadow2D\b/g, 'texture');
             s = s.replace(/\bvarying\b/g, 'in');
-            s = s.replace(/\bvTexCoord\b/g, 'v_uv');
-            // Shadertoy: iResolution -> u_res, iTime -> u_time, iChannel0 -> u_video
+            s = s.replace(/\battribute\b/g, 'in');
+
+            // Common legacy/user aliases -> internal names
+            s = s.replace(/\biChannel1\b/g, 'u_video_raw');
+            s = s.replace(/\biChannel0\b/g, 'u_video');
             s = s.replace(/\biResolution\b/g, 'vec3(u_res, 0.0)');
             s = s.replace(/\biTime\b/g, 'u_time');
-            s = s.replace(/\biChannel0\b/g, 'u_video');
+            s = s.replace(/\bvTexCoord\b/g, 'v_uv');
+            s = s.replace(/\bvTextureCoord\b/g, 'v_uv');
+            s = s.replace(/\btexCoord\b/g, 'v_uv');
+
+            // Remove duplicate varying declarations after alias normalization
+            s = s.replace(/^\s*(?:varying|in)\s+vec[234]\s+v_uv\s*;\s*/mg, '');
+
             // Shadertoy: mainImage(out vec4 fragColor, in vec2 fragCoord) -> void main()
-            if (/\bmainImage\s*\(/.test(s) && !s.includes('void main')) {
+            if (/\bmainImage\s*\(/.test(s) && !/\bvoid\s+main\s*\(/.test(s)) {
                 s = s + '\nvoid main(){\n    mainImage(fragColor, v_uv * u_res);\n}';
             }
+
+            // Normalize obvious output aliases in user code
+            s = s.replace(/\boutColor\b/g, 'fragColor');
+
             return s;
         }
 
@@ -708,6 +727,7 @@ void main(){
 
             return `#version 300 es
 precision highp float;
+precision highp sampler2D;
 uniform sampler2D u_video;        // input frame for this pass (TEXTURE0)
 uniform sampler2D u_video_raw;    // raw video frame (TEXTURE1)
 uniform vec2 u_res;
@@ -1076,33 +1096,10 @@ ${mainBlock}`;
             const canvas = document.createElement('canvas');
             const gl = canvas.getContext('webgl2');
             if (!gl) return null;
-            // Apply same normalization as _buildFragSrc/_normalizeUserFrag
-            let s = src.replace(/^\s*\/\/\s*@uniform[^\r\n]*/mg, '');
-            s = s.replace(/^\s*#version\s+\S+[\t ]*/mg, '');
-            s = s.replace(/^\s*precision\s+\w+\s+\w+\s*;\s*/mg, '');
-            s = s.replace(/^\s*uniform\s+sampler2D\s+u_video\s*;\s*/mg, '');
-            s = s.replace(/^\s*uniform\s+sampler2D\s+u_video_raw\s*;\s*/mg, '');
-            s = s.replace(/^\s*uniform\s+vec2\s+u_res\s*;\s*/mg, '');
-            s = s.replace(/^\s*uniform\s+float\s+u_time\s*;\s*/mg, '');
-            s = s.replace(/^\s*uniform\s+vec2\s+u_mouse\s*;\s*/mg, '');
-            s = s.replace(/^\s*uniform\s+float\s+u_strength\s*;\s*/mg, '');
-            s = s.replace(/^\s*uniform\s+float\s+u_layers\s*;\s*/mg, '');
-            s = s.replace(/^\s*varying\s+vec2\s+v_uv\s*;\s*/mg, '');
-            s = s.replace(/^\s*varying\s+vec2\s+vTexCoord\s*;\s*/mg, '');
-            s = s.replace(/^\s*out\s+vec4\s+outColor\s*;\s*/mg, '');
-            s = s.replace(/^\s*in\s+vec2\s+v_uv\s*;\s*/mg, '');
-            s = s.replace(/^\s*out\s+vec4\s+fragColor\s*;\s*/mg, '');
-            s = s.replace(/\btexture2D\b/g, 'texture');
-            s = s.replace(/\bgl_FragColor\b/g, 'fragColor');
-            s = s.replace(/\bvarying\b/g, 'in');
-            s = s.replace(/\bvTexCoord\b/g, 'v_uv');
-            s = s.replace(/\biResolution\b/g, 'vec3(u_res, 0.0)');
-            s = s.replace(/\biTime\b/g, 'u_time');
-            s = s.replace(/\biChannel0\b/g, 'u_video');
-            s = s.replace(/\biChannel1\b/g, 'u_video_raw');
-            if (/\bmainImage\s*\(/.test(s) && !s.includes('void main')) {
-                s = s + '\nvoid main(){\n    mainImage(fragColor, v_uv * u_res);\n}';
-            } else if (!s.includes('void main')) {
+
+            let s = _normalizeUserFrag(src);
+
+            if (!/\bvoid\s+main\s*\(/.test(s)) {
                 // helper-only: find last non-void function and wrap
                 const fnRe = /\b(vec4|vec3|vec2|float)\s+(\w+)\s*\(([^)]*)\)/g;
                 let lastFn = null, m;
@@ -1114,19 +1111,25 @@ ${mainBlock}`;
                         if (type === 'sampler2D') return 'u_video';
                         if (type === 'vec2') return vec2Count++ === 0 ? 'v_uv' : 'u_res';
                         if (type === 'float') return '1.0';
+                        if (type === 'vec3') return 'vec3(1.0)';
+                        if (type === 'vec4') return 'vec4(1.0)';
+                        if (type === 'int') return '1';
+                        if (type === 'bool') return 'false';
                         return '0.0';
                     }).filter(Boolean).join(', ');
                     const call = `${lastFn.name}(${args})`;
                     const assign = lastFn.ret === 'vec4' ? `fragColor = ${call};`
                         : lastFn.ret === 'vec3' ? `fragColor = vec4(${call}, 1.0);`
-                        : `float _r = ${call}; fragColor = vec4(_r,_r,_r,1.0);`;
+                        : lastFn.ret === 'vec2' ? `fragColor = vec4(${call}, 0.0, 1.0);`
+                        : `float _r = ${call}; fragColor = vec4(_r, _r, _r, 1.0);`;
                     s = s + `\nvoid main(){\n    ${assign}\n}`;
                 } else {
                     s = `void main(){\n${s}\n}`;
                 }
             }
+
             const _customDecls = parseUniformDefs(src).map(d => `uniform float ${d.name};`).join('\n');
-            const fragSrc = `#version 300 es\nprecision highp float;\nuniform sampler2D u_video;\nuniform sampler2D u_video_raw;\nuniform vec2 u_res;\nuniform float u_time;\nuniform vec2 u_mouse;\nuniform float u_strength;\nuniform float u_layers;\nuniform float u_zoom;\nuniform float u_avg_lum;\nuniform float u_avg_r;\nuniform float u_avg_g;\nuniform float u_avg_b;\nuniform float u_contrast;\n${_customDecls}\nin vec2 v_uv;\nout vec4 fragColor;\n${s}`;
+            const fragSrc = `#version 300 es\nprecision highp float;\nprecision highp sampler2D;\nuniform sampler2D u_video;\nuniform sampler2D u_video_raw;\nuniform vec2 u_res;\nuniform float u_time;\nuniform vec2 u_mouse;\nuniform float u_strength;\nuniform float u_layers;\nuniform float u_zoom;\nuniform float u_avg_lum;\nuniform float u_avg_r;\nuniform float u_avg_g;\nuniform float u_avg_b;\nuniform float u_contrast;\n${_customDecls}\nin vec2 v_uv;\nout vec4 fragColor;\n${s}`;
             const sh = gl.createShader(gl.FRAGMENT_SHADER);
             gl.shaderSource(sh, fragSrc);
             gl.compileShader(sh);
@@ -6328,17 +6331,21 @@ if (!gl) {
 
             // WebGL2: upgrade GLSL100 -> GLSL300 ES
             // - varying -> in
-            // - gl_FragColor -> outColor
+            // - gl_FragColor / gl_FragData[0] -> outColor
             // - texture2D -> texture
             let s = src100
                 .replace('#version 100', '#version 300 es')
                 .replace(/\bvarying\b/g, 'in')
                 .replace(/\btexture2D\b/g, 'texture')
+                .replace(/\bgl_FragData\s*\[\s*0\s*\]/g, 'outColor')
                 .replace(/\bgl_FragColor\b/g, 'outColor');
 
-            // Ensure fragment output exists
+            // Ensure fragment output + sampler precision exist
+            if (!/precision\s+highp\s+sampler2D\s*;/.test(s)) {
+                s = s.replace(/precision\s+highp\s+float\s*;\s*/m, (m) => m + '\n                precision highp sampler2D;\n');
+            }
             if (!/\bout\s+vec4\s+outColor\s*;/.test(s)) {
-                s = s.replace(/precision\s+highp\s+float\s*;\s*/m, (m) => m + '\n                out vec4 outColor;\n');
+                s = s.replace(/precision\s+highp\s+sampler2D\s*;\s*/m, (m) => m + '\n                out vec4 outColor;\n');
             }
             return s;
         }
