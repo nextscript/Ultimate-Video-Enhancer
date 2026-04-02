@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.11.0
+// @version      1.11.1
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -355,6 +355,97 @@
     // -------------------------
     let customSvgCodes = [];
 
+    // ── GLSL Domain Blacklist ─────────────────────────────────────────────────
+    // Hostnames where GLSL (WebGL) custom filters are blocked (e.g. DRM sites).
+    // Stored as JSON array of hostname strings in GM key 'gvf_glsl_domain_blacklist'.
+    const K_GLSL_BLACKLIST = 'gvf_glsl_domain_blacklist';
+
+    let _glslBlacklist = [];
+
+    function loadGlslBlacklist() {
+        try {
+            const raw = gmGet(K_GLSL_BLACKLIST, null);
+            if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) { _glslBlacklist = p.map(s => String(s).toLowerCase().trim()).filter(Boolean); return; } }
+        } catch (_) {}
+        _glslBlacklist = [];
+    }
+
+    function saveGlslBlacklist() {
+        try { gmSet(K_GLSL_BLACKLIST, JSON.stringify(_glslBlacklist)); } catch (_) {}
+    }
+
+    function isCurrentDomainGlslBlacklisted() {
+        const host = (location.hostname || '').toLowerCase();
+        return _glslBlacklist.some(entry => host === entry || host.endsWith('.' + entry));
+    }
+
+    loadGlslBlacklist();
+
+    // ── DRM Auto-Detection ────────────────────────────────────────────────────
+    // Tests if the current video is DRM-protected by attempting a canvas readback.
+    // If blocked → auto-adds hostname to GLSL blacklist and disables GLSL overlays.
+    let _drmCheckScheduled = false;
+
+    function scheduleDrmCheck(delay = 2000) {
+        if (_drmCheckScheduled) return;
+        if (isCurrentDomainGlslBlacklisted()) return; // already blacklisted
+        _drmCheckScheduled = true;
+        setTimeout(() => {
+            _drmCheckScheduled = false;
+            _runDrmCheck();
+        }, delay);
+    }
+
+    function _runDrmCheck() {
+        if (isCurrentDomainGlslBlacklisted()) return;
+        const all = Array.from(document.querySelectorAll('video'));
+        const video = all.find(v => !v.paused && !v.ended && v.readyState >= 1 && v.videoWidth > 0)
+                   || all.find(v => v.videoWidth > 0)
+                   || all[0] || null;
+        if (!video) { log('[GVF DRM] No video found'); return; }
+        if (video.videoWidth === 0) { scheduleDrmCheck(3000); return; }
+
+        // Method 1: EME mediaKeys — most reliable, no false positives
+        const hasDrm = !!(video.mediaKeys || video.webkitMediaKeys || video.mozMediaKeys);
+        if (hasDrm) {
+            _autoBlacklistHost('EME mediaKeys detected');
+            return;
+        }
+
+        // Method 2: Black pixel check — Widevine on Netflix returns black frames on readback
+        try {
+            const c = document.createElement('canvas');
+            c.width = 16; c.height = 16;
+            const ctx = c.getContext('2d');
+            ctx.drawImage(video, 0, 0, 16, 16);
+            const px = ctx.getImageData(0, 0, 16, 16).data;
+            // Count pixels — if >90% are pure black (0,0,0) the content is DRM-blanked
+            let black = 0;
+            for (let i = 0; i < px.length; i += 4) {
+                if (px[i] < 4 && px[i+1] < 4 && px[i+2] < 4) black++;
+            }
+            const ratio = black / (px.length / 4);
+            log('[GVF DRM] black pixel ratio=' + ratio.toFixed(2) + ' mediaKeys=' + hasDrm);
+            if (ratio > 0.9) {
+                _autoBlacklistHost('black frame readback (' + (ratio * 100).toFixed(0) + '% black)');
+            }
+        } catch (e) {
+            // SecurityError → cross-origin DRM
+            _autoBlacklistHost('SecurityError on readback');
+        }
+    }
+
+    function _autoBlacklistHost(reason) {
+        const host = (location.hostname || '').toLowerCase();
+        if (!host || _glslBlacklist.includes(host)) return;
+        _glslBlacklist.push(host);
+        saveGlslBlacklist();
+        log('[GVF DRM] ' + reason + ' → auto-blacklisted ' + host);
+        updateCustomWebglOverlays();
+        const modal = document.getElementById('gvf-custom-svg-modal');
+        if (modal && modal._gvfRenderList) modal._gvfRenderList();
+    }
+
     function loadCustomSvgCodes() {
         try {
             const raw = gmGet(K.CUSTOM_SVG_CODES, null);
@@ -603,7 +694,6 @@
         let _texRaw = null;
 
         // GPU capability flag — detected once in _initGL via WEBGL_debug_renderer_info.
-        // true = apply low-end optimizations (720p cap, mediump, 30fps, pause-skip).
         let _isWeakGPU = false;
 
         function _detectWeakGPU(gl) {
@@ -612,7 +702,6 @@
                 if (!ext) return false;
                 const renderer = (gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '').toLowerCase();
                 const vendor   = (gl.getParameter(ext.UNMASKED_VENDOR_WEBGL)   || '').toLowerCase();
-                // Match Intel UHD / Intel HD / Intel Iris (non-Xe) integrated graphics
                 const isIntelIntegrated = /intel/i.test(vendor) && /uhd|hd graphics|\biris\b(?! xe)/i.test(renderer);
                 log('[GVF GPU] renderer="' + renderer + '" vendor="' + vendor + '" weakGPU=' + isIntelIntegrated);
                 return isIntelIntegrated;
@@ -941,7 +1030,6 @@ ${mainBlock}`;
 
             const RAW_W = video.videoWidth, RAW_H = video.videoHeight;
             if (!RAW_W || !RAW_H) return;
-            // On weak GPUs: downscale to max 720p to reduce fragment workload (~55% fewer pixels at 1080p)
             const _MAX_H = 720;
             const _scale = (_isWeakGPU && RAW_H > _MAX_H) ? _MAX_H / RAW_H : 1.0;
             const w = Math.round(RAW_W * _scale);
@@ -959,7 +1047,6 @@ ${mainBlock}`;
                     try { const s = document.getElementById('global-video-filter-style'); if (!s) return 'none'; const m = s.textContent.match(/filter\s*:\s*([^!;]+)/); return (m && m[1].trim()) ? m[1].trim() : 'none'; } catch(_) { return 'none'; }
                 })();
                 _filteredCtx.filter = cssFilter;
-                // On weak GPUs: skip drawImage when paused — reuse last frame in canvas
                 if (!_isWeakGPU || !video.paused) {
                     _filteredCtx.drawImage(video, 0, 0, w, h);
                     window.__gvfFilteredFrame = _filteredCanvas;
@@ -982,7 +1069,6 @@ ${mainBlock}`;
             }
 
             // ── Upload raw video to TEXTURE1 ──────────────────────────────────
-            // On weak GPUs: skip upload when paused (reuse last upload)
             if (!_isWeakGPU || !video.paused) {
                 try {
                     gl.activeTexture(gl.TEXTURE1);
@@ -1117,11 +1203,19 @@ ${mainBlock}`;
             _fboW = _fboH = 0;
         }
 
+        // Stop rendering and hide canvas immediately without destroying GL state permanently.
+        // Used when domain is blacklisted mid-session — _alive stays true so update() can restart later.
+        function stopAndHide() {
+            _video = null;
+            if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
+            if (_canvas) _canvas.style.display = 'none';
+        }
+
         function reparentAll() {
             if (_video) _reparentCanvas(_video);
         }
 
-        return { update, destroyAll, reparentAll };
+        return { update, destroyAll, stopAndHide, reparentAll };
     })();
 
     // Try-compile a GLSL fragment shader and return null on success, error string on failure
@@ -1177,7 +1271,12 @@ ${mainBlock}`;
     }
 
     function updateCustomWebglOverlays() {
-        if (isFirefox()) return; // Custom Filter Codes not supported in Firefox
+        if (isFirefox()) return;
+        if (isCurrentDomainGlslBlacklisted()) {
+            // Stop loop and hide canvas immediately — does not destroy GL state permanently
+            CustomWebglOverlayManager.stopAndHide();
+            return;
+        }
         const video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
         GvfFrameAnalyzer.setVideo(video);
         CustomWebglOverlayManager.update(video);
@@ -1789,6 +1888,18 @@ ${mainBlock}`;
         hdr.appendChild(htitle); hdr.appendChild(hbtns);
         modal.appendChild(hdr);
 
+        // ── GLSL Blacklist banner (shown only when current domain is blacklisted) ──
+        const blacklistBanner = document.createElement('div');
+        blacklistBanner.style.cssText = `display:none;align-items:center;gap:8px;padding:7px 12px;background:rgba(255,80,80,0.12);border:1px solid rgba(255,80,80,0.35);border-radius:8px;margin-bottom:8px;font-size:11px;color:#ff9090;font-weight:700;flex-shrink:0;`;
+        const _blIcon = document.createElement('span'); _blIcon.textContent = '🚫';
+        const _blText = document.createElement('span'); _blText.textContent = 'GLSL filters are disabled on ';
+        const _blHost = document.createElement('b'); _blHost.textContent = location.hostname || 'this site';
+        const _blSuffix = document.createElement('span'); _blSuffix.textContent = ' (DRM blacklist)';
+        _blText.appendChild(_blHost); _blText.appendChild(_blSuffix);
+        blacklistBanner.appendChild(_blIcon); blacklistBanner.appendChild(_blText);
+        modal.appendChild(blacklistBanner);
+        if (isCurrentDomainGlslBlacklisted()) blacklistBanner.style.display = 'flex';
+
         // List area
         const listWrap = document.createElement('div');
         listWrap.style.cssText = `overflow-y:auto;max-height:220px;background:rgba(0,0,0,0.3);border-radius:8px;padding:6px;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;`;
@@ -1806,11 +1917,16 @@ ${mainBlock}`;
                 listWrap.appendChild(empty);
                 return;
             }
+            const domainBlocked = isCurrentDomainGlslBlacklisted();
             customSvgCodes.forEach((entry, i) => {
+                const isGlslBlocked = domainBlocked && entry.type === 'webgl';
                 const row = document.createElement('div');
-                row.draggable = true;
+                row.draggable = !isGlslBlocked;
                 row.dataset.idx = String(i);
-                row.style.cssText = `display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(255,255,255,0.05);border-radius:8px;border:1px solid rgba(255,255,255,0.1);cursor:default;transition:opacity 0.15s,border-color 0.15s;`;
+                row.style.cssText = `display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(255,255,255,0.05);border-radius:8px;border:1px solid ${isGlslBlocked ? 'rgba(255,80,80,0.25)' : 'rgba(255,255,255,0.1)'};cursor:default;transition:opacity 0.15s,border-color 0.15s;${isGlslBlocked ? 'opacity:0.5;' : ''}`;
+                if (isGlslBlocked) {
+                    row.title = '🚫 GLSL filters are disabled on ' + (location.hostname || 'this site') + ' due to DRM restrictions. Remove this domain from the blacklist to enable.';
+                }
 
                 // Drag handle
                 const handle = document.createElement('div');
@@ -1854,9 +1970,11 @@ ${mainBlock}`;
                 const chk = document.createElement('input');
                 chk.type = 'checkbox';
                 chk.checked = !!entry.enabled;
-                chk.style.cssText = `width:16px;height:16px;accent-color:#4a9eff;cursor:pointer;flex-shrink:0;`;
+                chk.style.cssText = `width:16px;height:16px;accent-color:#4a9eff;cursor:${isGlslBlocked ? 'not-allowed' : 'pointer'};flex-shrink:0;`;
+                if (isGlslBlocked) { chk.disabled = true; chk.title = '🚫 Disabled on this site (DRM blacklist)'; }
                 stopEventsOn(chk);
                 chk.addEventListener('change', () => {
+                    if (isGlslBlocked) { chk.checked = !!entry.enabled; return; }
                     customSvgCodes[i].enabled = chk.checked;
                     saveCustomSvgCodes();
                     regenerateSvgImmediately();
@@ -2331,6 +2449,85 @@ ${mainBlock}`;
             btnRow.appendChild(saveBtn);
             editArea.appendChild(btnRow);
         }
+
+        // ── Blacklist Manager Panel ────────────────────────────────────────────
+        const blPanel = document.createElement('div');
+        blPanel.style.cssText = `display:none;flex-direction:column;gap:8px;margin-top:8px;padding:12px;background:rgba(255,80,80,0.07);border:1px solid rgba(255,80,80,0.3);border-radius:10px;flex-shrink:0;`;
+        modal.appendChild(blPanel);
+
+        function renderBlacklistPanel() {
+            while (blPanel.firstChild) blPanel.removeChild(blPanel.firstChild);
+
+            const blTitle = document.createElement('div');
+            blTitle.textContent = '🚫 GLSL Domain Blacklist';
+            blTitle.style.cssText = `font-size:12px;font-weight:900;color:#ff9090;`;
+            blPanel.appendChild(blTitle);
+
+            const blDesc = document.createElement('div');
+            blDesc.textContent = 'GLSL filters are silently disabled on these domains (e.g. DRM-protected sites). One hostname per line. Subdomains are matched automatically.';
+            blDesc.style.cssText = `font-size:10px;color:#888;line-height:1.4;`;
+            blPanel.appendChild(blDesc);
+
+            const blTextarea = document.createElement('textarea');
+            blTextarea.value = _glslBlacklist.join('\n');
+            blTextarea.placeholder = 'e.g.\nwww.netflix.com\ndisney.plus.com';
+            blTextarea.spellcheck = false;
+            blTextarea.style.cssText = `width:100%;min-height:80px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,80,80,0.35);border-radius:7px;padding:8px 10px;color:#fff;font-size:11px;font-family:monospace;outline:none;resize:vertical;box-sizing:border-box;`;
+            stopEventsOn(blTextarea);
+            blPanel.appendChild(blTextarea);
+
+            // Add current site button
+            const blRow = document.createElement('div');
+            blRow.style.cssText = `display:flex;gap:8px;align-items:center;`;
+
+            const addCurrentBtn = document.createElement('button');
+            const currentHost = (location.hostname || '').toLowerCase();
+            const alreadyListed = _glslBlacklist.includes(currentHost);
+            addCurrentBtn.textContent = alreadyListed ? `✓ ${currentHost} already listed` : `➕ Add current site (${currentHost})`;
+            addCurrentBtn.disabled = alreadyListed;
+            addCurrentBtn.style.cssText = `flex:1;padding:6px 10px;background:${alreadyListed ? 'rgba(80,200,80,0.1)' : 'rgba(255,80,80,0.15)'};color:${alreadyListed ? '#80e080' : '#ff9090'};border:1px solid ${alreadyListed ? 'rgba(80,200,80,0.3)' : 'rgba(255,80,80,0.4)'};border-radius:7px;font-size:11px;font-weight:700;cursor:${alreadyListed ? 'default' : 'pointer'};`;
+            stopEventsOn(addCurrentBtn);
+            addCurrentBtn.addEventListener('click', () => {
+                if (!alreadyListed && currentHost) {
+                    const lines = blTextarea.value.split('\n').map(s => s.trim().toLowerCase()).filter(Boolean);
+                    if (!lines.includes(currentHost)) lines.push(currentHost);
+                    blTextarea.value = lines.join('\n');
+                }
+            });
+
+            const saveBlBtn = document.createElement('button');
+            saveBlBtn.textContent = '💾 Save';
+            saveBlBtn.style.cssText = `padding:6px 14px;background:rgba(100,180,255,0.18);color:#a0d4ff;border:1px solid rgba(100,180,255,0.4);border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;`;
+            stopEventsOn(saveBlBtn);
+            saveBlBtn.addEventListener('click', () => {
+                _glslBlacklist = blTextarea.value.split('\n').map(s => s.trim().toLowerCase()).filter(Boolean);
+                saveGlslBlacklist();
+                blacklistBanner.style.display = isCurrentDomainGlslBlacklisted() ? 'flex' : 'none';
+                renderList();
+                renderBlacklistPanel();
+                updateCustomWebglOverlays();
+                saveBlBtn.textContent = '✓ Saved!';
+                setTimeout(() => { saveBlBtn.textContent = '💾 Save'; }, 1500);
+            });
+
+            blRow.appendChild(addCurrentBtn);
+            blRow.appendChild(saveBlBtn);
+            blPanel.appendChild(blRow);
+        }
+
+        renderBlacklistPanel();
+
+        // ── Blacklist toggle button in header ─────────────────────────────────
+        const blToggleBtn = document.createElement('button');
+        blToggleBtn.textContent = '🚫';
+        blToggleBtn.title = 'Manage GLSL domain blacklist';
+        blToggleBtn.style.cssText = `padding:4px 10px;background:${isCurrentDomainGlslBlacklisted() ? 'rgba(255,80,80,0.25)' : 'rgba(255,255,255,0.07)'};color:${isCurrentDomainGlslBlacklisted() ? '#ff9090' : '#888'};border:1px solid ${isCurrentDomainGlslBlacklisted() ? 'rgba(255,80,80,0.5)' : 'rgba(255,255,255,0.15)'};border-radius:6px;font-size:14px;cursor:pointer;`;
+        blToggleBtn.addEventListener('click', () => {
+            const open = blPanel.style.display === 'none' || blPanel.style.display === '';
+            blPanel.style.display = open ? 'flex' : 'none';
+            blToggleBtn.style.background = open ? 'rgba(255,80,80,0.25)' : (isCurrentDomainGlslBlacklisted() ? 'rgba(255,80,80,0.25)' : 'rgba(255,255,255,0.07)');
+        });
+        hbtns.insertBefore(blToggleBtn, libBtn);
 
         renderList();
         renderEditArea();
@@ -13426,6 +13623,20 @@ if ('lutProfile' in obj) {
             document.addEventListener(evt, scheduleOverlayUpdate, { passive: true, capture: true });
         });
 
+        // DRM auto-detection: check on play/playing/timeupdate with a short delay
+        let _drmTimeupdateBound = false;
+        ['play', 'playing'].forEach(evt => {
+            document.addEventListener(evt, () => scheduleDrmCheck(3000), { passive: true, capture: true });
+        });
+        // timeupdate fires when video actually advances — most reliable signal that video is playing
+        document.addEventListener('timeupdate', () => {
+            if (_drmTimeupdateBound) return;
+            _drmTimeupdateBound = true;
+            scheduleDrmCheck(1500);
+            // Reset after 10s so re-checks happen if user navigates to new video
+            setTimeout(() => { _drmTimeupdateBound = false; }, 10000);
+        }, { passive: true, capture: true });
+
         ensureAutoLoop();
         setAutoOn(autoOn);
 
@@ -13545,6 +13756,7 @@ if ('lutProfile' in obj) {
             if (e.ctrlKey && e.altKey && !e.shiftKey && k === AUTO_KEY) {
                 e.preventDefault();
                 setAutoOn(!autoOn);
+                updateCurrentProfileSettings();
                 return;
             }
 
