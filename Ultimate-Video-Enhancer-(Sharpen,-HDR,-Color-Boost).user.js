@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.10.9
+// @version      1.11.0
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -602,6 +602,23 @@
         // Raw frame texture (TEXTURE1, never changes between passes)
         let _texRaw = null;
 
+        // GPU capability flag — detected once in _initGL via WEBGL_debug_renderer_info.
+        // true = apply low-end optimizations (720p cap, mediump, 30fps, pause-skip).
+        let _isWeakGPU = false;
+
+        function _detectWeakGPU(gl) {
+            try {
+                const ext = gl.getExtension('WEBGL_debug_renderer_info');
+                if (!ext) return false;
+                const renderer = (gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) || '').toLowerCase();
+                const vendor   = (gl.getParameter(ext.UNMASKED_VENDOR_WEBGL)   || '').toLowerCase();
+                // Match Intel UHD / Intel HD / Intel Iris (non-Xe) integrated graphics
+                const isIntelIntegrated = /intel/i.test(vendor) && /uhd|hd graphics|\biris\b(?! xe)/i.test(renderer);
+                log('[GVF GPU] renderer="' + renderer + '" vendor="' + vendor + '" weakGPU=' + isIntelIntegrated);
+                return isIntelIntegrated;
+            } catch (_) { return false; }
+        }
+
         const _vsSource = `#version 300 es
 in vec2 a_pos;
 in vec2 a_uv;
@@ -726,8 +743,7 @@ void main(){
             }
 
             return `#version 300 es
-precision highp float;
-precision highp sampler2D;
+${_isWeakGPU ? 'precision mediump float;\nprecision mediump sampler2D;' : 'precision highp float;\nprecision highp sampler2D;'}
 uniform sampler2D u_video;        // input frame for this pass (TEXTURE0)
 uniform sampler2D u_video_raw;    // raw video frame (TEXTURE1)
 uniform vec2 u_res;
@@ -760,6 +776,7 @@ ${mainBlock}`;
                 _canvas = null; _gl = null;
                 return false;
             }
+            _isWeakGPU = _detectWeakGPU(_gl);
             _filteredCanvas = document.createElement('canvas');
             _filteredCtx = _filteredCanvas.getContext('2d', { alpha: false, willReadFrequently: false });
             _texRaw = _gl.createTexture();
@@ -922,8 +939,13 @@ ${mainBlock}`;
             _canvas.style.width  = r.width  + 'px';
             _canvas.style.height = r.height + 'px';
 
-            const w = video.videoWidth, h = video.videoHeight;
-            if (!w || !h) return;
+            const RAW_W = video.videoWidth, RAW_H = video.videoHeight;
+            if (!RAW_W || !RAW_H) return;
+            // On weak GPUs: downscale to max 720p to reduce fragment workload (~55% fewer pixels at 1080p)
+            const _MAX_H = 720;
+            const _scale = (_isWeakGPU && RAW_H > _MAX_H) ? _MAX_H / RAW_H : 1.0;
+            const w = Math.round(RAW_W * _scale);
+            const h = Math.round(RAW_H * _scale);
             if (_canvas.width !== w || _canvas.height !== h) { _canvas.width = w; _canvas.height = h; }
 
             gl.viewport(0, 0, w, h);
@@ -937,9 +959,11 @@ ${mainBlock}`;
                     try { const s = document.getElementById('global-video-filter-style'); if (!s) return 'none'; const m = s.textContent.match(/filter\s*:\s*([^!;]+)/); return (m && m[1].trim()) ? m[1].trim() : 'none'; } catch(_) { return 'none'; }
                 })();
                 _filteredCtx.filter = cssFilter;
-                _filteredCtx.drawImage(video, 0, 0, w, h);
-                window.__gvfFilteredFrame = _filteredCanvas;
-                // Upload to ping texture as initial source
+                // On weak GPUs: skip drawImage when paused — reuse last frame in canvas
+                if (!_isWeakGPU || !video.paused) {
+                    _filteredCtx.drawImage(video, 0, 0, w, h);
+                    window.__gvfFilteredFrame = _filteredCanvas;
+                }
                 gl.bindTexture(gl.TEXTURE_2D, _pingTex);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
                 gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _filteredCanvas);
@@ -957,13 +981,16 @@ ${mainBlock}`;
                 } else { _canvas.style.display = 'none'; return; }
             }
 
-            // ── Upload raw video to TEXTURE1 (constant across all passes) ──────
-            try {
-                gl.activeTexture(gl.TEXTURE1);
-                gl.bindTexture(gl.TEXTURE_2D, _texRaw);
-                gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-                gl.bindTexture(gl.TEXTURE_2D, null);
-            } catch (_) { /* tainted — reuse last upload */ }
+            // ── Upload raw video to TEXTURE1 ──────────────────────────────────
+            // On weak GPUs: skip upload when paused (reuse last upload)
+            if (!_isWeakGPU || !video.paused) {
+                try {
+                    gl.activeTexture(gl.TEXTURE1);
+                    gl.bindTexture(gl.TEXTURE_2D, _texRaw);
+                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+                    gl.bindTexture(gl.TEXTURE_2D, null);
+                } catch (_) { /* tainted — reuse last upload */ }
+            }
 
             GvfFrameAnalyzer.tick();
 
@@ -1001,7 +1028,7 @@ ${mainBlock}`;
                 gl.bindTexture(gl.TEXTURE_2D, _texRaw);
                 gl.uniform1i(rec.unifLocs.uVideoRaw, 1);
 
-                _setCommonUniforms(gl, rec.unifLocs, rec.uniformDefs, rec.customLocs, entry, w, h);
+                _setCommonUniforms(gl, rec.unifLocs, rec.uniformDefs, rec.customLocs, entry, RAW_W, RAW_H);
                 gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                 gl.bindVertexArray(null);
 
@@ -1014,10 +1041,17 @@ ${mainBlock}`;
             _hasFrame = true;
         }
 
-        function _drawLoop() {
+        let _lastFrameTime = 0;
+        const _TARGET_FPS = 30;
+        const _FRAME_INTERVAL = 1000 / _TARGET_FPS;
+
+        function _drawLoop(timestamp) {
             if (!_alive) return;
             _rafId = requestAnimationFrame(_drawLoop);
             if (!_video) return;
+            if (document.hidden) return;
+            if (_isWeakGPU && timestamp - _lastFrameTime < _FRAME_INTERVAL) return;
+            _lastFrameTime = timestamp;
             _doRender(_video);
         }
 
