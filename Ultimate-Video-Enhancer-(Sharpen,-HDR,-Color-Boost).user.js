@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.11.3
+// @version      1.11.4
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -133,7 +133,7 @@
     const AUTO_KEY = 'a';
     const SCOPES_KEY = 's';
     const GPU_MODE_KEY = 'x';
-    const PROFILE_CYCLE_KEY = 'q'; // Shift+Q for profile cycling
+    const PROFILE_CYCLE_KEY = 'F8'; // F8 / Shift+F8 for profile cycling
 
     // -------------------------
     // Throttling for less computationally intensive operations
@@ -13830,10 +13830,10 @@ if ('lutProfile' in obj) {
                 }
             }
 
-            // NEW: Shift+Q for profile cycling
-            if (e.shiftKey && !e.ctrlKey && !e.altKey && k === PROFILE_CYCLE_KEY) {
+            // F8 / Shift+F8 for profile cycling
+            if (!e.ctrlKey && !e.altKey && e.key === PROFILE_CYCLE_KEY) {
                 e.preventDefault();
-                log('Shift+Q pressed - cycling to next profile');
+                log('F8/Shift+F8 pressed - cycling to next profile');
                 cycleToNextProfile();
                 return;
             }
