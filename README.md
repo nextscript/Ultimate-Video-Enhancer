@@ -164,3 +164,90 @@ Add your own filters without editing the script.
 </ul>
 
 <a href="https://www.tampermonkey.net/faq.php?locale=en#Q209" target="_blank">More Info</a>
+
+<hr>
+
+<table style="width:100%;border-collapse:collapse;font-size:13px;">
+  <thead>
+    <tr>
+      <th style="text-align:left;padding:8px 12px;border-bottom:1px solid #333;color:#aaa;font-weight:500;">Feature</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #333;color:#aaa;font-weight:500;">Chrome</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #333;color:#aaa;font-weight:500;">Firefox</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #333;color:#aaa;font-weight:500;">Edge</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #333;color:#aaa;font-weight:500;">Edge (DRM)</th>
+      <th style="text-align:center;padding:8px 12px;border-bottom:1px solid #333;color:#aaa;font-weight:500;">Opera</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align:left;padding:8px 12px;border-bottom:1px solid #222;">SVG filters</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;padding:8px 12px;border-bottom:1px solid #222;">LUT profiles</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;padding:8px 12px;border-bottom:1px solid #222;">Custom filters (SVG / WebGL / 2D)</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;padding:8px 12px;border-bottom:1px solid #222;">WebGL / GLSL overlays</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;padding:8px 12px;border-bottom:1px solid #222;">WebGL / GLSL overlays (DRM sites)</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;padding:8px 12px;border-bottom:1px solid #222;">Edge detection / Denoise</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;padding:8px 12px;border-bottom:1px solid #222;">Screenshot / Recording</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;padding:8px 12px;">Hotkeys (Ctrl+Alt+…)</td>
+      <td style="text-align:center;padding:8px 12px;">✅</td>
+      <td style="text-align:center;padding:8px 12px;">✅</td>
+      <td style="text-align:center;padding:8px 12px;">✅</td>
+      <td style="text-align:center;padding:8px 12px;">❌</td>
+      <td style="text-align:center;padding:8px 12px;">✅</td>
+    </tr>
+  </tbody>
+</table>
+<p style="font-size:12px;margin-top:10px;">
+  <strong>Edge (DRM)</strong> — Sites like Netflix or Disney+ use Widevine L1 + Hardware-Compositing. Any filter causes a black screen, so all filters and hotkeys are automatically disabled.<br><br>
+  <strong>DRM sites (all browsers)</strong> — Widevine blocks canvas readback on DRM-protected sites, disabling WebGL / GLSL overlays in every browser.<br><br>
+  <strong>Firefox</strong> — WebGL2 canvas readback is blocked, disabling all GPU-based filters, overlays, screenshots and recordings.
+</p>
+
