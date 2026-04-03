@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.11.4
+// @version      1.11.5
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -62,7 +62,8 @@
                             // Auto-detect type if not provided: GLSL code → webgl, otherwise svg
                             const detectedType = entry.type === 'canvas2d' ? 'canvas2d' :
                                 entry.type === 'webgl' ? 'webgl' :
-                                entry.type === 'svg' ? 'svg' : (
+                                entry.type === 'svg' ? 'svg' :
+                                entry.type === 'audio' ? 'audio' : (
                                 /^\s*#version\s+300\s+es/m.test(entry.code) ||
                                 /\bvoid\s+main\s*\(/m.test(entry.code) ||
                                 /\buniform\s+sampler2D\b/m.test(entry.code)
@@ -1656,6 +1657,168 @@ void main(){
     })();
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Custom Audio Overlay Manager
+    // Handles type:'audio' entries — Web Speech API, no API key required.
+    // Each entry runs its JS code once to set up recognition; the code receives:
+    //   video, canvas (overlay HTMLCanvasElement), ctx (2D context),
+    //   width, height, frame (ms) — same as canvas2d but with audio lifecycle.
+    // The code is re-executed on enable/disable, param change, or video change.
+    // ─────────────────────────────────────────────────────────────────────────
+    const CustomAudioOverlayManager = (() => {
+        const _instances = new Map(); // entry.id → { canvas, fn, rafId, alive }
+
+        function _compileUserFn(code) {
+            const args = ['ctx','canvas','video','width','height','frame','u_mouse','u_zoom'];
+            try { return new Function(...args, code); } catch(e) {
+                try {
+                    if (typeof unsafeWindow !== 'undefined')
+                        return new unsafeWindow.Function(...args, code);
+                } catch(_) {}
+                try {
+                    if (typeof GM_addElement === 'function') {
+                        const key = '__gvfAudioFn_' + Math.random().toString(36).slice(2);
+                        const wrap = `window["${key}"]=function(${args.join(',')}){${code}}`;
+                        GM_addElement('script', { textContent: wrap });
+                        const fn = (typeof unsafeWindow !== 'undefined' ? unsafeWindow[key] : null) || window[key];
+                        try { delete unsafeWindow[key]; } catch(_) {}
+                        try { delete window[key]; } catch(_) {}
+                        if (typeof fn === 'function') return fn;
+                    }
+                } catch(_) {}
+                return null;
+            }
+        }
+
+        function _createInstance(entry, video) {
+            let fn;
+            try {
+                const prefix = buildParamPrefix(entry);
+                fn = _compileUserFn(prefix + entry.code);
+            } catch(e) {
+                console.warn('[GVF Audio] Compile error:', entry.label, e);
+                return null;
+            }
+            if (!fn) return null;
+
+            const canvas = document.createElement('canvas');
+            canvas.style.cssText = 'display:none;position:absolute;pointer-events:none;z-index:5;';
+            canvas.setAttribute('data-gvf-custom-audio', entry.id);
+            const ctx = canvas.getContext('2d');
+
+            let alive = true;
+            const drawLoop = (frameMs) => {
+                if (!alive) return;
+                const vr = video.getBoundingClientRect();
+                const pr = (video.parentElement || document.body).getBoundingClientRect();
+                const w = vr.width, h = vr.height;
+                if (canvas.width !== Math.round(w) || canvas.height !== Math.round(h)) {
+                    canvas.width  = Math.round(w) || 1;
+                    canvas.height = Math.round(h) || 1;
+                }
+                canvas.style.display  = 'block';
+                canvas.style.position = 'absolute';
+                canvas.style.left     = (vr.left - pr.left) + 'px';
+                canvas.style.top      = (vr.top  - pr.top)  + 'px';
+                canvas.style.width    = w + 'px';
+                canvas.style.height   = h + 'px';
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                const rawMx = typeof _rawMouseClientX !== 'undefined' ? _rawMouseClientX : 0;
+                const rawMy = typeof _rawMouseClientY !== 'undefined' ? _rawMouseClientY : 0;
+                const u_mouse = {
+                    x: Math.max(0, Math.min(1, (rawMx - vr.left) / (vr.width  || 1))),
+                    y: Math.max(0, Math.min(1, (rawMy - vr.top)  / (vr.height || 1))),
+                };
+                const u_zoom = typeof _scrollZoom !== 'undefined' ? _scrollZoom : 1.0;
+                try { fn(ctx, canvas, video, canvas.width, canvas.height, frameMs, u_mouse, u_zoom); } catch(_) {}
+                ctx.restore();
+                inst.rafId = requestAnimationFrame(drawLoop);
+            };
+
+            const parent = video.parentElement || document.body;
+            parent.insertBefore(canvas, video.nextSibling);
+
+            const inst = { canvas, fn, rafId: requestAnimationFrame(drawLoop), alive };
+            inst._stop = () => { alive = false; };
+            inst._paramSig = JSON.stringify(entry.params || {});
+            return inst;
+        }
+
+        function _destroyInstance(inst) {
+            if (inst._stop) inst._stop();
+            if (inst.rafId) cancelAnimationFrame(inst.rafId);
+            if (inst.canvas && inst.canvas.isConnected) inst.canvas.remove();
+            // Clean up any speech recognition state stored on window
+        }
+
+        function update(video) {
+            const activeEntries = customSvgCodes.filter(e => e && e.enabled && e.type === 'audio');
+            const activeIds = new Set(activeEntries.map(e => e.id));
+
+            for (const [id, inst] of _instances) {
+                if (!activeIds.has(id)) {
+                    _destroyInstance(inst);
+                    _instances.delete(id);
+                }
+            }
+            if (!video) return;
+
+            for (const entry of activeEntries) {
+                if (!_instances.has(entry.id)) {
+                    const inst = _createInstance(entry, video);
+                    if (inst) _instances.set(entry.id, inst);
+                } else {
+                    const inst = _instances.get(entry.id);
+                    const paramSig = JSON.stringify(entry.params || {});
+                    if (inst._paramSig !== paramSig) {
+                        inst._paramSig = paramSig;
+                        try {
+                            const prefix = buildParamPrefix(entry);
+                            const newFn = _compileUserFn(prefix + entry.code);
+                            if (newFn) inst.fn = newFn;
+                        } catch(_) {}
+                    }
+                }
+            }
+        }
+
+        function recompile(entryId) {
+            const entry = customSvgCodes.find(e => e && e.id === entryId);
+            if (!entry) return;
+            const inst = _instances.get(entryId);
+            if (!inst) return;
+            try {
+                const prefix = buildParamPrefix(entry);
+                const newFn = _compileUserFn(prefix + entry.code);
+                if (newFn) { inst.fn = newFn; inst._paramSig = JSON.stringify(entry.params || {}); }
+            } catch(_) {}
+        }
+
+        function destroyAll() {
+            for (const inst of _instances.values()) _destroyInstance(inst);
+            _instances.clear();
+        }
+
+        function reparentAll() {
+            const video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
+            if (!video) return;
+            for (const inst of _instances.values()) {
+                const parent = video.parentElement || document.body;
+                if (inst.canvas.parentNode !== parent) {
+                    parent.insertBefore(inst.canvas, video.nextSibling);
+                }
+            }
+        }
+
+        return { update, destroyAll, reparentAll, recompile, _compileUserFn };
+    })();
+
+    function updateCustomAudioOverlays() {
+        const video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
+        CustomAudioOverlayManager.update(video);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // MediaPipe Loader
     // Loads MediaPipe UMD bundles via GM_addElement (bypasses CSP/Trusted Types).
     // Globals land on unsafeWindow after load.
@@ -2098,8 +2261,8 @@ void main(){
                 lblText.textContent = entry.label || 'Untitled';
                 lblText.style.cssText = `overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
                 const typeBadge = document.createElement('span');
-                typeBadge.textContent = entry.type === 'webgl' ? 'GLSL' : entry.type === 'canvas2d' ? '2D' : 'SVG';
-                typeBadge.style.cssText = `flex-shrink:0;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;${entry.type === 'webgl' ? 'background:rgba(120,80,255,0.3);color:#c0a0ff;border:1px solid rgba(120,80,255,0.5);' : entry.type === 'canvas2d' ? 'background:rgba(80,200,120,0.25);color:#80e8a0;border:1px solid rgba(80,200,120,0.5);' : 'background:rgba(74,158,255,0.15);color:#7ab8ff;border:1px solid rgba(74,158,255,0.35);'}`;
+                typeBadge.textContent = entry.type === 'webgl' ? 'GLSL' : entry.type === 'canvas2d' ? '2D' : entry.type === 'audio' ? '🎙' : 'SVG';
+                typeBadge.style.cssText = `flex-shrink:0;font-size:9px;font-weight:900;padding:1px 5px;border-radius:4px;${entry.type === 'webgl' ? 'background:rgba(120,80,255,0.3);color:#c0a0ff;border:1px solid rgba(120,80,255,0.5);' : entry.type === 'canvas2d' ? 'background:rgba(80,200,120,0.25);color:#80e8a0;border:1px solid rgba(80,200,120,0.5);' : entry.type === 'audio' ? 'background:rgba(255,180,50,0.25);color:#ffc850;border:1px solid rgba(255,180,50,0.5);' : 'background:rgba(74,158,255,0.15);color:#7ab8ff;border:1px solid rgba(74,158,255,0.35);'}`;
                 lbl.appendChild(lblText);
                 lbl.appendChild(typeBadge);
 
@@ -2240,7 +2403,7 @@ void main(){
             const typeSelect = document.createElement('select');
             typeSelect.style.cssText = `background:rgba(0,0,0,0.7);border:1px solid rgba(100,180,255,0.5);border-radius:7px;padding:6px 10px;color:#a0d4ff;font-size:12px;font-weight:700;outline:none;cursor:pointer;flex-shrink:0;`;
             stopEventsOn(typeSelect);
-            [['svg', '⬡ SVG'], ['webgl', '⬡ WebGL/GLSL'], ['canvas2d', '⬡ Canvas 2D']].forEach(([val, lbl]) => {
+            [['svg', '⬡ SVG'], ['webgl', '⬡ WebGL/GLSL'], ['canvas2d', '⬡ Canvas 2D'], ['audio', '🎙 Audio/Speech']].forEach(([val, lbl]) => {
                 const opt = document.createElement('option');
                 opt.value = val; opt.textContent = lbl;
                 if (val === currentType) opt.selected = true;
@@ -2311,7 +2474,8 @@ void main(){
             const svgPlaceholder = 'SVG Filter-Primitive Code, e.g.:\n<feConvolveMatrix kernelMatrix="0 -1 0 -1 5 -1 0 -1 0"/>';
             const glslPlaceholder = `GLSL Fragment Shader (WebGL2 / GLSL300).\nAvailable uniforms:\n  uniform sampler2D u_video;  // video frame\n  uniform vec2 u_res;          // canvas resolution (px)\n  in vec2 v_uv;                // UV coords 0..1\n  out vec4 fragColor;\n\n// Option A — full shader:\nvoid main(){\n    fragColor = texture(u_video, v_uv);\n}\n\n// Option B — helper function only (main is auto-generated):\nvec3 myEffect(sampler2D tex, vec2 uv, vec2 res) {\n    return texture(tex, uv).rgb;\n}`;
             const canvas2dPlaceholder = `// Canvas 2D effect\n// Available variables: ctx, canvas, video, width, height, frame (ms), u_mouse ({x,y}), u_zoom\n\n// Example: watch timer (bottom right)\nif (!canvas._watchStart) canvas._watchStart = Date.now();\nconst elapsed = Math.floor((Date.now() - canvas._watchStart) / 1000);\nconst h = Math.floor(elapsed / 3600);\nconst m = Math.floor((elapsed % 3600) / 60);\nconst s = elapsed % 60;\nconst pad = n => String(n).padStart(2, '0');\nconst label = h > 0 ? \`\${pad(h)}:\${pad(m)}:\${pad(s)}\` : \`\${pad(m)}:\${pad(s)}\`;\nconst fs = Math.round(height * 0.038);\nctx.font = \`900 \${fs}px monospace\`;\nconst text = '👁 ' + label;\nconst tw = ctx.measureText(text).width;\nconst px = width - tw - fs * 0.6;\nconst py = height - fs * 0.6;\nctx.fillStyle = 'rgba(0,0,0,0.55)';\nconst rp = fs * 0.3;\nctx.beginPath();\nctx.roundRect(px - rp, py - fs - rp, tw + rp*2, fs + rp*2, rp);\nctx.fill();\nctx.fillStyle = '#fff';\nctx.fillText(text, px, py);`;
-            const getPlaceholder = t => t === 'webgl' ? glslPlaceholder : t === 'canvas2d' ? canvas2dPlaceholder : svgPlaceholder;
+            const audioPlaceholder = `// Audio/Speech overlay — Web Speech API, kein API Key nötig\n// Variablen: ctx, canvas, video, width, height, frame, u_mouse, u_zoom\n// @param FONT_SIZE 0.022 0.01 0.06 "Font Size"\n// @paramselect LANG "de-DE" "Language" de-DE:Deutsch,en-US:English,fr-FR:Français\n\nif (!window._gvfSpeech) window._gvfSpeech = { rec:null, lines:[], interim:'', running:false, error:null };\nconst sp = window._gvfSpeech;\nconst SR = window.SpeechRecognition || window.webkitSpeechRecognition;\nif (!sp.running && SR && sp.error !== 'Mic blocked') {\n    const r = new SR(); r.lang=LANG; r.continuous=true; r.interimResults=true;\n    r.onresult = e => { let s=''; for(let i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal){sp.lines.push(e.results[i][0].transcript.trim());if(sp.lines.length>3)sp.lines.shift();sp.interim='';}else s+=e.results[i][0].transcript;} sp.interim=s; };\n    r.onerror = e => { if(e.error==='not-allowed'){sp.error='Mic blocked';sp.running=false;}else sp.error=e.error; };\n    r.onend = () => { sp.running=false; setTimeout(()=>{if(sp.error!=='Mic blocked')sp.running&&r.start();},100); };\n    r.start(); sp.rec=r; sp.running=true; sp.error=null;\n}\nconst fs = Math.round(height * FONT_SIZE);\nconst lines = [...sp.lines, sp.interim].filter(Boolean);\nif (!lines.length) return;\nctx.font = \`600 \${fs}px sans-serif\`;\nconst maxW = Math.max(...lines.map(l=>ctx.measureText(l).width));\nconst pad=fs*0.5, lh=fs*1.4, bx=width/2-maxW/2-pad, by=height*0.85-lines.length*lh;\nctx.fillStyle='rgba(0,0,0,0.7)'; ctx.beginPath(); ctx.roundRect(bx,by,maxW+pad*2,lines.length*lh+pad,8); ctx.fill();\nlines.forEach((l,i)=>{ctx.fillStyle=i===lines.length-1&&sp.interim?'rgba(255,255,180,0.9)':'#fff';ctx.fillText(l,bx+pad,by+pad+fs+i*lh);});`;
+            const getPlaceholder = t => t === 'webgl' ? glslPlaceholder : t === 'canvas2d' ? canvas2dPlaceholder : t === 'audio' ? audioPlaceholder : svgPlaceholder;
 
             const codeInput = document.createElement('textarea');
             codeInput.placeholder = getPlaceholder(currentType);
@@ -2334,7 +2498,7 @@ void main(){
             const editUniforms = (() => {
                 if (!editing) return {};
                 const entry = customSvgCodes[idx];
-                if (entry.type === 'canvas2d') {
+                if (entry.type === 'canvas2d' || entry.type === 'audio') {
                     // Merge annotation defaults + saved params
                     const pdefs = parseParamDefs(entry.code || '');
                     const merged = {};
@@ -2375,8 +2539,8 @@ void main(){
 
             function rebuildUniformSliders() {
                 while (uniformPreview.firstChild) uniformPreview.removeChild(uniformPreview.firstChild);
-                if (typeSelect.value !== 'webgl' && typeSelect.value !== 'canvas2d') return;
-                const isCanvas2d = typeSelect.value === 'canvas2d';
+                if (typeSelect.value !== 'webgl' && typeSelect.value !== 'canvas2d' && typeSelect.value !== 'audio') return;
+                const isCanvas2d = typeSelect.value === 'canvas2d' || typeSelect.value === 'audio';
                 const udefs = isCanvas2d ? parseParamDefs(codeInput.value) : parseUniformDefs(codeInput.value);
                 if (!udefs.length) return;
                 const header = document.createElement('div');
@@ -2402,8 +2566,13 @@ void main(){
                                 target.code = codeInput.value;
                                 target.type = typeSelect.value;
                                 // Recompile with updated params before any save/reload
-                                CustomCanvas2DOverlayManager.recompile(target.id);
-                                updateCustomCanvas2DOverlays();
+                                if (typeSelect.value === 'audio') {
+                                    CustomAudioOverlayManager.recompile(target.id);
+                                    updateCustomAudioOverlays();
+                                } else {
+                                    CustomCanvas2DOverlayManager.recompile(target.id);
+                                    updateCustomCanvas2DOverlays();
+                                }
                                 // Save after recompile — loadCustomSvgCodes will reload but
                                 // update() will re-detect paramSig change and recompile again
                                 if (persist && editing) saveCustomSvgCodes();
@@ -2501,7 +2670,7 @@ void main(){
                 if (type === 'svg') {
                     const parsed = parseCustomSvgCode(code);
                     if (!parsed) { errMsg.textContent = '❌ Invalid SVG code — parse error.'; return; }
-                } else if (type === 'canvas2d') {
+                } else if (type === 'canvas2d' || type === 'audio') {
                     try {
                         // Build params from editUniforms merged with annotation defaults
                         const pdefs = parseParamDefs(code);
@@ -2510,12 +2679,13 @@ void main(){
                         Object.assign(mergedParams, editUniforms);
                         const tempEntry = { code, params: mergedParams };
                         const prefix = buildParamPrefix(tempEntry);
-                        const testFn = CustomCanvas2DOverlayManager._compileUserFn
-                            ? CustomCanvas2DOverlayManager._compileUserFn(prefix + code)
+                        const mgr = type === 'audio' ? CustomAudioOverlayManager : CustomCanvas2DOverlayManager;
+                        const testFn = mgr._compileUserFn
+                            ? mgr._compileUserFn(prefix + code)
                             : new Function('ctx', 'canvas', 'video', 'width', 'height', 'frame', 'u_mouse', 'u_zoom', prefix + code);
                         if (!testFn) throw new Error('Compilation failed');
                     } catch (e) {
-                        errMsg.textContent = '❌ Canvas 2D error: ' + e.message; return;
+                        errMsg.textContent = '❌ ' + (type === 'audio' ? 'Audio' : 'Canvas 2D') + ' error: ' + e.message; return;
                     }
                 } else {
                     // WebGL: try-compile for immediate feedback
@@ -2527,9 +2697,9 @@ void main(){
                 errMsg.textContent = '';
                 const blendMode = blendSelect.value || 'normal';
 
-                // For canvas2d: always merge annotation defaults + editUniforms so params are never empty
+                // For canvas2d/audio: always merge annotation defaults + editUniforms so params are never empty
                 const finalParams = (() => {
-                    if (type !== 'canvas2d') return null;
+                    if (type !== 'canvas2d' && type !== 'audio') return null;
                     const pdefs = parseParamDefs(code);
                     const merged = {};
                     pdefs.forEach(d => { merged[d.name] = d.def; });
@@ -2543,18 +2713,19 @@ void main(){
                     customSvgCodes[idx].type = type;
                     customSvgCodes[idx].blendMode = blendMode;
                     if (type === 'webgl') customSvgCodes[idx].uniforms = { ...editUniforms };
-                    if (type === 'canvas2d') customSvgCodes[idx].params = finalParams;
+                    if (type === 'canvas2d' || type === 'audio') customSvgCodes[idx].params = finalParams;
                 } else {
                     _removePreviewEntry();
                     const newEntry = { id: 'csvg_' + Date.now(), label, code, type, blendMode, enabled: true };
                     if (type === 'webgl' && Object.keys(editUniforms).length) newEntry.uniforms = { ...editUniforms };
-                    if (type === 'canvas2d') newEntry.params = finalParams;
+                    if (type === 'canvas2d' || type === 'audio') newEntry.params = finalParams;
                     customSvgCodes.push(newEntry);
                 }
                 saveCustomSvgCodes();
                 regenerateSvgImmediately();
                 updateCustomWebglOverlays();
                 updateCustomCanvas2DOverlays();
+                updateCustomAudioOverlays();
                 renderList();
                 renderEditArea();
             });
@@ -4935,6 +5106,7 @@ function downloadBlob(blob, filename) {
         }
         updateCustomWebglOverlays();
         updateCustomCanvas2DOverlays();
+        updateCustomAudioOverlays();
     }
 
     /**
@@ -12427,6 +12599,7 @@ if ('lutProfile' in obj) {
         ensureOverlays();
         updateCustomWebglOverlays();
         updateCustomCanvas2DOverlays();
+        updateCustomAudioOverlays();
 
         const primary = choosePrimaryVideo();
         const hudPrimary = getHudPrimaryVideo();
@@ -12515,6 +12688,7 @@ if ('lutProfile' in obj) {
         }
         CustomWebglOverlayManager.reparentAll();
         CustomCanvas2DOverlayManager.reparentAll();
+        CustomAudioOverlayManager.reparentAll();
         reparentGvfModals();
         scheduleOverlayUpdate();
     }
@@ -13173,7 +13347,7 @@ if ('lutProfile' in obj) {
 
         // Inject enabled SVG-type custom filter codes into filter pipeline (WebGL entries handled separately)
         if (Array.isArray(customSvgCodes)) {
-            customSvgCodes.filter(e => e && e.enabled && e.type !== 'webgl').forEach((entry, idx) => {
+            customSvgCodes.filter(e => e && e.enabled && e.type !== 'webgl' && e.type !== 'canvas2d' && e.type !== 'audio').forEach((entry, idx) => {
                 const nodes = parseCustomSvgCode(entry.code);
                 if (!nodes || !nodes.length) return;
                 const beforeEffect = last;
@@ -13233,7 +13407,7 @@ if ('lutProfile' in obj) {
             normRGB(u_r_gain), normRGB(u_g_gain), normRGB(u_b_gain)
         ].map(x => Number(x).toFixed(1)).join(',');
 
-        const customSig = customSvgCodes.filter(e => e && e.enabled && e.type !== 'webgl').map(e => e.id + ':' + e.code).join('||');
+        const customSig = customSvgCodes.filter(e => e && e.enabled && e.type !== 'webgl' && e.type !== 'canvas2d' && e.type !== 'audio').map(e => e.id + ':' + e.code).join('||');
         const want = `${SL}|${SR}|${R}|${A}|${BS}|${BL}|${WL}|${DN}|${EDGE}|${HDR}|${P}|U:${uSig}|CB:${CB}|LUT:${LUTN}|CSVG:${customSig}`;
 
         const existing = document.getElementById(SVG_ID);
@@ -13527,6 +13701,7 @@ if ('lutProfile' in obj) {
                     const video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
                     CustomCanvas2DOverlayManager.forceRecompileAll(video);
                     updateCustomCanvas2DOverlays();
+                    updateCustomAudioOverlays();
                     const modal = document.getElementById('gvf-custom-svg-modal');
                     if (modal && modal._gvfRenderList) modal._gvfRenderList();
                     const badge = document.getElementById('gvf-svg-codes-count');
@@ -13825,6 +14000,7 @@ if ('lutProfile' in obj) {
                     regenerateSvgImmediately();
                     updateCustomWebglOverlays();
                     updateCustomCanvas2DOverlays();
+                    updateCustomAudioOverlays();
                     showToggleNotification(hkEntry.label || 'Custom Filter', hkEntry.enabled);
                     return;
                 }
