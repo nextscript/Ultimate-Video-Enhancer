@@ -1,7 +1,7 @@
 {
   "schema": "gvf-settings",
   "ver": "1.10",
-  "baseOtp": false,
+  "baseOtp": true,
   "notify": true,
   "darkMoody": false,
   "tealOrange": false,
