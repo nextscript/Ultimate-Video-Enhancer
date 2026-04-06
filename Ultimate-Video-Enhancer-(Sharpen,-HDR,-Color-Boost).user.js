@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.12.3
+// @version      1.12.4
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -3538,6 +3538,7 @@ void main(){
             out.push({
                 name,
                 group: group || undefined,
+                favorite: raw.favorite === true ? true : undefined,
                 createdAt: Number(raw.createdAt || Date.now()),
                 updatedAt: Number(raw.updatedAt || raw.createdAt || Date.now()),
                 matrix4x5: m
@@ -9511,38 +9512,37 @@ if (!gl) {
     function paletteToLutMatrix(palette) {
         // palette: [[r,g,b]x5] in 0-255
         //
-        // Derives a cross-channel 4x5 feColorMatrix from the actual palette colors.
-        // Each matrix row sums to 1 and offset = 0, which guarantees:
-        //   black (0,0,0) → black, white (1,1,1) → white, any neutral (R=G=B) → unchanged.
+        // Cross-channel 4x5 feColorMatrix — each row sums to 1, offset = 0.
+        // Guarantees: black→black, white→white, any neutral (R=G=B)→unchanged.
+        // Tint = off-diagonal channel redistribution based on palette chroma.
         //
-        // The tint is encoded via off-diagonal entries (channel redistribution).
-        // Chroma deviation of each palette color = channel - luminance (zero for neutrals).
-        // All 5 colors are averaged with a midtone bell-curve weight w=4*l*(1-l) so that
-        // near-black and near-white palette entries have less influence than midtones.
+        // Weighting: each palette color is weighted by its chroma magnitude
+        // (sqrt of squared deviations from luminance) so that more saturated
+        // palette entries dominate over near-neutral ones. A small floor (0.02)
+        // ensures even low-saturation palettes contribute something.
 
         const norm = palette.map(([r, g, b]) => [r / 255, g / 255, b / 255]);
 
-        // Weighted average chroma deviation across all palette colors
         let wSumR = 0, wSumG = 0, wSumB = 0, wTotal = 0;
         norm.forEach(([r, g, b]) => {
             const l = r * 0.299 + g * 0.587 + b * 0.114;
-            const w = 4 * l * (1 - l); // bell curve: peaks at lum=0.5, zero at 0 and 1
-            wSumR += (r - l) * w;
-            wSumG += (g - l) * w;
-            wSumB += (b - l) * w;
+            const dr = r - l, dg = g - l, db = b - l;
+            // Weight by chroma magnitude — saturated colors drive the grade more
+            const w = Math.sqrt(dr * dr + dg * dg + db * db) + 0.02;
+            wSumR += dr * w;
+            wSumG += dg * w;
+            wSumB += db * w;
             wTotal += w;
         });
 
-        // If palette is all-dark or all-bright, wTotal can be near zero → fall back to identity
-        const dr = wTotal > 0.01 ? wSumR / wTotal : 0;
-        const dg = wTotal > 0.01 ? wSumG / wTotal : 0;
-        const db = wTotal > 0.01 ? wSumB / wTotal : 0;
+        const dr = wSumR / wTotal;
+        const dg = wSumG / wTotal;
+        const db = wSumB / wTotal;
 
-        // Tint strength
-        const T = 0.30;
+        // Tint strength — high enough to be visible even on subtle palettes
+        const T = 0.70;
 
         // Cross-channel rows, each summing to 1, offset = 0
-        // Row R: boost R channel by dr*T, compensate equally from G and B
         const rr = 1.0 + dr * T * 2;  const rg = -dr * T;           const rb = -dr * T;
         const gr = -dg * T;            const gg = 1.0 + dg * T * 2;  const gb = -dg * T;
         const br = -db * T;            const bg = -db * T;            const bb = 1.0 + db * T * 2;
@@ -9836,6 +9836,12 @@ if (!gl) {
             optAll.value = '__all__';
             optAll.textContent = 'All groups';
             groupFilter.appendChild(optAll);
+
+            // My Favorites pseudo-group
+            const optFav = document.createElement('option');
+            optFav.value = '__favorites__';
+            optFav.textContent = '⭐ My Favorites';
+            groupFilter.appendChild(optFav);
 
             const names = getAllGroupNames();
             for (const g of names) {
@@ -10543,7 +10549,9 @@ const fileInput = document.createElement('input');
             // Group filter
             const gf = String((groupFilter && (groupFilter.dataset.gvfValue || groupFilter.value)) || '__all__');
             let filtered = list;
-            if (gf === '__ungrouped__') {
+            if (gf === '__favorites__') {
+                filtered = list.filter(p => p && p.favorite === true);
+            } else if (gf === '__ungrouped__') {
                 filtered = list.filter(p => !(p && p.group && String(p.group).trim()));
             } else if (gf !== '__all__') {
                 filtered = list.filter(p => (p && p.group && String(p.group).trim() === gf));
@@ -10719,6 +10727,31 @@ const fileInput = document.createElement('input');
                     updateLutProfileListInner();
                 });
 
+                // Star / Favorite button
+                const isFav = p.favorite === true;
+                const starBtn = document.createElement('button');
+                starBtn.type = 'button';
+                starBtn.title = isFav ? 'Remove from Favorites' : 'Add to Favorites';
+                starBtn.textContent = isFav ? '⭐' : '☆';
+                starBtn.style.cssText = `
+                    cursor:pointer;padding:5px 8px;border-radius:8px;font-size:16px;line-height:1;
+                    border:1px solid ${isFav ? 'rgba(255,210,0,0.6)' : 'rgba(255,255,255,0.14)'};
+                    background:${isFav ? 'rgba(255,210,0,0.15)' : 'rgba(255,255,255,0.06)'};
+                    color:${isFav ? '#ffd700' : '#aaa'};
+                    transition:all 0.15s;
+                `;
+                stopEventsOn(starBtn);
+                starBtn.addEventListener('click', () => {
+                    const key = lutKeyFromProfile(p);
+                    const idx = (Array.isArray(lutProfiles) ? lutProfiles : []).findIndex(x => lutKeyFromProfile(x) === key);
+                    if (idx >= 0) {
+                        lutProfiles[idx].favorite = !lutProfiles[idx].favorite;
+                        saveLutProfiles();
+                        updateLutProfileListInner();
+                    }
+                });
+
+                right.appendChild(starBtn);
                 right.appendChild(useBtn);
                 right.appendChild(editBtn);
                 right.appendChild(delBtn);
