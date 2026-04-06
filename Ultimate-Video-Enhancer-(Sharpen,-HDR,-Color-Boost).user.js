@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.12.2
+// @version      1.12.3
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -9510,49 +9510,49 @@ if (!gl) {
      */
     function paletteToLutMatrix(palette) {
         // palette: [[r,g,b]x5] in 0-255
-        // Derives a 4x5 feColorMatrix that grades the video toward the palette mood.
-        // Approach: sort by luminance, extract shadow/midtone/highlight anchors,
-        // use only their chroma deviation (channel - luminance) so that a neutral
-        // palette (R=G=B for all colors) produces an identity matrix, and pure
-        // black/white always map to black/white.
+        //
+        // Derives a cross-channel 4x5 feColorMatrix from the actual palette colors.
+        // Each matrix row sums to 1 and offset = 0, which guarantees:
+        //   black (0,0,0) → black, white (1,1,1) → white, any neutral (R=G=B) → unchanged.
+        //
+        // The tint is encoded via off-diagonal entries (channel redistribution).
+        // Chroma deviation of each palette color = channel - luminance (zero for neutrals).
+        // All 5 colors are averaged with a midtone bell-curve weight w=4*l*(1-l) so that
+        // near-black and near-white palette entries have less influence than midtones.
 
         const norm = palette.map(([r, g, b]) => [r / 255, g / 255, b / 255]);
-        const lums = norm.map(([r, g, b]) => r * 0.299 + g * 0.587 + b * 0.114);
-        const sorted = norm.map((c, i) => ({ c, l: lums[i] })).sort((a, b) => a.l - b.l);
 
-        const shadow    = sorted[0].c;
-        const mid       = sorted[Math.floor(sorted.length / 2)].c;
-        const highlight = sorted[sorted.length - 1].c;
-
-        // Chroma deviation from own luminance — zero for any neutral grey
-        const chromaDev = ([r, g, b]) => {
+        // Weighted average chroma deviation across all palette colors
+        let wSumR = 0, wSumG = 0, wSumB = 0, wTotal = 0;
+        norm.forEach(([r, g, b]) => {
             const l = r * 0.299 + g * 0.587 + b * 0.114;
-            return [r - l, g - l, b - l];
-        };
+            const w = 4 * l * (1 - l); // bell curve: peaks at lum=0.5, zero at 0 and 1
+            wSumR += (r - l) * w;
+            wSumG += (g - l) * w;
+            wSumB += (b - l) * w;
+            wTotal += w;
+        });
 
-        const [sdr, sdg, sdb] = chromaDev(shadow);
-        const [mdr, mdg, mdb] = chromaDev(mid);
-        const [hdr, hdg, hdb] = chromaDev(highlight);
+        // If palette is all-dark or all-bright, wTotal can be near zero → fall back to identity
+        const dr = wTotal > 0.01 ? wSumR / wTotal : 0;
+        const dg = wTotal > 0.01 ? wSumG / wTotal : 0;
+        const db = wTotal > 0.01 ? wSumB / wTotal : 0;
 
-        // Gain encodes midtone + highlight tint (scales with pixel brightness)
-        const S_MID  = 0.22;
-        const S_HIGH = 0.14;
-        const rr = 1.0 + mdr * S_MID + hdr * S_HIGH;
-        const gg = 1.0 + mdg * S_MID + hdg * S_HIGH;
-        const bb = 1.0 + mdb * S_MID + hdb * S_HIGH;
+        // Tint strength
+        const T = 0.30;
 
-        // Offset encodes shadow tint (additive at lum=0, kept tiny so black stays black)
-        const S_SHADOW = 0.025;
-        const offR = sdr * S_SHADOW;
-        const offG = sdg * S_SHADOW;
-        const offB = sdb * S_SHADOW;
+        // Cross-channel rows, each summing to 1, offset = 0
+        // Row R: boost R channel by dr*T, compensate equally from G and B
+        const rr = 1.0 + dr * T * 2;  const rg = -dr * T;           const rb = -dr * T;
+        const gr = -dg * T;            const gg = 1.0 + dg * T * 2;  const gb = -dg * T;
+        const br = -db * T;            const bg = -db * T;            const bb = 1.0 + db * T * 2;
 
         // Row-major 4x5 feColorMatrix
         return [
-            rr,   0,    0,    0,    offR,
-            0,    gg,   0,    0,    offG,
-            0,    0,    bb,   0,    offB,
-            0,    0,    0,    1,    0,
+            rr, rg, rb, 0, 0,
+            gr, gg, gb, 0, 0,
+            br, bg, bb, 0, 0,
+             0,  0,  0, 1, 0,
         ];
     }
 
