@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.12.7
+// @version      1.12.8
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
