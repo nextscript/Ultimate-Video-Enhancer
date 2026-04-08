@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.13.0
+// @version      1.13.1
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -2362,6 +2362,87 @@ void main(){
         searchBar.appendChild(searchInput);
         searchBar.appendChild(typePillWrap);
         modal.appendChild(searchBar);
+
+        // ── Global type-toggle checkboxes ─────────────────────────────────────
+        // Tracks which filter types are globally enabled (independent of per-filter .enabled flag)
+        const TYPE_TOGGLE_KEY = 'gvf_type_toggles';
+        // Derive initial checked state from actual .enabled flags:
+        // checked = at least one filter of that type is enabled (or no filters of that type exist yet)
+        let _typeToggles = (() => {
+            const result = {};
+            ['svg', 'webgl', 'canvas2d', 'audio'].forEach(key => {
+                const ofType = customSvgCodes.filter(e => (e.type || 'svg') === key);
+                result[key] = ofType.length > 0 && ofType.some(e => e.enabled);
+            });
+            return result;
+        })();
+
+        const typeToggleRow = document.createElement('div');
+        typeToggleRow.style.cssText = `display:flex;gap:12px;align-items:center;padding:5px 8px;background:rgba(0,0,0,0.25);border-radius:7px;margin-bottom:6px;flex-shrink:0;flex-wrap:wrap;`;
+
+        const typeToggleDefs = [
+            { key: 'svg',      label: 'SVG',    color: '#88ccff' },
+            { key: 'webgl',    label: 'GLSL',   color: '#c0a0ff' },
+            { key: 'canvas2d', label: 'Canvas', color: '#80e8a0' },
+            { key: 'audio',    label: 'Audio',  color: '#ffb060' },
+        ];
+
+        // Stores which filter ids were enabled before a type was globally disabled
+        const _typeToggleSnapshot = {};
+
+        function _applyTypeToggles() {
+            typeToggleDefs.forEach(({ key }) => {
+                const on = !!_typeToggles[key];
+                if (!on) {
+                    // Snapshot currently-enabled ids for this type, then disable them
+                    _typeToggleSnapshot[key] = customSvgCodes
+                        .filter(e => (e.type || 'svg') === key && e.enabled)
+                        .map(e => e.id);
+                    customSvgCodes.forEach(e => { if ((e.type || 'svg') === key) e.enabled = false; });
+                } else {
+                    // Re-enable only the ids that were enabled before disabling
+                    const snap = _typeToggleSnapshot[key];
+                    if (snap && snap.length) {
+                        customSvgCodes.forEach(e => {
+                            if ((e.type || 'svg') === key) e.enabled = snap.includes(e.id);
+                        });
+                        delete _typeToggleSnapshot[key];
+                    }
+                    // If no snapshot (e.g. first toggle-on after fresh load), leave .enabled untouched
+                }
+            });
+            saveCustomSvgCodes();
+            regenerateSvgImmediately();
+            updateCustomWebglOverlays();
+            updateCustomCanvas2DOverlays();
+            updateCustomAudioOverlays();
+            renderList();
+        }
+
+        typeToggleDefs.forEach(({ key, label, color }) => {
+            const wrap = document.createElement('label');
+            wrap.style.cssText = `display:flex;align-items:center;gap:5px;cursor:pointer;user-select:none;font-size:11px;font-weight:900;color:${color};`;
+
+            const cb = document.createElement('input');
+            cb.type = 'checkbox';
+            cb.checked = !!_typeToggles[key];
+            cb.style.cssText = `width:14px;height:14px;accent-color:${color};cursor:pointer;`;
+            stopEventsOn(cb);
+            cb.addEventListener('change', () => {
+                _typeToggles[key] = cb.checked;
+                try { gmSet(TYPE_TOGGLE_KEY, JSON.stringify(_typeToggles)); } catch (_) {}
+                _applyTypeToggles();
+            });
+
+            const lbl = document.createElement('span');
+            lbl.textContent = label;
+
+            wrap.appendChild(cb);
+            wrap.appendChild(lbl);
+            typeToggleRow.appendChild(wrap);
+        });
+
+        modal.appendChild(typeToggleRow);
 
         const tagCloud = document.createElement('div');
         tagCloud.style.cssText = `display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;flex-shrink:0;min-height:0;`;
