@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.12.9
+// @version      1.13.0
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -70,13 +70,23 @@
                                 /\buniform\s+sampler2D\b/m.test(entry.code)
                                 ? 'webgl' : 'svg'
                             );
+                            const entryTags = Array.isArray(entry.tags) ? entry.tags : (typeof entry.tags === 'string' ? entry.tags.split(',').map(t => t.trim()).filter(Boolean) : []);
+                            const entryCategory = entry.category ? String(entry.category).trim() : '';
+                            const entryBlend = entry.blendMode ? String(entry.blendMode) : 'normal';
+                            const entryDesc = entry.description ? String(entry.description).trim() : '';
                             if (exists) {
                                 if (!confirm(`"${entry.label}" already exists. Overwrite?`)) return;
                                 exists.code = entry.code;
                                 exists.type = detectedType;
                                 exists.enabled = true;
+                                exists.tags = entryTags;
+                                exists.category = entryCategory;
+                                exists.blendMode = entryBlend;
+                                if (entryDesc) exists.description = entryDesc;
                             } else {
-                                codes.push({ id: 'csvg_' + Date.now(), label: entry.label, code: entry.code, type: detectedType, enabled: true });
+                                const newEntry = { id: 'csvg_' + Date.now(), label: entry.label, code: entry.code, type: detectedType, enabled: true, blendMode: entryBlend, tags: entryTags, category: entryCategory };
+                                if (entryDesc) newEntry.description = entryDesc;
+                                codes.push(newEntry);
                             }
 
                             GM_setValue('gvf_custom_svg_codes', JSON.stringify(codes));
