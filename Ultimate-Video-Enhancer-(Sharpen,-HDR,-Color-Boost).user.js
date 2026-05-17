@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.13.1
+// @version      1.13.2
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -626,11 +626,49 @@
     function parseUniformDefs(src) {
         if (!src) return [];
         const defs = [];
+        const hasDef = (name) => defs.some(d => d && d.name === name);
+        const addSlider = (name, def, min, max, label, pos = 0) => {
+            if (!name || hasDef(name)) return;
+            const v = Number(def);
+            if (!Number.isFinite(v)) return;
+            defs.push({ name, def: v, min: Number(min), max: Number(max), label: label || name, kind: 'slider', _pos: pos });
+        };
+
         // @uniform sliders
         const re = /\/\/\s*@uniform\s+float\s+(\w+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)\s+([\d.eE+-]+)(?:\s+"([^"]*)")?/g;
         let m;
         while ((m = re.exec(src)) !== null)
-            defs.push({ name: m[1], def: parseFloat(m[2]), min: parseFloat(m[3]), max: parseFloat(m[4]), label: m[5] || m[1], kind: 'slider' });
+            addSlider(m[1], parseFloat(m[2]), parseFloat(m[3]), parseFloat(m[4]), m[5] || m[1], m.index);
+
+        // Numeric #define sliders, so imported mpv/Anime4K shaders expose controls without editing the GLSL.
+        // Supported:
+        //   #define STRENGTH 1.0
+        //   #define THRESHOLD 0.1
+        // Booleans/macros are intentionally ignored.
+        const defRe = /^\s*#define\s+([A-Za-z_]\w*)\s+(-?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)(?:f)?(?:\s*(?:\/\/\s*(.*))?)?$/mg;
+        let dm;
+        while ((dm = defRe.exec(src)) !== null) {
+            const rawName = dm[1];
+            if (/^(PI|M_PI|E|TAU)$/i.test(rawName) || /^P[0-9]+$/i.test(rawName)) continue;
+            const val = parseFloat(dm[2]);
+            if (!Number.isFinite(val)) continue;
+            const uName = 'u_def_' + rawName;
+            let min = 0.0, max = Math.max(2.0, Math.abs(val) * 2.0);
+            if (val < 0) { min = val * 2.0; max = Math.abs(val) * 2.0; }
+            if (val > 0 && val <= 1.0) { min = 0.0; max = 2.0; }
+            if (/threshold|thresh|cutoff|limit|scale|strength|curve|amount|blend|mix|gain|sharp/i.test(rawName)) {
+                min = 0.0;
+                max = Math.max(2.0, Math.abs(val) * 2.0);
+            }
+            addSlider(uName, val, min, max, rawName.replace(/_/g, ' '), dm.index);
+        }
+
+        // mpv/libplacebo hook shaders get always-visible control sliders even if the shader has no #define controls.
+        if (/^\s*\/\/!\s*(?:HOOK|BIND|SAVE|DESC)\b/m.test(src) || /\bHOOKED_(?:tex|texOff|pos|pt|size)\b/.test(src)) {
+            addSlider('u_gvf_mix', 1.0, 0.0, 1.0, 'Effect Mix', -20);
+            addSlider('u_gvf_offset_scale', 1.0, 0.25, 2.0, 'Offset Scale', -10);
+        }
+
         // @select dropdowns — format: // @select float name default "Label" 0:Opt A,1:Opt B
         const re2 = /\/\/\s*@select\s+float\s+(\w+)\s+([\d.eE+-]+)\s+"([^"]*)"\s+([\d.,:\w\s()-]+)/g;
         let m2;
@@ -639,11 +677,12 @@
                 const [val, ...rest] = o.trim().split(':');
                 return { value: parseFloat(val), label: rest.join(':').trim() };
             }).filter(o => !isNaN(o.value));
-            if (options.length > 0)
-                defs.push({ name: m2[1], def: parseFloat(m2[2]), label: m2[3], kind: 'select', options });
+            if (options.length > 0 && !hasDef(m2[1]))
+                defs.push({ name: m2[1], def: parseFloat(m2[2]), label: m2[3], kind: 'select', options, _pos: m2.index });
         }
         // Sort by order of appearance in source
-        defs.sort((a, b) => src.indexOf('@' + (a.kind === 'select' ? 'select' : 'uniform') + ' float ' + a.name) - src.indexOf('@' + (b.kind === 'select' ? 'select' : 'uniform') + ' float ' + b.name));
+        defs.sort((a, b) => (a._pos ?? 0) - (b._pos ?? 0));
+        defs.forEach(d => { try { delete d._pos; } catch (_) {} });
         return defs;
     }
 
@@ -708,7 +747,143 @@
         } catch (_) { return false; }
     }
 
+
+    function _isMpvHookShader(src) {
+        return !!src && (/^\s*\/\/!\s*(?:DESC|HOOK|BIND|SAVE|WIDTH|HEIGHT|COMPONENTS)\b/m.test(src) ||
+            /\bHOOKED_(?:tex|texOff|pos|pt|size)\b/.test(src) ||
+            /\b\w+_(?:tex|texOff|pt|pos|size)\b/.test(src));
+    }
+
+    function _replaceNumericDefinesWithUniforms(src) {
+        return String(src || '').replace(/^\s*#define\s+([A-Za-z_]\w*)\s+(-?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)(?:f)?(?:\s*(?:\/\/.*)?)?$/mg, (line, name) => {
+            if (/^(PI|M_PI|E|TAU)$/i.test(name)) return line;
+            return `#define ${name} u_def_${name}`;
+        });
+    }
+
+    function _stripDuplicateNamedFunctions(src) {
+        const s0 = String(src || '');
+        const seen = new Set();
+        let out = '';
+        let i = 0;
+        const re = /\b(vec4|vec3|vec2|float|int|bool|void)\s+([A-Za-z_]\w*)\s*\([^;{}]*\)\s*\{/g;
+        let m;
+        while ((m = re.exec(s0)) !== null) {
+            const name = m[2];
+            out += s0.slice(i, m.index);
+            let brace = m.index + m[0].length - 1;
+            let depth = 0;
+            let end = brace;
+            for (; end < s0.length; end++) {
+                const ch = s0[end];
+                if (ch === '{') depth++;
+                else if (ch === '}') {
+                    depth--;
+                    if (depth === 0) { end++; break; }
+                }
+            }
+            const fn = s0.slice(m.index, end);
+            if (!seen.has(name) || /^gvfHook_\d+$/.test(name)) {
+                seen.add(name);
+                out += fn;
+            }
+            i = end;
+            re.lastIndex = end;
+        }
+        out += s0.slice(i);
+        return out;
+    }
+
+    function _normalizeMpvHookShader(src) {
+        if (!_isMpvHookShader(src)) return String(src || '');
+        let s = String(src || '').replace(/\r\n/g, '\n');
+
+        // Remove mpv/libplacebo metadata lines; GLSL ES cannot compile them.
+        s = s.replace(/^\s*\/\/!\s*[^\n]*$/mg, '');
+
+        // Convert numeric #define constants into uniforms so they become sliders.
+        s = _replaceNumericDefinesWithUniforms(s);
+
+        // GLSL ES rejects the C float suffix used by some ports.
+        s = s.replace(/(\d+(?:\.\d+)?|\.\d+)([eE][+-]?\d+)?f\b/g, '$1$2');
+
+        // Make every mpv hook unique. Multi-pass files contain many `vec4 hook(){...}` bodies.
+        let hookIndex = 0;
+        s = s.replace(/\b(vec4|vec3|vec2|float)\s+hook\s*\(\s*\)/g, (all, ret) => `${ret} gvfHook_${hookIndex++}()`);
+
+        // Map mpv texture coordinate helpers to GVF's current input.
+        s = s.replace(/\bHOOKED_pos\b/g, 'v_uv');
+        s = s.replace(/\bMAIN_pos\b/g, 'v_uv');
+        s = s.replace(/\bHOOKED_pt\b/g, '(u_gvf_offset_scale / u_res)');
+        s = s.replace(/\bMAIN_pt\b/g, '(u_gvf_offset_scale / u_res)');
+        s = s.replace(/\bHOOKED_size\b/g, 'u_res');
+        s = s.replace(/\bMAIN_size\b/g, 'u_res');
+
+        // Saved pass aliases (LINELUMA_tex, LUMAD_tex, LUMAMM_tex, etc.) are mapped to
+        // the current GVF texture. This keeps Anime4K/mpv shaders loadable as-is in a single-pass engine.
+        s = s.replace(/\b([A-Z][A-Z0-9_]*)_texOff\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g, 'gvfPassTexOff($2)');
+        s = s.replace(/\b([A-Z][A-Z0-9_]*)_tex\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g, 'gvfPassTex($2)');
+
+        // A second simpler pass catches non-nested leftovers.
+        s = s.replace(/\b([A-Z][A-Z0-9_]*)_texOff\s*\(([^)]*)\)/g, 'gvfPassTexOff($2)');
+        s = s.replace(/\b([A-Z][A-Z0-9_]*)_tex\s*\(([^)]*)\)/g, 'gvfPassTex($2)');
+
+        // Remove accidental duplicate helper function bodies from concatenated hook files.
+        s = _stripDuplicateNamedFunctions(s);
+
+        // If the mpv shader had hooks, generate a final main that calls the last hook and mixes it.
+        if (hookIndex > 0 && !/\bvoid\s+main\s*\(/.test(s)) {
+            const last = `gvfHook_${hookIndex - 1}()`;
+            s += `\nvoid main(){\n    vec4 _gvf_src = texture(u_video, v_uv);\n    vec4 _gvf_fx = ${last};\n    fragColor = mix(_gvf_src, _gvf_fx, clamp(u_gvf_mix, 0.0, 1.0));\n}\n`;
+        }
+
+        return s;
+    }
+
+
+    function _buildAnime4KOriginalX2CompatBody(src) {
+        // Anime4K Original x2 is a multi-pass mpv/libplacebo shader. GVF Custom GLSL is a
+        // single-pass overlay renderer, so this compatibility path keeps the source pasteable
+        // as-is and internally builds a visible edge-aware x2/refine approximation with sliders.
+        const raw = String(src || '');
+        if (!/Anime4K-v3\.2-Upscale-Original-x2/i.test(raw)) return null;
+        return `
+float gvfAnimeLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+vec4 gvfAnimeSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+
+void main(){
+    vec2 d = u_gvf_offset_scale / u_res;
+    vec4 src = gvfAnimeSample(v_uv);
+
+    float tl = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2(-d.x, -d.y)).rgb);
+    float t  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( 0.0, -d.y)).rgb);
+    float tr = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( d.x, -d.y)).rgb);
+    float l  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2(-d.x,  0.0)).rgb);
+    float c  = gvfAnimeLuma(src.rgb);
+    float r  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( d.x,  0.0)).rgb);
+    float bl = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2(-d.x,  d.y)).rgb);
+    float b  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( 0.0,  d.y)).rgb);
+    float br = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( d.x,  d.y)).rgb);
+
+    float gx = -tl - 2.0*l - bl + tr + 2.0*r + br;
+    float gy = -tl - 2.0*t - tr + bl + 2.0*b + br;
+    float edge = clamp(length(vec2(gx, gy)), 0.0, 1.0);
+
+    vec2 dir = normalize(vec2(gx, gy) + vec2(0.00001));
+    vec4 a = gvfAnimeSample(v_uv + dir * d);
+    vec4 z = gvfAnimeSample(v_uv - dir * d);
+    vec4 edgeAvg = (a + z) * 0.5;
+
+    // REFINE_STRENGTH and REFINE_BIAS are generated from the original #define values.
+    float refine = clamp((edge * edge * (3.0 - 2.0 * edge)) * u_def_REFINE_STRENGTH + u_def_REFINE_BIAS, 0.0, 1.0);
+    vec4 fx = mix(src, edgeAvg, refine);
+    fragColor = mix(src, fx, clamp(u_gvf_mix, 0.0, 1.0));
+}
+`;
+    }
+
     function _normalizeUserFrag(src) {
+        src = _normalizeMpvHookShader(String(src || ''));
         // Strip @uniform and @select annotation lines — handled separately, not valid GLSL
         let s = src.replace(/^\s*\/\/\s*@uniform[^\r\n]*/mg, '');
         s = s.replace(/^\s*\/\/\s*@select[^\r\n]*/mg, '');
@@ -781,7 +956,7 @@
 
     function _buildFragSrc(userSrc) {
         const _customUniformDecls = parseUniformDefs(userSrc).map(d => `uniform float ${d.name};`).join('\n');
-        const body = _normalizeUserFrag(userSrc);
+        const body = _buildAnime4KOriginalX2CompatBody(userSrc) || _normalizeUserFrag(userSrc);
 
         let mainBlock;
         if (body.includes('void main')) {
@@ -827,6 +1002,8 @@ uniform float u_contrast;
 ${_customUniformDecls}
 in vec2 v_uv;
 out vec4 fragColor;
+vec4 gvfPassTex(vec2 uv) { return texture(u_video, uv); }
+vec4 gvfPassTexOff(vec2 offsetPx) { return texture(u_video, v_uv + (offsetPx / u_res)); }
 ${mainBlock}`;
     }
 
@@ -1400,40 +1577,7 @@ void main(){
             const canvas = document.createElement('canvas');
             const gl = canvas.getContext('webgl2');
             if (!gl) return null;
-
-            let s = _normalizeUserFrag(src);
-
-            if (!/\bvoid\s+main\s*\(/.test(s)) {
-                // helper-only: find last non-void function and wrap
-                const fnRe = /\b(vec4|vec3|vec2|float)\s+(\w+)\s*\(([^)]*)\)/g;
-                let lastFn = null, m;
-                while ((m = fnRe.exec(s)) !== null) lastFn = { ret: m[1], name: m[2], params: m[3] };
-                if (lastFn) {
-                    let vec2Count = 0;
-                    const args = lastFn.params.split(',').map(p => {
-                        const type = (p.trim().split(/\s+/)[0] || '');
-                        if (type === 'sampler2D') return 'u_video';
-                        if (type === 'vec2') return vec2Count++ === 0 ? 'v_uv' : 'u_res';
-                        if (type === 'float') return '1.0';
-                        if (type === 'vec3') return 'vec3(1.0)';
-                        if (type === 'vec4') return 'vec4(1.0)';
-                        if (type === 'int') return '1';
-                        if (type === 'bool') return 'false';
-                        return '0.0';
-                    }).filter(Boolean).join(', ');
-                    const call = `${lastFn.name}(${args})`;
-                    const assign = lastFn.ret === 'vec4' ? `fragColor = ${call};`
-                        : lastFn.ret === 'vec3' ? `fragColor = vec4(${call}, 1.0);`
-                        : lastFn.ret === 'vec2' ? `fragColor = vec4(${call}, 0.0, 1.0);`
-                        : `float _r = ${call}; fragColor = vec4(_r, _r, _r, 1.0);`;
-                    s = s + `\nvoid main(){\n    ${assign}\n}`;
-                } else {
-                    s = `void main(){\n${s}\n}`;
-                }
-            }
-
-            const _customDecls = parseUniformDefs(src).map(d => `uniform float ${d.name};`).join('\n');
-            const fragSrc = `#version 300 es\nprecision highp float;\nprecision highp sampler2D;\nuniform sampler2D u_video;\nuniform sampler2D u_video_raw;\nuniform vec2 u_res;\nuniform float u_time;\nuniform vec2 u_mouse;\nuniform float u_strength;\nuniform float u_layers;\nuniform float u_zoom;\nuniform float u_avg_lum;\nuniform float u_avg_r;\nuniform float u_avg_g;\nuniform float u_avg_b;\nuniform float u_contrast;\n${_customDecls}\nin vec2 v_uv;\nout vec4 fragColor;\n${s}`;
+            const fragSrc = _buildFragSrc(src);
             const sh = gl.createShader(gl.FRAGMENT_SHADER);
             gl.shaderSource(sh, fragSrc);
             gl.compileShader(sh);
@@ -1442,7 +1586,7 @@ void main(){
             gl.deleteShader(sh);
             return info;
         } catch (e) {
-            return null;
+            return e && e.message ? e.message : null;
         }
     }
 
@@ -3979,23 +4123,144 @@ void main(){
     // JSZip Loader (CDN) - DOM method only
     // -------------------------
     let _jszipPromise = null;
+
+    function getJSZipCtor() {
+        try {
+            if (typeof JSZip !== 'undefined' && JSZip) return JSZip;
+        } catch (_) {}
+        try {
+            if (typeof unsafeWindow !== 'undefined' && unsafeWindow.JSZip) return unsafeWindow.JSZip;
+        } catch (_) {}
+        try {
+            if (typeof window !== 'undefined' && window.JSZip) return window.JSZip;
+        } catch (_) {}
+        try {
+            if (typeof globalThis !== 'undefined' && globalThis.JSZip) return globalThis.JSZip;
+        } catch (_) {}
+        return null;
+    }
+
     function ensureJsZipLoaded() {
-        if (window.JSZip) return Promise.resolve(window.JSZip);
+        const existingCtor = getJSZipCtor();
+        if (existingCtor) return Promise.resolve(existingCtor);
         if (_jszipPromise) return _jszipPromise;
 
         _jszipPromise = new Promise((resolve, reject) => {
-            const existing = document.querySelector('script[data-gvf-jszip="1"]');
-            if (existing && window.JSZip) return resolve(window.JSZip);
+            const JSZIP_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
 
-            const s = document.createElement('script');
-            s.dataset.gvfJszip = '1';
-            s.setAttribute('data-gvf-jszip', '1');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-            s.async = true;
-            s.onload = () => (window.JSZip ? resolve(window.JSZip) : reject(new Error('JSZip loaded but window.JSZip is missing.')));
-            s.onerror = () => reject(new Error('Failed to load JSZip from CDN.'));
-            (document.head || document.documentElement).appendChild(s);
+            const resolveIfReady = () => {
+                const ctor = getJSZipCtor();
+                if (ctor) {
+                    resolve(ctor);
+                    return true;
+                }
+                return false;
+            };
+
+            if (resolveIfReady()) return;
+
+            const existing = document.querySelector('script[data-gvf-jszip="1"]');
+            if (existing) {
+                existing.addEventListener('load', () => {
+                    if (!resolveIfReady()) reject(new Error('JSZip loaded but no JSZip constructor was found.'));
+                }, { once: true });
+                existing.addEventListener('error', () => reject(new Error('Failed to load JSZip from CDN.')), { once: true });
+                return;
+            }
+
+            const finishAfterLoad = () => {
+                setTimeout(() => {
+                    if (!resolveIfReady()) reject(new Error('JSZip loaded but no JSZip constructor was found.'));
+                }, 0);
+            };
+
+            const injectText = (code) => {
+                try {
+                    if (!code || !String(code).trim()) throw new Error('empty JSZip source');
+                    const text = String(code) + '\n//# sourceURL=' + JSZIP_URL;
+                    if (typeof GM_addElement === 'function') {
+                        const el = GM_addElement('script', { textContent: text });
+                        try { el && el.setAttribute && el.setAttribute('data-gvf-jszip', '1'); } catch (_) {}
+                        finishAfterLoad();
+                        return true;
+                    }
+                    const el = document.createElement('script');
+                    el.type = 'text/javascript';
+                    el.setAttribute('data-gvf-jszip', '1');
+                    el.textContent = text;
+                    (document.head || document.documentElement).appendChild(el);
+                    finishAfterLoad();
+                    return true;
+                } catch (e) {
+                    logW('[GVF JSZip] text injection failed:', e && e.message ? e.message : e);
+                    return false;
+                }
+            };
+
+            const fetchAndInjectText = () => {
+                if (typeof GM_xmlhttpRequest !== 'function') return false;
+                try {
+                    GM_xmlhttpRequest({
+                        method: 'GET',
+                        url: JSZIP_URL,
+                        onload: (res) => {
+                            if (res && res.status >= 200 && res.status < 300 && res.responseText) {
+                                if (!injectText(res.responseText)) reject(new Error('Failed to inject JSZip source.'));
+                            } else {
+                                reject(new Error('Failed to download JSZip from CDN.'));
+                            }
+                        },
+                        onerror: () => reject(new Error('Failed to download JSZip from CDN.')),
+                        ontimeout: () => reject(new Error('Timed out downloading JSZip from CDN.')),
+                    });
+                    return true;
+                } catch (e) {
+                    logW('[GVF JSZip] GM_xmlhttpRequest failed:', e && e.message ? e.message : e);
+                    return false;
+                }
+            };
+
+            // 1) Tampermonkey-safe script injection. This avoids page Trusted Types blocking script.src.
+            try {
+                if (typeof GM_addElement === 'function') {
+                    const el = GM_addElement('script', {
+                        src: JSZIP_URL,
+                        async: false,
+                        'data-gvf-jszip': '1'
+                    });
+                    if (el) {
+                        el.onload = finishAfterLoad;
+                        el.onerror = () => {
+                            if (!fetchAndInjectText()) reject(new Error('Failed to load JSZip from CDN.'));
+                        };
+                        return;
+                    }
+                }
+            } catch (e) {
+                logW('[GVF JSZip] GM_addElement src blocked, trying text injection:', e && e.message ? e.message : e);
+            }
+
+            // 2) CSP/Trusted-Types safe fallback: download via userscript API, inject as textContent.
+            if (fetchAndInjectText()) return;
+
+            // 3) Last fallback for pages without Trusted Types restrictions.
+            try {
+                const s = document.createElement('script');
+                s.dataset.gvfJszip = '1';
+                s.setAttribute('data-gvf-jszip', '1');
+                s.async = true;
+
+                // Trusted Types may throw here. Keep this as final fallback only.
+                s.src = JSZIP_URL;
+
+                s.onload = finishAfterLoad;
+                s.onerror = () => reject(new Error('Failed to load JSZip from CDN.'));
+                (document.head || document.documentElement).appendChild(s);
+            } catch (e) {
+                reject(new Error('Failed to load JSZip because this page requires TrustedScriptURL assignment.'));
+            }
         });
+
         return _jszipPromise;
     }
 
@@ -9755,6 +10020,163 @@ if (!gl) {
         ];
     }
 
+
+    function getColormindAutoGradeEntry() {
+        return customSvgCodes.find(e =>
+            e &&
+            e.type === 'webgl' &&
+            e.label === 'Colormind Auto Grade' &&
+            e.uniforms &&
+            (
+                e.uniforms.u_cm_rr !== undefined ||
+                e.uniforms.u_cm_rg !== undefined ||
+                e.uniforms.u_cm_rb !== undefined ||
+                e.uniforms.u_cm_gr !== undefined ||
+                e.uniforms.u_cm_gg !== undefined ||
+                e.uniforms.u_cm_gb !== undefined ||
+                e.uniforms.u_cm_br !== undefined ||
+                e.uniforms.u_cm_bg !== undefined ||
+                e.uniforms.u_cm_bb !== undefined
+            )
+        ) || null;
+    }
+
+    function buildCubeFromColormindGlslEntry(entry) {
+        if (!entry || !entry.uniforms) throw new Error('No Colormind Auto Grade uniforms found.');
+
+        const u = entry.uniforms;
+        const rr = Number(u.u_cm_rr ?? 1.0);
+        const rg = Number(u.u_cm_rg ?? 0.0);
+        const rb = Number(u.u_cm_rb ?? 0.0);
+        const gr = Number(u.u_cm_gr ?? 0.0);
+        const gg = Number(u.u_cm_gg ?? 1.0);
+        const gb = Number(u.u_cm_gb ?? 0.0);
+        const br = Number(u.u_cm_br ?? 0.0);
+        const bg = Number(u.u_cm_bg ?? 0.0);
+        const bb = Number(u.u_cm_bb ?? 1.0);
+        const lift = Number(u.u_lift ?? 0.0);
+        const gamma = Math.max(0.01, Number(u.u_gamma ?? 1.0));
+        const sat = Number(u.u_sat ?? 1.0);
+        const strength = (typeof _getStrength === 'function') ? Number(_getStrength() || 0) : 1.0;
+        const size = 32;
+        const lines = [];
+
+        lines.push('TITLE "GVF Colormind Auto Grade"');
+        lines.push('# Exported from GLSL uniforms used by Colormind Auto Grade');
+        lines.push('# u_strength ' + strength.toFixed(6));
+        lines.push('# u_cm_rr ' + rr.toFixed(9));
+        lines.push('# u_cm_rg ' + rg.toFixed(9));
+        lines.push('# u_cm_rb ' + rb.toFixed(9));
+        lines.push('# u_cm_gr ' + gr.toFixed(9));
+        lines.push('# u_cm_gg ' + gg.toFixed(9));
+        lines.push('# u_cm_gb ' + gb.toFixed(9));
+        lines.push('# u_cm_br ' + br.toFixed(9));
+        lines.push('# u_cm_bg ' + bg.toFixed(9));
+        lines.push('# u_cm_bb ' + bb.toFixed(9));
+        lines.push('# u_lift ' + lift.toFixed(9));
+        lines.push('# u_gamma ' + gamma.toFixed(9));
+        lines.push('# u_sat ' + sat.toFixed(9));
+        lines.push('LUT_3D_SIZE ' + size);
+        lines.push('DOMAIN_MIN 0.0 0.0 0.0');
+        lines.push('DOMAIN_MAX 1.0 1.0 1.0');
+
+        const clamp01 = v => Math.min(1, Math.max(0, v));
+
+        for (let b = 0; b < size; b++) {
+            for (let g = 0; g < size; g++) {
+                for (let r = 0; r < size; r++) {
+                    let cr = r / (size - 1);
+                    let cg = g / (size - 1);
+                    let cb = b / (size - 1);
+
+                    const mr = rr * cr + rg * cg + rb * cb;
+                    const mg = gr * cr + gg * cg + gb * cb;
+                    const mb = br * cr + bg * cg + bb * cb;
+
+                    cr = cr + (mr - cr) * strength;
+                    cg = cg + (mg - cg) * strength;
+                    cb = cb + (mb - cb) * strength;
+
+                    cr += lift;
+                    cg += lift;
+                    cb += lift;
+
+                    cr = Math.pow(Math.max(cr, 0.0), 1.0 / gamma);
+                    cg = Math.pow(Math.max(cg, 0.0), 1.0 / gamma);
+                    cb = Math.pow(Math.max(cb, 0.0), 1.0 / gamma);
+
+                    const lum = 0.2126 * cr + 0.7152 * cg + 0.0722 * cb;
+                    cr = lum + (cr - lum) * sat;
+                    cg = lum + (cg - lum) * sat;
+                    cb = lum + (cb - lum) * sat;
+
+                    lines.push(
+                        clamp01(cr).toFixed(6) + ' ' +
+                        clamp01(cg).toFixed(6) + ' ' +
+                        clamp01(cb).toFixed(6)
+                    );
+                }
+            }
+        }
+
+        return lines.join('\n');
+    }
+
+    function exportColormindGlslPaletteAsCubeZip(entry) {
+        try {
+            if (!entry) {
+                alert('No Colormind GLSL palette entry found.');
+                return;
+            }
+            if (!entry.uniforms) entry.uniforms = {};
+
+            ensureJsZipLoaded().then(JSZipCtor => {
+                const cube = buildCubeFromColormindGlslEntry(entry, 32);
+                const zip = new JSZipCtor();
+
+                // IMPORTANT: Palette export must contain ONLY the .cube file.
+                zip.file('gvf_colormind_auto_grade.cube', cube);
+
+                return zip.generateAsync({ type: 'blob' });
+            }).then(blob => {
+                const url = URL.createObjectURL(blob);
+                const fileName = 'gvf_colormind_auto_grade_cube.zip';
+
+                if (typeof GM_download === 'function') {
+                    GM_download({
+                        url,
+                        name: fileName,
+                        saveAs: true,
+                        onload: () => setTimeout(() => URL.revokeObjectURL(url), 3000),
+                        onerror: () => {
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = fileName;
+                            document.body.appendChild(a);
+                            a.click();
+                            a.remove();
+                            setTimeout(() => URL.revokeObjectURL(url), 3000);
+                        }
+                    });
+                } else {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = fileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 3000);
+                }
+            }).catch(err => {
+                console.error('[GVF] Palette export failed:', err);
+                alert('Export failed: ' + (err && err.message ? err.message : String(err)));
+            });
+        } catch (e) {
+            console.error('[GVF] Palette export failed:', e);
+            alert('Export failed: ' + (e && e.message ? e.message : String(e)));
+        }
+    }
+
     /**
      * Renders a Colormind palette as a horizontal strip of 5 color swatches
      * into a given container element.
@@ -10191,6 +10613,17 @@ if (!gl) {
         `;
         stopEventsOn(cmGenBtn);
 
+        const cmExportBtn = document.createElement('button');
+        cmExportBtn.type = 'button';
+        cmExportBtn.textContent = '📦 Export Palette';
+        cmExportBtn.style.cssText = `
+            cursor:pointer;padding:6px 12px;border-radius:8px;
+            border:1px solid rgba(120,190,255,0.55);
+            background:rgba(80,150,255,0.18);color:#b9ddff;
+            font-weight:900;font-size:12px;
+        `;
+        stopEventsOn(cmExportBtn);
+
         const cmRandomBtn = document.createElement('button');
         cmRandomBtn.type = 'button';
         cmRandomBtn.textContent = '🎲 Random Palette';
@@ -10208,6 +10641,7 @@ if (!gl) {
 
         cmTopRow.appendChild(cmLabel);
         cmTopRow.appendChild(cmGenBtn);
+        cmTopRow.appendChild(cmExportBtn);
         cmTopRow.appendChild(cmRandomBtn);
         cmTopRow.appendChild(cmStatus);
 
@@ -10222,11 +10656,13 @@ if (!gl) {
         const cmDoFetch = (inputColors) => {
             cmStatus.textContent = '⏳ Fetching palette…';
             cmGenBtn.disabled = true;
+            cmExportBtn.disabled = true;
             cmRandomBtn.disabled = true;
             fetchColormindPalette(inputColors)
                 .then(palette => {
                     cmStatus.textContent = '✅ Palette ready';
                     cmGenBtn.disabled = false;
+                    cmExportBtn.disabled = false;
                     cmRandomBtn.disabled = false;
 
                     // Immediately push palette matrix to GLSL shader entry (live preview)
@@ -10238,6 +10674,7 @@ if (!gl) {
                         );
                         if (_cmLiveEntry) {
                             if (!_cmLiveEntry.uniforms) _cmLiveEntry.uniforms = {};
+                            _cmLiveEntry.colormindPalette = palette;
                             _cmLiveEntry.uniforms.u_cm_rr = _previewMatrix[0];
                             _cmLiveEntry.uniforms.u_cm_rg = _previewMatrix[1];
                             _cmLiveEntry.uniforms.u_cm_rb = _previewMatrix[2];
@@ -10280,6 +10717,7 @@ if (!gl) {
                             );
                             if (_cmEntry) {
                                 if (!_cmEntry.uniforms) _cmEntry.uniforms = {};
+                                _cmEntry.colormindPalette = pal;
                                 _cmEntry.uniforms.u_cm_rr = matrix4x5[0];
                                 _cmEntry.uniforms.u_cm_rg = matrix4x5[1];
                                 _cmEntry.uniforms.u_cm_rb = matrix4x5[2];
@@ -10298,6 +10736,7 @@ if (!gl) {
                 .catch(err => {
                     cmStatus.textContent = '❌ Error: ' + (err && err.message ? err.message : 'Network failed');
                     cmGenBtn.disabled = false;
+                    cmExportBtn.disabled = false;
                     cmRandomBtn.disabled = false;
                 });
         };
@@ -10312,6 +10751,43 @@ if (!gl) {
                 }
             } catch (_) { }
             cmDoFetch(inputColors);
+        });
+
+        cmExportBtn.addEventListener('click', (e) => {
+            e.preventDefault(); e.stopPropagation();
+
+            const cmEntry = customSvgCodes.find(x =>
+                x &&
+                x.type === 'webgl' &&
+                x.label === 'Colormind Auto Grade'
+            );
+
+            if (!cmEntry) {
+                alert('Colormind Auto Grade GLSL entry not found.');
+                return;
+            }
+
+            if (!cmEntry.uniforms) cmEntry.uniforms = {};
+
+            // Fallback: if the UI has the current Colormind matrix but uniforms were not saved yet,
+            // push that exact matrix into the GLSL entry before exporting.
+            if (
+                cmEntry.uniforms.u_cm_rr === undefined &&
+                Array.isArray(window.__gvfColormindMatrix4x5)
+            ) {
+                const m = window.__gvfColormindMatrix4x5;
+                cmEntry.uniforms.u_cm_rr = m[0];
+                cmEntry.uniforms.u_cm_rg = m[1];
+                cmEntry.uniforms.u_cm_rb = m[2];
+                cmEntry.uniforms.u_cm_gr = m[5];
+                cmEntry.uniforms.u_cm_gg = m[6];
+                cmEntry.uniforms.u_cm_gb = m[7];
+                cmEntry.uniforms.u_cm_br = m[10];
+                cmEntry.uniforms.u_cm_bg = m[11];
+                cmEntry.uniforms.u_cm_bb = m[12];
+            }
+
+            exportColormindGlslPaletteAsCubeZip(cmEntry);
         });
 
         cmRandomBtn.addEventListener('click', (e) => {
