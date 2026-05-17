@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.13.2
+// @version      1.13.3
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -262,6 +262,120 @@
         }
         return best;
     }
+
+
+    // -------------------------
+    // Video frame-ready guard
+    // -------------------------
+    // Prevents CSS/SVG/WebGL filters from touching HTML5 players while they only show
+    // a loading poster/spinner/black prebuffer frame. A video becomes filterable only
+    // after the browser has presented at least one decoded frame. Paused/stopped videos
+    // stay filterable because the decoded-frame flag is kept until a real reload/reset.
+    const GVF_VIDEO_READY_CLASS = 'gvf-video-ready';
+
+    function hasGvfDecodedFrame(video) {
+        try { return !!(video && video.__gvfHasDecodedFrame); } catch (_) { return false; }
+    }
+
+    function markGvfDecodedFrame(video) {
+        try {
+            if (!video) return;
+            video.__gvfHasDecodedFrame = true;
+            video.classList.add(GVF_VIDEO_READY_CLASS);
+            try { scheduleOverlayUpdate(); } catch (_) {}
+            try { CustomWebglOverlayManager.forceRender(); } catch (_) {}
+            try { CustomCanvas2DOverlayManager.forceRender(); } catch (_) {}
+        } catch (_) {}
+    }
+
+    function isGvfVideoFrameReady(video) {
+        try {
+            if (!video) return false;
+            if (!video.videoWidth || !video.videoHeight) return false;
+            if (video.readyState < 2) return false; // HAVE_CURRENT_DATA
+            return hasGvfDecodedFrame(video);
+        } catch (_) { return false; }
+    }
+
+    function requestGvfFrameMark(video) {
+        try {
+            if (!video || video.__gvfFrameRequestPending || hasGvfDecodedFrame(video)) return;
+            if (!video.videoWidth || !video.videoHeight || video.readyState < 2) return;
+            video.__gvfFrameRequestPending = true;
+            if (typeof video.requestVideoFrameCallback === 'function') {
+                video.requestVideoFrameCallback(() => {
+                    video.__gvfFrameRequestPending = false;
+                    markGvfDecodedFrame(video);
+                });
+            } else {
+                // Browser fallback: wait one paint after HAVE_CURRENT_DATA.
+                requestAnimationFrame(() => {
+                    video.__gvfFrameRequestPending = false;
+                    if (video.readyState >= 2 && video.videoWidth && video.videoHeight) markGvfDecodedFrame(video);
+                });
+            }
+        } catch (_) {
+            try { video.__gvfFrameRequestPending = false; } catch (__) {}
+        }
+    }
+
+    function refreshGvfVideoReadyClasses() {
+        try {
+            document.querySelectorAll('video').forEach(video => {
+                if (isGvfVideoFrameReady(video)) video.classList.add(GVF_VIDEO_READY_CLASS);
+                else {
+                    video.classList.remove(GVF_VIDEO_READY_CLASS);
+                    requestGvfFrameMark(video);
+                }
+            });
+        } catch (_) {}
+    }
+
+    function wireGvfVideoReadyGuard(video) {
+        try {
+            if (!video || video.__gvfReadyGuardWired) return;
+            video.__gvfReadyGuardWired = true;
+            const maybeReady = () => {
+                requestGvfFrameMark(video);
+                if (isGvfVideoFrameReady(video)) video.classList.add(GVF_VIDEO_READY_CLASS);
+                else video.classList.remove(GVF_VIDEO_READY_CLASS);
+                // Fallback for browsers/players where requestVideoFrameCallback is late or unavailable.
+                // This still waits until the element has real video dimensions/current frame data.
+                clearTimeout(video.__gvfReadyFallbackTimer);
+                video.__gvfReadyFallbackTimer = setTimeout(() => {
+                    try {
+                        if (!hasGvfDecodedFrame(video) && video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+                            markGvfDecodedFrame(video);
+                        }
+                    } catch (_) {}
+                }, 180);
+                try { scheduleOverlayUpdate(); } catch (_) {}
+            };
+            const reset = () => {
+                video.__gvfHasDecodedFrame = false;
+                video.__gvfFrameRequestPending = false;
+                video.classList.remove(GVF_VIDEO_READY_CLASS);
+                try { scheduleOverlayUpdate(); } catch (_) {}
+            };
+            ['loadeddata', 'canplay', 'canplaythrough', 'playing', 'timeupdate', 'pause', 'seeked'].forEach(ev => video.addEventListener(ev, maybeReady, { passive: true }));
+            ['loadstart', 'emptied', 'abort', 'error'].forEach(ev => video.addEventListener(ev, reset, { passive: true }));
+            maybeReady();
+        } catch (_) {}
+    }
+
+    function installGvfVideoReadyGuard() {
+        try {
+            document.querySelectorAll('video').forEach(wireGvfVideoReadyGuard);
+            const mo = new MutationObserver(() => {
+                document.querySelectorAll('video').forEach(wireGvfVideoReadyGuard);
+                refreshGvfVideoReadyClasses();
+            });
+            mo.observe(document.documentElement || document.body, { childList: true, subtree: true });
+            setInterval(refreshGvfVideoReadyClasses, 500);
+        } catch (_) {}
+    }
+
+    installGvfVideoReadyGuard();
 
     // -------------------------
     // LOG + DEBUG SWITCH
@@ -756,7 +870,7 @@
 
     function _replaceNumericDefinesWithUniforms(src) {
         return String(src || '').replace(/^\s*#define\s+([A-Za-z_]\w*)\s+(-?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)(?:f)?(?:\s*(?:\/\/.*)?)?$/mg, (line, name) => {
-            if (/^(PI|M_PI|E|TAU)$/i.test(name)) return line;
+            if (/^(PI|M_PI|E|TAU|axis)$/i.test(name)) return line;
             return `#define ${name} u_def_${name}`;
         });
     }
@@ -819,14 +933,27 @@
         s = s.replace(/\bHOOKED_size\b/g, 'u_res');
         s = s.replace(/\bMAIN_size\b/g, 'u_res');
 
-        // Saved pass aliases (LINELUMA_tex, LUMAD_tex, LUMAMM_tex, etc.) are mapped to
-        // the current GVF texture. This keeps Anime4K/mpv shaders loadable as-is in a single-pass engine.
-        s = s.replace(/\b([A-Z][A-Z0-9_]*)_texOff\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g, 'gvfPassTexOff($2)');
-        s = s.replace(/\b([A-Z][A-Z0-9_]*)_tex\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g, 'gvfPassTex($2)');
+        // Saved pass aliases (LINELUMA_tex, LOWRES_tex, varL_tex, etc.) are mapped to
+        // the current GVF texture. This keeps mpv shaders loadable as-is in a single-pass engine.
+        s = s.replace(/\b([A-Za-z_][A-Za-z0-9_]*)_texOff\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g, 'gvfPassTexOff($2)');
+        s = s.replace(/\b([A-Za-z_][A-Za-z0-9_]*)_tex\s*\(([^()]*(?:\([^()]*\)[^()]*)*)\)/g, 'gvfPassTex($2)');
 
         // A second simpler pass catches non-nested leftovers.
-        s = s.replace(/\b([A-Z][A-Z0-9_]*)_texOff\s*\(([^)]*)\)/g, 'gvfPassTexOff($2)');
-        s = s.replace(/\b([A-Z][A-Z0-9_]*)_tex\s*\(([^)]*)\)/g, 'gvfPassTex($2)');
+        s = s.replace(/\b([A-Za-z_][A-Za-z0-9_]*)_texOff\s*\(([^)]*)\)/g, 'gvfPassTexOff($2)');
+        s = s.replace(/\b([A-Za-z_][A-Za-z0-9_]*)_tex\s*\(([^)]*)\)/g, 'gvfPassTex($2)');
+
+        // mpv/libplacebo global helper aliases used by SSSR/FSRCNN/other multi-pass shaders.
+        // input_size[0] in mpv/libplacebo is vec4(width,height,1/width,1/height).
+        // Replace indexed forms before the generic token replacement so .xy/.zw access keeps working.
+        s = s.replace(/\binput_size\s*\[\s*0\s*\]/g, 'vec4(u_res, 1.0 / u_res)');
+        s = s.replace(/\binput_size\s*\[\s*1\s*\]/g, 'vec4(u_res, 1.0 / u_res)');
+        s = s.replace(/\binput_size\b/g, 'vec4(u_res, 1.0 / u_res)');
+        s = s.replace(/\btex_offset\b/g, 'vec2(0.0)');
+        s = s.replace(/\b([A-Za-z_]\w*)_pos\b/g, 'v_uv');
+        s = s.replace(/\b([A-Za-z_]\w*)_pt\b/g, '(u_gvf_offset_scale / u_res)');
+        s = s.replace(/\b([A-Za-z_]\w*)_size\b/g, 'u_res');
+        s = s.replace(/\b([A-Za-z_]\w*)_raw\b/g, 'u_video');
+        s = s.replace(/\b([A-Za-z_]\w*)_mul\b/g, 'vec3(1.0)');
 
         // Remove accidental duplicate helper function bodies from concatenated hook files.
         s = _stripDuplicateNamedFunctions(s);
@@ -840,6 +967,44 @@
         return s;
     }
 
+
+
+    function _buildSSimSuperResCompatBody(src) {
+        // SSimSuperRes/SSSR is a multi-pass mpv/libplacebo shader using SAVE buffers
+        // (LOWRES, varL, varH), input_size/tex_offset, *_raw and *_mul. GVF Custom GLSL
+        // is a single-pass video overlay, so full mpv framebuffer semantics are impossible here.
+        // This compatibility path keeps the original .glsl pasteable and builds a visible
+        // SSIM-like single-pass upscale/refine approximation instead of failing compilation.
+        const raw = String(src || '');
+        if (!/SSimSuperRes|SSSR\s+(?:Downscaling|final pass|varL|varH)/i.test(raw)) return null;
+        return `
+float gvfSSSRLuma(vec3 c) { return dot(c * c, vec3(0.2126, 0.7152, 0.0722)); }
+vec4 gvfSSSRSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+
+void main() {
+    vec2 px = u_gvf_offset_scale / u_res;
+    vec4 c0 = gvfSSSRSample(v_uv);
+
+    vec3 cL = gvfSSSRSample(v_uv - vec2(px.x, 0.0)).rgb;
+    vec3 cR = gvfSSSRSample(v_uv + vec2(px.x, 0.0)).rgb;
+    vec3 cU = gvfSSSRSample(v_uv - vec2(0.0, px.y)).rgb;
+    vec3 cD = gvfSSSRSample(v_uv + vec2(0.0, px.y)).rgb;
+
+    vec3 blur = (cL + cR + cU + cD + c0.rgb * 4.0) * 0.125;
+    float edge = clamp(
+        abs(gvfSSSRLuma(cR) - gvfSSSRLuma(cL)) +
+        abs(gvfSSSRLuma(cD) - gvfSSSRLuma(cU)),
+        0.0, 1.0
+    );
+
+    vec3 detail = c0.rgb - blur;
+    float strength = clamp(u_gvf_mix, 0.0, 1.0);
+    vec3 refined = c0.rgb + detail * (0.65 + 1.85 * strength) * smoothstep(0.01, 0.25, edge);
+
+    fragColor = vec4(clamp(mix(c0.rgb, refined, strength), 0.0, 1.0), c0.a);
+}
+`;
+    }
 
     function _buildAnime4KOriginalX2CompatBody(src) {
         // Anime4K Original x2 is a multi-pass mpv/libplacebo shader. GVF Custom GLSL is a
@@ -955,8 +1120,8 @@ void main(){
     }
 
     function _buildFragSrc(userSrc) {
-        const _customUniformDecls = parseUniformDefs(userSrc).map(d => `uniform float ${d.name};`).join('\n');
-        const body = _buildAnime4KOriginalX2CompatBody(userSrc) || _normalizeUserFrag(userSrc);
+        const _customUniformDecls = parseUniformDefs(userSrc).filter(d => !/^u_gvf_/.test(d.name)).map(d => `uniform float ${d.name};`).join('\n');
+        const body = _buildAnime4KOriginalX2CompatBody(userSrc) || _buildSSimSuperResCompatBody(userSrc) || _normalizeUserFrag(userSrc);
 
         let mainBlock;
         if (body.includes('void main')) {
@@ -999,11 +1164,21 @@ uniform float u_avg_r;
 uniform float u_avg_g;
 uniform float u_avg_b;
 uniform float u_contrast;
+uniform float u_gvf_mix;
+uniform float u_gvf_offset_scale;
 ${_customUniformDecls}
 in vec2 v_uv;
 out vec4 fragColor;
 vec4 gvfPassTex(vec2 uv) { return texture(u_video, uv); }
-vec4 gvfPassTexOff(vec2 offsetPx) { return texture(u_video, v_uv + (offsetPx / u_res)); }
+vec4 gvfPassTex(float ignored) { return texture(u_video, v_uv); }
+vec4 gvfPassTex(int ignored) { return texture(u_video, v_uv); }
+vec4 gvfPassTexOff(vec2 offsetPx) { return texture(u_video, v_uv + ((offsetPx * u_gvf_offset_scale) / u_res)); }
+vec4 gvfPassTexOff(float offsetPx) { return texture(u_video, v_uv + ((vec2(offsetPx) * u_gvf_offset_scale) / u_res)); }
+vec4 gvfPassTexOff(ivec2 offsetPx) { return texture(u_video, v_uv + ((vec2(offsetPx) * u_gvf_offset_scale) / u_res)); }
+vec4 gvfPassTexOff(int offsetPx) { return texture(u_video, v_uv + ((vec2(float(offsetPx)) * u_gvf_offset_scale) / u_res)); }
+vec4 gvfPassTexOff(vec2 baseUv, vec2 offsetPx) { return texture(u_video, baseUv + ((offsetPx * u_gvf_offset_scale) / u_res)); }
+vec4 gvfPassTexOff(vec2 baseUv, float offsetPx) { return texture(u_video, baseUv + ((vec2(offsetPx) * u_gvf_offset_scale) / u_res)); }
+vec4 gvfPassTexOff(vec2 baseUv, int offsetPx) { return texture(u_video, baseUv + ((vec2(float(offsetPx)) * u_gvf_offset_scale) / u_res)); }
 ${mainBlock}`;
     }
 
@@ -1078,7 +1253,7 @@ void main(){
             if (_canvas && _gl) return true;
             _canvas = document.createElement('canvas');
             _canvas.setAttribute('data-gvf-custom-webgl-chain', '1');
-            _canvas.style.cssText = `position:absolute;pointer-events:none;z-index:0;display:block;top:0;left:0;`;
+            _canvas.style.cssText = `position:absolute;pointer-events:none;z-index:0;display:none;visibility:hidden;opacity:0;top:0;left:0;`;
             try {
                 // preserveDrawingBuffer:true is required so the last rendered frame stays visible when video is paused.
                 // powerPreference:'high-performance' ensures dGPU is used on hybrid systems.
@@ -1174,12 +1349,14 @@ void main(){
                     uAvgG:     gl.getUniformLocation(program, 'u_avg_g'),
                     uAvgB:     gl.getUniformLocation(program, 'u_avg_b'),
                     uContrast: gl.getUniformLocation(program, 'u_contrast'),
+                    uGvfMix: gl.getUniformLocation(program, 'u_gvf_mix'),
+                    uGvfOffsetScale: gl.getUniformLocation(program, 'u_gvf_offset_scale'),
                 };
                 const uniformDefs = parseUniformDefs(entry.code);
                 if (!entry.uniforms) entry.uniforms = {};
                 uniformDefs.forEach(d => { if (entry.uniforms[d.name] === undefined) entry.uniforms[d.name] = d.def; });
                 const customLocs = {};
-                uniformDefs.forEach(d => { customLocs[d.name] = gl.getUniformLocation(program, d.name); });
+                uniformDefs.forEach(d => { if (!/^u_gvf_/.test(d.name)) customLocs[d.name] = gl.getUniformLocation(program, d.name); });
                 gl.useProgram(program);
                 gl.uniform1i(unifLocs.uVideo, 0);
                 gl.uniform1i(unifLocs.uVideoRaw, 1);
@@ -1194,7 +1371,7 @@ void main(){
 
         function _setCommonUniforms(gl, unifLocs, uniformDefs, customLocs, entry, w, h, videoRect) {
             const _fs = window.__gvfFrameStats || {};
-            const { uRes, uTime, uMouse, uStrength, uLayers, uZoom, uAvgLum, uAvgR, uAvgG, uAvgB, uContrast } = unifLocs;
+            const { uRes, uTime, uMouse, uStrength, uLayers, uZoom, uAvgLum, uAvgR, uAvgG, uAvgB, uContrast, uGvfMix, uGvfOffsetScale } = unifLocs;
             if (uRes)      gl.uniform2f(uRes, w, h);
             if (uTime)     gl.uniform1f(uTime, performance.now() * 0.001);
             if (uMouse) {
@@ -1214,6 +1391,8 @@ void main(){
             if (uAvgG)     gl.uniform1f(uAvgG,     _fs.avg_g    ?? 0.5);
             if (uAvgB)     gl.uniform1f(uAvgB,     _fs.avg_b    ?? 0.5);
             if (uContrast) gl.uniform1f(uContrast, _fs.contrast ?? 0.5);
+            if (uGvfMix) gl.uniform1f(uGvfMix, Number(entry.uniforms && entry.uniforms.u_gvf_mix !== undefined ? entry.uniforms.u_gvf_mix : 1.0));
+            if (uGvfOffsetScale) gl.uniform1f(uGvfOffsetScale, Number(entry.uniforms && entry.uniforms.u_gvf_offset_scale !== undefined ? entry.uniforms.u_gvf_offset_scale : 1.0));
             uniformDefs.forEach(d => { if (customLocs[d.name] != null) gl.uniform1f(customLocs[d.name], entry.uniforms[d.name] ?? d.def); });
         }
 
@@ -1272,23 +1451,45 @@ void main(){
             if (bc.parentNode !== parent) parent.insertBefore(bc, video.nextSibling);
         }
 
+        function _hideWebglCanvases(clear = false) {
+            if (_canvas) {
+                _canvas.style.display = 'none';
+                _canvas.style.visibility = 'hidden';
+                _canvas.style.opacity = '0';
+                if (clear && _gl) {
+                    try {
+                        _gl.bindFramebuffer(_gl.FRAMEBUFFER, null);
+                        _gl.viewport(0, 0, _canvas.width || 1, _canvas.height || 1);
+                        _gl.clearColor(0, 0, 0, 0);
+                        _gl.clear(_gl.COLOR_BUFFER_BIT);
+                    } catch (_) {}
+                }
+            }
+            for (const bc of _blendCanvases.values()) {
+                bc.style.display = 'none'; bc.style.visibility = 'hidden'; bc.style.opacity = '0';
+                bc.style.visibility = 'hidden';
+                bc.style.opacity = '0';
+                if (clear && bc.__ctx2d) {
+                    try { bc.__ctx2d.clearRect(0, 0, bc.width || 1, bc.height || 1); } catch (_) {}
+                }
+            }
+        }
+
+        function _showCanvasReady(el) {
+            if (!el) return;
+            el.style.display = 'block';
+            el.style.visibility = 'visible';
+            el.style.opacity = '1';
+        }
+
         function _doRender(video) {
             if (!_gl || !_canvas) return;
             const gl = _gl;
             const activeEntries = customSvgCodes.filter(e => e && e.enabled && e.type === 'webgl');
             if (!activeEntries.length || !video) {
-                _canvas.style.display = 'none';
-                for (const bc of _blendCanvases.values()) bc.style.display = 'none';
+                _hideWebglCanvases(true);
                 return;
             }
-            // If paused and readyState dropped (e.g. Twitch live stream), keep canvas visible
-            if (video.readyState < 2) {
-                if (_hasFrame) return; // freeze last frame
-                _canvas.style.display = 'none';
-                for (const bc of _blendCanvases.values()) bc.style.display = 'none';
-                return;
-            }
-
             _reparentCanvas(video);
             const prEl = _canvas.parentElement || document.body;
             // Re-query parent BCR only when parent changed or cache is stale (each frame resets via _lastFrameTime check above)
@@ -1299,8 +1500,7 @@ void main(){
             const pr = _cachedPr;
             const r = video.getBoundingClientRect();
             if (!r || r.width < 1 || r.height < 1) {
-                _canvas.style.display = 'none';
-                for (const bc of _blendCanvases.values()) bc.style.display = 'none';
+                _hideWebglCanvases(true);
                 return;
             }
 
@@ -1344,8 +1544,8 @@ void main(){
                         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fb);
                         gl.bindTexture(gl.TEXTURE_2D, null);
                         sourceTex = _pingTex;
-                    } catch(_) { _canvas.style.display = 'none'; return; }
-                } else { _canvas.style.display = 'none'; return; }
+                    } catch(_) { _hideWebglCanvases(true); return; }
+                } else { _hideWebglCanvases(true); return; }
             }
 
             // Upload raw video to TEXTURE1 (skip when paused — frame hasn't changed)
@@ -1398,7 +1598,7 @@ void main(){
                     const bc = _ensureBlendCanvas(entry, video);
                     if (bc) {
                         if (bc.width !== w || bc.height !== h) { bc.width = w; bc.height = h; }
-                        if (bc.style.display !== 'block') { bc.style.display = 'block'; bc.style.position = 'absolute'; }
+                        if (bc.style.display !== 'block' || bc.style.visibility !== 'visible') { _showCanvasReady(bc); bc.style.position = 'absolute'; }
                         const sc = bc.__styleCache;
                         const bl = (r.left - pr.left) + 'px', bt = (r.top - pr.top) + 'px';
                         const bw = r.width + 'px', bh = r.height + 'px';
@@ -1444,13 +1644,13 @@ void main(){
 
             // Show/hide main GL canvas
             if (allNonNormal) {
-                if (_canvas.style.display !== 'none') _canvas.style.display = 'none';
+                if (_canvas.style.display !== 'none' || _canvas.style.visibility !== 'hidden') { _canvas.style.display = 'none'; _canvas.style.visibility = 'hidden'; _canvas.style.opacity = '0'; }
             } else {
                 const nl = (r.left - pr.left) + 'px';
                 const nt = (r.top  - pr.top)  + 'px';
                 const nw = r.width  + 'px';
                 const nh = r.height + 'px';
-                if (_canvas.style.display !== 'block') { _canvas.style.display = 'block'; _canvas.style.position = 'absolute'; _canvas.style.mixBlendMode = 'normal'; }
+                if (_canvas.style.display !== 'block' || _canvas.style.visibility !== 'visible') { _showCanvasReady(_canvas); _canvas.style.position = 'absolute'; _canvas.style.mixBlendMode = 'normal'; }
                 if (_cachedL !== nl) { _canvas.style.left   = nl; _cachedL = nl; }
                 if (_cachedT !== nt) { _canvas.style.top    = nt; _cachedT = nt; }
                 if (_cachedW !== nw) { _canvas.style.width  = nw; _cachedW = nw; }
@@ -1460,7 +1660,7 @@ void main(){
             // Hide blend canvases for entries no longer active
             for (const [id, bc] of _blendCanvases) {
                 if (!activeEntries.find(e => e.id === id)) {
-                    bc.style.display = 'none';
+                    bc.style.display = 'none'; bc.style.visibility = 'hidden'; bc.style.opacity = '0';
                 }
             }
 
@@ -1495,12 +1695,16 @@ void main(){
             if (video === null && _hasFrame && _video && _video.paused) {
                 return;
             }
+            if (video && video !== _video) {
+                _hasFrame = false;
+                _hideWebglCanvases(true);
+            }
             _video = video;
             const activeEntries = customSvgCodes.filter(e => e && e.enabled && e.type === 'webgl');
 
             if (!activeEntries.length) {
-                if (_canvas) _canvas.style.display = 'none';
-                for (const bc of _blendCanvases.values()) bc.style.display = 'none';
+                _hideWebglCanvases(true);
+                _hasFrame = false;
                 for (const [id] of _compiled.entries()) {
                     if (!customSvgCodes.find(e => e.id === id)) {
                         const rec = _compiled.get(id);
@@ -1556,8 +1760,7 @@ void main(){
             _video = null;
             _hasFrame = false;
             if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
-            if (_canvas) _canvas.style.display = 'none';
-            for (const bc of _blendCanvases.values()) bc.style.display = 'none';
+            _hideWebglCanvases(true);
         }
 
         function reparentAll() {
@@ -1597,7 +1800,7 @@ void main(){
             CustomWebglOverlayManager.stopAndHide();
             return;
         }
-        const video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
+        let video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
         GvfFrameAnalyzer.setVideo(video);
         CustomWebglOverlayManager.update(video);
     }
@@ -2050,7 +2253,7 @@ void main(){
     })();
 
     function updateCustomAudioOverlays() {
-        const video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
+        let video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
         CustomAudioOverlayManager.update(video);
     }
 
@@ -2388,7 +2591,7 @@ void main(){
 
     function updateCustomCanvas2DOverlays() {
         if (isFirefox()) return;
-        const video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
+        let video = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
         CustomCanvas2DOverlayManager.update(video);
     }
 
