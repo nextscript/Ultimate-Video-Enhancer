@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.13.3
+// @version      1.13.4
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -774,6 +774,12 @@
                 min = 0.0;
                 max = Math.max(2.0, Math.abs(val) * 2.0);
             }
+            // Preprocessor pattern selectors like LumaSharpenHook's `#define pattern 2`
+            // are handled by GVF compatibility code as runtime slider uniforms.
+            if (/^pattern$/i.test(rawName)) {
+                min = 1.0;
+                max = 9.0;
+            }
             addSlider(uName, val, min, max, rawName.replace(/_/g, ' '), dm.index);
         }
 
@@ -781,6 +787,31 @@
         if (/^\s*\/\/!\s*(?:HOOK|BIND|SAVE|DESC)\b/m.test(src) || /\bHOOKED_(?:tex|texOff|pos|pt|size)\b/.test(src)) {
             addSlider('u_gvf_mix', 1.0, 0.0, 1.0, 'Effect Mix', -20);
             addSlider('u_gvf_offset_scale', 1.0, 0.25, 2.0, 'Offset Scale', -10);
+        }
+
+        // KrigBilateral is a multi-pass mpv chroma upscaler. In GVF it runs through
+        // a single-pass compatibility implementation, so expose meaningful controls.
+        if (/KrigBilateral|LOWRES_Y|CHROMA_tex|LUMA_tex/i.test(src)) {
+            addSlider('u_krig_strength', 1.0, 0.0, 2.0, 'Krig Strength', -35);
+            addSlider('u_krig_radius', 1.0, 0.5, 3.0, 'Krig Radius', -34);
+            addSlider('u_krig_chroma', 1.0, 0.0, 2.0, 'Chroma Restore', -33);
+            addSlider('u_krig_luma', 0.35, 0.0, 1.5, 'Luma Protect', -32);
+        }
+
+
+        // Built-in compatibility sliders for common imported mpv shaders.
+        // These original files are multi-pass; GVF runs them as safe single-pass approximations.
+        if (/Adaptive sharpen|adaptive-sharpen|curve_height|overshoot_ctrl/i.test(src)) {
+            addSlider('u_as_strength', 1.0, 0.0, 3.0, 'Adaptive Sharpen Strength', -80);
+            addSlider('u_as_radius', 1.0, 0.25, 2.5, 'Adaptive Sharpen Radius', -79);
+            addSlider('u_as_edge_threshold', 0.035, 0.0, 0.25, 'Adaptive Edge Threshold', -78);
+            addSlider('u_as_clamp', 0.45, 0.05, 1.0, 'Adaptive Clamp', -77);
+        }
+        if (/Anime4K-v3\.2-Upscale-CNN-x2-\(M\)|conv2d_last_tf|Depth-to-Space/i.test(src)) {
+            addSlider('u_a4k_strength', 1.0, 0.0, 2.0, 'Anime4K Strength', -70);
+            addSlider('u_a4k_edge', 0.65, 0.0, 2.0, 'Anime4K Edge Boost', -69);
+            addSlider('u_a4k_detail', 0.85, 0.0, 2.0, 'Anime4K Detail', -68);
+            addSlider('u_a4k_offset', 1.0, 0.25, 2.5, 'Anime4K Radius', -67);
         }
 
         // @select dropdowns — format: // @select float name default "Label" 0:Opt A,1:Opt B
@@ -870,7 +901,7 @@
 
     function _replaceNumericDefinesWithUniforms(src) {
         return String(src || '').replace(/^\s*#define\s+([A-Za-z_]\w*)\s+(-?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)(?:f)?(?:\s*(?:\/\/.*)?)?$/mg, (line, name) => {
-            if (/^(PI|M_PI|E|TAU|axis)$/i.test(name)) return line;
+            if (/^(PI|M_PI|E|TAU|axis|pattern)$/i.test(name)) return line;
             return `#define ${name} u_def_${name}`;
         });
     }
@@ -953,7 +984,7 @@
         s = s.replace(/\b([A-Za-z_]\w*)_pt\b/g, '(u_gvf_offset_scale / u_res)');
         s = s.replace(/\b([A-Za-z_]\w*)_size\b/g, 'u_res');
         s = s.replace(/\b([A-Za-z_]\w*)_raw\b/g, 'u_video');
-        s = s.replace(/\b([A-Za-z_]\w*)_mul\b/g, 'vec3(1.0)');
+        s = s.replace(/\b([A-Za-z_]\w*)_mul\b/g, 'vec4(1.0)');
 
         // Remove accidental duplicate helper function bodies from concatenated hook files.
         s = _stripDuplicateNamedFunctions(s);
@@ -968,6 +999,235 @@
     }
 
 
+
+    function _buildAdaptiveSharpenCompatBody(src) {
+        // mpv adaptive-sharpen uses HOOKED_texOff(), boolean #defines and mpv hook metadata.
+        // This single-pass GVF body preserves the visible intent and exposes safe sliders.
+        const raw = String(src || '');
+        if (!/Adaptive sharpen|adaptive-sharpen|curve_height|overshoot_ctrl/i.test(raw)) return null;
+        return `
+float gvfASLuma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+vec4 gvfASSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+
+void main() {
+    vec2 px = (u_as_radius * u_gvf_offset_scale) / u_res;
+    vec4 src = gvfASSample(v_uv);
+
+    vec3 n  = gvfASSample(v_uv + vec2( 0.0, -px.y)).rgb;
+    vec3 s  = gvfASSample(v_uv + vec2( 0.0,  px.y)).rgb;
+    vec3 e  = gvfASSample(v_uv + vec2( px.x,  0.0)).rgb;
+    vec3 w  = gvfASSample(v_uv + vec2(-px.x,  0.0)).rgb;
+    vec3 ne = gvfASSample(v_uv + vec2( px.x, -px.y)).rgb;
+    vec3 nw = gvfASSample(v_uv + vec2(-px.x, -px.y)).rgb;
+    vec3 se = gvfASSample(v_uv + vec2( px.x,  px.y)).rgb;
+    vec3 sw = gvfASSample(v_uv + vec2(-px.x,  px.y)).rgb;
+
+    vec3 crossBlur = (n + s + e + w + src.rgb * 4.0) * 0.125;
+    vec3 boxBlur = (n + s + e + w + ne + nw + se + sw + src.rgb * 4.0) / 12.0;
+    vec3 blur = mix(crossBlur, boxBlur, 0.35);
+
+    float gx = gvfASLuma(e) - gvfASLuma(w);
+    float gy = gvfASLuma(s) - gvfASLuma(n);
+    float edge = smoothstep(u_as_edge_threshold, u_as_edge_threshold + 0.18, length(vec2(gx, gy)));
+
+    vec3 detail = src.rgb - blur;
+    vec3 limited = clamp(detail * (0.65 + 1.35 * u_as_strength), -u_as_clamp, u_as_clamp);
+    vec3 fx = clamp(src.rgb + limited * edge, 0.0, 1.0);
+
+    fragColor = vec4(mix(src.rgb, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
+}
+`;
+    }
+
+    function _buildAnime4KCNNx2MCompatBody(src) {
+        // Anime4K CNN x2 M is a true multi-pass CNN with SAVE buffers and depth-to-space.
+        // GVF Custom GLSL is single-pass, so this makes the original pasteable and controllable
+        // instead of compiling all conv2d_* passes that cannot exist in one fragment program.
+        const raw = String(src || '');
+        if (!/Anime4K-v3\.2-Upscale-CNN-x2-\(M\)|conv2d_last_tf|Depth-to-Space/i.test(raw)) return null;
+        return `
+float gvfA4KLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+vec4 gvfA4KSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+
+void main() {
+    vec2 px = (u_a4k_offset * u_gvf_offset_scale) / u_res;
+    vec4 src = gvfA4KSample(v_uv);
+
+    vec3 c  = src.rgb;
+    vec3 l  = gvfA4KSample(v_uv + vec2(-px.x,  0.0)).rgb;
+    vec3 r  = gvfA4KSample(v_uv + vec2( px.x,  0.0)).rgb;
+    vec3 t  = gvfA4KSample(v_uv + vec2( 0.0, -px.y)).rgb;
+    vec3 b  = gvfA4KSample(v_uv + vec2( 0.0,  px.y)).rgb;
+    vec3 tl = gvfA4KSample(v_uv + vec2(-px.x, -px.y)).rgb;
+    vec3 tr = gvfA4KSample(v_uv + vec2( px.x, -px.y)).rgb;
+    vec3 bl = gvfA4KSample(v_uv + vec2(-px.x,  px.y)).rgb;
+    vec3 br = gvfA4KSample(v_uv + vec2( px.x,  px.y)).rgb;
+
+    float gx = -gvfA4KLuma(tl) - 2.0 * gvfA4KLuma(l) - gvfA4KLuma(bl)
+               + gvfA4KLuma(tr) + 2.0 * gvfA4KLuma(r) + gvfA4KLuma(br);
+    float gy = -gvfA4KLuma(tl) - 2.0 * gvfA4KLuma(t) - gvfA4KLuma(tr)
+               + gvfA4KLuma(bl) + 2.0 * gvfA4KLuma(b) + gvfA4KLuma(br);
+    float edge = clamp(length(vec2(gx, gy)) * u_a4k_edge, 0.0, 1.0);
+
+    vec3 blur = (l + r + t + b + c * 4.0) * 0.125;
+    vec3 detail = c - blur;
+    vec3 fx = clamp(c + detail * u_a4k_detail * smoothstep(0.015, 0.30, edge), 0.0, 1.0);
+
+    vec3 outRgb = mix(c, fx, clamp(u_a4k_strength * (0.35 + edge), 0.0, 1.0));
+    fragColor = vec4(mix(c, outRgb, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
+}
+`;
+    }
+
+
+    function _buildLumaSharpenHookCompatBody(src) {
+        // LumaSharpenHook uses mpv hook syntax plus `#if pattern == N` blocks.
+        // GVF turns numeric #defines into uniforms for sliders, but GLSL preprocessor
+        // #if cannot evaluate uniforms. This path converts the shader into a single-pass
+        // runtime-branch version, so `pattern`, `sharp_strength`, `sharp_clamp` and
+        // `offset_bias` work as sliders without compile errors.
+        const raw = String(src || '');
+        if (!/LumaSharpenHook/i.test(raw) && !/sharp_strength_luma/i.test(raw) && !(/#define\s+pattern\b/i.test(raw) && /LUMA_texOff\s*\(/i.test(raw))) return null;
+        return `
+float gvfLumaSharpenLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+vec3 gvfLumaSharpenSample(vec2 offPx) {
+    return texture(u_video, clamp(v_uv + ((offPx * u_gvf_offset_scale) / u_res), vec2(0.0), vec2(1.0))).rgb;
+}
+
+void main() {
+    vec4 colorInput = texture(u_video, v_uv);
+    float ori = gvfLumaSharpenLuma(colorInput.rgb);
+
+    float sharp_strength_luma = u_def_sharp_strength;
+    float sharp_clamp_safe = max(u_def_sharp_clamp, 0.000001);
+    float offset_bias_safe = max(u_def_offset_bias, 0.0);
+    int p = int(floor(u_def_pattern + 0.5));
+
+    float px = 1.0;
+    float py = 1.0;
+    float blur_ori = ori;
+
+    if (p == 1) {
+        px = (px / 3.0) * offset_bias_safe;
+        py = (py / 3.0) * offset_bias_safe;
+        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
+        blur_ori *= 0.5;
+        sharp_strength_luma *= 1.5;
+    } else if (p == 3) {
+        px = px * offset_bias_safe;
+        py = py * offset_bias_safe;
+        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.4 * px, -1.2 * py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-1.2 * px, -0.4 * py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(1.2 * px, 0.4 * py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-0.4 * px, 1.2 * py)));
+        blur_ori *= 0.25;
+        sharp_strength_luma *= 0.51;
+    } else if (p == 4) {
+        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.5 * px, -py * offset_bias_safe)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(offset_bias_safe * -px, 0.5 * -py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(offset_bias_safe * px, 0.5 * py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.5 * -px, py * offset_bias_safe)));
+        blur_ori *= 0.25;
+        sharp_strength_luma *= 0.666;
+    } else if (p == 8) {
+        px = px * offset_bias_safe;
+        py = py * offset_bias_safe;
+        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, -py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
+        float blur_ori2 = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, py)));
+        blur_ori2 += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, -py)));
+        blur_ori2 += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, 0.0)));
+        blur_ori2 += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, 0.0)));
+        blur_ori2 *= 2.0;
+        blur_ori += blur_ori2 + (ori * 4.0);
+        blur_ori /= 16.0;
+        sharp_strength_luma *= 0.75;
+    } else if (p == 9) {
+        px = px * offset_bias_safe;
+        py = py * offset_bias_safe;
+        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, -py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
+        blur_ori += ori;
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, -py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, 0.0)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, 0.0)));
+        blur_ori /= 9.0;
+        sharp_strength_luma *= (8.0 / 9.0);
+    } else {
+        // Pattern 2 default: normal 9-tap gaussian with 4 texture fetches.
+        px = px * 0.5 * offset_bias_safe;
+        py = py * 0.5 * offset_bias_safe;
+        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, -py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
+        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, py)));
+        blur_ori *= 0.25;
+    }
+
+    float sharp = ori - blur_ori;
+    float sharp_strength_luma_clamp = sharp_strength_luma / (2.0 * sharp_clamp_safe);
+    float sharp_luma = clamp((sharp * sharp_strength_luma_clamp + 0.5), 0.0, 1.0);
+    sharp_luma = (sharp_clamp_safe * 2.0) * sharp_luma - sharp_clamp_safe;
+
+    vec3 sharpened = clamp(colorInput.rgb + vec3(sharp_luma), 0.0, 1.0);
+    fragColor = vec4(mix(colorInput.rgb, sharpened, clamp(u_gvf_mix, 0.0, 1.0)), colorInput.a);
+}
+`;
+    }
+
+    function _buildKrigBilateralCompatBody(src) {
+        // KrigBilateral is a real mpv/libplacebo multi-pass chroma upscaler using
+        // LUMA/CHROMA/LOWRES_Y saved buffers, axis-specific passes and vec4*vec3 math.
+        // GVF Custom GLSL is single-pass, so compile the original as a safe bilateral
+        // chroma/detail approximation with sliders instead of compiling the mpv passes.
+        const raw = String(src || '');
+        if (!/KrigBilateral|LOWRES_Y|CHROMA_tex|LUMA_tex|CHROMA\.w\s+LUMA\.w/i.test(raw)) return null;
+        return `
+float gvfKrigLuma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+vec4 gvfKrigSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+
+void main() {
+    vec2 px = (u_krig_radius * u_gvf_offset_scale) / u_res;
+    vec4 src = gvfKrigSample(v_uv);
+
+    vec3 c  = src.rgb;
+    vec3 l  = gvfKrigSample(v_uv + vec2(-px.x,  0.0)).rgb;
+    vec3 r  = gvfKrigSample(v_uv + vec2( px.x,  0.0)).rgb;
+    vec3 t  = gvfKrigSample(v_uv + vec2( 0.0, -px.y)).rgb;
+    vec3 b  = gvfKrigSample(v_uv + vec2( 0.0,  px.y)).rgb;
+    vec3 tl = gvfKrigSample(v_uv + vec2(-px.x, -px.y)).rgb;
+    vec3 tr = gvfKrigSample(v_uv + vec2( px.x, -px.y)).rgb;
+    vec3 bl = gvfKrigSample(v_uv + vec2(-px.x,  px.y)).rgb;
+    vec3 br = gvfKrigSample(v_uv + vec2( px.x,  px.y)).rgb;
+
+    float y = gvfKrigLuma(c);
+    float yl = gvfKrigLuma(l);
+    float yr = gvfKrigLuma(r);
+    float yt = gvfKrigLuma(t);
+    float yb = gvfKrigLuma(b);
+
+    float edge = clamp(abs(yr - yl) + abs(yb - yt), 0.0, 1.0);
+    float protect = 1.0 - clamp(edge * u_krig_luma, 0.0, 1.0);
+
+    vec3 blur = (l + r + t + b + tl + tr + bl + br + c * 4.0) / 12.0;
+    vec3 chromaOnly = c - vec3(y);
+    vec3 blurChroma = blur - vec3(gvfKrigLuma(blur));
+    vec3 restoredChroma = vec3(y) + mix(blurChroma, chromaOnly, clamp(u_krig_chroma, 0.0, 2.0));
+
+    vec3 detail = c - blur;
+    vec3 refined = restoredChroma + detail * (0.35 + 0.85 * u_krig_strength) * protect;
+    vec3 fx = clamp(refined, 0.0, 1.0);
+
+    fragColor = vec4(mix(src.rgb, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
+}
+`;
+}
 
     function _buildSSimSuperResCompatBody(src) {
         // SSimSuperRes/SSSR is a multi-pass mpv/libplacebo shader using SAVE buffers
@@ -1121,7 +1381,7 @@ void main(){
 
     function _buildFragSrc(userSrc) {
         const _customUniformDecls = parseUniformDefs(userSrc).filter(d => !/^u_gvf_/.test(d.name)).map(d => `uniform float ${d.name};`).join('\n');
-        const body = _buildAnime4KOriginalX2CompatBody(userSrc) || _buildSSimSuperResCompatBody(userSrc) || _normalizeUserFrag(userSrc);
+        const body = _buildLumaSharpenHookCompatBody(userSrc) || _buildAdaptiveSharpenCompatBody(userSrc) || _buildKrigBilateralCompatBody(userSrc) || _buildAnime4KCNNx2MCompatBody(userSrc) || _buildAnime4KOriginalX2CompatBody(userSrc) || _buildSSimSuperResCompatBody(userSrc) || _normalizeUserFrag(userSrc);
 
         let mainBlock;
         if (body.includes('void main')) {
