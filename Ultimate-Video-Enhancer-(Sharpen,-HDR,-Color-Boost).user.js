@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.13.6
+// @version      1.13.7
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -3512,7 +3512,7 @@ void main(){
 
         // Edit / Add form
         const editArea = document.createElement('div');
-        editArea.style.cssText = `display:flex;flex-direction:column;gap:8px;flex-shrink:0;`;
+        editArea.style.cssText = `display:flex;flex-direction:column;gap:8px;flex:1 1 auto;min-height:0;max-height:calc(85vh - 330px);overflow-y:auto;overflow-x:hidden;padding-right:4px;scrollbar-width:thin;`;
         modal.appendChild(editArea);
 
         function renderEditArea(idx) {
@@ -3649,7 +3649,7 @@ void main(){
 
             // Live uniform slider preview — shown below blend mode, updates on code change
             const uniformPreview = document.createElement('div');
-            uniformPreview.style.cssText = `display:flex;flex-direction:column;gap:4px;`;
+            uniformPreview.style.cssText = `display:flex;flex-direction:column;gap:4px;max-height:260px;overflow-y:auto;overflow-x:hidden;padding-right:4px;border:1px solid rgba(160,112,255,0.12);border-radius:8px;padding-top:4px;padding-bottom:4px;scrollbar-width:thin;`;
             editArea.appendChild(uniformPreview);
 
             // Temp uniforms store for edit-form sliders (uses existing entry.uniforms/params if editing)
@@ -3705,13 +3705,32 @@ void main(){
                 header.textContent = isCanvas2d ? 'Parameters' : 'Shader Parameters';
                 header.style.cssText = `font-size:10px;color:${isCanvas2d ? '#80e8a0' : '#a070ff'};font-weight:900;margin-top:2px;`;
                 uniformPreview.appendChild(header);
+                let currentSliderGroup = '';
+                const splitSliderGroupLabel = (label) => {
+                    const raw = String(label || '').trim();
+                    const parts = raw.split('/').map(p => p.trim()).filter(Boolean);
+                    if (parts.length >= 2) return { group: parts[0], label: parts.slice(1).join(' / ') };
+                    return { group: '', label: raw };
+                };
+                const addSliderGroupHeader = (groupName) => {
+                    if (!groupName || groupName === currentSliderGroup) return;
+                    currentSliderGroup = groupName;
+                    const gh = document.createElement('div');
+                    gh.textContent = groupName;
+                    gh.style.cssText = `margin-top:8px;margin-bottom:2px;padding:3px 6px;border-radius:6px;background:rgba(160,112,255,0.12);border:1px solid rgba(160,112,255,0.22);font-size:10px;color:${isCanvas2d ? '#80e8a0' : '#b78cff'};font-weight:900;text-transform:uppercase;letter-spacing:.04em;`;
+                    uniformPreview.appendChild(gh);
+                };
+
                 udefs.forEach(d => {
                     if (editUniforms[d.name] === undefined) editUniforms[d.name] = d.def;
+                    const glabel = splitSliderGroupLabel(d.label);
+                    addSliderGroupHeader(glabel.group);
                     const row2 = document.createElement('div');
-                    row2.style.cssText = `display:flex;align-items:center;gap:8px;`;
+                    row2.style.cssText = `display:flex;align-items:center;gap:8px;${glabel.group ? 'padding-left:8px;' : ''}`;
                     const lbl2 = document.createElement('span');
-                    lbl2.textContent = d.label;
-                    lbl2.style.cssText = `font-size:10px;color:${isCanvas2d ? '#80e8a0' : '#c0a0ff'};min-width:90px;flex-shrink:0;`;
+                    lbl2.textContent = glabel.label || d.name;
+                    lbl2.title = d.label || d.name;
+                    lbl2.style.cssText = `font-size:10px;color:${isCanvas2d ? '#80e8a0' : '#c0a0ff'};min-width:110px;flex-shrink:0;`;
                     row2.appendChild(lbl2);
 
                     const onChanged = (val, persist) => {
