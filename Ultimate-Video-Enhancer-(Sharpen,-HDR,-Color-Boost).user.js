@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.13.7
+// @version      1.13.8
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -3764,6 +3764,11 @@ void main(){
                         }
                     };
 
+                    const isBoolToggle = (d.kind !== 'select') &&
+                        Number(d.min) === 0 && Number(d.max) === 1 &&
+                        (Number(d.def) === 0 || Number(d.def) === 1) &&
+                        /(?:^|[_\s\-/])(enable|enabled|toggle|debug|use|active)(?:$|[_\s\-/])/i.test((d.name || '') + ' ' + (d.label || ''));
+
                     if (d.kind === 'select') {
                         // Dropdown control
                         const sel2 = document.createElement('select');
@@ -3782,6 +3787,27 @@ void main(){
                             onChanged(isNaN(parsed) ? raw : parsed, true);
                         });
                         row2.appendChild(sel2);
+                    } else if (isBoolToggle) {
+                        // Checkbox control for float-based boolean uniforms (0.0 / 1.0).
+                        const boolWrap = document.createElement('label');
+                        boolWrap.style.cssText = `display:flex;align-items:center;gap:7px;flex:1;color:#d0e8ff;font-size:11px;cursor:pointer;user-select:none;`;
+                        const cb = document.createElement('input');
+                        cb.type = 'checkbox';
+                        cb.checked = Number(editUniforms[d.name]) >= 0.5;
+                        cb.style.cssText = `width:15px;height:15px;accent-color:#a070ff;cursor:pointer;`;
+                        const stateText = document.createElement('span');
+                        stateText.textContent = cb.checked ? 'On' : 'Off';
+                        stateText.style.cssText = `font-size:10px;color:#fff;font-family:monospace;min-width:24px;`;
+                        stopEventsOn(cb);
+                        stopEventsOn(boolWrap);
+                        cb.addEventListener('change', () => {
+                            const v = cb.checked ? 1.0 : 0.0;
+                            stateText.textContent = cb.checked ? 'On' : 'Off';
+                            onChanged(v, true);
+                        });
+                        boolWrap.appendChild(cb);
+                        boolWrap.appendChild(stateText);
+                        row2.appendChild(boolWrap);
                     } else {
                         // Slider control
                         const val2 = document.createElement('span');
