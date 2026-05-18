@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.13.5
+// @version      1.13.6
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -826,6 +826,18 @@
             addSlider('u_cut_fast_luma', 0.0, 0.0, 1.0, 'Fast Luma', -85);
         }
 
+
+        // FidelityFX FSR v1.x compatibility controls.
+        // Original mpv shader uses compile-time #if flags and two passes (EASU + RCAS).
+        // GVF runs it as a safe single-pass EASU/RCAS approximation with runtime sliders.
+        if (/FidelityFX|FSR_EASU|FSR_RCAS|EASUTEX|FsrEasuTap|FSR_PQ|SHARPNESS/i.test(src)) {
+            addSlider('u_fsr_strength', 1.0, 0.0, 2.0, 'FSR Strength', -100);
+            addSlider('u_fsr_radius', 1.0, 0.25, 2.5, 'FSR Radius', -99);
+            addSlider('u_fsr_sharpness', 0.70, 0.0, 2.0, 'RCAS Sharpness', -98);
+            addSlider('u_fsr_edge', 0.35, 0.0, 1.5, 'EASU Edge', -97);
+            addSlider('u_fsr_denoise', 0.60, 0.0, 1.0, 'RCAS Denoise', -96);
+        }
+
         // @select dropdowns — format: // @select float name default "Label" 0:Opt A,1:Opt B
         const re2 = /\/\/\s*@select\s+float\s+(\w+)\s+([\d.eE+-]+)\s+"([^"]*)"\s+([\d.,:\w\s()-]+)/g;
         let m2;
@@ -913,7 +925,7 @@
 
     function _replaceNumericDefinesWithUniforms(src) {
         return String(src || '').replace(/^\s*#define\s+([A-Za-z_]\w*)\s+(-?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)(?:f)?(?:\s*(?:\/\/.*)?)?$/mg, (line, name) => {
-            if (/^(PI|M_PI|E|TAU|axis|pattern|USE_DYNAMIC_BLEND|EDGE_USE_FAST_LUMA|SOFT_EDGES_SHARPENING|BLEND_MIN_CONTRAST_EDGE|BLEND_MAX_CONTRAST_EDGE|BLEND_MIN_SHARPNESS|BLEND_MAX_SHARPNESS|STATIC_BLEND_SHARPNESS|EDGE_MIN_VALUE|HARD_EDGES_THRESHOLD|SOFT_EDGES_SHARPENING_AMOUNT|HARD_EDGES_SEARCH_MIN_CONTRAST|HARD_EDGES_SEARCH_MAX_DISTANCE)$/i.test(name)) return line;
+            if (/^(PI|M_PI|E|TAU|axis|pattern|USE_DYNAMIC_BLEND|EDGE_USE_FAST_LUMA|SOFT_EDGES_SHARPENING|BLEND_MIN_CONTRAST_EDGE|BLEND_MAX_CONTRAST_EDGE|BLEND_MIN_SHARPNESS|BLEND_MAX_SHARPNESS|STATIC_BLEND_SHARPNESS|EDGE_MIN_VALUE|HARD_EDGES_THRESHOLD|SOFT_EDGES_SHARPENING_AMOUNT|HARD_EDGES_SEARCH_MIN_CONTRAST|HARD_EDGES_SEARCH_MAX_DISTANCE|FSR_PQ|FSR_EASU_DERING|FSR_EASU_SIMPLE_ANALYSIS|FSR_EASU_QUIT_EARLY|FSR_EASU_DIR_THRESHOLD|FSR_RCAS_DENOISE|FSR_RCAS_LIMIT|SHARPNESS)$/i.test(name)) return line;
             return `#define ${name} u_def_${name}`;
         });
     }
@@ -1492,9 +1504,63 @@ void main() {
 `;
     }
 
+
+    function _buildFidelityFXFSRCompatBody(src) {
+        // FidelityFX FSR v1.x mpv shader is two-pass (EASU -> EASUTEX -> RCAS) and uses
+        // compile-time #if flags such as FSR_EASU_QUIT_EARLY / FSR_PQ. GVF Custom GLSL is
+        // single-pass, so this fallback keeps the shader importable and slider-controlled
+        // without trying to compile the original preprocessor-dependent pass chain.
+        const raw = String(src || '');
+        if (!/FidelityFX|FSR_EASU|FSR_RCAS|EASUTEX|FsrEasuTap|FSR_PQ/i.test(raw)) return null;
+        return `
+float gvfFSRLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+vec4 gvfFSRSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+
+void main() {
+    vec2 px = (u_fsr_radius * u_gvf_offset_scale) / u_res;
+    vec4 src = gvfFSRSample(v_uv);
+
+    vec3 c  = src.rgb;
+    vec3 l  = gvfFSRSample(v_uv + vec2(-px.x,  0.0)).rgb;
+    vec3 r  = gvfFSRSample(v_uv + vec2( px.x,  0.0)).rgb;
+    vec3 t  = gvfFSRSample(v_uv + vec2( 0.0, -px.y)).rgb;
+    vec3 b  = gvfFSRSample(v_uv + vec2( 0.0,  px.y)).rgb;
+    vec3 tl = gvfFSRSample(v_uv + vec2(-px.x, -px.y)).rgb;
+    vec3 tr = gvfFSRSample(v_uv + vec2( px.x, -px.y)).rgb;
+    vec3 bl = gvfFSRSample(v_uv + vec2(-px.x,  px.y)).rgb;
+    vec3 br = gvfFSRSample(v_uv + vec2( px.x,  px.y)).rgb;
+
+    float gx = -gvfFSRLuma(tl) - 2.0 * gvfFSRLuma(l) - gvfFSRLuma(bl)
+               + gvfFSRLuma(tr) + 2.0 * gvfFSRLuma(r) + gvfFSRLuma(br);
+    float gy = -gvfFSRLuma(tl) - 2.0 * gvfFSRLuma(t) - gvfFSRLuma(tr)
+               + gvfFSRLuma(bl) + 2.0 * gvfFSRLuma(b) + gvfFSRLuma(br);
+    float edge = clamp(length(vec2(gx, gy)) * u_fsr_edge, 0.0, 1.0);
+
+    // EASU-like edge-aware reconstruction.
+    vec3 crossBlur = (l + r + t + b + c * 4.0) * 0.125;
+    vec3 diagBlur = (tl + tr + bl + br + c * 4.0) * 0.125;
+    vec3 easuBase = mix(crossBlur, diagBlur, 0.35);
+    vec3 detail = c - easuBase;
+    vec3 easu = clamp(c + detail * (0.65 + 1.45 * u_fsr_strength) * smoothstep(0.02, 0.35, edge), 0.0, 1.0);
+
+    // RCAS-like sharpening with denoise limiter.
+    vec3 minRing = min(min(l, r), min(t, b));
+    vec3 maxRing = max(max(l, r), max(t, b));
+    vec3 ringAvg = (l + r + t + b) * 0.25;
+    vec3 noise = abs(c - ringAvg);
+    float noiseGate = 1.0 - clamp(gvfFSRLuma(noise) * 6.0 * u_fsr_denoise, 0.0, 1.0);
+    vec3 rcas = clamp(easu + (easu - ringAvg) * u_fsr_sharpness * noiseGate, minRing - 0.08, maxRing + 0.08);
+    rcas = clamp(rcas, 0.0, 1.0);
+
+    vec3 fx = mix(c, rcas, clamp(u_fsr_strength, 0.0, 1.0));
+    fragColor = vec4(mix(c, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
+}
+`;
+    }
+
     function _buildFragSrc(userSrc) {
         const _customUniformDecls = parseUniformDefs(userSrc).filter(d => !/^u_gvf_/.test(d.name)).map(d => `uniform float ${d.name};`).join('\n');
-        const body = _buildCheapUpscalingTriangulationCompatBody(userSrc) || _buildLumaSharpenHookCompatBody(userSrc) || _buildAdaptiveSharpenCompatBody(userSrc) || _buildKrigBilateralCompatBody(userSrc) || _buildAnime4KCNNx2MCompatBody(userSrc) || _buildAnime4KOriginalX2CompatBody(userSrc) || _buildSSimSuperResCompatBody(userSrc) || _normalizeUserFrag(userSrc);
+        const body = _buildFidelityFXFSRCompatBody(userSrc) || _buildCheapUpscalingTriangulationCompatBody(userSrc) || _buildLumaSharpenHookCompatBody(userSrc) || _buildAdaptiveSharpenCompatBody(userSrc) || _buildKrigBilateralCompatBody(userSrc) || _buildAnime4KCNNx2MCompatBody(userSrc) || _buildAnime4KOriginalX2CompatBody(userSrc) || _buildSSimSuperResCompatBody(userSrc) || _normalizeUserFrag(userSrc);
 
         let mainBlock;
         if (body.includes('void main')) {
