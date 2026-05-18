@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.13.4
+// @version      1.13.5
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -814,6 +814,18 @@
             addSlider('u_a4k_offset', 1.0, 0.25, 2.5, 'Anime4K Radius', -67);
         }
 
+
+        // Cheap Upscaling Triangulation compatibility controls.
+        // Original shader needs compile-time #defines and vertex varyings; GVF runs it as a safe single-pass approximation.
+        if (/Cheap Upscaling Triangulation|EDGE_USE_FAST_LUMA|USE_DYNAMIC_BLEND|BLEND_MIN_CONTRAST_EDGE|STATIC_BLEND_SHARPNESS|HARD_EDGES_THRESHOLD|SOFT_EDGES_SHARPENING|HARD_EDGES_SEARCH_MAX_DISTANCE|screenCoords|c05|c06|c09|c10/i.test(src)) {
+            addSlider('u_cut_strength', 1.0, 0.0, 2.5, 'CUT Strength', -90);
+            addSlider('u_cut_radius', 1.0, 0.25, 2.5, 'CUT Radius', -89);
+            addSlider('u_cut_edge_min', 0.02, 0.0, 0.25, 'Edge Min Value', -88);
+            addSlider('u_cut_sharpness', 0.50, 0.0, 1.0, 'Blend Sharpness', -87);
+            addSlider('u_cut_dynamic', 1.0, 0.0, 1.0, 'Dynamic Blend', -86);
+            addSlider('u_cut_fast_luma', 0.0, 0.0, 1.0, 'Fast Luma', -85);
+        }
+
         // @select dropdowns — format: // @select float name default "Label" 0:Opt A,1:Opt B
         const re2 = /\/\/\s*@select\s+float\s+(\w+)\s+([\d.eE+-]+)\s+"([^"]*)"\s+([\d.,:\w\s()-]+)/g;
         let m2;
@@ -901,7 +913,7 @@
 
     function _replaceNumericDefinesWithUniforms(src) {
         return String(src || '').replace(/^\s*#define\s+([A-Za-z_]\w*)\s+(-?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)(?:f)?(?:\s*(?:\/\/.*)?)?$/mg, (line, name) => {
-            if (/^(PI|M_PI|E|TAU|axis|pattern)$/i.test(name)) return line;
+            if (/^(PI|M_PI|E|TAU|axis|pattern|USE_DYNAMIC_BLEND|EDGE_USE_FAST_LUMA|SOFT_EDGES_SHARPENING|BLEND_MIN_CONTRAST_EDGE|BLEND_MAX_CONTRAST_EDGE|BLEND_MIN_SHARPNESS|BLEND_MAX_SHARPNESS|STATIC_BLEND_SHARPNESS|EDGE_MIN_VALUE|HARD_EDGES_THRESHOLD|SOFT_EDGES_SHARPENING_AMOUNT|HARD_EDGES_SEARCH_MIN_CONTRAST|HARD_EDGES_SEARCH_MAX_DISTANCE)$/i.test(name)) return line;
             return `#define ${name} u_def_${name}`;
         });
     }
@@ -1379,9 +1391,110 @@ void main(){
         return s;
     }
 
+
+    function _buildCheapUpscalingTriangulationCompatBody(src) {
+        // Cheap Upscaling Triangulation is written for an emulator-style pipeline:
+        // tex0 + vertex varyings (screenCoords/c05/c06/c09/c10) and compile-time #if defines.
+        // GVF has only a video texture + v_uv, so this single-pass fallback recreates the
+        // triangulation/diagonal blend idea with runtime sliders and no preprocessor macros.
+        const raw = String(src || '');
+        if (!/Cheap Upscaling Triangulation|EDGE_USE_FAST_LUMA|USE_DYNAMIC_BLEND|BLEND_MIN_CONTRAST_EDGE|STATIC_BLEND_SHARPNESS|HARD_EDGES_THRESHOLD|SOFT_EDGES_SHARPENING|HARD_EDGES_SEARCH_MAX_DISTANCE|screenCoords|c05|c06|c09|c10/i.test(raw)) return null;
+        return `
+float gvfCUTLuma(vec3 v) {
+    float fast = v.g;
+    float full = dot(v, vec3(0.299, 0.587, 0.114));
+    return mix(full, fast, step(0.5, u_cut_fast_luma));
+}
+float gvfCUTLinearStep(float edge0, float edge1, float t) {
+    return clamp((t - edge0) / max(edge1 - edge0, 0.00001), 0.0, 1.0);
+}
+vec3 gvfCUTSample(vec2 offPx) {
+    return texture(u_video, clamp(v_uv + ((offPx * u_cut_radius * u_gvf_offset_scale) / u_res), vec2(0.0), vec2(1.0))).rgb;
+}
+float gvfCUTSharpness(float l1, float l2) {
+    float lumaDiff = abs(l1 - l2);
+    float dynContrast = gvfCUTLinearStep(u_cut_edge_min, max(u_cut_edge_min + 0.001, u_cut_edge_min + 0.35), lumaDiff);
+    float dynamicSharp = mix(0.12, clamp(u_cut_sharpness, 0.0, 1.0), dynContrast);
+    float staticSharp = clamp(u_cut_sharpness, 0.0, 1.0) * 0.5;
+    return mix(staticSharp, dynamicSharp * 0.5, step(0.5, u_cut_dynamic));
+}
+vec3 gvfCUTBlend(vec3 a, vec3 b, float t) {
+    float sh = gvfCUTSharpness(gvfCUTLuma(a), gvfCUTLuma(b));
+    return mix(a, b, gvfCUTLinearStep(sh, 1.0 - sh, t));
+}
+bool gvfCUTHasDiagonal(float a, float b, float c, float d) {
+    return abs(a - d) * 2.0 + u_cut_edge_min < abs(b - c);
+}
+vec3 gvfCUTTriangle(vec2 pxCoords) {
+    vec3 ws = vec3(0.0);
+    ws.x = pxCoords.y - pxCoords.x;
+    ws.y = 1.0 - ws.x;
+    ws.z = (pxCoords.y - ws.x) / (ws.y + 0.02);
+    return clamp(ws, 0.0, 1.0);
+}
+vec3 gvfCUTQuad(vec2 pxCoords) {
+    return clamp(vec3(pxCoords.x, pxCoords.x, pxCoords.y), 0.0, 1.0);
+}
+
+void main() {
+    vec4 src = texture(u_video, v_uv);
+
+    vec3 t05 = gvfCUTSample(vec2(-0.5, -0.5));
+    vec3 t06 = gvfCUTSample(vec2( 0.5, -0.5));
+    vec3 t09 = gvfCUTSample(vec2(-0.5,  0.5));
+    vec3 t10 = gvfCUTSample(vec2( 0.5,  0.5));
+
+    float l05 = gvfCUTLuma(t05);
+    float l06 = gvfCUTLuma(t06);
+    float l09 = gvfCUTLuma(t09);
+    float l10 = gvfCUTLuma(t10);
+
+    bool d05_10 = gvfCUTHasDiagonal(l05, l06, l09, l10);
+    bool d06_09 = gvfCUTHasDiagonal(l06, l05, l10, l09);
+
+    vec2 pxCoords = fract(v_uv * u_res);
+    vec3 p0 = t05;
+    vec3 p1 = t06;
+    vec3 p2 = t09;
+    vec3 p3 = t10;
+
+    if (d06_09) {
+        p0 = t06;
+        p1 = t05;
+        p2 = t10;
+        p3 = t09;
+        pxCoords.x = 1.0 - pxCoords.x;
+    }
+
+    vec3 weights;
+    if (d05_10 || d06_09) {
+        if (pxCoords.y > pxCoords.x) {
+            p1 = p2;
+            weights = gvfCUTTriangle(pxCoords);
+        } else {
+            p2 = p1;
+            weights = gvfCUTTriangle(vec2(pxCoords.y, pxCoords.x));
+        }
+    } else {
+        weights = gvfCUTQuad(pxCoords);
+    }
+
+    vec3 tri = gvfCUTBlend(
+        gvfCUTBlend(p0, p1, weights.x),
+        gvfCUTBlend(p2, p3, weights.y),
+        weights.z
+    );
+
+    vec3 detail = tri - src.rgb;
+    vec3 fx = clamp(src.rgb + detail * u_cut_strength, 0.0, 1.0);
+    fragColor = vec4(mix(src.rgb, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
+}
+`;
+    }
+
     function _buildFragSrc(userSrc) {
         const _customUniformDecls = parseUniformDefs(userSrc).filter(d => !/^u_gvf_/.test(d.name)).map(d => `uniform float ${d.name};`).join('\n');
-        const body = _buildLumaSharpenHookCompatBody(userSrc) || _buildAdaptiveSharpenCompatBody(userSrc) || _buildKrigBilateralCompatBody(userSrc) || _buildAnime4KCNNx2MCompatBody(userSrc) || _buildAnime4KOriginalX2CompatBody(userSrc) || _buildSSimSuperResCompatBody(userSrc) || _normalizeUserFrag(userSrc);
+        const body = _buildCheapUpscalingTriangulationCompatBody(userSrc) || _buildLumaSharpenHookCompatBody(userSrc) || _buildAdaptiveSharpenCompatBody(userSrc) || _buildKrigBilateralCompatBody(userSrc) || _buildAnime4KCNNx2MCompatBody(userSrc) || _buildAnime4KOriginalX2CompatBody(userSrc) || _buildSSimSuperResCompatBody(userSrc) || _normalizeUserFrag(userSrc);
 
         let mainBlock;
         if (body.includes('void main')) {
