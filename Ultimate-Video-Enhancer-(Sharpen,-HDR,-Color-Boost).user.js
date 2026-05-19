@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.13.8
+// @version      1.13.9
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -250,6 +250,10 @@
         let bestArea = 0;
         for (const video of videos) {
             if (!video) continue;
+            if (gvfIsProbablyTransparentWebm(video)) {
+                gvfRemoveCustomWebglCanvasesForVideo(video);
+                continue;
+            }
             if (video.readyState < 1 || video.videoWidth === 0 || video.videoHeight === 0) continue;
             const cs = window.getComputedStyle(video);
             if (!cs || cs.display === 'none' || cs.visibility === 'hidden') continue;
@@ -376,6 +380,15 @@
     }
 
     installGvfVideoReadyGuard();
+
+    setInterval(() => {
+        try {
+            document.querySelectorAll('video').forEach(v => {
+                if (gvfIsProbablyTransparentWebm(v)) gvfRemoveCustomWebglCanvasesForVideo(v);
+            });
+        } catch (_) {}
+    }, 750);
+
 
     // -------------------------
     // LOG + DEBUG SWITCH
@@ -636,6 +649,48 @@
             }
             return results.length ? results : null;
         } catch (_) { return null; }
+    }
+
+
+    function gvfIsProbablyTransparentWebm(video) {
+        try {
+            if (!video || video.tagName !== 'VIDEO') return false;
+
+            const srcs = [];
+            if (video.currentSrc) srcs.push(video.currentSrc);
+            if (video.src) srcs.push(video.src);
+            video.querySelectorAll && video.querySelectorAll('source').forEach(s => {
+                if (s.src) srcs.push(s.src);
+                if (s.type) srcs.push(s.type);
+            });
+
+            const joined = srcs.join(' ').toLowerCase();
+
+            // Most transparent HTML5 videos are VP8/VP9 WebM with alpha.
+            if (joined.includes('.webm')) return true;
+            if (joined.includes('video/webm')) return true;
+            if (joined.includes('vp8') || joined.includes('vp9')) return true;
+
+            // Manual escape hatch for websites:
+            // <video data-gvf-alpha="1">
+            if (video.hasAttribute('data-gvf-alpha') || video.hasAttribute('data-alpha')) return true;
+
+            return false;
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function gvfRemoveCustomWebglCanvasesForVideo(video) {
+        try {
+            document.querySelectorAll('canvas[data-gvf-custom-webgl-chain="1"]').forEach(c => {
+                const vr = video ? video.getBoundingClientRect() : null;
+                const cr = c.getBoundingClientRect();
+                if (!vr) { c.remove(); return; }
+                const overlap = !(cr.right < vr.left || cr.left > vr.right || cr.bottom < vr.top || cr.top > vr.bottom);
+                if (overlap || gvfIsProbablyTransparentWebm(video)) c.remove();
+            });
+        } catch (_) {}
     }
 
     // -------------------------
