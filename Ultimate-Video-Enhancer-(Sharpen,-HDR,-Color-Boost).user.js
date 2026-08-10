@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.14.0
+// @version      1.14.1
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -23,8 +23,8 @@
 // @connect      cdn.jsdelivr.net
 // @connect      colormind.io
 // @iconURL      https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/refs/heads/main/logomes.png
-// @downloadURL https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.user.js
-// @updateURL https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.meta.js
+// @downloadURL  https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.user.js
+// @updateURL    https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.meta.js
 // ==/UserScript==
 
 (function () {
@@ -3160,7 +3160,6 @@ void main(){
 
         // ── Search & Filter bar ───────────────────────────────────────────────
         let _searchText = '';
-        let _activeTagFilter = '';
         let _activeTypeFilter = '';
 
         const searchBar = document.createElement('div');
@@ -3287,39 +3286,6 @@ void main(){
 
         modal.appendChild(typeToggleRow);
 
-        const tagCloud = document.createElement('div');
-        tagCloud.style.cssText = `display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;flex-shrink:0;min-height:0;`;
-        modal.appendChild(tagCloud);
-
-        function refreshTagCloud() {
-            while (tagCloud.firstChild) tagCloud.removeChild(tagCloud.firstChild);
-            const tagSet = new Set();
-            customSvgCodes.forEach(e => {
-                if (!Array.isArray(e.tags)) return;
-                e.tags.forEach(t => { if (t) tagSet.add(t); });
-            });
-            if (!tagSet.size) return;
-            const allBtn = document.createElement('button');
-            allBtn.textContent = '× All';
-            allBtn.style.cssText = `padding:2px 7px;border-radius:4px;border:1px solid rgba(255,255,255,0.18);background:${_activeTagFilter === '' ? 'rgba(74,158,255,0.3)' : 'rgba(255,255,255,0.06)'};color:${_activeTagFilter === '' ? '#a0d4ff' : '#777'};font-size:10px;font-weight:900;cursor:pointer;`;
-            stopEventsOn(allBtn);
-            allBtn.addEventListener('click', () => { _activeTagFilter = ''; refreshTagCloud(); renderList(); });
-            tagCloud.appendChild(allBtn);
-            tagSet.forEach(tag => {
-                const tb = document.createElement('button');
-                tb.textContent = tag;
-                const active = _activeTagFilter === tag;
-                tb.style.cssText = `padding:2px 7px;border-radius:4px;border:1px solid ${active ? 'rgba(255,200,80,0.5)' : 'rgba(255,255,255,0.12)'};background:${active ? 'rgba(255,200,80,0.2)' : 'rgba(255,255,255,0.05)'};color:${active ? '#ffc850' : '#aaa'};font-size:10px;font-weight:700;cursor:pointer;`;
-                stopEventsOn(tb);
-                tb.addEventListener('click', () => {
-                    _activeTagFilter = active ? '' : tag;
-                    refreshTagCloud();
-                    renderList();
-                });
-                tagCloud.appendChild(tb);
-            });
-        }
-
         // List area
         const listWrap = document.createElement('div');
         listWrap.style.cssText = `overflow-y:auto;max-height:220px;background:rgba(0,0,0,0.3);border-radius:8px;padding:6px;margin-bottom:12px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;`;
@@ -3331,15 +3297,9 @@ void main(){
             const scrollTop = listWrap.scrollTop;
             while (listWrap.firstChild) listWrap.removeChild(listWrap.firstChild);
 
-            refreshTagCloud();
-
             const filtered = [];
             customSvgCodes.forEach((entry, i) => {
                 if (_activeTypeFilter && entry.type !== _activeTypeFilter) return;
-                if (_activeTagFilter) {
-                    const entryTags = Array.isArray(entry.tags) ? entry.tags : [];
-                    if (!entryTags.includes(_activeTagFilter)) return;
-                }
                 if (_searchText) {
                     const haystack = [
                         entry.label || '',
@@ -3451,20 +3411,12 @@ void main(){
                     lbl.appendChild(hkBadge);
                 }
 
-                // Tag badges (up to 3, clickable)
+                // Tag badges (up to 3, display-only)
                 if (Array.isArray(entry.tags) && entry.tags.length) {
                     entry.tags.slice(0, 3).forEach(tag => {
                         const tb = document.createElement('span');
                         tb.textContent = tag;
-                        tb.style.cssText = `flex-shrink:0;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(255,200,80,0.1);color:#c8a040;border:1px solid rgba(255,200,80,0.25);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer;`;
-                        tb.title = 'Filter by tag: ' + tag;
-                        stopEventsOn(tb);
-                        tb.addEventListener('click', (ev) => {
-                            ev.stopPropagation();
-                            _activeTagFilter = _activeTagFilter === tag ? '' : tag;
-                            refreshTagCloud();
-                            renderList();
-                        });
+                        tb.style.cssText = `flex-shrink:0;font-size:9px;font-weight:700;padding:1px 5px;border-radius:4px;background:rgba(255,200,80,0.1);color:#c8a040;border:1px solid rgba(255,200,80,0.25);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;`;
                         lbl.appendChild(tb);
                     });
                 }
@@ -16108,7 +16060,7 @@ if ('lutProfile' in obj) {
             bugfixes: 'REC.stopRequested evaluated, AUTO.blink reset, null check in updateAutoMatrixInSvg',
             userProfiles: userProfiles.length,
             activeProfile: activeUserProfile?.name,
-            newFeatures: 'v1.10.4: Multi-GLSL via Ping-Pong FBO chain — multiple Custom Filter GLSL shaders can now be active simultaneously and stack correctly'
+            newFeatures: 'v1.14.1: Custom Filter Codes modal — tag-filter row below search removed (type filter & search unaffected)'
         });
 
         document.addEventListener('keydown', (e) => {
