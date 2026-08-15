@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.14.1
+// @version      1.14.2
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -717,6 +717,66 @@
         const delta = e.deltaY > 0 ? -_ZOOM_STEP : _ZOOM_STEP;
         _scrollZoom = Math.min(_ZOOM_MAX, Math.max(_ZOOM_MIN, _scrollZoom + delta));
     }, { passive: false });
+    // ── GvfRectCache ──────────────────────────────────────────────────────────
+    // Root cause of hover-nav lag: _doRender()/drawLoop() called getBoundingClientRect()
+    // on the video (and its parent) on EVERY rAF tick (24-60x/sec), unconditionally.
+    // getBoundingClientRect() forces a synchronous style/layout flush if anything on the
+    // page is layout-dirty. Native player controls (nav/scrubber) run their own hover
+    // CSS transitions (opacity/transform on the chrome bar, tooltips being inserted/
+    // removed), which dirty layout continuously while hovered. With GLSL filters active,
+    // our loop was then forcing a full synchronous reflow on top of that every single
+    // frame -> main-thread stalls -> visible video stutter, specifically while hovering.
+    // Fix: stop reading layout every frame. Cache the rect and only recompute it when the
+    // element could actually have moved/resized (ResizeObserver + scroll/resize), plus a
+    // slow safety-net poll. The render loop then does zero forced-layout reads.
+    const GvfRectCache = (() => {
+        const _cache = new WeakMap(); // el -> DOMRect
+        const _tracked = new Set();
+        const _ro = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(entries => {
+            for (const entry of entries) {
+                const el = entry.target;
+                if (el.isConnected) _cache.set(el, el.getBoundingClientRect());
+            }
+        }) : null;
+        let _scrollPending = false;
+        function _recomputeAll() {
+            _scrollPending = false;
+            for (const el of _tracked) {
+                if (el.isConnected) _cache.set(el, el.getBoundingClientRect());
+            }
+        }
+        function _scheduleRecompute() {
+            if (_scrollPending) return;
+            _scrollPending = true;
+            requestAnimationFrame(_recomputeAll);
+        }
+        window.addEventListener('scroll', _scheduleRecompute, { passive: true, capture: true });
+        window.addEventListener('resize', _scheduleRecompute, { passive: true });
+        document.addEventListener('fullscreenchange', _scheduleRecompute, { passive: true });
+        // Safety net for layout shifts that aren't scroll/resize/element-resize
+        // (e.g. sibling elements loading in, theater-mode toggles).
+        setInterval(_recomputeAll, 400);
+        function track(el) {
+            if (!el || _tracked.has(el)) return;
+            _tracked.add(el);
+            if (_ro) { try { _ro.observe(el); } catch (_) {} }
+            _cache.set(el, el.getBoundingClientRect());
+        }
+        function untrack(el) {
+            if (!el || !_tracked.has(el)) return;
+            _tracked.delete(el);
+            if (_ro) { try { _ro.unobserve(el); } catch (_) {} }
+            _cache.delete(el);
+        }
+        function get(el) {
+            if (!el) return null;
+            if (!_tracked.has(el)) track(el);
+            const r = _cache.get(el);
+            return r || el.getBoundingClientRect();
+        }
+        return { get, track, untrack };
+    })();
+
     let _rawMouseClientX = 0, _rawMouseClientY = 0;
     document.addEventListener('mousemove', e => {
         // Store raw client coords — each instance computes relative to its own video BCR
@@ -1989,12 +2049,10 @@ void main(){
             _reparentCanvas(video);
             const prEl = _canvas.parentElement || document.body;
             // Re-query parent BCR only when parent changed or cache is stale (each frame resets via _lastFrameTime check above)
-            if (_cachedPrFrame !== _lastFrameTime || _cachedParent !== prEl) {
-                _cachedPr = prEl.getBoundingClientRect();
-                _cachedPrFrame = _lastFrameTime;
-            }
-            const pr = _cachedPr;
-            const r = video.getBoundingClientRect();
+            // Was: unconditional getBoundingClientRect() every rAF tick (forced layout).
+            // Now: cached rect, recomputed only on resize/scroll/RO callback (see GvfRectCache).
+            const pr = GvfRectCache.get(prEl);
+            const r = GvfRectCache.get(video);
             if (!r || r.width < 1 || r.height < 1) {
                 _hideWebglCanvases(true);
                 return;
@@ -2403,8 +2461,10 @@ void main(){
 
                 _reparentCanvas();
 
-                const pr = (canvas.parentElement || document.body).getBoundingClientRect();
-                const vr = video.getBoundingClientRect();
+                // Cached rects (see GvfRectCache) instead of a getBoundingClientRect() read
+                // every rAF tick — avoids forcing layout on top of native hover animations.
+                const pr = GvfRectCache.get(canvas.parentElement || document.body);
+                const vr = GvfRectCache.get(video);
                 if (!vr || vr.width < 1 || vr.height < 1) {
                     canvas.style.display = 'none';
                     inst.rafId = requestAnimationFrame(drawLoop);
