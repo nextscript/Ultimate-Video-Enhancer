@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.14.2
+// @version      1.14.3
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -717,66 +717,6 @@
         const delta = e.deltaY > 0 ? -_ZOOM_STEP : _ZOOM_STEP;
         _scrollZoom = Math.min(_ZOOM_MAX, Math.max(_ZOOM_MIN, _scrollZoom + delta));
     }, { passive: false });
-    // ── GvfRectCache ──────────────────────────────────────────────────────────
-    // Root cause of hover-nav lag: _doRender()/drawLoop() called getBoundingClientRect()
-    // on the video (and its parent) on EVERY rAF tick (24-60x/sec), unconditionally.
-    // getBoundingClientRect() forces a synchronous style/layout flush if anything on the
-    // page is layout-dirty. Native player controls (nav/scrubber) run their own hover
-    // CSS transitions (opacity/transform on the chrome bar, tooltips being inserted/
-    // removed), which dirty layout continuously while hovered. With GLSL filters active,
-    // our loop was then forcing a full synchronous reflow on top of that every single
-    // frame -> main-thread stalls -> visible video stutter, specifically while hovering.
-    // Fix: stop reading layout every frame. Cache the rect and only recompute it when the
-    // element could actually have moved/resized (ResizeObserver + scroll/resize), plus a
-    // slow safety-net poll. The render loop then does zero forced-layout reads.
-    const GvfRectCache = (() => {
-        const _cache = new WeakMap(); // el -> DOMRect
-        const _tracked = new Set();
-        const _ro = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(entries => {
-            for (const entry of entries) {
-                const el = entry.target;
-                if (el.isConnected) _cache.set(el, el.getBoundingClientRect());
-            }
-        }) : null;
-        let _scrollPending = false;
-        function _recomputeAll() {
-            _scrollPending = false;
-            for (const el of _tracked) {
-                if (el.isConnected) _cache.set(el, el.getBoundingClientRect());
-            }
-        }
-        function _scheduleRecompute() {
-            if (_scrollPending) return;
-            _scrollPending = true;
-            requestAnimationFrame(_recomputeAll);
-        }
-        window.addEventListener('scroll', _scheduleRecompute, { passive: true, capture: true });
-        window.addEventListener('resize', _scheduleRecompute, { passive: true });
-        document.addEventListener('fullscreenchange', _scheduleRecompute, { passive: true });
-        // Safety net for layout shifts that aren't scroll/resize/element-resize
-        // (e.g. sibling elements loading in, theater-mode toggles).
-        setInterval(_recomputeAll, 400);
-        function track(el) {
-            if (!el || _tracked.has(el)) return;
-            _tracked.add(el);
-            if (_ro) { try { _ro.observe(el); } catch (_) {} }
-            _cache.set(el, el.getBoundingClientRect());
-        }
-        function untrack(el) {
-            if (!el || !_tracked.has(el)) return;
-            _tracked.delete(el);
-            if (_ro) { try { _ro.unobserve(el); } catch (_) {} }
-            _cache.delete(el);
-        }
-        function get(el) {
-            if (!el) return null;
-            if (!_tracked.has(el)) track(el);
-            const r = _cache.get(el);
-            return r || el.getBoundingClientRect();
-        }
-        return { get, track, untrack };
-    })();
-
     let _rawMouseClientX = 0, _rawMouseClientY = 0;
     document.addEventListener('mousemove', e => {
         // Store raw client coords — each instance computes relative to its own video BCR
@@ -1749,6 +1689,11 @@ ${mainBlock}`;
 
         const _compiled = new Map();
         const _blendCanvases = new Map(); // per-entry 2D blend canvas
+        // Entries whose shaders are currently being pre-compiled on idle ticks.
+        // The render loop defers these entries until their program is ready, so
+        // the synchronous GPU shader compile/link cost is spread across event-loop
+        // ticks instead of dropping the first frames at video start.
+        const _prewarmingIds = new Set();
 
         let _gl = null;
         let _canvas = null;
@@ -1761,7 +1706,18 @@ ${mainBlock}`;
         // Cached layout values — style writes only happen when values actually change
         let _cachedL = null, _cachedT = null, _cachedW = null, _cachedH = null;
         let _cachedParent = null; // for reparent guard
-        let _cachedPr = null, _cachedPrFrame = -1; // parent BCR cache, invalidated each RAF frame
+
+        // Cached layout RECTS — refreshed out-of-band (ResizeObserver / scroll / resize /
+        // throttled timer), NOT every render frame. Calling getBoundingClientRect() inside
+        // the 30fps render loop forces a sync layout each frame; while the player churns its
+        // control-bar DOM on hover (tooltips, scrub previews, etc.) that becomes a full reflow
+        // ~30×/sec, which stalls the video. Caching the rects eliminates the per-frame reflow.
+        let _cachedVideoRect = null;   // DOMRect of _video
+        let _cachedParentRect = null;  // DOMRect of the canvas/video parent
+        let _ro = null;                // ResizeObserver on _video (+parent)
+        let _roParent = null;          // parent element currently observed
+        let _rectRefreshScheduled = false;
+        let _rectsFallbackTimer = null;
 
         let _pingFbo = null, _pongFbo = null;
         let _pingTex = null, _pongTex = null;
@@ -2038,6 +1994,52 @@ void main(){
             el.style.opacity = '1';
         }
 
+        // Refresh the cached DOMRects for the video and its parent. Called out-of-band
+        // (ResizeObserver / scroll / resize / fallback timer), never from the render loop.
+        function _refreshRectsNow() {
+            if (!_video) { _cachedVideoRect = null; _cachedParentRect = null; return; }
+            const vr = _video.getBoundingClientRect();
+            _cachedVideoRect = (vr && vr.width >= 1 && vr.height >= 1) ? vr : null;
+            const prEl = (_canvas && _canvas.parentElement) || _video.parentElement || document.body;
+            _cachedParentRect = prEl ? prEl.getBoundingClientRect() : null;
+        }
+
+        // Coalesce many layout signals (RAF) into one rect refresh per frame.
+        function _scheduleRectRefresh() {
+            if (_rectRefreshScheduled) return;
+            _rectRefreshScheduled = true;
+            requestAnimationFrame(() => {
+                _rectRefreshScheduled = false;
+                _refreshRectsNow();
+            });
+        }
+
+        // Keep the cached rects fresh while the video is the render target. Uses ResizeObserver
+        // (size changes — fullscreen, theater, aspect changes), window scroll+resize (position
+        // changes) and a low-frequency fallback timer (rare shifts that emit no other signal).
+        function _bindRectObservers() {
+            _unbindRectObservers();
+            if (!_video) return;
+            try {
+                _ro = new ResizeObserver(() => { _scheduleRectRefresh(); });
+                _ro.observe(_video);
+                _roParent = _video.parentElement || null;
+                if (_roParent) _ro.observe(_roParent);
+            } catch (_) { _ro = null; _roParent = null; }
+            window.addEventListener('scroll', _scheduleRectRefresh, { passive: true, capture: true });
+            window.addEventListener('resize', _scheduleRectRefresh, { passive: true });
+            _rectsFallbackTimer = setInterval(_scheduleRectRefresh, 300);
+        }
+
+        function _unbindRectObservers() {
+            if (_ro) { try { _ro.disconnect(); } catch (_) {} _ro = null; }
+            _roParent = null;
+            window.removeEventListener('scroll', _scheduleRectRefresh, { passive: true, capture: true });
+            window.removeEventListener('resize', _scheduleRectRefresh, { passive: true });
+            if (_rectsFallbackTimer) { clearInterval(_rectsFallbackTimer); _rectsFallbackTimer = null; }
+            _rectRefreshScheduled = false;
+        }
+
         function _doRender(video) {
             if (!_gl || !_canvas) return;
             const gl = _gl;
@@ -2047,12 +2049,12 @@ void main(){
                 return;
             }
             _reparentCanvas(video);
-            const prEl = _canvas.parentElement || document.body;
-            // Re-query parent BCR only when parent changed or cache is stale (each frame resets via _lastFrameTime check above)
-            // Was: unconditional getBoundingClientRect() every rAF tick (forced layout).
-            // Now: cached rect, recomputed only on resize/scroll/RO callback (see GvfRectCache).
-            const pr = GvfRectCache.get(prEl);
-            const r = GvfRectCache.get(video);
+            // Use cached rects (refreshed via ResizeObserver/scroll/resize/fallback timer) instead
+            // of reading getBoundingClientRect() every frame. Forcing sync layout ~30×/sec reflows
+            // the player each time the control bar churns on hover, stalling the video.
+            if (!_cachedVideoRect) _refreshRectsNow();
+            const pr = _cachedParentRect;
+            const r = _cachedVideoRect;
             if (!r || r.width < 1 || r.height < 1) {
                 _hideWebglCanvases(true);
                 return;
@@ -2125,6 +2127,10 @@ void main(){
 
             for (let i = 0; i < n; i++) {
                 const entry = activeEntries[i];
+                // Skip entries whose shader is currently being pre-compiled on an
+                // idle tick — compiling here would re-introduce the synchronous
+                // stall that drops the first frames at video start.
+                if (_prewarmingIds.has(entry.id)) continue;
                 const rec = _compileEntry(entry);
                 if (!rec) continue;
 
@@ -2244,6 +2250,50 @@ void main(){
             _doRender(_video);
         }
 
+        // ── Async shader prewarm ───────────────────────────────────────────────
+        // Stagger shader compile/link across setTimeout(0) ticks instead of doing
+        // them all synchronously inside the first render frame at video start. While
+        // the GPU driver compiles/links one program, the browser can still paint the
+        // video and service input between ticks → no noticeable startup stall.
+        //
+        // Each pending entry is reserved in _prewarmingIds up-front so the render
+        // loop's _compileEntry call (also synchronous) defers these entries on the
+        // very next frame instead of racing the prewarm and compiling inside a rAF.
+        function _prewarmShaders(entries, cb) {
+            const list = (entries || []).filter(e => e && e.enabled && e.type === 'webgl');
+            if (!_gl || !list.length) { if (cb) try { cb(); } catch (_) {} return; }
+            // Reserve every not-yet-compiled entry up-front so the synchronous render
+            // loop defers them before prewarm even runs step 0.
+            const queue = [];
+            for (const e of list) {
+                const sig = e.id + '||' + e.code;
+                const rec = _compiled.get(e.id);
+                if (!rec || rec.sig !== sig) { _prewarmingIds.add(e.id); queue.push(e); }
+            }
+            if (!queue.length) { if (cb) try { cb(); } catch (_) {} return; }
+            let i = 0;
+            function step() {
+                if (!_gl || !_alive) {
+                    // Bailed (destroyAll / GL lost) — release remaining reservations so
+                    // the render loop may take over if it ever restarts.
+                    queue.slice(i).forEach(e => _prewarmingIds.delete(e.id));
+                    if (cb) try { cb(); } catch (_) {}
+                    return;
+                }
+                if (i >= queue.length) { if (cb) try { cb(); } catch (_) {} return; }
+                const e = queue[i++];
+                try { _compileEntry(e); } catch (_) {}
+                _prewarmingIds.delete(e.id);
+                // Wake the render loop so it picks up the freshly-compiled program
+                // (matters mainly when the video is paused; otherwise next rAF does it).
+                _forceRender = true;
+                // Yield between compiles so playback isn't blocked by the next compile.
+                setTimeout(step, 0);
+            }
+            // Defer the first compile too so the calling frame isn't blocked.
+            setTimeout(step, 0);
+        }
+
         function update(video) {
             // If video is null but we already have a frozen paused frame, keep _video to preserve the freeze
             if (video === null && _hasFrame && _video && _video.paused) {
@@ -2252,6 +2302,10 @@ void main(){
             if (video && video !== _video) {
                 _hasFrame = false;
                 _hideWebglCanvases(true);
+                // Invalidate cached rect + parent — forces the observer block below to rebind
+                // (the RO was tracking the old <video>) and re-prime against the new target.
+                _cachedVideoRect = null;
+                _cachedParentRect = null;
             }
             _video = video;
             const activeEntries = customSvgCodes.filter(e => e && e.enabled && e.type === 'webgl');
@@ -2271,9 +2325,34 @@ void main(){
 
             if (!_gl && video) {
                 if (!_initGL(video)) return;
-                _drawLoop();
+                // Pre-compile shaders BEFORE the first render frame: compiling all
+                // active GLSL programs synchronously inside the first rAF callback
+                // was the cause of the brief stutter at the start of a video when
+                // custom GLSL codes were active. Prewarm them staggered across idle
+                // ticks, THEN start the draw loop.
+                _prewarmShaders(activeEntries, () => {
+                    if (_alive && _gl && _video) _drawLoop();
+                });
             } else if (_gl && _canvas && video) {
                 _reparentCanvas(video);
+                // Newly-enabled filters (toggled mid-playback) also compile via the
+                // staggered prewarm path so toggling one doesn't drop a frame.
+                _prewarmShaders(activeEntries);
+            }
+
+            // (Re)bind the rect observers whenever the target video or its parent changes (e.g.
+            // new primary video, fullscreen relocate, theater toggle). Prime the cache so the
+            // render loop never needs a per-frame getBoundingClientRect().
+            if (video) {
+                const pr = video.parentElement || null;
+                if (!_ro || _roParent !== pr || !_cachedVideoRect) {
+                    _bindRectObservers();
+                    _refreshRectsNow();
+                }
+            } else if (!_video) {
+                _unbindRectObservers();
+                _cachedVideoRect = null;
+                _cachedParentRect = null;
             }
 
             // Sync blend canvases: remove those for entries no longer in active list
@@ -2293,6 +2372,9 @@ void main(){
 
         function destroyAll() {
             _alive = false;
+            _unbindRectObservers();
+            _cachedVideoRect = null;
+            _cachedParentRect = null;
             if (_rafId) cancelAnimationFrame(_rafId);
             if (_canvas && _canvas.isConnected) _canvas.remove();
             _removeAllBlendCanvases();
@@ -2313,6 +2395,9 @@ void main(){
         function stopAndHide() {
             _video = null;
             _hasFrame = false;
+            _unbindRectObservers();
+            _cachedVideoRect = null;
+            _cachedParentRect = null;
             if (_rafId) { cancelAnimationFrame(_rafId); _rafId = null; }
             _hideWebglCanvases(true);
         }
@@ -2321,6 +2406,7 @@ void main(){
             if (_video) _reparentCanvas(_video);
             if (_video) {
                 for (const bc of _blendCanvases.values()) _reparentBlendCanvas(bc, _video);
+                _refreshRectsNow();
             }
         }
 
@@ -2461,10 +2547,8 @@ void main(){
 
                 _reparentCanvas();
 
-                // Cached rects (see GvfRectCache) instead of a getBoundingClientRect() read
-                // every rAF tick — avoids forcing layout on top of native hover animations.
-                const pr = GvfRectCache.get(canvas.parentElement || document.body);
-                const vr = GvfRectCache.get(video);
+                const pr = (canvas.parentElement || document.body).getBoundingClientRect();
+                const vr = video.getBoundingClientRect();
                 if (!vr || vr.width < 1 || vr.height < 1) {
                     canvas.style.display = 'none';
                     inst.rafId = requestAnimationFrame(drawLoop);
