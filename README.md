@@ -1,5 +1,8 @@
 <img src="https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/refs/heads/main/demo.gif">
 
+<a href="https://greasyfork.org/en/scripts/561189-ultimate-video-enhancer-sharpen-hdr-color-boost?locale_override=1" target="_blank">Ultimate Video Enhancer (Sharpen, HDR, Color Boost)</a>
+
+
 <hr>
 <h2>Make Every Video Look Better — Instantly</h2>
 <hr>
