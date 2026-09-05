@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.14.5
+// @version      1.14.6
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -478,7 +478,7 @@
         // Custom SVG filter codes
         CUSTOM_SVG_CODES: 'gvf_custom_svg_codes',
 
-        // GLSL render mode (normal = 30fps, turbo = 60fps)
+        // GLSL render mode (light = 30fps, normal = 60fps, turbo = up to 120fps/source fps)
         GLSL_MODE: 'gvf_glsl_mode'
     };
 
@@ -1769,6 +1769,82 @@ ${mainBlock}`;
 
         let _filteredCanvas = null, _filteredCtx = null;
         let _texRaw = null;
+        let _rawTexW = 0, _rawTexH = 0;
+
+        // Performance caches: avoid reparsing CSS and avoid work that active shaders do not use.
+        let _cachedCssFilterText = null;
+        let _cachedCssFilterValue = 'none';
+
+        function _getCssFilterCached() {
+            try {
+                const s = document.getElementById('global-video-filter-style');
+                const txt = s ? (s.textContent || '') : '';
+                if (txt === _cachedCssFilterText) return _cachedCssFilterValue;
+                _cachedCssFilterText = txt;
+                const m = txt.match(/filter\s*:\s*([^!;]+)/);
+                _cachedCssFilterValue = (m && m[1] && m[1].trim()) ? m[1].trim() : 'none';
+                return _cachedCssFilterValue;
+            } catch (_) {
+                return 'none';
+            }
+        }
+
+        function _shaderUsesRawVideo(entry) {
+            return !!(entry && /\bu_video_raw\b/.test(entry.code || ''));
+        }
+
+        function _shaderUsesFrameStats(entry) {
+            return !!(entry && /\bu_avg_(?:lum|r|g|b)\b|\bu_contrast\b/.test(entry.code || ''));
+        }
+
+        function _estimateShaderCost(entries) {
+            let samples = 0;
+            let heavyMath = 0;
+            for (const entry of entries) {
+                const code = String((entry && entry.code) || '');
+                samples += (code.match(/\btexture\s*\(/g) || []).length;
+                heavyMath += (code.match(/\b(?:exp|sqrt|pow|length)\s*\(/g) || []).length;
+            }
+            return samples + heavyMath * 2;
+        }
+
+        function _getInternalRenderSize(rawW, rawH, entries) {
+            let maxH = rawH;
+            const cost = _estimateShaderCost(entries);
+
+            if (_isWeakGPU) {
+                maxH = Math.min(maxH, 720);
+            } else if (glslMode === 'light') {
+                maxH = Math.min(maxH, 720);
+            } else if (glslMode === 'normal') {
+                // Preserve 60-fps presentation by reducing internal shader resolution
+                // before dropping temporal smoothness.
+                if (cost >= 28) maxH = Math.min(maxH, 720);
+                else if (cost >= 16) maxH = Math.min(maxH, 900);
+                else maxH = Math.min(maxH, 1080);
+            } else {
+                // Turbo keeps more spatial detail but still protects against very heavy chains.
+                if (cost >= 28) maxH = Math.min(maxH, 1080);
+                else maxH = Math.min(maxH, 1440);
+            }
+
+            const scale = rawH > maxH ? (maxH / rawH) : 1.0;
+            return {
+                w: Math.max(1, Math.round(rawW * scale)),
+                h: Math.max(1, Math.round(rawH * scale))
+            };
+        }
+
+        function _ensureRawTextureStorage(w, h) {
+            if (!_gl || !_texRaw || !w || !h) return;
+            if (_rawTexW === w && _rawTexH === h) return;
+            _gl.activeTexture(_gl.TEXTURE1);
+            _gl.bindTexture(_gl.TEXTURE_2D, _texRaw);
+            _gl.texImage2D(_gl.TEXTURE_2D, 0, _gl.RGBA8, w, h, 0, _gl.RGBA, _gl.UNSIGNED_BYTE, null);
+            _gl.bindTexture(_gl.TEXTURE_2D, null);
+            _rawTexW = w;
+            _rawTexH = h;
+        }
 
         const _vsSource = `#version 300 es
 in vec2 a_pos;
@@ -2060,73 +2136,97 @@ void main(){
 
             const RAW_W = video.videoWidth, RAW_H = video.videoHeight;
             if (!RAW_W || !RAW_H) return;
-            const _MAX_H = 720;
-            const _scale = (_isWeakGPU && RAW_H > _MAX_H) ? _MAX_H / RAW_H : 1.0;
-            const w = Math.round(RAW_W * _scale);
-            const h = Math.round(RAW_H * _scale);
+
+            // Compile/cache once before uploads so we can determine which auxiliary inputs
+            // are actually required by the active shader chain.
+            const renderEntries = [];
+            for (const entry of activeEntries) {
+                const rec = _compileEntry(entry);
+                if (rec) renderEntries.push({ entry, rec });
+            }
+            if (!renderEntries.length) {
+                _hideWebglCanvases(true);
+                return;
+            }
+
+            const internal = _getInternalRenderSize(RAW_W, RAW_H, activeEntries);
+            const w = internal.w, h = internal.h;
             if (_canvas.width !== w || _canvas.height !== h) { _canvas.width = w; _canvas.height = h; }
 
             gl.viewport(0, 0, w, h);
             _ensureFbos(w, h);
 
-            // Bake filtered frame into TEXTURE0
-            // If no CSS filter is active, upload the video element directly (skip canvas roundtrip).
+            const needsRawVideo = activeEntries.some(_shaderUsesRawVideo);
+            const needsFrameStats = activeEntries.some(_shaderUsesFrameStats);
+
+            // Bake source frame into the already allocated ping texture.
+            // texSubImage2D avoids reallocating FBO texture storage every video frame.
             let sourceTex = null;
             try {
-                const cssFilter = (() => {
-                    try { const s = document.getElementById('global-video-filter-style'); if (!s) return 'none'; const m = s.textContent.match(/filter\s*:\s*([^!;]+)/); return (m && m[1].trim()) ? m[1].trim() : 'none'; } catch(_) { return 'none'; }
-                })();
+                const cssFilter = _getCssFilterCached();
                 const noFilter = cssFilter === 'none' || cssFilter === '';
+                gl.activeTexture(gl.TEXTURE0);
                 gl.bindTexture(gl.TEXTURE_2D, _pingTex);
-                if (noFilter) {
-                    // Direct video upload — no canvas readback needed
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+
+                if (noFilter && w === RAW_W && h === RAW_H) {
+                    // Fastest path: one direct video -> GPU upload, no intermediate 2D canvas.
+                    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
                 } else {
-                    if (_filteredCanvas.width !== w || _filteredCanvas.height !== h) { _filteredCanvas.width = w; _filteredCanvas.height = h; }
-                    _filteredCtx.filter = cssFilter;
+                    // Required for CSS-filter baking and/or internal resolution scaling.
+                    if (_filteredCanvas.width !== w || _filteredCanvas.height !== h) {
+                        _filteredCanvas.width = w;
+                        _filteredCanvas.height = h;
+                    }
+                    _filteredCtx.filter = noFilter ? 'none' : cssFilter;
                     _filteredCtx.drawImage(video, 0, 0, w, h);
                     window.__gvfFilteredFrame = _filteredCanvas;
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _filteredCanvas);
+                    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, _filteredCanvas);
                 }
                 gl.bindTexture(gl.TEXTURE_2D, null);
                 sourceTex = _pingTex;
             } catch (e) {
                 const fb = window.__gvfFilteredFrame;
-                if (fb && fb.width > 0) {
+                if (fb && fb.width === w && fb.height === h) {
                     try {
+                        gl.activeTexture(gl.TEXTURE0);
                         gl.bindTexture(gl.TEXTURE_2D, _pingTex);
-                        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, fb);
+                        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, fb);
                         gl.bindTexture(gl.TEXTURE_2D, null);
                         sourceTex = _pingTex;
-                    } catch(_) { _hideWebglCanvases(true); return; }
-                } else { _hideWebglCanvases(true); return; }
+                    } catch (_) { _hideWebglCanvases(true); return; }
+                } else {
+                    _hideWebglCanvases(true);
+                    return;
+                }
             }
 
-            // Upload raw video to TEXTURE1 (skip when paused — frame hasn't changed)
-            if (!video.paused) {
+            // Most custom shaders never use u_video_raw. Previously the same full video
+            // frame was uploaded a second time every render regardless.
+            if (needsRawVideo && !video.paused) {
                 try {
+                    _ensureRawTextureStorage(RAW_W, RAW_H);
                     gl.activeTexture(gl.TEXTURE1);
                     gl.bindTexture(gl.TEXTURE_2D, _texRaw);
-                    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+                    gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
                     gl.bindTexture(gl.TEXTURE_2D, null);
                 } catch (_) {}
             }
 
-            GvfFrameAnalyzer.tick();
+            // CPU readback is only useful for shaders using the auto-analysis uniforms.
+            if (needsFrameStats) GvfFrameAnalyzer.tick();
 
             // Ping-Pong chain — render each entry, copy to blend canvas if needed
             let currentSrc = _pingTex;
             let currentDstFbo = _pongFbo; let currentDstTex = _pongTex;
 
-            const n = activeEntries.length;
+            const n = renderEntries.length;
 
             // Determine which entries need blend canvases
-            const allNonNormal = activeEntries.every(e => (e.blendMode || 'normal') !== 'normal');
+            const allNonNormal = renderEntries.every(({ entry }) => (entry.blendMode || 'normal') !== 'normal');
 
             for (let i = 0; i < n; i++) {
-                const entry = activeEntries[i];
-                const rec = _compileEntry(entry);
-                if (!rec) continue;
+                const entry = renderEntries[i].entry;
+                const rec = renderEntries[i].rec;
 
                 const bm = entry.blendMode || 'normal';
                 const needsBlendCanvas = bm !== 'normal';
@@ -2223,22 +2323,48 @@ void main(){
 
         let _lastFrameTime = 0;
         let _lastVideoTime = -1;
-        const _TARGET_FPS_NORMAL = 30;
-        const _TARGET_FPS_TURBO  = 60;
-        const _TARGET_FPS_LIGHT  = 24;
+        let _lastPresentedFrames = -1;
+        const _TARGET_FPS_NORMAL = 60;
+        const _TARGET_FPS_TURBO  = 120;
+        const _TARGET_FPS_LIGHT  = 30;
+
+        function _getPresentedFrameCount(video) {
+            try {
+                if (video && typeof video.getVideoPlaybackQuality === 'function') {
+                    const q = video.getVideoPlaybackQuality();
+                    if (q && Number.isFinite(q.totalVideoFrames)) return q.totalVideoFrames;
+                }
+                if (video && Number.isFinite(video.webkitDecodedFrameCount)) return video.webkitDecodedFrameCount;
+            } catch (_) {}
+            return -1;
+        }
 
         function _drawLoop(timestamp) {
             if (!_alive) return;
             _rafId = requestAnimationFrame(_drawLoop);
             if (!_video) return;
             if (document.hidden) return;
-            const frameInterval = 1000 / (glslMode === 'turbo' ? _TARGET_FPS_TURBO : glslMode === 'light' ? _TARGET_FPS_LIGHT : _TARGET_FPS_NORMAL);
+
+            const targetFps = glslMode === 'turbo'
+                ? _TARGET_FPS_TURBO
+                : (glslMode === 'light' ? _TARGET_FPS_LIGHT : _TARGET_FPS_NORMAL);
+            const frameInterval = 1000 / targetFps;
             if (timestamp - _lastFrameTime < frameInterval) return;
-            // While paused: only render if _forceRender is set (e.g. settings changed via shortcut/LUT)
+
+            // While paused: only render if settings changed.
             if (_video.paused) {
                 if (!_forceRender) return;
                 _forceRender = false;
+            } else {
+                // Do not run the complete shader chain twice for the same decoded frame.
+                // rAF can run at 60/120/144 Hz while the video itself is only 24/30/60 fps.
+                const presented = _getPresentedFrameCount(_video);
+                if (presented >= 0) {
+                    if (presented === _lastPresentedFrames) return;
+                    _lastPresentedFrames = presented;
+                }
             }
+
             _lastFrameTime = timestamp;
             _lastVideoTime = _video.currentTime;
             _doRender(_video);
@@ -2251,6 +2377,8 @@ void main(){
             }
             if (video && video !== _video) {
                 _hasFrame = false;
+                _lastPresentedFrames = -1;
+                _lastVideoTime = -1;
                 _hideWebglCanvases(true);
             }
             _video = video;
@@ -2308,6 +2436,7 @@ void main(){
             _gl = null; _canvas = null;
             _pingFbo = _pongFbo = _pingTex = _pongTex = null;
             _fboW = _fboH = 0;
+            _rawTexW = _rawTexH = 0;
         }
 
         function stopAndHide() {
@@ -2324,7 +2453,15 @@ void main(){
             }
         }
 
-        function forceRender() { _forceRender = true; }
+        function forceRender() {
+            _forceRender = true;
+            if (_video && _video.paused && _gl && !document.hidden) {
+                try {
+                    _forceRender = false;
+                    _doRender(_video);
+                } catch (_) {}
+            }
+        }
         return { update, destroyAll, stopAndHide, reparentAll, forceRender };
     })();
 
@@ -8412,7 +8549,7 @@ function downloadBlob(blob, filename) {
     let ioHudShown = !!gmGet(K.I_HUD, false);
     let scopesHudShown = !!gmGet(K.S_HUD, false);
 
-    // GLSL render loop mode: 'light' = 24fps, 'normal' = 30fps, 'turbo' = 60fps
+    // GLSL render loop mode: 'light' = 30fps, 'normal' = 60fps, 'turbo' = up to 120fps (still source-frame limited)
     let glslMode = String(gmGet(K.GLSL_MODE, 'normal'));
     if (!['light', 'normal', 'turbo'].includes(glslMode)) glslMode = 'normal';
 
@@ -14372,7 +14509,7 @@ const fileInput = document.createElement('input');
         const glslModeSel = document.createElement('select');
         glslModeSel.className = 'gvf-glsl-mode-sel';
         glslModeSel.style.cssText = `font-size:11px;font-weight:900;background:rgba(10,10,10,0.98);color:#eaeaea;border:1px solid rgba(255,255,255,0.14);border-radius:6px;padding:3px 6px;cursor:pointer;`;
-        [['light', 'Light (24 fps)'], ['normal', 'Normal (30 fps)'], ['turbo', 'Turbo (60 fps)']].forEach(([val, lbl]) => {
+        [['light', '30 FPS'], ['normal', '60 FPS'], ['turbo', '120 FPS']].forEach(([val, lbl]) => {
             const o = document.createElement('option'); o.value = val; o.textContent = lbl; glslModeSel.appendChild(o);
         });
         glslModeSel.value = glslMode;
@@ -14380,7 +14517,9 @@ const fileInput = document.createElement('input');
         glslModeSel.addEventListener('change', () => {
             glslMode = glslModeSel.value;
             gmSet(K.GLSL_MODE, glslMode);
-            status.textContent = `GLSL mode set to ${glslMode}.`;
+            const fpsLabel = glslMode === 'light' ? '30 FPS' : (glslMode === 'turbo' ? '120 FPS' : '60 FPS');
+            status.textContent = `GLSL mode set to ${fpsLabel}.`;
+            try { CustomWebglOverlayManager.forceRender(); } catch (_) {}
         });
         glslModeRow.appendChild(glslModeLabel);
         glslModeRow.appendChild(glslModeSel);
