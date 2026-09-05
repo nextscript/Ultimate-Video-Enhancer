@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.14.4
+// @version      1.14.5
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -23,8 +23,8 @@
 // @connect      cdn.jsdelivr.net
 // @connect      colormind.io
 // @iconURL      https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/refs/heads/main/logomes.png
-// @downloadURL  https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.user.js
-// @updateURL    https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.meta.js
+// @downloadURL https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.user.js
+// @updateURL https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.meta.js
 // ==/UserScript==
 
 (function () {
@@ -5129,6 +5129,10 @@ void main(){
     }
 
     function fitAffineRGB(X, Y) {
+        return fitAffineRGBWeighted(X, Y, null);
+    }
+
+    function fitAffineRGBWeighted(X, Y, W) {
         const XtX = [
             [0,0,0,0],
             [0,0,0,0],
@@ -5145,11 +5149,13 @@ void main(){
         for (let i = 0; i < X.length; i++) {
             const x = X[i];
             const y = Y[i];
+            const w = W ? Math.max(0, Number(W[i]) || 0) : 1.0;
+            if (w <= 0) continue;
             for (let a = 0; a < 4; a++) {
-                for (let b = 0; b < 4; b++) XtX[a][b] += x[a] * x[b];
-                XtY[a][0] += x[a] * y[0];
-                XtY[a][1] += x[a] * y[1];
-                XtY[a][2] += x[a] * y[2];
+                for (let b = 0; b < 4; b++) XtX[a][b] += w * x[a] * x[b];
+                XtY[a][0] += w * x[a] * y[0];
+                XtY[a][1] += w * x[a] * y[1];
+                XtY[a][2] += w * x[a] * y[2];
             }
         }
 
@@ -5383,6 +5389,943 @@ void main(){
         const text = await file.text();
         const m4x5 = cubeTextToMatrix4x5(text, samplesPerAxis, { linearizeIn, delinearizeOut });
         return { matrix4x5: m4x5, size: (parseCubeText(text).size || 0) };
+    }
+
+    // -------------------------
+    // Magic Bullet Looks (.MBLook / MBL2) -> 4x5 matrix (row-major)
+    // -------------------------
+    // MBLook stores the baked look as an embedded RGB 3D LUT. Current MBL2 files
+    // use a little-endian Float32 RGB table inside a `lutc` block. We locate the
+    // LUT descriptor instead of depending on preset/tool names, so looks created
+    // with different Magic Bullet tools can still be imported.
+
+    function _mblookAsciiAt(u8, offset, text) {
+        if (!u8 || offset < 0 || offset + text.length > u8.length) return false;
+        for (let i = 0; i < text.length; i++) {
+            if (u8[offset + i] !== text.charCodeAt(i)) return false;
+        }
+        return true;
+    }
+
+    function _mblookReadName(u8) {
+        // MBL2 tail commonly contains: name + BE length metadata + UTF-8 preset name.
+        // Name extraction is cosmetic only; import never depends on it.
+        try {
+            const dec = new TextDecoder('utf-8', { fatal: false });
+            for (let i = Math.max(0, u8.length - 2048); i <= u8.length - 12; i++) {
+                if (!_mblookAsciiAt(u8, i, 'name')) continue;
+                const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+                const blockLen = dv.getUint32(i + 4, false);
+                const strLen = dv.getUint32(i + 8, false);
+                if (blockLen < 4 || strLen < 1 || strLen > 512 || i + 12 + strLen > u8.length) continue;
+                const raw = u8.slice(i + 12, i + 12 + strLen);
+                const name = dec.decode(raw).replace(/\0+$/g, '').trim();
+                if (name) return name;
+            }
+        } catch (_) { }
+        return '';
+    }
+
+    function _mblookReadCstaGrade(u8) {
+        // Magic Bullet Looks keeps the editable grade/tool state separately from the
+        // generic embedded `lutc` table. In current MBL2 files the Colorista/custom
+        // grade block is tagged `csta`. The first 9 BE Float64 values after its header
+        // are three RGB triplets (shadow / mid / highlight style controls).
+        // Collapse those controls to one RGB gain triplet for the 4x5 approximation.
+        try {
+            const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+            let best = null;
+            for (let i = 0; i <= u8.length - 120; i++) {
+                if (!_mblookAsciiAt(u8, i, 'csta')) continue;
+                if (dv.getUint32(i + 4, false) !== 4) continue;
+
+                // Known csta layout used by the supplied Magic Bullet Looks files:
+                // +8  uint32 version/tool id
+                // +12..+35 metadata / doubles
+                // +36  nine BE Float64 RGB control values
+                const vals = [];
+                let ok = true;
+                for (let k = 0; k < 9; k++) {
+                    const v = dv.getFloat64(i + 36 + k * 8, false);
+                    if (!Number.isFinite(v) || v < 0.05 || v > 4.0) { ok = false; break; }
+                    vals.push(v);
+                }
+                if (!ok) continue;
+
+                const groups = [vals.slice(0,3), vals.slice(3,6), vals.slice(6,9)];
+                // Midtones dominate normal footage; shadows/highlights still contribute.
+                const weights = [0.20, 0.55, 0.25];
+                const rawGain = [0,0,0];
+                for (let c = 0; c < 3; c++) {
+                    for (let g = 0; g < 3; g++) rawGain[c] += groups[g][c] * weights[g];
+                }
+
+                // Remove overall exposure so only the intended colour cast is added.
+                const mean = (rawGain[0] + rawGain[1] + rawGain[2]) / 3 || 1;
+                let gain = rawGain.map(v => v / mean);
+
+                // A single 4x5 matrix otherwise under-represents the visible tint from
+                // the original multi-zone grade. Expand chroma around neutral while
+                // keeping exposure centred. This is intentionally bounded.
+                const CAST_STRENGTH = 1.85;
+                gain = gain.map(v => clamp(1 + (v - 1) * CAST_STRENGTH, 0.45, 1.75));
+
+                const spread = Math.max(...gain) - Math.min(...gain);
+                if (!best || spread > best.spread) best = { values: vals, rawGain, gain, spread };
+            }
+            return best;
+        } catch (_) { return null; }
+    }
+
+    function _mblookReadToolState(u8) {
+        // MBL2 presets are not uniform: some place `tool` records directly after #tls,
+        // others insert `cust`, labels or other metadata between #tls and the first tool.
+        // Scan the full #tls section for structurally valid tool records instead of
+        // assuming a contiguous sequence. This makes old/default Magic Bullet packs work.
+        try {
+            const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+            let tls = -1;
+            for (let i = 0; i <= u8.length - 12; i++) {
+                if (_mblookAsciiAt(u8, i, '#tls')) { tls = i; break; }
+            }
+            if (tls < 0) return null;
+
+            const headerLen = dv.getUint32(tls + 4, false);
+            const declaredCount = dv.getUint32(tls + 8, false);
+            if (headerLen !== 4 || declaredCount > 512) return null;
+
+            // Tool section normally ends at the trailing name/meta area. If no name tag
+            // is found, scan to EOF. Validate every candidate before accepting it.
+            let scanEnd = u8.length;
+            for (let i = tls + 12; i <= u8.length - 12; i++) {
+                if (_mblookAsciiAt(u8, i, 'name')) { scanEnd = i; break; }
+            }
+
+            const tools = [];
+            let off = tls + 12;
+            while (off + 20 <= scanEnd) {
+                if (!_mblookAsciiAt(u8, off, 'tool')) { off++; continue; }
+
+                const blockLen = dv.getUint32(off + 4, false);
+                if (blockLen < 12 || blockLen > (scanEnd - off - 8)) { off += 4; continue; }
+
+                const idBytes = [u8[off+8], u8[off+9], u8[off+10], u8[off+11]];
+                if (!idBytes.every(c => c >= 32 && c <= 126)) { off += 4; continue; }
+                const id = String.fromCharCode(...idBytes);
+                const version = dv.getUint32(off + 12, false);
+                const count = dv.getUint32(off + 16, false);
+                if (count > 1024 || 12 + count * 8 > blockLen) { off += 4; continue; }
+
+                const values = [];
+                let ok = true;
+                for (let k = 0; k < count; k++) {
+                    const v = dv.getFloat64(off + 20 + k * 8, false);
+                    if (!Number.isFinite(v)) { ok = false; break; }
+                    values.push(v);
+                }
+                if (ok) tools.push({ id, version, values });
+
+                // Jump over a validated record. This still allows metadata between tools.
+                off += 8 + blockLen;
+            }
+
+            return tools.length ? { tools, count: tools.length, declaredCount } : null;
+        } catch (_) { return null; }
+    }
+
+    function _mblookMatrixIdentity() {
+        return [
+            1,0,0,0,0,
+            0,1,0,0,0,
+            0,0,1,0,0,
+            0,0,0,1,0
+        ];
+    }
+
+    function _mblookMatrixMultiply(a, b) {
+        const out = new Array(20).fill(0);
+        for (let r = 0; r < 4; r++) {
+            for (let c = 0; c < 4; c++) {
+                let s = 0;
+                for (let k = 0; k < 4; k++) s += a[r*5+k] * b[k*5+c];
+                out[r*5+c] = s;
+            }
+            let o = a[r*5+4];
+            for (let k = 0; k < 4; k++) o += a[r*5+k] * b[k*5+4];
+            out[r*5+4] = o;
+        }
+        return out;
+    }
+
+    function _mblookGainMatrix(g) {
+        const r = clamp(Number(g[0]) || 1, 0.25, 2.5);
+        const gg = clamp(Number(g[1]) || 1, 0.25, 2.5);
+        const b = clamp(Number(g[2]) || 1, 0.25, 2.5);
+        return [
+            r,0,0,0,0,
+            0,gg,0,0,0,
+            0,0,b,0,0,
+            0,0,0,1,0
+        ];
+    }
+
+    function _mblookExposureMatrix(stops) {
+        const s = clamp(Number(stops) || 0, -8, 8);
+        const k = Math.pow(2, s);
+        return [
+            k,0,0,0,0,
+            0,k,0,0,0,
+            0,0,k,0,0,
+            0,0,0,1,0
+        ];
+    }
+
+    function _mblookSaturationMatrix(s) {
+        s = Number(s);
+        if (!Number.isFinite(s)) s = 1;
+        s = clamp(s, 0, 3);
+        const lr = 0.2126, lg = 0.7152, lb = 0.0722;
+        return [
+            lr*(1-s)+s, lg*(1-s),   lb*(1-s),   0,0,
+            lr*(1-s),   lg*(1-s)+s, lb*(1-s),   0,0,
+            lr*(1-s),   lg*(1-s),   lb*(1-s)+s, 0,0,
+            0,0,0,1,0
+        ];
+    }
+
+
+    function _mblookHueRotateMatrix(deg) {
+        // SVG/CSS hue-rotation approximation. Useful for legacy HSL tools when their
+        // per-hue edits have to be collapsed to one affine 4x5 matrix.
+        const a = (Number(deg) || 0) * Math.PI / 180;
+        const c = Math.cos(a), sn = Math.sin(a);
+        return [
+            0.213 + c*0.787 - sn*0.213, 0.715 - c*0.715 - sn*0.715, 0.072 - c*0.072 + sn*0.928, 0,0,
+            0.213 - c*0.213 + sn*0.143, 0.715 + c*0.285 + sn*0.140, 0.072 - c*0.072 - sn*0.283, 0,0,
+            0.213 - c*0.213 - sn*0.787, 0.715 - c*0.715 + sn*0.715, 0.072 + c*0.928 + sn*0.072, 0,0,
+            0,0,0,1,0
+        ];
+    }
+
+    function _mblookBrightnessMatrix(delta) {
+        const d = clamp(Number(delta) || 0, -1, 1);
+        return [
+            1,0,0,0,d,
+            0,1,0,0,d,
+            0,0,1,0,d,
+            0,0,0,1,0
+        ];
+    }
+
+    function _mblookNormalizeWheel(rgb) {
+        const v = [Number(rgb[0]), Number(rgb[1]), Number(rgb[2])];
+        if (!v.every(Number.isFinite)) return [1,1,1];
+        const mean = (v[0] + v[1] + v[2]) / 3;
+        if (Math.abs(mean) < 1e-8) return [1,1,1];
+        // Magic Bullet wheel RGB values are centered around a neutral gray. Remove
+        // luminance and preserve only chromatic direction before converting to gains.
+        return v.map(x => clamp(1 + ((x / mean) - 1) * 1.65, 0.35, 2.0));
+    }
+
+    function _mblook4WayMatrix(v) {
+        // `4way` (Magic Bullet 4-Way Color Corrector) stores four wheel records:
+        // amount + RGB, repeated four times. A 4x5 matrix cannot reproduce the original
+        // shadow/midtone/highlight masks, so combine the wheels using tonal weights and
+        // retain the dominant chromatic direction instead of dropping the tool entirely.
+        const vals = Array.isArray(v) ? v : [];
+        if (vals.length < 18) return _mblookMatrixIdentity();
+        const wheels = [
+            { amount: Number(vals[2]),  rgb: vals.slice(3,6),   weight: 0.28 },
+            { amount: Number(vals[6]),  rgb: vals.slice(7,10),  weight: 0.34 },
+            { amount: Number(vals[10]), rgb: vals.slice(11,14), weight: 0.28 },
+            { amount: Number(vals[14]), rgb: vals.slice(15,18), weight: 0.10 }
+        ];
+        let logGain = [0,0,0], total = 0;
+        for (const w of wheels) {
+            const amount = clamp((Number.isFinite(w.amount) ? w.amount : 100) / 100, 0, 2);
+            const g = _mblookNormalizeWheel(w.rgb);
+            const ww = w.weight * amount;
+            total += ww;
+            for (let c = 0; c < 3; c++) logGain[c] += Math.log(Math.max(1e-5, g[c])) * ww;
+        }
+        if (total <= 0) return _mblookMatrixIdentity();
+        let gain = logGain.map(x => Math.exp(x / total));
+        const mean = (gain[0] + gain[1] + gain[2]) / 3 || 1;
+        gain = gain.map(x => clamp(x / mean, 0.45, 1.75));
+        return _mblookGainMatrix(gain);
+    }
+
+    function _mblookRhslMatrix(v) {
+        // `rhsl` = ranged HSL. 27 values are three 9-sector banks (Hue/Saturation/Lightness).
+        // Sector-selective HSL is non-linear; derive a perceptual global approximation for 4x5.
+        const vals = Array.isArray(v) ? v.map(Number) : [];
+        if (vals.length < 27) return _mblookMatrixIdentity();
+        const bank = (start) => vals.slice(start, start + 9).filter(Number.isFinite);
+        const h = bank(0), sat = bank(9), lum = bank(18);
+        const robust = (a) => {
+            const nz = a.filter(x => Math.abs(x) > 1e-7);
+            if (!nz.length) return 0;
+            // Keep stronger sector edits visible without letting one extreme value fully dominate.
+            const meanAll = a.reduce((q,x)=>q+x,0) / a.length;
+            const meanNz = nz.reduce((q,x)=>q+x,0) / nz.length;
+            return meanAll * 0.45 + meanNz * 0.55;
+        };
+        const hueDeg = clamp(robust(h) * 0.35, -45, 45);
+        const satScale = clamp(1 + robust(sat) / 160, 0.25, 2.0);
+        const lightDelta = clamp(robust(lum) / 500, -0.20, 0.20);
+        let m = _mblookMatrixIdentity();
+        if (Math.abs(hueDeg) > 1e-6) m = _mblookMatrixMultiply(_mblookHueRotateMatrix(hueDeg), m);
+        if (Math.abs(satScale - 1) > 1e-6) m = _mblookMatrixMultiply(_mblookSaturationMatrix(satScale), m);
+        if (Math.abs(lightDelta) > 1e-6) m = _mblookMatrixMultiply(_mblookBrightnessMatrix(lightDelta), m);
+        return m;
+    }
+
+    function _mblookLogColorMatrix(v) {
+        // `logc` carries a normalized color control plus strength/enable values. Preserve
+        // its visible color bias as a bounded gain. This is intentionally conservative.
+        const vals = Array.isArray(v) ? v.map(Number) : [];
+        if (vals.length < 3) return _mblookMatrixIdentity();
+        const rgb = [vals[0], vals[1], vals[2]];
+        if (!rgb.every(Number.isFinite)) return _mblookMatrixIdentity();
+        const mean = (rgb[0] + rgb[1] + rgb[2]) / 3 || 1;
+        const strength = vals.length > 4 && Number.isFinite(vals[4]) ? clamp(vals[4], 0, 1) : 1;
+        const gain = rgb.map(x => clamp(1 + ((x / mean) - 1) * 0.38 * strength, 0.65, 1.45));
+        return _mblookGainMatrix(gain);
+    }
+
+    function _mblookContrastMatrix(amount, pivot = 0.18) {
+        const c = clamp(Number(amount) || 1, 0.25, 2.5);
+        const p = clamp(Number(pivot) || 0.18, 0, 1);
+        const o = p * (1 - c);
+        return [
+            c,0,0,0,o,
+            0,c,0,0,o,
+            0,0,c,0,o,
+            0,0,0,1,0
+        ];
+    }
+
+    function _mblookFilmPrintMatrix(v) {
+        // Legacy `filp` = Film Print. Parameter order observed in MBL2 presets:
+        // stock, temperature, tint, exposure, contrast, saturation, skin tone,
+        // vintage/modern, grain, strength. Grain is spatial and cannot be put in 4x5.
+        const vals = Array.isArray(v) ? v : [];
+        const stock = clamp(Math.round(Number(vals[0]) || 0), 0, 3);
+        const temperature = clamp(Number(vals[1]) || 0, -100, 100);
+        const tint = clamp(Number(vals[2]) || 0, -100, 100);
+        const exposure = clamp(Number(vals[3]) || 0, -8, 8);
+        const contrastCtl = clamp(Number(vals[4]) || 0, -100, 100);
+        const saturationCtl = clamp(Number(vals[5]) || 0, -100, 200);
+        const vintage = clamp(Number(vals[7]) || 0, -100, 100);
+        const strength = clamp((vals[9] == null ? 100 : Number(vals[9])) / 100, 0, 1);
+
+        // 4x5 affine approximations of the four print-stock families.
+        const stockDefs = [
+            { c: 1.14, sat: 1.08, gain: [1.035, 1.000, 0.970], off: [-0.015, -0.017, 0.003] },
+            { c: 1.09, sat: 1.05, gain: [1.025, 1.000, 0.978], off: [-0.010, -0.012, 0.003] },
+            { c: 1.11, sat: 1.06, gain: [0.990, 1.015, 1.025], off: [-0.008, -0.006, 0.008] },
+            { c: 1.08, sat: 1.04, gain: [0.995, 1.010, 1.018], off: [-0.006, -0.005, 0.006] }
+        ];
+        const d = stockDefs[stock] || stockDefs[0];
+
+        let fm = _mblookMatrixIdentity();
+        fm = _mblookMatrixMultiply(_mblookContrastMatrix(d.c * (1 + contrastCtl / 250)), fm);
+        fm = _mblookMatrixMultiply(_mblookSaturationMatrix(d.sat * (1 + saturationCtl / 100)), fm);
+
+        const tempK = temperature / 100;
+        const tintK = tint / 100;
+        const gain = [
+            d.gain[0] * (1 + 0.12*tempK + 0.07*tintK),
+            d.gain[1] * (1 - 0.10*tintK),
+            d.gain[2] * (1 - 0.12*tempK + 0.07*tintK)
+        ];
+        const gm = _mblookGainMatrix(gain);
+        gm[4]  = d.off[0];
+        gm[9]  = d.off[1];
+        gm[14] = d.off[2];
+        fm = _mblookMatrixMultiply(gm, fm);
+
+        if (Math.abs(exposure) > 1e-9) fm = _mblookMatrixMultiply(_mblookExposureMatrix(exposure), fm);
+
+        if (vintage < 0) {
+            fm = _mblookMatrixMultiply(_mblookSaturationMatrix(1 + vintage * 0.0045), fm);
+        } else if (vintage > 0) {
+            const k = vintage / 100;
+            const modern = [
+                1 + 0.05*k, 0, 0, 0, 0.006*k,
+                0, 1, 0, 0, 0,
+                0, 0, 1 + 0.05*k, 0, -0.006*k,
+                0,0,0,1,0
+            ];
+            fm = _mblookMatrixMultiply(modern, fm);
+        }
+
+        if (strength >= 0.999) return fm;
+        const id = _mblookMatrixIdentity();
+        return fm.map((x, i) => id[i] + (x - id[i]) * strength);
+    }
+
+    function _mblookColorTripletsToGain(vals, start, strength) {
+        if (!Array.isArray(vals) || vals.length < start + 9) return [1,1,1];
+        const avg = [0,0,0];
+        for (let zone = 0; zone < 3; zone++) {
+            for (let c = 0; c < 3; c++) avg[c] += Number(vals[start + zone*3 + c]) || 1;
+        }
+        for (let c = 0; c < 3; c++) avg[c] /= 3;
+        const mean = (avg[0] + avg[1] + avg[2]) / 3 || 1;
+        return avg.map(v => clamp(1 + ((v / mean) - 1) * strength, 0.45, 1.75));
+    }
+
+
+    function _mblookCstaMatrix(grade) {
+        if (!grade || !Array.isArray(grade.gain) || grade.gain.length !== 3) return _mblookMatrixIdentity();
+        return _mblookGainMatrix(grade.gain);
+    }
+
+    function _mblookColorFilterMatrix(rgb, amount = 1) {
+        const c = (Array.isArray(rgb) ? rgb : [1,1,1]).map(v => clamp(Number(v) || 0, 0.001, 4));
+        const mean = (c[0] + c[1] + c[2]) / 3 || 1;
+        const a = clamp(Number(amount) || 0, 0, 1);
+        const gain = c.map(v => clamp(1 + ((v / mean) - 1) * a, 0.35, 2.25));
+        return _mblookGainMatrix(gain);
+    }
+
+    function _mblookDuotoneMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        if (a.length < 9) return _mblookMatrixIdentity();
+        // Observed default-preset layout: light RGB, light amount, dark RGB,
+        // dark amount, overall blend. A linear luma mapping is exactly representable
+        // by a 4x5 matrix and keeps the intended two-colour character.
+        const hi = [a[0], a[1], a[2]].map(x => clamp(Number.isFinite(x) ? x : 1, 0, 2));
+        const lo = [a[4], a[5], a[6]].map(x => clamp(Number.isFinite(x) ? x : 0, 0, 2));
+        const blend = clamp((Number.isFinite(a[8]) ? a[8] : 100) / 100, 0, 1);
+        const lr = 0.2126, lg = 0.7152, lb = 0.0722;
+        const id = _mblookMatrixIdentity();
+        const out = new Array(20).fill(0);
+        for (let row = 0; row < 3; row++) {
+            const d = hi[row] - lo[row];
+            out[row*5+0] = (1-blend) * id[row*5+0] + blend * d * lr;
+            out[row*5+1] = (1-blend) * id[row*5+1] + blend * d * lg;
+            out[row*5+2] = (1-blend) * id[row*5+2] + blend * d * lb;
+            out[row*5+3] = 0;
+            out[row*5+4] = blend * lo[row];
+        }
+        out[15]=0; out[16]=0; out[17]=0; out[18]=1; out[19]=0;
+        return out;
+    }
+
+    function _mblookFilnMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        if (a.length < 9) return _mblookMatrixIdentity();
+        // Film Negative presets expose stock + exposure/contrast/saturation/temperature-like
+        // controls. This is necessarily an affine approximation of the original film curve.
+        const stock = clamp(Math.round(a[0] || 0), 0, 32);
+        const exposure = clamp(a[1] || 0, -6, 6) * 0.20;
+        const contrast = clamp(1 + (a[4] || 0) / 180, 0.55, 1.65);
+        const sat = clamp((a[5] || 100) / 100, 0, 1.8);
+        const temp = clamp((a[6] || 0) / 100, -1, 1);
+        const strength = clamp((a[8] == null ? 100 : a[8]) / 100, 0, 1);
+        const stockBias = ((stock % 5) - 2) * 0.006;
+
+        let m = _mblookMatrixIdentity();
+        m = _mblookMatrixMultiply(_mblookExposureMatrix(exposure), m);
+        m = _mblookMatrixMultiply(_mblookContrastMatrix(contrast, 0.22), m);
+        m = _mblookMatrixMultiply(_mblookSaturationMatrix(sat), m);
+        m = _mblookMatrixMultiply(_mblookGainMatrix([
+            1 + 0.10*temp + stockBias,
+            1,
+            1 - 0.10*temp - stockBias
+        ]), m);
+        if (strength >= 0.999) return m;
+        const id = _mblookMatrixIdentity();
+        return m.map((x,i) => id[i] + (x-id[i])*strength);
+    }
+
+    function _mblookMojoMatrix(v, modern = false) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        if (a.length < 3) return _mblookMatrixIdentity();
+        const amount = clamp((a[0] || 0) / 100, 0, 1.5);
+        const warm = clamp((a[1] || 0) / 100, -1.5, 1.5);
+        const tint = clamp((a[2] || 0) / 100, -1.5, 1.5);
+        const satCtl = a.length > 5 ? clamp((a[5] || 50) / 50, 0.25, 2.0) : 1;
+        const strength = a.length > 10 ? clamp((a[10] || 100) / 100, 0, 1) : Math.min(1, amount || 1);
+        let m = _mblookMatrixIdentity();
+        m = _mblookMatrixMultiply(_mblookSaturationMatrix(clamp(1 + (satCtl-1)*0.35 + amount*0.12, 0.5, 1.6)), m);
+        m = _mblookMatrixMultiply(_mblookGainMatrix([
+            1 + warm*0.10*strength + tint*0.035*strength,
+            1 - tint*0.07*strength,
+            1 - warm*0.10*strength + tint*0.035*strength
+        ]), m);
+        if (modern) m = _mblookMatrixMultiply(_mblookContrastMatrix(1 + amount*0.10, 0.22), m);
+        return m;
+    }
+
+    function _mblookPopMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        const amount = clamp((a[0] || 0) / 100, 0, 2);
+        const sat = a.length > 1 ? clamp((a[1] || 100) / 100, 0.25, 2.5) : 1;
+        let m = _mblookMatrixIdentity();
+        m = _mblookMatrixMultiply(_mblookContrastMatrix(1 + amount*0.18, 0.28), m);
+        m = _mblookMatrixMultiply(_mblookSaturationMatrix(1 + (sat-1)*0.55 + amount*0.08), m);
+        return m;
+    }
+
+    function _mblookBleachBypassMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        const amount = clamp((a[0] == null ? 100 : a[0]) / 100, 0, 1);
+        let m = _mblookMatrixIdentity();
+        m = _mblookMatrixMultiply(_mblookSaturationMatrix(1 - 0.72*amount), m);
+        m = _mblookMatrixMultiply(_mblookContrastMatrix(1 + 0.32*amount, 0.30), m);
+        return m;
+    }
+
+    function _mblookContrastToolMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        const raw = Number.isFinite(a[0]) ? a[0] : 0;
+        const pivot = Number.isFinite(a[1]) ? a[1] : 0.18;
+        return _mblookContrastMatrix(clamp(1 + raw, 0.25, 2.5), pivot);
+    }
+
+    function _mblookHusaMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        let m = _mblookMatrixIdentity();
+        if (Number.isFinite(a[0]) && Math.abs(a[0]) > 1e-6) m = _mblookMatrixMultiply(_mblookHueRotateMatrix(a[0]), m);
+        if (Number.isFinite(a[1])) m = _mblookMatrixMultiply(_mblookSaturationMatrix(clamp(a[1]/100, 0, 2.5)), m);
+        return m;
+    }
+
+    function _mblookCconMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        let m = _mblookMatrixIdentity();
+        if (Number.isFinite(a[1])) m = _mblookMatrixMultiply(_mblookContrastMatrix(clamp(1 + a[1]*0.35, 0.5, 1.8), Number.isFinite(a[0]) ? a[0] : 0.18), m);
+        if (a.length >= 5) m = _mblookMatrixMultiply(_mblookColorFilterMatrix([a[2],a[3],a[4]], 0.75), m);
+        return m;
+    }
+
+    function _mblookWmclMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        const warm = clamp(a[0] || 0, -1.5, 1.5);
+        const tint = clamp(a[1] || 0, -1.5, 1.5);
+        const cool = clamp(a[2] || 0, -1.5, 1.5);
+        return _mblookGainMatrix([
+            clamp(1 + warm*0.12 - cool*0.04 + tint*0.03, 0.65, 1.45),
+            clamp(1 - tint*0.08, 0.65, 1.45),
+            clamp(1 - warm*0.12 + cool*0.10 + tint*0.03, 0.65, 1.45)
+        ]);
+    }
+
+    function _mblookHazeMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        if (a.length < 11) return _mblookMatrixIdentity();
+        const amount = clamp((a[0] || 0) / 100, 0, 1);
+        return _mblookColorFilterMatrix([a[8],a[9],a[10]], amount * 0.35);
+    }
+
+    function _mblookDiffusionMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        if (a.length < 9) return _mblookMatrixIdentity();
+        const amount = clamp((a[0] || 0) / 100, 0, 1);
+        return _mblookColorFilterMatrix([a[6],a[7],a[8]], amount * 0.20);
+    }
+
+    function _mblookGenericFilterMatrix(v) {
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        if (a.length < 4) return _mblookMatrixIdentity();
+        return _mblookColorFilterMatrix([a[0],a[1],a[2]], clamp(a[3],0,1));
+    }
+
+    function _mblookCstaToolMatrix(v) {
+        // Colorista (`csta`) is one of the most common editable tools in MBLook files.
+        // Its values are stored directly in the tool record, so this must be driven by
+        // the current numbers rather than by a preset name. This is important for files
+        // that were opened in Magic Bullet Looks, changed slightly, and saved again.
+        const a = Array.isArray(v) ? v.map(Number) : [];
+        if (a.length < 12) return _mblookMatrixIdentity();
+
+        let m = _mblookMatrixIdentity();
+
+        // Three RGB triplets at 3..11 carry the main tonal colour bias. Collapse the
+        // three zones into one chromatic gain while removing global exposure.
+        const gain = _mblookColorTripletsToGain(a, 3, 2.25);
+        m = _mblookMatrixMultiply(_mblookGainMatrix(gain), m);
+
+        // Value 12 is the master saturation in the supplied v4 Colorista blocks.
+        if (Number.isFinite(a[12])) {
+            const sat = clamp(a[12] / 100, 0, 2.5);
+            m = _mblookMatrixMultiply(_mblookSaturationMatrix(sat), m);
+        }
+
+        // v4 Colorista blocks expose a 27-value ranged-HSL bank after the primary
+        // controls. Preserve small user edits there as a global 4x5 approximation.
+        if (a.length >= 40) {
+            const hsl = a.slice(13, 40);
+            m = _mblookMatrixMultiply(_mblookRhslMatrix(hsl), m);
+        }
+
+        return m;
+    }
+
+    function _mblookToolStateToMatrix4x5(toolState, opts = {}) {
+        // Approximate the color-capable parts of legacy editable MBLook presets.
+        // Spatial effects (grain, vignette, diffusion, sharpening) cannot be represented
+        // by one SVG 4x5 color matrix and are deliberately ignored rather than rejected.
+        const tools = (toolState && Array.isArray(toolState.tools)) ? toolState.tools : [];
+        const lookName = String(opts.lookName || '').trim().toLowerCase();
+
+        // Never special-case a preset by its name here. MBLook files are editable;
+        // the same preset name can contain different values after the user changes it.
+        // Always derive the matrix from the actual tool payload so small edits are kept.
+
+        let m = _mblookMatrixIdentity();
+
+        for (const tool of tools) {
+            const id = String(tool.id || '');
+            const v = tool.values || [];
+
+            if (id === 'csta') {
+                m = _mblookMatrixMultiply(_mblookCstaToolMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'expo') {
+                m = _mblookMatrixMultiply(_mblookExposureMatrix(v[0]), m);
+                continue;
+            }
+
+            if (id === '4way') {
+                m = _mblookMatrixMultiply(_mblook4WayMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'rhsl') {
+                m = _mblookMatrixMultiply(_mblookRhslMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'logc') {
+                m = _mblookMatrixMultiply(_mblookLogColorMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'filp') {
+                m = _mblookMatrixMultiply(_mblookFilmPrintMatrix(v), m);
+                continue;
+            }
+
+
+            if (id === 'filn') {
+                m = _mblookMatrixMultiply(_mblookFilnMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'cont') {
+                m = _mblookMatrixMultiply(_mblookContrastToolMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'husa') {
+                m = _mblookMatrixMultiply(_mblookHusaMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'duto') {
+                m = _mblookMatrixMultiply(_mblookDuotoneMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'mjo2') {
+                m = _mblookMatrixMultiply(_mblookMojoMatrix(v, true), m);
+                continue;
+            }
+
+            if (id === 'mojo') {
+                m = _mblookMatrixMultiply(_mblookMojoMatrix(v, false), m);
+                continue;
+            }
+
+            if (id === 'popt' || id === 'pop2') {
+                m = _mblookMatrixMultiply(_mblookPopMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'blby') {
+                m = _mblookMatrixMultiply(_mblookBleachBypassMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'ccon') {
+                m = _mblookMatrixMultiply(_mblookCconMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'wmcl') {
+                m = _mblookMatrixMultiply(_mblookWmclMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'haze') {
+                m = _mblookMatrixMultiply(_mblookHazeMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'diff') {
+                m = _mblookMatrixMultiply(_mblookDiffusionMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'fltr') {
+                m = _mblookMatrixMultiply(_mblookGenericFilterMatrix(v), m);
+                continue;
+            }
+
+            if (id === 'mono' || id === '$mono') {
+                let wr = Math.max(0, Number(v[0]) || 0.2126);
+                let wg = Math.max(0, Number(v[1]) || 0.7152);
+                let wb = Math.max(0, Number(v[2]) || 0.0722);
+                const sum = wr + wg + wb || 1;
+                wr /= sum; wg /= sum; wb /= sum;
+                const mono = [
+                    wr,wg,wb,0,0,
+                    wr,wg,wb,0,0,
+                    wr,wg,wb,0,0,
+                    0,0,0,1,0
+                ];
+                m = _mblookMatrixMultiply(mono, m);
+                continue;
+            }
+
+            if (id === 'satu' || id === '4satu') {
+                const s = clamp((Number(v[0]) || 100) / 100, 0, 2.5);
+                m = _mblookMatrixMultiply(_mblookSaturationMatrix(s), m);
+                continue;
+            }
+
+            if (id === 'lgg2' || id === 'llgg2') {
+                // Lift/Gamma/Gain carries three RGB triplets at indices 3..11.
+                // Preserve chromatic direction, while removing global exposure.
+                const gain = _mblookColorTripletsToGain(v, 3, 3.0);
+                m = _mblookMatrixMultiply(_mblookGainMatrix(gain), m);
+                continue;
+            }
+
+            if (id === '3wcc' || id === '|3wcc') {
+                // 3-Way Color Corrector: shadow/mid/highlight RGB triplets at 4..12.
+                const gain = _mblookColorTripletsToGain(v, 4, 2.2);
+                m = _mblookMatrixMultiply(_mblookGainMatrix(gain), m);
+                continue;
+            }
+        }
+        return m;
+    }
+
+    function parseMbLookArrayBuffer(arrayBuffer) {
+        const u8 = new Uint8Array(arrayBuffer || new ArrayBuffer(0));
+        if (u8.length < 64 || !_mblookAsciiAt(u8, 0, 'MBL2')) {
+            throw new Error('Invalid MBLook file: MBL2 header not found.');
+        }
+
+        const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+        const candidates = [];
+
+        // Known baked-LUT descriptor layout relative to the nested `lutc` tag:
+        // +0  'lutc'
+        // +4  BE uint32 property length (=4)
+        // +8  BE uint32 LUT type/version
+        // +12 BE/opaque double parameter
+        // +20 BE/opaque double parameter
+        // +28 BE uint32 LUT edge size (commonly 32)
+        // +32 LE float parameter (commonly gamma 2.2)
+        // +36 little-endian Float32 RGB LUT data
+        for (let i = 0; i <= u8.length - 40; i++) {
+            if (!_mblookAsciiAt(u8, i, 'lutc')) continue;
+
+            const propLen = dv.getUint32(i + 4, false);
+            const lutType = dv.getUint32(i + 8, false);
+            const size = dv.getUint32(i + 28, false);
+            if (propLen !== 4 || size < 2 || size > 128) continue;
+
+            const valueCount = size * size * size * 3;
+            const dataOffset = i + 36;
+            const byteCount = valueCount * 4;
+            if (dataOffset + byteCount > u8.length) continue;
+
+            // Validate sparse samples before accepting a candidate. This prevents a random
+            // `lutc` string in metadata from being mistaken for the actual 3D table.
+            let valid = true;
+            const checkCount = Math.min(64, valueCount);
+            for (let k = 0; k < checkCount; k++) {
+                const idx = Math.floor((k / Math.max(1, checkCount - 1)) * (valueCount - 1));
+                const v = dv.getFloat32(dataOffset + idx * 4, true);
+                if (!Number.isFinite(v) || v < -0.25 || v > 2.0) { valid = false; break; }
+            }
+            if (!valid) continue;
+
+            const data = new Float32Array(valueCount);
+            for (let k = 0; k < valueCount; k++) data[k] = dv.getFloat32(dataOffset + k * 4, true);
+            candidates.push({ size, data, dataOffset, lutType });
+        }
+
+        const toolState = _mblookReadToolState(u8);
+        if (!candidates.length) {
+            // Legacy/preset MBLook: valid MBL2 with editable `tool` blocks but without a
+            // baked 3D `lutc`. These files are common in older Magic Bullet Looks packs.
+            if (toolState && toolState.tools && toolState.tools.length) {
+                return {
+                    size: 0,
+                    data: null,
+                    dataOffset: -1,
+                    lutType: 0,
+                    name: _mblookReadName(u8),
+                    cstaGrade: _mblookReadCstaGrade(u8),
+                    toolState,
+                    sourceType: 'tools'
+                };
+            }
+            throw new Error('Unsupported MBLook file: no embedded RGB 3D LUT or editable tool stack was found.');
+        }
+
+        // Prefer the largest valid table if a file contains more than one `lutc` record.
+        candidates.sort((a, b) => (b.size - a.size) || (b.data.length - a.data.length));
+        const best = candidates[0];
+        return { ...best, name: _mblookReadName(u8), cstaGrade: _mblookReadCstaGrade(u8), toolState, sourceType: 'lut' };
+    }
+
+    function mbLookSampleTrilinear(lut, r, g, b) {
+        const size = lut.size;
+        const data = lut.data;
+        const rr = clamp(Number(r), 0, 1) * (size - 1);
+        const gg = clamp(Number(g), 0, 1) * (size - 1);
+        const bb = clamp(Number(b), 0, 1) * (size - 1);
+
+        const r0 = Math.floor(rr), r1 = Math.min(r0 + 1, size - 1);
+        const g0 = Math.floor(gg), g1 = Math.min(g0 + 1, size - 1);
+        const b0 = Math.floor(bb), b1 = Math.min(b0 + 1, size - 1);
+        const tr = rr - r0, tg = gg - g0, tb = bb - b0;
+
+        // MBL2's baked LUT uses B fastest, then G, then R.
+        const idx = (ri, gi, bi) => (bi + size * gi + size * size * ri) * 3;
+        const read = (ri, gi, bi) => {
+            const j = idx(ri, gi, bi);
+            return [data[j], data[j + 1], data[j + 2]];
+        };
+        const c000 = read(r0, g0, b0), c100 = read(r1, g0, b0);
+        const c010 = read(r0, g1, b0), c110 = read(r1, g1, b0);
+        const c001 = read(r0, g0, b1), c101 = read(r1, g0, b1);
+        const c011 = read(r0, g1, b1), c111 = read(r1, g1, b1);
+        const lerp = (a, z, t) => a + (z - a) * t;
+
+        const out = [0, 0, 0];
+        for (let c = 0; c < 3; c++) {
+            const x00 = lerp(c000[c], c100[c], tr);
+            const x10 = lerp(c010[c], c110[c], tr);
+            const x01 = lerp(c001[c], c101[c], tr);
+            const x11 = lerp(c011[c], c111[c], tr);
+            out[c] = lerp(lerp(x00, x10, tg), lerp(x01, x11, tg), tb);
+        }
+        return out;
+    }
+
+    function mbLookToMatrix4x5(lut, samplesPerAxis = 11, opts = {}) {
+        if (lut && (!lut.data || !lut.size) && lut.toolState) {
+            let tm = _mblookToolStateToMatrix4x5(lut.toolState, { lookName: lut.name || '' });
+            // Tool-stack MBLooks often keep the main Colorista/custom grade in `csta`.
+            // The old path ignored it completely whenever no baked LUT was present.
+            if (lut.cstaGrade) tm = _mblookMatrixMultiply(_mblookCstaMatrix(lut.cstaGrade), tm);
+            return tm;
+        }
+        const linearizeIn = !!opts.linearizeIn;
+        const delinearizeOut = !!opts.delinearizeOut;
+
+        const X = [];
+        const Y = [];
+        const W = [];
+        const pushSample = (r, g, b, w) => {
+            const rr = linearizeIn ? _lutSrgbToLinear(clamp(r, 0, 1)) : clamp(r, 0, 1);
+            const gg = linearizeIn ? _lutSrgbToLinear(clamp(g, 0, 1)) : clamp(g, 0, 1);
+            const bb = linearizeIn ? _lutSrgbToLinear(clamp(b, 0, 1)) : clamp(b, 0, 1);
+            let out = mbLookSampleTrilinear(lut, rr, gg, bb);
+            if (delinearizeOut) out = [_lutLinearToSrgb(out[0]), _lutLinearToSrgb(out[1]), _lutLinearToSrgb(out[2])];
+            X.push([rr, gg, bb, 1.0]);
+            Y.push(out);
+            W.push(Math.max(0.0001, Number(w) || 1));
+        };
+
+        // Perceptual weighted affine fit.
+        // Plain global least-squares tends to wash out warm MBLook shadow tints when a
+        // strongly non-linear 3D LUT is collapsed to a single 4x5 color matrix.
+        // Bias the fit toward shadow neutrals and common footage mid-tones so looks such
+        // as "red" / warm grades retain their visible cast after the approximation.
+        const coarseN = clamp(Math.round(Number(samplesPerAxis || 11) * 0.65), 5, 9);
+        for (let bi = 0; bi < coarseN; bi++) {
+            for (let gi = 0; gi < coarseN; gi++) {
+                for (let ri = 0; ri < coarseN; ri++) {
+                    pushSample(
+                        ri / (coarseN - 1),
+                        gi / (coarseN - 1),
+                        bi / (coarseN - 1),
+                        0.1
+                    );
+                }
+            }
+        }
+
+        // Heavily weight the neutral axis, especially in shadows/midtones.
+        for (let i = 0; i <= 80; i++) {
+            const t = i / 80;
+            let w = 400;
+            if (t < 0.45) w *= 1.5;
+            if (t < 0.20) w *= 1.25;
+            pushSample(t, t, t, w);
+        }
+
+        // Gentle weight on typical skin / warm mid-tone region.
+        for (let ri = 0; ri <= 4; ri++) {
+            for (let gi = 0; gi <= 4; gi++) {
+                for (let bi = 0; bi <= 3; bi++) {
+                    pushSample(
+                        0.20 + (0.60 * ri / 4),
+                        0.15 + (0.55 * gi / 4),
+                        0.08 + (0.42 * bi / 3),
+                        6.0
+                    );
+                }
+            }
+        }
+
+        // Keep black / white / primary / secondary anchors in the system.
+        [
+            [0,0,0], [1,1,1],
+            [1,0,0], [0,1,0], [0,0,1],
+            [1,1,0], [1,0,1], [0,1,1]
+        ].forEach(rgb => pushSample(rgb[0], rgb[1], rgb[2], 1.0));
+
+        const M4x3 = fitAffineRGBWeighted(X, Y, W);
+
+        // IMPORTANT: the embedded `lutc` table in MBL2 is not the complete editable
+        // Magic Bullet look. The actual custom/Colorista tint is stored in `csta`.
+        // Fold its RGB grade into the affine result so strong red/magenta looks remain
+        // visibly strong after conversion to SVG feColorMatrix.
+        let out4x5 = buildMatrix4x5FromAffine(M4x3);
+
+        const grade = lut && lut.cstaGrade;
+        if (grade) out4x5 = _mblookMatrixMultiply(_mblookCstaMatrix(grade), out4x5);
+
+        // The embedded MBL2 LUT is frequently only a base table. Exposure, film print,
+        // 4-way, ranged HSL and other editable tools live in the separate tool stack.
+        // Compose their affine-compatible contribution as well instead of silently losing it.
+        if (lut && lut.toolState && Array.isArray(lut.toolState.tools) && lut.toolState.tools.length) {
+            const tm = _mblookToolStateToMatrix4x5(lut.toolState, { lookName: lut.name || '' });
+            out4x5 = _mblookMatrixMultiply(tm, out4x5);
+        }
+
+        return out4x5;
+    }
+
+    async function mbLookFileToMatrix4x5(file, opts = {}) {
+        const buf = await file.arrayBuffer();
+        const lut = parseMbLookArrayBuffer(buf);
+        const matrix4x5 = mbLookToMatrix4x5(lut, opts.samplesPerAxis || 11, opts);
+        return { matrix4x5, size: lut.size, embeddedName: lut.name || '', lutType: lut.lutType, cstaGrade: lut.cstaGrade || null, sourceType: lut.sourceType || 'lut', toolCount: lut.toolState ? lut.toolState.count : 0 };
     }
 
     function matrixCopyNoBrackets(m20) {
@@ -7853,7 +8796,8 @@ function downloadBlob(blob, filename) {
             this._profMatrix = new Float32Array(16);
             this._autoMatrix = new Float32Array(16);
             this._lastAutoMatrixStr = null;  // cache key for autoMatrix parsing
-            this._lastLutKey = null;         // cache key for profMatrix
+            this._lastLutKey = null;         // profile identity
+            this._lastLutMatrixRef = null;   // matrix object identity; same profile name may be re-imported with changed values
         }
 
         markHdrWarmup(durationMs) {
@@ -8597,6 +9541,7 @@ if (!gl) {
         markParamsDirty() {
             // Invalidate matrix caches so they rebuild on next render
             this._lastLutKey = undefined;
+            this._lastLutMatrixRef = null;
             this._lastAutoMatrixStr = undefined;
             // Force immediate render on next tick when paused
             this._lastPausedRenderTime = 0;
@@ -8672,8 +9617,14 @@ if (!gl) {
                               activeLutProfileKey && activeLutProfileKey !== 'none')
                               ? activeLutMatrix4x5 : null;
                 const _lutKey = _lut ? activeLutProfileKey : null;
-                if (_lutKey !== this._lastLutKey) {
+                // Do not cache only by profile key/name. Re-importing an MBLook with the
+                // same filename replaces the 4x5 array while keeping the same key. The old
+                // code therefore kept uploading the previous matrix until the user switched
+                // to another profile or restarted. Track the matrix object too so every
+                // changed MBLook value becomes visible immediately.
+                if (_lutKey !== this._lastLutKey || _lut !== this._lastLutMatrixRef) {
                     this._lastLutKey = _lutKey;
+                    this._lastLutMatrixRef = _lut;
                     const m = this._profMatrix;
                     if (_lut) {
                         m[0]=_lut[0]; m[1]=_lut[5]; m[2]=_lut[10]; m[3]=0;
@@ -11790,7 +12741,7 @@ importInput.addEventListener('change', async () => {
 
 const fileInput = document.createElement('input');
         fileInput.type = 'file';
-        fileInput.accept = 'image/png,.cube,text/plain,application/octet-stream';
+        fileInput.accept = 'image/png,.cube,.mblook,text/plain,application/octet-stream';
         fileInput.style.cssText = `
             flex: 1;
             min-width: 220px;
@@ -11809,13 +12760,21 @@ const fileInput = document.createElement('input');
                     const N = 11;
                     const conv = await cubeFileToMatrix4x5(f, { samplesPerAxis: N, linearizeIn: false, delinearizeOut: false });
                     matrixArea.value = matrixCopyNoBrackets(conv.matrix4x5);
-                    if (!nameInput.value.trim()) nameInput.value = f.name.replace(/\.[^.]+$/, '');
+                    nameInput.value = f.name.replace(/\.[^.]+$/, '');
+                    nameInput.dataset.gvfLutEditKey = '';
                     log('CUBE -> 4x5 matrix generated:', f.name, `size=${conv.size}`);
+                } else if (lower.endsWith('.mblook')) {
+                    const conv = await mbLookFileToMatrix4x5(f, { samplesPerAxis: 11, linearizeIn: false, delinearizeOut: false });
+                    matrixArea.value = matrixCopyNoBrackets(conv.matrix4x5);
+                    nameInput.value = f.name.replace(/\.[^.]+$/, '');
+                    nameInput.dataset.gvfLutEditKey = '';
+                    log('MBLook -> 4x5 matrix generated:', f.name, `size=${conv.size}`, conv.embeddedName ? `look=${conv.embeddedName}` : '');
                 } else {
                     // PNG: keep current behavior (fill matrix area for convenience)
                     const conv = await pngFileToMatrix4x5(f, { samplesPerAxis: 11, flipY: false, linearizeIn: false, delinearizeOut: false });
                     matrixArea.value = matrixCopyNoBrackets(conv.matrix4x5);
-                    if (!nameInput.value.trim()) nameInput.value = f.name.replace(/\.[^.]+$/, '');
+                    nameInput.value = f.name.replace(/\.[^.]+$/, '');
+                    nameInput.dataset.gvfLutEditKey = '';
                     log('PNG -> 4x5 matrix generated:', f.name, `(${conv.width}x${conv.height})`, `lutSize=${conv.layout.lutSize}`);
                 }
             } catch (e) {
@@ -11902,7 +12861,7 @@ const fileInput = document.createElement('input');
         stopEventsOn(saveBtn);
 
         const hint = document.createElement('div');
-        hint.textContent = 'Upload a PNG LUT (e.g. 512×512). Same names will be overwritten.';
+        hint.textContent = 'Upload a PNG LUT, .cube or Magic Bullet .MBLook. Files are converted to a 4x5 matrix; same names will be overwritten.';
         hint.style.cssText = `font-size: 12px; color: rgba(255,255,255,0.75);`;
 
         saveBtn.addEventListener('click', async () => {
@@ -11947,12 +12906,16 @@ const fileInput = document.createElement('input');
 
                 if (!matrix) {
                     // Fallback: PNG conversion
-                    if (!file) { alert('Please select a PNG LUT file or paste a 4x5 matrix.'); return; }
+                    if (!file) { alert('Please select a PNG LUT, .cube, .MBLook file or paste a 4x5 matrix.'); return; }
                     const lower = String(file.name || '').toLowerCase();
                     if (lower.endsWith('.cube')) {
                         const conv = await cubeFileToMatrix4x5(file, { samplesPerAxis: 11, linearizeIn: false, delinearizeOut: false });
                         matrix = conv.matrix4x5;
                         log('CUBE -> 4x5 matrix generated:', name, `size=${conv.size}`);
+                    } else if (lower.endsWith('.mblook')) {
+                        const conv = await mbLookFileToMatrix4x5(file, { samplesPerAxis: 11, linearizeIn: false, delinearizeOut: false });
+                        matrix = conv.matrix4x5;
+                        log('MBLook -> 4x5 matrix generated:', name, `size=${conv.size}`, conv.embeddedName ? `look=${conv.embeddedName}` : '');
                     } else {
                         const conv = await pngFileToMatrix4x5(file, { samplesPerAxis: 11, flipY: false, linearizeIn: false, delinearizeOut: false });
                         matrix = conv.matrix4x5;
