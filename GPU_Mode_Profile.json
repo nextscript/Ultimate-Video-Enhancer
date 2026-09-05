@@ -14,7 +14,7 @@
   "edge": 0,
   "hdr": 0,
   "profile": "off",
-  "lutProfile": "Fresh LUTs||Cinematic 1",
+  "lutProfile": "Fujifilm||DCI-P3 Fujifilm 3513DI D55",
   "renderMode": "gpu",
   "autoOn": true,
   "autoStrength": 0.65,
