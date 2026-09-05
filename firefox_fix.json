@@ -3,7 +3,7 @@
   "ver": "1.10",
   "baseOtp": true,
   "notify": true,
-  "darkMoody": true,
+  "darkMoody": false,
   "tealOrange": false,
   "vibrantSat": false,
   "sl": 1.6,
