@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.14.6
+// @version      1.14.7
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -2114,6 +2114,20 @@ void main(){
             el.style.opacity = '1';
         }
 
+        function _getContentRect(video, vr) {
+            const vAsp = (video.videoWidth || 1) / (video.videoHeight || 1);
+            const bAsp = vr.width / (vr.height || 1);
+            let l = vr.left, t = vr.top, w = vr.width, h = vr.height;
+            if (vAsp > bAsp) {
+                h = vr.width / vAsp;
+                t = vr.top + (vr.height - h) / 2;
+            } else if (vAsp < bAsp) {
+                w = vr.height * vAsp;
+                l = vr.left + (vr.width - w) / 2;
+            }
+            return { left: l, top: t, width: w, height: h };
+        }
+
         function _doRender(video) {
             if (!_gl || !_canvas) return;
             const gl = _gl;
@@ -2133,6 +2147,7 @@ void main(){
                 _hideWebglCanvases(true);
                 return;
             }
+            const cr = _getContentRect(video, r);
 
             const RAW_W = video.videoWidth, RAW_H = video.videoHeight;
             if (!RAW_W || !RAW_H) return;
@@ -2254,8 +2269,8 @@ void main(){
                         if (bc.width !== w || bc.height !== h) { bc.width = w; bc.height = h; }
                         if (bc.style.display !== 'block' || bc.style.visibility !== 'visible') { _showCanvasReady(bc); bc.style.position = 'absolute'; }
                         const sc = bc.__styleCache;
-                        const bl = (r.left - pr.left) + 'px', bt = (r.top - pr.top) + 'px';
-                        const bw = r.width + 'px', bh = r.height + 'px';
+                        const bl = (cr.left - pr.left) + 'px', bt = (cr.top - pr.top) + 'px';
+                        const bw = cr.width + 'px', bh = cr.height + 'px';
                         if (sc.l !== bl) { bc.style.left   = bl; sc.l = bl; }
                         if (sc.t !== bt) { bc.style.top    = bt; sc.t = bt; }
                         if (sc.w !== bw) { bc.style.width  = bw; sc.w = bw; }
@@ -2300,10 +2315,10 @@ void main(){
             if (allNonNormal) {
                 if (_canvas.style.display !== 'none' || _canvas.style.visibility !== 'hidden') { _canvas.style.display = 'none'; _canvas.style.visibility = 'hidden'; _canvas.style.opacity = '0'; }
             } else {
-                const nl = (r.left - pr.left) + 'px';
-                const nt = (r.top  - pr.top)  + 'px';
-                const nw = r.width  + 'px';
-                const nh = r.height + 'px';
+                const nl = (cr.left - pr.left) + 'px';
+                const nt = (cr.top  - pr.top)  + 'px';
+                const nw = cr.width  + 'px';
+                const nh = cr.height + 'px';
                 if (_canvas.style.display !== 'block' || _canvas.style.visibility !== 'visible') { _showCanvasReady(_canvas); _canvas.style.position = 'absolute'; _canvas.style.mixBlendMode = 'normal'; }
                 if (_cachedL !== nl) { _canvas.style.left   = nl; _cachedL = nl; }
                 if (_cachedT !== nt) { _canvas.style.top    = nt; _cachedT = nt; }
