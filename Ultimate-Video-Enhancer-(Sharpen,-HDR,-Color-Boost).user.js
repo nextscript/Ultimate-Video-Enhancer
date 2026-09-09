@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.14.8
+// @version      1.14.9
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -20,6 +20,7 @@
 // @grant        GM_addElement
 // @connect      raw.githubusercontent.com
 // @connect      github.com
+// @connect      api.github.com
 // @connect      cdn.jsdelivr.net
 // @connect      colormind.io
 // @iconURL      https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/refs/heads/main/logomes.png
@@ -6843,7 +6844,76 @@ function downloadBlob(blob, filename) {
     }
 
 
-    async function importLutProfilesFromZipOrJsonFile(file) {
+    // -------------------------
+    // LUT Profile Packages from GitHub repository
+    // -------------------------
+    const LUT_REPO_OWNER = 'nextscript';
+    const LUT_REPO_NAME = 'Ultimate-Video-Enhancer';
+    const LUT_REPO_BRANCH = 'main';
+
+    function lutRepoRawUrl(fileName) {
+        return 'https://raw.githubusercontent.com/' + LUT_REPO_OWNER + '/' + LUT_REPO_NAME + '/' + LUT_REPO_BRANCH + '/' + fileName;
+    }
+
+    async function fetchRepoFileAsBlob(fileName) {
+        const rawUrl = lutRepoRawUrl(fileName);
+        const candidates = [
+            rawUrl,
+            'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawUrl),
+            'https://corsproxy.io/?' + encodeURIComponent(rawUrl),
+            'https://proxy.cors.sh/' + rawUrl,
+        ];
+        let response = null;
+        for (const url of candidates) {
+            try {
+                const r = await fetch(url);
+                if (r && r.ok) { response = r; break; }
+            } catch (_) { }
+        }
+        if (!response) {
+            throw new Error('GitHub is not reachable (all download attempts failed).');
+        }
+        return response.blob();
+    }
+
+    async function listRepoLutZipFiles() {
+        const api = 'https://api.github.com/repos/' + LUT_REPO_OWNER + '/' + LUT_REPO_NAME + '/contents';
+        const r = await fetch(api);
+        if (!r) throw new Error('GitHub API unreachable.');
+        if (!r.ok) throw new Error('GitHub API HTTP ' + r.status);
+        const data = await r.json();
+        if (!Array.isArray(data)) throw new Error('Unexpected GitHub API response.');
+        const names = [];
+        for (const entry of data) {
+            const n = entry && String(entry.name || '');
+            if (entry && entry.type === 'file' && /^LUTsProfiles_v[^/]*\.zip$/i.test(n)) {
+                names.push(n);
+            }
+        }
+        return names;
+    }
+
+    function compareLutZipVersionsDesc(a, b) {
+        const parse = (n) => {
+            const m = String(n).match(/^LUTsProfiles_v(\d+(?:\.\d+)*)\.zip$/i);
+            return m ? m[1].split('.').map(Number) : null;
+        };
+        const va = parse(a);
+        const vb = parse(b);
+        if (va && vb) {
+            for (let i = 0; i < Math.max(va.length, vb.length); i++) {
+                const x = va[i] || 0;
+                const y = vb[i] || 0;
+                if (x !== y) return y - x;
+            }
+            return 0;
+        }
+        if (va) return -1;
+        if (vb) return 1;
+        return String(b).localeCompare(String(a));
+    }
+    async function importLutProfilesFromZipOrJsonFile(file, options) {
+        const merge = !!(options && options.merge);
         const name = String(file && file.name || '').toLowerCase();
         const isZip = name.endsWith('.zip') || (file && file.type === 'application/zip');
 
@@ -6880,11 +6950,14 @@ function downloadBlob(blob, filename) {
             const files = await unzipToFiles(new Uint8Array(buf), null);
             if (!files || !files.length) return { ok: false, msg: 'Import failed (no files in zip).' };
 
-            // Clear all existing LUT profiles and groups before importing
-            lutProfiles = [];
-            lutGroups = [];
-            activeLutProfileKey = 'none';
-            activeLutMatrix4x5 = null;
+            // In replace mode: clear all existing LUT profiles and groups before importing.
+            // In merge mode: keep existing profiles (same-name profiles are upserted below).
+            if (!merge) {
+                lutProfiles = [];
+                lutGroups = [];
+                activeLutProfileKey = 'none';
+                activeLutMatrix4x5 = null;
+            }
 
             let imported = 0;
             for (const f of files) {
@@ -6911,8 +6984,7 @@ function downloadBlob(blob, filename) {
                 saveLutProfiles();
                 try { updateLutProfileList(); } catch (_) { }
                 try { setActiveLutInfo(); } catch (_) { }
-                try { setActiveLutProfile(activeLutProfileKey); } catch (_) { }
-                return { ok: true, msg: `Imported ${imported} LUT profile(s) from ZIP.` };
+                return { ok: true, msg: merge ? `Imported ${imported} LUT profile(s) from ZIP (merged – existing profiles preserved).` : `Imported ${imported} LUT profile(s) from ZIP.` };
             }
 
             return { ok: false, msg: 'Import failed (no valid LUT JSON found).' };
@@ -12726,38 +12798,76 @@ importInput.addEventListener('change', async () => {
             }
         });
 
+        // ── GitHub LUT package dropdown (LUTsProfiles_v*.zip) ────────────────
+        const repoPkgSelect = document.createElement('select');
+        repoPkgSelect.id = 'gvf-lut-repo-pkg-select';
+        repoPkgSelect.title = 'Download a LUT profile package (LUTsProfiles_v*.zip) from the GitHub repository';
+        repoPkgSelect.style.cssText = `
+            background: rgba(30,30,30,0.9);
+            color: #eaeaea;
+            border: 1px solid rgba(255,138,0,0.55);
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-weight: 900;
+            font-size: 12px;
+            cursor: pointer;
+        `;
+        stopEventsOn(repoPkgSelect);
+
+        const rebuildRepoPkgSelect = (names) => {
+            while (repoPkgSelect.firstChild) repoPkgSelect.removeChild(repoPkgSelect.firstChild);
+            for (const n of names) {
+                const o = document.createElement('option');
+                o.value = n;
+                o.textContent = String(n).replace(/\.zip$/i, '');
+                repoPkgSelect.appendChild(o);
+            }
+            if (names.length > 0) repoPkgSelect.selectedIndex = 0;
+        };
+
+        const retryRepoPkgList = async () => {
+            rebuildRepoPkgSelect([]);
+            repoPkgSelect.disabled = true;
+            try {
+                const raw = await listRepoLutZipFiles();
+                const names = raw.slice().sort(compareLutZipVersionsDesc);
+                rebuildRepoPkgSelect(names);
+                repoPkgSelect.disabled = false;
+            } catch (err) {
+                logW('GitHub LUT package list fetch failed:', err);
+                while (repoPkgSelect.firstChild) repoPkgSelect.removeChild(repoPkgSelect.firstChild);
+                const o = document.createElement('option');
+                o.value = '';
+                o.textContent = '⚠ GitHub unavailable – click to retry';
+                o.addEventListener('click', () => { retryRepoPkgList(); });
+                repoPkgSelect.appendChild(o);
+                repoPkgSelect.disabled = false;
+            }
+        };
+
+        // Load the available packages as soon as the LUT Profile Manager opens.
+        retryRepoPkgList();
+
         const loadExamplesBtn = mkCtlBtn('⬇ Load Examples LUT');
-        loadExamplesBtn.title = 'Download and import the bundled LUT example profiles';
+        loadExamplesBtn.title = 'Download and import the selected LUT profile package from the GitHub repository';
         loadExamplesBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
+            const fileName = String(repoPkgSelect.value || '');
+            if (!fileName) {
+                alert('Keine LUT-Paketversion verfügbar – bitte zuerst die GitHub-Liste neu laden.');
+                return;
+            }
             loadExamplesBtn.disabled = true;
             loadExamplesBtn.textContent = '⏳ Loading…';
             try {
-                // githubusercontent CDN URL – try direct first, then proxy fallbacks
-                const rawUrl = 'https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/main/LUTsProfiles_v3.0.zip';
-                const candidates = [
-                    rawUrl,
-                    'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawUrl),
-                    'https://corsproxy.io/?' + encodeURIComponent(rawUrl),
-                    'https://proxy.cors.sh/' + rawUrl,
-                ];
-                let response = null;
-                for (const url of candidates) {
-                    try {
-                        const r = await fetch(url);
-                        if (r.ok) { response = r; break; }
-                    } catch (_) { }
-                }
-                if (!response) throw new Error('All fetch attempts failed (CORS/network)');
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                const blob = await response.blob();
-                const file = new File([blob], 'LUTsProfiles_v3.0.zip', { type: 'application/zip' });
-                const res = await importLutProfilesFromZipOrJsonFile(file);
+                const blob = await fetchRepoFileAsBlob(fileName);
+                const file = new File([blob], fileName, { type: 'application/zip' });
+                const res = await importLutProfilesFromZipOrJsonFile(file, { merge: true });
                 if (!res || !res.ok) {
                     alert(res && res.msg ? res.msg : 'LUT import failed. Check console for details.');
                 } else {
-                    log(res.msg || 'Example LUTs imported.');
+                    log(res.msg || 'LUT package imported.');
                     try { showValueNotification('LUT Import', res.msg, '#4cff6a'); } catch (_) { }
                 }
             } catch (err) {
@@ -12771,6 +12881,7 @@ importInput.addEventListener('change', async () => {
 
         ctlRow.appendChild(exportBtn);
         ctlRow.appendChild(importBtn);
+        ctlRow.appendChild(repoPkgSelect);
         ctlRow.appendChild(loadExamplesBtn);
         ctlRow.appendChild(importInput);
         menu.appendChild(ctlRow);
@@ -17048,47 +17159,6 @@ if ('lutProfile' in obj) {
         }
     }
 
-    // -------------------------
-    // Auto-Import LUT Profiles from URL (runs once when no LUT profiles are stored)
-    // -------------------------
-    async function autoImportLutProfilesFromUrl(url) {
-        try {
-            if (Array.isArray(lutProfiles) && lutProfiles.length > 0) {
-                log('autoImportLutProfilesFromUrl: LUT profiles already present, skipping auto-import.');
-                return;
-            }
-            log('autoImportLutProfilesFromUrl: No LUT profiles found – fetching from', url);
-            const rawUrl = 'https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/main/LUTsProfiles_v3.0.zip';
-            const candidates = [
-                rawUrl,
-                'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawUrl),
-                'https://corsproxy.io/?' + encodeURIComponent(rawUrl),
-                'https://proxy.cors.sh/' + rawUrl,
-            ];
-            let response = null;
-            for (const c of candidates) {
-                try { const r = await fetch(c); if (r.ok) { response = r; break; } } catch (_) { }
-            }
-            if (!response) { logW('autoImportLutProfilesFromUrl: All fetch attempts failed.'); return; }
-            if (!response.ok) {
-                logW('autoImportLutProfilesFromUrl: Fetch failed:', response.status, response.statusText);
-                return;
-            }
-            const blob = await response.blob();
-            const fileName = url.split('/').pop() || 'LUTsProfiles.zip';
-            const file = new File([blob], fileName, { type: 'application/zip' });
-            const result = await importLutProfilesFromZipOrJsonFile(file);
-            if (result && result.ok) {
-                log('autoImportLutProfilesFromUrl:', result.msg);
-                try { showValueNotification('LUT Import', result.msg, '#4cff6a'); } catch (_) { }
-            } else {
-                logW('autoImportLutProfilesFromUrl: Import failed –', result && result.msg);
-            }
-        } catch (e) {
-            logW('autoImportLutProfilesFromUrl error:', e);
-        }
-    }
-
     function init() {
         const isFirefoxBrowser = isFirefox();
         if (activeUserProfile && activeUserProfile.settings && typeof activeUserProfile.settings === 'object') {
@@ -17396,3 +17466,4 @@ if ('lutProfile' in obj) {
 
 
 })();
+s
