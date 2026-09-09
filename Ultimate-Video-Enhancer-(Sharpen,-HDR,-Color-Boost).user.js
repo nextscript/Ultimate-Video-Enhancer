@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.14.7
+// @version      1.14.8
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -12735,7 +12735,7 @@ importInput.addEventListener('change', async () => {
             loadExamplesBtn.textContent = '⏳ Loading…';
             try {
                 // githubusercontent CDN URL – try direct first, then proxy fallbacks
-                const rawUrl = 'https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/main/LUTsProfiles_v2.0.zip';
+                const rawUrl = 'https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/main/LUTsProfiles_v3.0.zip';
                 const candidates = [
                     rawUrl,
                     'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawUrl),
@@ -12752,7 +12752,7 @@ importInput.addEventListener('change', async () => {
                 if (!response) throw new Error('All fetch attempts failed (CORS/network)');
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const blob = await response.blob();
-                const file = new File([blob], 'LUTsProfiles_v2.0.zip', { type: 'application/zip' });
+                const file = new File([blob], 'LUTsProfiles_v3.0.zip', { type: 'application/zip' });
                 const res = await importLutProfilesFromZipOrJsonFile(file);
                 if (!res || !res.ok) {
                     alert(res && res.msg ? res.msg : 'LUT import failed. Check console for details.');
@@ -17058,7 +17058,7 @@ if ('lutProfile' in obj) {
                 return;
             }
             log('autoImportLutProfilesFromUrl: No LUT profiles found – fetching from', url);
-            const rawUrl = 'https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/main/LUTsProfiles_v2.0.zip';
+            const rawUrl = 'https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/main/LUTsProfiles_v3.0.zip';
             const candidates = [
                 rawUrl,
                 'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawUrl),
