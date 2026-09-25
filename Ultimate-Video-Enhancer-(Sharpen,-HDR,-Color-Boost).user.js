@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.14.9
+// @version      1.15.0
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -1707,7 +1707,8 @@ void main() {
         }
 
         return `#version 300 es
-${_isWeakGPU ? 'precision mediump float;\nprecision mediump sampler2D;' : 'precision highp float;\nprecision highp sampler2D;'}
+precision highp float;
+precision highp sampler2D;
 uniform sampler2D u_video;        // input frame for this pass (TEXTURE0)
 uniform sampler2D u_video_raw;    // raw video frame (TEXTURE1)
 uniform vec2 u_res;
@@ -1796,44 +1797,6 @@ ${mainBlock}`;
 
         function _shaderUsesFrameStats(entry) {
             return !!(entry && /\bu_avg_(?:lum|r|g|b)\b|\bu_contrast\b/.test(entry.code || ''));
-        }
-
-        function _estimateShaderCost(entries) {
-            let samples = 0;
-            let heavyMath = 0;
-            for (const entry of entries) {
-                const code = String((entry && entry.code) || '');
-                samples += (code.match(/\btexture\s*\(/g) || []).length;
-                heavyMath += (code.match(/\b(?:exp|sqrt|pow|length)\s*\(/g) || []).length;
-            }
-            return samples + heavyMath * 2;
-        }
-
-        function _getInternalRenderSize(rawW, rawH, entries) {
-            let maxH = rawH;
-            const cost = _estimateShaderCost(entries);
-
-            if (_isWeakGPU) {
-                maxH = Math.min(maxH, 720);
-            } else if (glslMode === 'light') {
-                maxH = Math.min(maxH, 720);
-            } else if (glslMode === 'normal') {
-                // Preserve 60-fps presentation by reducing internal shader resolution
-                // before dropping temporal smoothness.
-                if (cost >= 28) maxH = Math.min(maxH, 720);
-                else if (cost >= 16) maxH = Math.min(maxH, 900);
-                else maxH = Math.min(maxH, 1080);
-            } else {
-                // Turbo keeps more spatial detail but still protects against very heavy chains.
-                if (cost >= 28) maxH = Math.min(maxH, 1080);
-                else maxH = Math.min(maxH, 1440);
-            }
-
-            const scale = rawH > maxH ? (maxH / rawH) : 1.0;
-            return {
-                w: Math.max(1, Math.round(rawW * scale)),
-                h: Math.max(1, Math.round(rawH * scale))
-            };
         }
 
         function _ensureRawTextureStorage(w, h) {
@@ -2165,8 +2128,8 @@ void main(){
                 return;
             }
 
-            const internal = _getInternalRenderSize(RAW_W, RAW_H, activeEntries);
-            const w = internal.w, h = internal.h;
+            // Always render at the video's native size — scaling here smears text/detail.
+            const w = RAW_W, h = RAW_H;
             if (_canvas.width !== w || _canvas.height !== h) { _canvas.width = w; _canvas.height = h; }
 
             gl.viewport(0, 0, w, h);
@@ -2194,6 +2157,8 @@ void main(){
                         _filteredCanvas.height = h;
                     }
                     _filteredCtx.filter = noFilter ? 'none' : cssFilter;
+                    _filteredCtx.imageSmoothingEnabled = true;
+                    try { _filteredCtx.imageSmoothingQuality = 'high'; } catch (_) {}
                     _filteredCtx.drawImage(video, 0, 0, w, h);
                     window.__gvfFilteredFrame = _filteredCanvas;
                     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, _filteredCanvas);
@@ -2260,7 +2225,7 @@ void main(){
                     gl.activeTexture(gl.TEXTURE1);
                     gl.bindTexture(gl.TEXTURE_2D, _texRaw);
                     gl.uniform1i(rec.unifLocs.uVideoRaw, 1);
-                    _setCommonUniforms(gl, rec.unifLocs, rec.uniformDefs, rec.customLocs, entry, RAW_W, RAW_H, r);
+                    _setCommonUniforms(gl, rec.unifLocs, rec.uniformDefs, rec.customLocs, entry, w, h, r);
                     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                     gl.bindVertexArray(null);
 
@@ -2301,7 +2266,7 @@ void main(){
                     gl.activeTexture(gl.TEXTURE1);
                     gl.bindTexture(gl.TEXTURE_2D, _texRaw);
                     gl.uniform1i(rec.unifLocs.uVideoRaw, 1);
-                    _setCommonUniforms(gl, rec.unifLocs, rec.uniformDefs, rec.customLocs, entry, RAW_W, RAW_H, r);
+                    _setCommonUniforms(gl, rec.unifLocs, rec.uniformDefs, rec.customLocs, entry, w, h, r);
                     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                     gl.bindVertexArray(null);
 
