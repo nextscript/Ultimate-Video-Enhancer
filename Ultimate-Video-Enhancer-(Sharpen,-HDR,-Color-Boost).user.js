@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.15.6
+// @version      1.15.7
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -16209,7 +16209,7 @@ if ('lutProfile' in obj) {
         function build() {
             root = document.createElement('div');
             root.id = ROOT_ID;
-            root.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;z-index:2147483647;' +
+            root.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;z-index:auto;' +
                 'pointer-events:none;overflow:hidden;margin:0;padding:0;border:0;transform:none;';
 
             canvas = document.createElement('canvas');
@@ -16269,9 +16269,39 @@ if ('lutProfile' in obj) {
             }
         }
 
+        function isGvfNode(n) {
+            if (!n || n.nodeType !== 1) return n && n.nodeType !== 1; // skip text/comments
+            if (n.id && n.id.startsWith('gvf')) return true;
+            for (const a of n.attributes) if (a.name.startsWith('data-gvf')) return true;
+            return false;
+        }
+
+        // Insert root right after the video (and GVF's own overlay canvases), NOT at the
+        // end of the parent with a huge z-index: players that keep their controls as
+        // siblings of the <video> (e.g. .video-wrap > video + .video-controls) must stay on top.
         function attach() {
             const parent = video.parentElement || document.body;
-            if (root.parentNode !== parent) parent.appendChild(root);
+            const gpuWrap = parent.querySelector(`:scope > [${WEBGL_WRAPPER_ATTR}]`);
+            if (gpuWrap) {
+                // GPU pipeline active: sit inside its wrapper, above the rendered canvas
+                if (root.parentNode !== gpuWrap || root.nextSibling) gpuWrap.appendChild(root);
+                root.style.zIndex = 'auto';
+            } else {
+                let ok = root.parentNode === parent;
+                if (ok) {
+                    let n = video.nextSibling;
+                    while (n && n !== root && isGvfNode(n)) n = n.nextSibling;
+                    ok = n === root;
+                }
+                if (!ok) {
+                    let ref = video.nextSibling;
+                    while (ref && ref !== root && isGvfNode(ref)) ref = ref.nextSibling;
+                    if (ref !== root) parent.insertBefore(root, ref);
+                }
+                // Same stacking level as the video → painted above it (DOM order), below controls
+                const vz = getComputedStyle(video).zIndex;
+                root.style.zIndex = (vz && vz !== 'auto') ? vz : 'auto';
+            }
             const top = getFsEl() || document.body || document.documentElement;
             if (knob.parentNode !== top) top.appendChild(knob);
         }
