@@ -38,6 +38,7 @@ Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-li
 <li>Global settings (same look on every site)</li>
 <li>Lightweight overlay UI (optional)</li>
 <li>GPU mode for maximum performance</li>
+<li>Before / After compare slider (CTRL + ALT + U)</li>
 </ul>
 
 <hr>
@@ -126,7 +127,29 @@ Some example presets require LUTs (color grading files).
 <li>S → Scopes HUD</li>
 <li>X → GPU Mode</li>
 <li>H → Show UI</li>
+<li>U → Before / After slider</li>
 </ul>
+
+<b>ESC</b> closes the Before / After slider.
+
+<hr>
+<h2>Before / After Slider 🆚</h2>
+<hr>
+
+See exactly what the script does to your video — side by side, on the live picture.
+
+<ul>
+<li>Press <b>CTRL + ALT + U</b> to toggle the slider</li>
+<li>Left side = <b>BEFORE</b> (original video, no filters)</li>
+<li>Right side = <b>AFTER</b> (your current settings)</li>
+<li>Drag the divider handle (◀▶) with mouse or touch to move the split</li>
+<li>Works in SVG and GPU mode, including fullscreen</li>
+<li>Press <b>ESC</b> or <b>CTRL + ALT + U</b> again to close</li>
+</ul>
+
+<p>
+⚠️ On DRM-protected sites (Netflix, Disney+, …) the BEFORE side stays black, because the browser blocks access to the raw video frames.
+</p>
 
 <hr>
 <h2>Custom Filters (SVG / GLSL) 🔥</h2>
@@ -234,6 +257,14 @@ Add your own filters without editing the script.
       <td style="text-align:left;padding:8px 12px;border-bottom:1px solid #222;">Screenshot / Recording</td>
       <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
       <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+    </tr>
+    <tr>
+      <td style="text-align:left;padding:8px 12px;border-bottom:1px solid #222;">Before / After slider</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
+      <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
       <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
       <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">❌</td>
       <td style="text-align:center;padding:8px 12px;border-bottom:1px solid #222;">✅</td>
