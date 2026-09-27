@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.15.4
+// @version      1.15.5
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -148,6 +148,7 @@
     const AUTO_KEY = 'a';
     const SCOPES_KEY = 's';
     const GPU_MODE_KEY = 'x';
+    const COMPARE_KEY = 'u'; // Ctrl+Alt+U: Before/After slider
     const PROFILE_CYCLE_KEY = 'F8'; // F8 / Shift+F8 for profile cycling
 
     // -------------------------
@@ -16133,6 +16134,170 @@ if ('lutProfile' in obj) {
         scheduleOverlayUpdate();
     }
 
+    // -------------------------
+    // Before/After compare slider (Ctrl+Alt+U)
+    // Draws the unfiltered video onto a canvas above the filtered output and
+    // clips it to the left of a draggable divider: left = Before, right = After.
+    // -------------------------
+    const BeforeAfterSlider = (() => {
+        const ROOT_ID = 'gvf-before-after-slider';
+        let root = null, canvas = null, ctx = null, divider = null;
+        let video = null, pos = 0.5, raf = 0, dragging = false;
+        let lastTime = -1, lastW = 0, lastH = 0;
+
+        function mkLabel(text, side) {
+            const l = document.createElement('div');
+            l.textContent = text;
+            l.style.cssText = `position:absolute;top:10px;${side}:10px;padding:3px 8px;border-radius:4px;` +
+                'background:rgba(0,0,0,0.65);color:#fff;font:600 12px/1.4 system-ui,sans-serif;' +
+                'pointer-events:none;letter-spacing:0.5px;';
+            return l;
+        }
+
+        function build() {
+            root = document.createElement('div');
+            root.id = ROOT_ID;
+            root.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;z-index:2147483647;' +
+                'pointer-events:none;overflow:hidden;';
+
+            canvas = document.createElement('canvas');
+            canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;filter:none !important;';
+            ctx = canvas.getContext('2d', { alpha: true });
+
+            divider = document.createElement('div');
+            divider.style.cssText = 'position:absolute;top:0;bottom:0;width:24px;margin-left:-12px;cursor:ew-resize;' +
+                'pointer-events:auto;touch-action:none;';
+            const line = document.createElement('div');
+            line.style.cssText = 'position:absolute;top:0;bottom:0;left:11px;width:2px;background:#fff;' +
+                'box-shadow:0 0 4px rgba(0,0,0,0.8);';
+            const knob = document.createElement('div');
+            knob.textContent = '◀▶';
+            knob.style.cssText = 'position:absolute;top:50%;left:12px;transform:translate(-50%,-50%);' +
+                'width:36px;height:36px;border-radius:50%;background:#fff;color:#222;display:flex;' +
+                'align-items:center;justify-content:center;font:bold 10px/1 system-ui,sans-serif;' +
+                'box-shadow:0 0 6px rgba(0,0,0,0.7);user-select:none;';
+            divider.appendChild(line);
+            divider.appendChild(knob);
+
+            root.appendChild(canvas);
+            root.appendChild(mkLabel('BEFORE', 'left'));
+            root.appendChild(mkLabel('AFTER', 'right'));
+            root.appendChild(divider);
+
+            const onMove = (e) => {
+                if (!dragging) return;
+                const r = root.getBoundingClientRect();
+                if (r.width > 0) pos = clamp((e.clientX - r.left) / r.width, 0, 1);
+                applyPos();
+                e.preventDefault();
+                e.stopPropagation();
+            };
+            divider.addEventListener('pointerdown', (e) => {
+                dragging = true;
+                try { divider.setPointerCapture(e.pointerId); } catch (_) { }
+                e.preventDefault();
+                e.stopPropagation();
+            });
+            divider.addEventListener('pointermove', onMove);
+            const end = (e) => {
+                dragging = false;
+                try { divider.releasePointerCapture(e.pointerId); } catch (_) { }
+                e.stopPropagation();
+            };
+            divider.addEventListener('pointerup', end);
+            divider.addEventListener('pointercancel', end);
+            ['click', 'dblclick', 'mousedown', 'mouseup'].forEach(ev =>
+                divider.addEventListener(ev, (e) => e.stopPropagation()));
+        }
+
+        function applyPos() {
+            const p = (pos * 100).toFixed(3);
+            canvas.style.clipPath = `inset(0 ${(100 - pos * 100).toFixed(3)}% 0 0)`;
+            divider.style.left = `${p}%`;
+        }
+
+        function draw(force) {
+            const rect = video.getBoundingClientRect();
+            root.style.left = `${rect.left}px`;
+            root.style.top = `${rect.top}px`;
+            root.style.width = `${rect.width}px`;
+            root.style.height = `${rect.height}px`;
+
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            const cw = Math.max(1, Math.round(rect.width * dpr));
+            const ch = Math.max(1, Math.round(rect.height * dpr));
+            const sizeChanged = cw !== lastW || ch !== lastH;
+            if (sizeChanged) { canvas.width = cw; canvas.height = ch; lastW = cw; lastH = ch; }
+
+            const t = video.currentTime;
+            if (!force && !sizeChanged && t === lastTime && video.paused) return;
+            lastTime = t;
+
+            const vw = video.videoWidth, vh = video.videoHeight;
+            ctx.clearRect(0, 0, cw, ch);
+            if (!vw || !vh) return;
+            // Emulate object-fit: contain (default for <video>)
+            const fit = (getComputedStyle(video).objectFit || 'contain');
+            let s = Math.min(cw / vw, ch / vh);
+            if (fit === 'cover') s = Math.max(cw / vw, ch / vh);
+            let dw = vw * s, dh = vh * s;
+            if (fit === 'fill') { dw = cw; dh = ch; }
+            try { ctx.drawImage(video, (cw - dw) / 2, (ch - dh) / 2, dw, dh); } catch (_) { }
+        }
+
+        function loop() {
+            raf = 0;
+            if (!root) return;
+            if (!video || !video.isConnected) {
+                video = getActiveVideoForCapture();
+                if (!video) { stop(); return; }
+                lastTime = -1;
+            }
+            const parent = getFsEl() || document.body || document.documentElement;
+            if (root.parentNode !== parent) parent.appendChild(root);
+            draw(false);
+            raf = requestAnimationFrame(loop);
+        }
+
+        function start() {
+            video = getActiveVideoForCapture();
+            if (!video) { showToggleNotification('Before/After Slider', false, 'No video found'); return false; }
+            if (!root) build();
+            pos = 0.5;
+            lastTime = -1; lastW = 0; lastH = 0;
+            applyPos();
+            (getFsEl() || document.body || document.documentElement).appendChild(root);
+            draw(true);
+            if (!raf) raf = requestAnimationFrame(loop);
+            return true;
+        }
+
+        function stop() {
+            if (raf) cancelAnimationFrame(raf);
+            raf = 0;
+            dragging = false;
+            video = null;
+            if (root) { try { root.remove(); } catch (_) { } }
+            root = null; canvas = null; ctx = null; divider = null;
+        }
+
+        return {
+            isActive: () => !!root && !!root.parentNode,
+            toggle() {
+                if (this.isActive()) {
+                    stop();
+                    showToggleNotification('Before/After Slider', false);
+                    return;
+                }
+                if (start()) {
+                    const note = isFilterBlockedByDrm() ? 'Filter unavailable on this video' : 'Drag the divider — left: original';
+                    showToggleNotification('Before/After Slider', true, note);
+                }
+            },
+            stop
+        };
+    })();
+
     document.addEventListener('visibilitychange', scheduleOverlayUpdate, { passive: true });
     window.addEventListener('focus', scheduleOverlayUpdate, { passive: true });
     window.addEventListener('blur', () => setTimeout(scheduleOverlayUpdate, 100), { passive: true });
@@ -17436,6 +17601,17 @@ if ('lutProfile' in obj) {
             if (e.ctrlKey && e.altKey && !e.shiftKey && k === SCOPES_KEY) {
                 e.preventDefault();
                 toggleScopesHud();
+                return;
+            }
+
+            if (e.ctrlKey && e.altKey && !e.shiftKey && k === COMPARE_KEY) {
+                e.preventDefault();
+                BeforeAfterSlider.toggle();
+                return;
+            }
+
+            if (e.key === 'Escape' && BeforeAfterSlider.isActive()) {
+                BeforeAfterSlider.toggle();
                 return;
             }
 
