@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.15.3
+// @version      1.15.4
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -370,10 +370,28 @@
         } catch (_) {}
     }
 
+    // True if any added/removed node is (or contains) an element with one of the given tag names.
+    // Page-wide subtree observers fire constantly on sites like YouTube (hover states, tooltips,
+    // lazy UI); reacting to every mutation with querySelectorAll + overlay updates stalls the
+    // main thread and makes the GLSL render loop miss frames.
+    function gvfMutationsTouch(mutations, tags) {
+        for (const m of mutations) {
+            for (const list of [m.addedNodes, m.removedNodes]) {
+                for (const node of list) {
+                    if (node.nodeType !== 1) continue;
+                    if (tags.includes(node.nodeName)) return true;
+                    if (node.firstElementChild && node.querySelector(tags.join(','))) return true;
+                }
+            }
+        }
+        return false;
+    }
+
     function installGvfVideoReadyGuard() {
         try {
             document.querySelectorAll('video').forEach(wireGvfVideoReadyGuard);
-            const mo = new MutationObserver(() => {
+            const mo = new MutationObserver(mutations => {
+                if (!gvfMutationsTouch(mutations, ['VIDEO'])) return;
                 document.querySelectorAll('video').forEach(wireGvfVideoReadyGuard);
                 refreshGvfVideoReadyClasses();
             });
@@ -2426,7 +2444,11 @@ void main(){
             const targetFps = glslMode === 'turbo'
                 ? _TARGET_FPS_TURBO
                 : (glslMode === 'light' ? _TARGET_FPS_LIGHT : _TARGET_FPS_NORMAL);
-            const frameInterval = 1000 / targetFps;
+            // Tolerance: rAF timestamps jitter around the display interval (esp. while the page repaints
+            // hovered elements, e.g. YouTube's masked description box). A strict `< 16.67ms` check then drops
+            // every frame that arrives a fraction early -> 30fps/stutter. Duplicate renders are already
+            // prevented by the presented-frame check below.
+            const frameInterval = (1000 / targetFps) * 0.75;
             if (timestamp - _lastFrameTime < frameInterval) return;
 
             // While paused: only render if settings changed.
@@ -16995,7 +17017,9 @@ if ('lutProfile' in obj) {
             if (t && t.tagName && t.tagName.toLowerCase() === 'iframe') injectIntoIframe(t, code);
         }, true);
 
-        new MutationObserver(scan).observe(document.documentElement, { childList: true, subtree: true });
+        new MutationObserver(mutations => {
+            if (gvfMutationsTouch(mutations, ['IFRAME'])) scan();
+        }).observe(document.documentElement, { childList: true, subtree: true });
     }
 
     let _globalSyncApplyTimer = null;
@@ -17519,11 +17543,11 @@ if ('lutProfile' in obj) {
         document.addEventListener('fullscreenchange', onFsChange);
         document.addEventListener('webkitfullscreenchange', onFsChange);
 
-        new MutationObserver(() => {
+        new MutationObserver(mutations => {
             if (!document.getElementById(SVG_ID) && renderMode === 'svg') {
                 regenerateSvgImmediately();
             }
-            scheduleOverlayUpdate();
+            if (gvfMutationsTouch(mutations, ['VIDEO'])) scheduleOverlayUpdate();
         }).observe(document.documentElement, { childList: true, subtree: true });
 
         scheduleOverlayUpdate();
