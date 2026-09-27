@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.15.1
+// @version      1.15.2
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -1769,6 +1769,10 @@ ${mainBlock}`;
         let _pingTex = null, _pongTex = null;
         let _fboW = 0, _fboH = 0;
 
+        // Final present pass: downsamples the chain output to the player's device-pixel size
+        // so the browser never has to shrink the canvas (its bilinear canvas scaling aliases text).
+        let _presentRec = null;
+
         let _filteredCanvas = null, _filteredCtx = null;
         let _texRaw = null;
         let _rawTexW = 0, _rawTexH = 0;
@@ -1899,6 +1903,81 @@ void main(){
             const p = makeFbo(); _pingFbo = p.fbo; _pingTex = p.tex;
             const q = makeFbo(); _pongFbo = q.fbo; _pongTex = q.tex;
             _fboW = w; _fboH = h;
+        }
+
+        const _presentFsSource = `#version 300 es
+precision highp float;
+uniform sampler2D u_src;
+uniform vec2 u_srcRes;
+uniform vec2 u_dstRes;
+in vec2 v_uv;
+out vec4 fragColor;
+void main(){
+    // Area (box) downsample: 4x4 bilinear taps spread over the source footprint of this output pixel.
+    vec2 span = 1.0 / u_dstRes; // one output pixel, in source UV units
+    vec4 acc = vec4(0.0);
+    for (int y = 0; y < 4; y++) {
+        for (int x = 0; x < 4; x++) {
+            vec2 o = (vec2(float(x), float(y)) + 0.5) * 0.25 - 0.5;
+            acc += texture(u_src, v_uv + o * span);
+        }
+    }
+    fragColor = acc * (1.0 / 16.0);
+}`;
+
+        function _ensurePresentProgram() {
+            if (_presentRec) return _presentRec;
+            const gl = _gl;
+            try {
+                const vs = _compileShader(gl, gl.VERTEX_SHADER, _vsSource);
+                const fs = _compileShader(gl, gl.FRAGMENT_SHADER, _presentFsSource);
+                const program = gl.createProgram();
+                gl.attachShader(program, vs); gl.attachShader(program, fs);
+                gl.linkProgram(program);
+                if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+                gl.detachShader(program, vs); gl.deleteShader(vs);
+                gl.detachShader(program, fs); gl.deleteShader(fs);
+
+                const vao = gl.createVertexArray();
+                gl.bindVertexArray(vao);
+                const verts = new Float32Array([-1,-1, 1,-1, -1,1, 1,1]);
+                const uvs   = new Float32Array([ 0, 0, 1, 0,  0,1, 1,1]);
+                const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb); gl.bufferData(gl.ARRAY_BUFFER, verts, gl.STATIC_DRAW);
+                const aPos = gl.getAttribLocation(program, 'a_pos'); gl.enableVertexAttribArray(aPos); gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+                const ub = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, ub); gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.STATIC_DRAW);
+                const aUv = gl.getAttribLocation(program, 'a_uv'); gl.enableVertexAttribArray(aUv); gl.vertexAttribPointer(aUv, 2, gl.FLOAT, false, 0, 0);
+                gl.bindVertexArray(null);
+
+                _presentRec = {
+                    program, vao, vb, ub,
+                    uSrc:    gl.getUniformLocation(program, 'u_src'),
+                    uSrcRes: gl.getUniformLocation(program, 'u_srcRes'),
+                    uDstRes: gl.getUniformLocation(program, 'u_dstRes'),
+                };
+                return _presentRec;
+            } catch (e) {
+                logW('[GVF WebGL Chain] Present pass compile error:', e.message);
+                return null;
+            }
+        }
+
+        // Draws srcTex (srcW x srcH) onto the default framebuffer at dstW x dstH.
+        function _presentToScreen(srcTex, srcW, srcH, dstW, dstH) {
+            const gl = _gl;
+            const p = _ensurePresentProgram();
+            if (!p) return false;
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.viewport(0, 0, dstW, dstH);
+            gl.useProgram(p.program);
+            gl.bindVertexArray(p.vao);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, srcTex);
+            gl.uniform1i(p.uSrc, 0);
+            gl.uniform2f(p.uSrcRes, srcW, srcH);
+            gl.uniform2f(p.uDstRes, dstW, dstH);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            gl.bindVertexArray(null);
+            return true;
         }
 
         function _compileEntry(entry) {
@@ -2130,7 +2209,20 @@ void main(){
 
             // Always render at the video's native size — scaling here smears text/detail.
             const w = RAW_W, h = RAW_H;
-            if (_canvas.width !== w || _canvas.height !== h) { _canvas.width = w; _canvas.height = h; }
+
+            // Output size = player size in device pixels (snapped to whole pixels). When the player is
+            // smaller than the video, the present pass downsamples on the GPU instead of the browser.
+            const dpr = window.devicePixelRatio || 1;
+            const snapL = Math.round((cr.left - pr.left) * dpr) / dpr;
+            const snapT = Math.round((cr.top  - pr.top)  * dpr) / dpr;
+            const dispW = Math.max(1, Math.round(cr.width  * dpr));
+            const dispH = Math.max(1, Math.round(cr.height * dpr));
+            const outW = Math.min(dispW, w), outH = Math.min(dispH, h);
+            const usePresent = (outW !== w || outH !== h) && !!_ensurePresentProgram();
+            const cw = usePresent ? outW : w, ch = usePresent ? outH : h;
+            const cssW = (dispW / dpr) + 'px', cssH = (dispH / dpr) + 'px';
+
+            if (_canvas.width !== cw || _canvas.height !== ch) { _canvas.width = cw; _canvas.height = ch; }
 
             gl.viewport(0, 0, w, h);
             _ensureFbos(w, h);
@@ -2214,8 +2306,9 @@ void main(){
                 const isLast = (i === n - 1);
 
                 if (needsBlendCanvas) {
-                    // Render to screen so _canvas has the output, then copy to 2D blend canvas
-                    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+                    // Render to screen so _canvas has the output, then copy to 2D blend canvas.
+                    // With the present pass, render into the free FBO first, then downsample to screen.
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, usePresent ? currentDstFbo : null);
                     gl.viewport(0, 0, w, h);
                     gl.useProgram(rec.program);
                     gl.bindVertexArray(rec.vao);
@@ -2228,15 +2321,16 @@ void main(){
                     _setCommonUniforms(gl, rec.unifLocs, rec.uniformDefs, rec.customLocs, entry, w, h, r);
                     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                     gl.bindVertexArray(null);
+                    if (usePresent) _presentToScreen(currentDstTex, w, h, cw, ch);
 
                     // Copy to 2D blend canvas
                     const bc = _ensureBlendCanvas(entry, video);
                     if (bc) {
-                        if (bc.width !== w || bc.height !== h) { bc.width = w; bc.height = h; }
+                        if (bc.width !== cw || bc.height !== ch) { bc.width = cw; bc.height = ch; }
                         if (bc.style.display !== 'block' || bc.style.visibility !== 'visible') { _showCanvasReady(bc); bc.style.position = 'absolute'; }
                         const sc = bc.__styleCache;
-                        const bl = (cr.left - pr.left) + 'px', bt = (cr.top - pr.top) + 'px';
-                        const bw = cr.width + 'px', bh = cr.height + 'px';
+                        const bl = snapL + 'px', bt = snapT + 'px';
+                        const bw = cssW, bh = cssH;
                         if (sc.l !== bl) { bc.style.left   = bl; sc.l = bl; }
                         if (sc.t !== bt) { bc.style.top    = bt; sc.t = bt; }
                         if (sc.w !== bw) { bc.style.width  = bw; sc.w = bw; }
@@ -2244,15 +2338,16 @@ void main(){
                         _reparentBlendCanvas(bc, video);
                         try {
                             // drawImage overwrites the full canvas — clearRect not needed
-                            bc.__ctx2d.drawImage(_canvas, 0, 0, w, h);
+                            bc.__ctx2d.drawImage(_canvas, 0, 0, cw, ch);
                         } catch(_) {}
                     }
                     // Do NOT advance currentSrc — next pass still reads from same source
                 } else {
                     _removeBlendCanvas(entry.id);
 
-                    // Normal blend: render into FBO (intermediate) or screen (last)
-                    if (isLast) {
+                    // Normal blend: render into FBO (intermediate) or screen (last).
+                    // With the present pass, the last entry also goes into an FBO and is downsampled afterwards.
+                    if (isLast && !usePresent) {
                         gl.bindFramebuffer(gl.FRAMEBUFFER, null);
                     } else {
                         gl.bindFramebuffer(gl.FRAMEBUFFER, currentDstFbo);
@@ -2270,6 +2365,8 @@ void main(){
                     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
                     gl.bindVertexArray(null);
 
+                    if (isLast && usePresent) _presentToScreen(currentDstTex, w, h, cw, ch);
+
                     if (!isLast) {
                         if (currentDstTex === _pongTex) { currentSrc = _pongTex; currentDstFbo = _pingFbo; currentDstTex = _pingTex; }
                         else { currentSrc = _pingTex; currentDstFbo = _pongFbo; currentDstTex = _pongTex; }
@@ -2281,10 +2378,10 @@ void main(){
             if (allNonNormal) {
                 if (_canvas.style.display !== 'none' || _canvas.style.visibility !== 'hidden') { _canvas.style.display = 'none'; _canvas.style.visibility = 'hidden'; _canvas.style.opacity = '0'; }
             } else {
-                const nl = (cr.left - pr.left) + 'px';
-                const nt = (cr.top  - pr.top)  + 'px';
-                const nw = cr.width  + 'px';
-                const nh = cr.height + 'px';
+                const nl = snapL + 'px';
+                const nt = snapT + 'px';
+                const nw = cssW;
+                const nh = cssH;
                 if (_canvas.style.display !== 'block' || _canvas.style.visibility !== 'visible') { _showCanvasReady(_canvas); _canvas.style.position = 'absolute'; _canvas.style.mixBlendMode = 'normal'; }
                 if (_cachedL !== nl) { _canvas.style.left   = nl; _cachedL = nl; }
                 if (_cachedT !== nt) { _canvas.style.top    = nt; _cachedT = nt; }
@@ -2409,6 +2506,9 @@ void main(){
                 if (_pingFbo) { _gl.deleteFramebuffer(_pingFbo); _gl.deleteTexture(_pingTex); }
                 if (_pongFbo) { _gl.deleteFramebuffer(_pongFbo); _gl.deleteTexture(_pongTex); }
                 if (_texRaw)  _gl.deleteTexture(_texRaw);
+                if (_presentRec) {
+                    try { _gl.deleteProgram(_presentRec.program); _gl.deleteVertexArray(_presentRec.vao); _gl.deleteBuffer(_presentRec.vb); _gl.deleteBuffer(_presentRec.ub); } catch(_) {}
+                }
                 for (const rec of _compiled.values()) {
                     try { _gl.deleteProgram(rec.program); _gl.deleteVertexArray(rec.vao); _gl.deleteBuffer(rec.vb); _gl.deleteBuffer(rec.ub); } catch(_) {}
                 }
@@ -2417,6 +2517,7 @@ void main(){
             _gl = null; _canvas = null;
             _pingFbo = _pongFbo = _pingTex = _pongTex = null;
             _fboW = _fboH = 0;
+            _presentRec = null;
             _rawTexW = _rawTexH = 0;
         }
 
