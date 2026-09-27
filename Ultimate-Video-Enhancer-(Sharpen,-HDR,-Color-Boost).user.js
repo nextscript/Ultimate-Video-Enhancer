@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.15.5
+// @version      1.15.6
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -8164,6 +8164,8 @@ function downloadBlob(blob, filename) {
                 bakeWebglOverlaysOntoCanvas(ctx, w, h);
                 // Composite active Canvas 2D overlays onto recording frame
                 bakeCanvas2DOverlaysOntoCanvas(ctx, w, h);
+                // Before/After slider active → bake the unfiltered left half + divider
+                bakeBeforeAfterOntoCanvas(ctx, video, w, h);
             } catch (e) {
                 if (statusEl) statusEl.textContent = 'Recording stopped: blocked (DRM/cross-origin).';
                 // FIX: Evaluate REC.stopRequested
@@ -8431,6 +8433,48 @@ function downloadBlob(blob, filename) {
         log('Recording HUD stopped');
     }
 
+    // Draws the unfiltered video into the left part of an already filtered capture frame,
+    // matching the on-screen Before/After slider position. Returns true if baked.
+    function bakeBeforeAfterOntoCanvas(ctx, video, w, h) {
+        if (!BeforeAfterSlider.isActive() || BeforeAfterSlider.getVideo() !== video) return false;
+        const sx = Math.round(BeforeAfterSlider.getContentPos() * w);
+        ctx.save();
+        ctx.filter = 'none';
+        if (sx > 0) {
+            ctx.beginPath();
+            ctx.rect(0, 0, sx, h);
+            ctx.clip();
+            ctx.drawImage(video, 0, 0, w, h);
+        }
+        ctx.restore();
+
+        ctx.save();
+        ctx.filter = 'none';
+        const lw = Math.max(2, Math.round(w / 640));
+        ctx.shadowColor = 'rgba(0,0,0,0.8)';
+        ctx.shadowBlur = lw * 2;
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(sx - lw / 2, 0, lw, h);
+        ctx.shadowBlur = 0;
+
+        const fs = Math.max(12, Math.round(h * 0.03));
+        const pad = Math.round(fs * 0.5), m = Math.round(fs * 0.7);
+        ctx.font = `600 ${fs}px system-ui, sans-serif`;
+        ctx.textBaseline = 'middle';
+        const label = (text, x, alignRight) => {
+            const tw = ctx.measureText(text).width;
+            const bx = alignRight ? x - tw - pad * 2 : x;
+            ctx.fillStyle = 'rgba(0,0,0,0.65)';
+            ctx.fillRect(bx, m, tw + pad * 2, fs + pad);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(text, bx + pad, m + (fs + pad) / 2);
+        };
+        label('BEFORE', m, false);
+        label('AFTER', w - m, true);
+        ctx.restore();
+        return true;
+    }
+
     async function takeVideoScreenshot(statusEl) {
         const v = getActiveVideoForCapture();
         if (!v) { if (statusEl) statusEl.textContent = 'No video found.'; return; }
@@ -8470,10 +8514,12 @@ function downloadBlob(blob, filename) {
         bakeWebglOverlaysOntoCanvas(ctx, w, h);
         // Composite active Canvas 2D overlays onto screenshot
         bakeCanvas2DOverlaysOntoCanvas(ctx, w, h);
+        // Before/After slider active → bake the unfiltered left half + divider
+        const isCompare = bakeBeforeAfterOntoCanvas(ctx, v, w, h);
 
         c.toBlob((blob) => {
             if (!blob) { if (statusEl) statusEl.textContent = 'Screenshot failed.'; return; }
-            const name = tsName('gvf_screenshot', 'png');
+            const name = tsName(isCompare ? 'gvf_compare' : 'gvf_screenshot', 'png');
             dlBlob(blob, name);
             if (statusEl) statusEl.textContent = `Screenshot saved: ${name}`;
         }, 'image/png');
@@ -8554,6 +8600,7 @@ function downloadBlob(blob, filename) {
         REC.mime = mime;
         REC.ext = ext;
         REC.chunks = [];
+        REC.compare = BeforeAfterSlider.isActive();
 
         if (btnEl) {
             btnEl.disabled = false;
@@ -8605,7 +8652,7 @@ function downloadBlob(blob, filename) {
                     if (!blob || blob.size < 50_000) {
                         if (statusEl) statusEl.textContent = 'Save failed (empty/too small). DRM/cross-origin or tab slept.';
                     } else {
-                        const name = tsName('gvf_record', REC.ext);
+                        const name = tsName(REC.compare ? 'gvf_compare_record' : 'gvf_record', REC.ext);
                         dlBlob(blob, name);
 
                         if (statusEl) {
@@ -16141,9 +16188,14 @@ if ('lutProfile' in obj) {
     // -------------------------
     const BeforeAfterSlider = (() => {
         const ROOT_ID = 'gvf-before-after-slider';
-        let root = null, canvas = null, ctx = null, divider = null;
+        const KNOB_ID = 'gvf-before-after-knob';
+        // root: canvas + line + labels, placed next to the <video> so the site's
+        // player controls (volume, mute, seekbar …) keep painting on top of it.
+        // knob: only the small drag handle lives in a top-level fixed layer, so it
+        // stays grabbable even when the player puts a click-catcher over the video.
+        let root = null, canvas = null, ctx = null, line = null, knob = null;
         let video = null, pos = 0.5, raf = 0, dragging = false;
-        let lastTime = -1, lastW = 0, lastH = 0;
+        let lastTime = -1, lastW = 0, lastH = 0, lastRect = null;
 
         function mkLabel(text, side) {
             const l = document.createElement('div');
@@ -16157,71 +16209,93 @@ if ('lutProfile' in obj) {
         function build() {
             root = document.createElement('div');
             root.id = ROOT_ID;
-            root.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;z-index:2147483647;' +
-                'pointer-events:none;overflow:hidden;';
+            root.style.cssText = 'position:absolute;left:0;top:0;width:0;height:0;z-index:2147483647;' +
+                'pointer-events:none;overflow:hidden;margin:0;padding:0;border:0;transform:none;';
 
             canvas = document.createElement('canvas');
             canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;filter:none !important;';
             ctx = canvas.getContext('2d', { alpha: true });
 
-            divider = document.createElement('div');
-            divider.style.cssText = 'position:absolute;top:0;bottom:0;width:24px;margin-left:-12px;cursor:ew-resize;' +
-                'pointer-events:auto;touch-action:none;';
-            const line = document.createElement('div');
-            line.style.cssText = 'position:absolute;top:0;bottom:0;left:11px;width:2px;background:#fff;' +
-                'box-shadow:0 0 4px rgba(0,0,0,0.8);';
-            const knob = document.createElement('div');
-            knob.textContent = '◀▶';
-            knob.style.cssText = 'position:absolute;top:50%;left:12px;transform:translate(-50%,-50%);' +
-                'width:36px;height:36px;border-radius:50%;background:#fff;color:#222;display:flex;' +
-                'align-items:center;justify-content:center;font:bold 10px/1 system-ui,sans-serif;' +
-                'box-shadow:0 0 6px rgba(0,0,0,0.7);user-select:none;';
-            divider.appendChild(line);
-            divider.appendChild(knob);
+            line = document.createElement('div');
+            line.style.cssText = 'position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#fff;' +
+                'box-shadow:0 0 4px rgba(0,0,0,0.8);pointer-events:none;';
 
             root.appendChild(canvas);
             root.appendChild(mkLabel('BEFORE', 'left'));
             root.appendChild(mkLabel('AFTER', 'right'));
-            root.appendChild(divider);
+            root.appendChild(line);
+
+            knob = document.createElement('div');
+            knob.id = KNOB_ID;
+            knob.textContent = '◀▶';
+            knob.style.cssText = 'position:fixed;left:0;top:0;width:36px;height:36px;margin:-18px 0 0 -18px;' +
+                'border-radius:50%;background:#fff;color:#222;display:flex;align-items:center;justify-content:center;' +
+                'font:bold 10px/1 system-ui,sans-serif;box-shadow:0 0 6px rgba(0,0,0,0.7);user-select:none;' +
+                'cursor:ew-resize;pointer-events:auto;touch-action:none;z-index:2147483647;';
 
             const onMove = (e) => {
-                if (!dragging) return;
-                const r = root.getBoundingClientRect();
-                if (r.width > 0) pos = clamp((e.clientX - r.left) / r.width, 0, 1);
+                if (!dragging || !lastRect || lastRect.width <= 0) return;
+                pos = clamp((e.clientX - lastRect.left) / lastRect.width, 0, 1);
                 applyPos();
                 e.preventDefault();
                 e.stopPropagation();
             };
-            divider.addEventListener('pointerdown', (e) => {
+            knob.addEventListener('pointerdown', (e) => {
                 dragging = true;
-                try { divider.setPointerCapture(e.pointerId); } catch (_) { }
+                try { knob.setPointerCapture(e.pointerId); } catch (_) { }
                 e.preventDefault();
                 e.stopPropagation();
             });
-            divider.addEventListener('pointermove', onMove);
+            knob.addEventListener('pointermove', onMove);
             const end = (e) => {
                 dragging = false;
-                try { divider.releasePointerCapture(e.pointerId); } catch (_) { }
+                try { knob.releasePointerCapture(e.pointerId); } catch (_) { }
                 e.stopPropagation();
             };
-            divider.addEventListener('pointerup', end);
-            divider.addEventListener('pointercancel', end);
+            knob.addEventListener('pointerup', end);
+            knob.addEventListener('pointercancel', end);
             ['click', 'dblclick', 'mousedown', 'mouseup'].forEach(ev =>
-                divider.addEventListener(ev, (e) => e.stopPropagation()));
+                knob.addEventListener(ev, (e) => e.stopPropagation()));
         }
 
         function applyPos() {
-            const p = (pos * 100).toFixed(3);
-            canvas.style.clipPath = `inset(0 ${(100 - pos * 100).toFixed(3)}% 0 0)`;
-            divider.style.left = `${p}%`;
+            // Native <video controls> are painted inside the video box → leave the bottom strip uncovered
+            const bottom = (video && video.controls) ? 48 : 0;
+            canvas.style.clipPath = `inset(0 ${(100 - pos * 100).toFixed(3)}% ${bottom}px 0)`;
+            line.style.left = `${(pos * 100).toFixed(3)}%`;
+            if (lastRect) {
+                knob.style.left = `${lastRect.left + pos * lastRect.width}px`;
+                knob.style.top = `${lastRect.top + lastRect.height / 2}px`;
+            }
+        }
+
+        function attach() {
+            const parent = video.parentElement || document.body;
+            if (root.parentNode !== parent) parent.appendChild(root);
+            const top = getFsEl() || document.body || document.documentElement;
+            if (knob.parentNode !== top) top.appendChild(knob);
+        }
+
+        // Position root over the video, relative to root's containing block
+        function place(rect) {
+            const op = root.offsetParent;
+            let ox = -window.scrollX, oy = -window.scrollY;
+            if (op && !((op === document.body || op === document.documentElement) && getComputedStyle(op).position === 'static')) {
+                const r = op.getBoundingClientRect();
+                ox = r.left + op.clientLeft - op.scrollLeft;
+                oy = r.top + op.clientTop - op.scrollTop;
+            }
+            root.style.left = `${rect.left - ox}px`;
+            root.style.top = `${rect.top - oy}px`;
+            root.style.width = `${rect.width}px`;
+            root.style.height = `${rect.height}px`;
         }
 
         function draw(force) {
             const rect = video.getBoundingClientRect();
-            root.style.left = `${rect.left}px`;
-            root.style.top = `${rect.top}px`;
-            root.style.width = `${rect.width}px`;
-            root.style.height = `${rect.height}px`;
+            lastRect = rect;
+            place(rect);
+            applyPos();
 
             const dpr = Math.min(window.devicePixelRatio || 1, 2);
             const cw = Math.max(1, Math.round(rect.width * dpr));
@@ -16253,8 +16327,7 @@ if ('lutProfile' in obj) {
                 if (!video) { stop(); return; }
                 lastTime = -1;
             }
-            const parent = getFsEl() || document.body || document.documentElement;
-            if (root.parentNode !== parent) parent.appendChild(root);
+            attach();
             draw(false);
             raf = requestAnimationFrame(loop);
         }
@@ -16264,9 +16337,8 @@ if ('lutProfile' in obj) {
             if (!video) { showToggleNotification('Before/After Slider', false, 'No video found'); return false; }
             if (!root) build();
             pos = 0.5;
-            lastTime = -1; lastW = 0; lastH = 0;
-            applyPos();
-            (getFsEl() || document.body || document.documentElement).appendChild(root);
+            lastTime = -1; lastW = 0; lastH = 0; lastRect = null;
+            attach();
             draw(true);
             if (!raf) raf = requestAnimationFrame(loop);
             return true;
@@ -16277,12 +16349,29 @@ if ('lutProfile' in obj) {
             raf = 0;
             dragging = false;
             video = null;
+            lastRect = null;
             if (root) { try { root.remove(); } catch (_) { } }
-            root = null; canvas = null; ctx = null; divider = null;
+            if (knob) { try { knob.remove(); } catch (_) { } }
+            root = null; canvas = null; ctx = null; line = null; knob = null;
+        }
+
+        // Divider position relative to the visible video content (letterbox excluded)
+        function getContentPos() {
+            if (!video) return pos;
+            const r = video.getBoundingClientRect();
+            const vw = video.videoWidth, vh = video.videoHeight;
+            if (!r.width || !vw || !vh) return pos;
+            const fit = (getComputedStyle(video).objectFit || 'contain');
+            if (fit === 'fill') return pos;
+            const s = fit === 'cover' ? Math.max(r.width / vw, r.height / vh) : Math.min(r.width / vw, r.height / vh);
+            const dw = vw * s;
+            return clamp((pos * r.width - (r.width - dw) / 2) / dw, 0, 1);
         }
 
         return {
             isActive: () => !!root && !!root.parentNode,
+            getVideo: () => video,
+            getContentPos,
             toggle() {
                 if (this.isActive()) {
                     stop();
