@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.15.2
+// @version      1.15.3
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -10549,13 +10549,16 @@ if (!gl) {
         const errY = clamp(targetY - sig.mY, -0.22, 0.22);
         const br = clamp(1.0 + errY * 0.85, 0.78, 1.22);
 
+        // Flat scenes get more contrast; contrast is never reduced below 1.0,
+        // because ct < 1 lifts the black point (milky veil).
         const targetSd = 0.23;
         const errSd = clamp(targetSd - sig.sdY, -0.18, 0.18);
-        const ct = clamp(1.0 + (-errSd) * 0.85, 0.82, 1.30);
+        const ct = clamp(1.0 + errSd * 0.85, 1.0, 1.30);
 
+        // Pale scenes get more saturation; saturation is never reduced (washed-out look).
         const targetCh = 0.12;
         const errCh = clamp(targetCh - sig.mCh, -0.20, 0.20);
-        const sat = clamp(1.0 + (-errCh) * 0.90, 0.80, 1.45);
+        const sat = clamp(1.0 + errCh * 0.90, 1.0, 1.45);
 
         let hue = 0.0;
         if (autoLockWB) {
@@ -10564,8 +10567,8 @@ if (!gl) {
         }
 
         AUTO.tgt.br = clamp(1.0 + (br - 1.0) * s, 0.78, 1.22);
-        AUTO.tgt.ct = clamp(1.0 + (ct - 1.0) * s, 0.82, 1.30);
-        AUTO.tgt.sat = clamp(1.0 + (sat - 1.0) * s, 0.80, 1.45);
+        AUTO.tgt.ct = clamp(1.0 + (ct - 1.0) * s, 1.0, 1.30);
+        AUTO.tgt.sat = clamp(1.0 + (sat - 1.0) * s, 1.0, 1.45);
         AUTO.tgt.hue = clamp(0.0 + (hue - 0.0) * s, -12.0, 12.0);
     }
 
@@ -10582,8 +10585,8 @@ if (!gl) {
         if (!autoOn) return matIdentity4x5();
 
         const br = clamp(AUTO.cur.br, 0.78, 1.22);
-        const ct = clamp(AUTO.cur.ct, 0.82, 1.30);
-        const sat = clamp(AUTO.cur.sat, 0.80, 1.45);
+        const ct = clamp(AUTO.cur.ct, 1.0, 1.30);
+        const sat = clamp(AUTO.cur.sat, 1.0, 1.45);
         const hue = clamp(AUTO.cur.hue, -12, 12);
 
         let m = matIdentity4x5();
