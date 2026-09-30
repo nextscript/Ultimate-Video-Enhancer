@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.15.9
+// @version      1.16.0
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -7830,7 +7830,7 @@ function downloadBlob(blob, filename) {
         (document.body || document.documentElement).appendChild(tmpSvg);
 
         // Build CSS filter string
-        const baseTone = (s.baseOtp !== false) ? ' brightness(1.02) contrast(1.05) saturate(1.21)' : '';
+        const baseTone = (s.baseOtp !== false) ? ' brightness(1.02) contrast(1.05) saturate(1.15)' : '';
         let profTone = '';
         if (P==='film')    profTone = ' brightness(1.01) contrast(1.08) saturate(1.08)';
         if (P==='anime')   profTone = ' brightness(1.03) contrast(1.10) saturate(1.16)';
@@ -7902,7 +7902,7 @@ function downloadBlob(blob, filename) {
     }
 
     function getBaseToneString() {
-        return enabled ? ' brightness(1.02) contrast(1.05) saturate(1.21)' : '';
+        return enabled ? ' brightness(1.02) contrast(1.05) saturate(1.15)' : '';
     }
 
     function getProfileToneString() {
@@ -9747,7 +9747,7 @@ if (!gl) {
 
             if (enabled) {
                 contrast *= 1.05;
-                saturation *= 1.21;
+                saturation *= 1.15;
                 brightness *= 1.02;
             }
 
@@ -10172,7 +10172,7 @@ if (!gl) {
         if (enabled) {
             filters.push('brightness(1.02)');
             filters.push('contrast(1.05)');
-            filters.push('saturate(1.21)');
+            filters.push('saturate(1.15)');
         }
 
         const slVal = normSL();
@@ -17264,7 +17264,7 @@ if ('lutProfile' in obj) {
             document.head.appendChild(style);
         }
 
-        const baseTone = enabled ? ' brightness(1.02) contrast(1.05) saturate(1.21)' : '';
+        const baseTone = enabled ? ' brightness(1.02) contrast(1.05) saturate(1.15)' : '';
         const profTone = profileToneCss();
         const userTone = userToneCss();
 
