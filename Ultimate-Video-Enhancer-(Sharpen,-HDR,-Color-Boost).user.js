@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.16.2
+// @version      1.16.3
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -3436,17 +3436,68 @@ void main(){
             stopEventsOn(b);
             return b;
         };
+        // Status/confirm dialog shown on top of the modal (replaces alert/confirm).
+        // Returns a Promise resolving to the clicked button's value; `.close()` dismisses it (resolves null).
+        const IO_TONES = { info: '#4a9eff', success: '#50d890', error: '#ff6060', warn: '#ffb060' };
+        const _showIoDialog = ({ title, message, tone = 'info', buttons = [{ label: 'OK', value: true, primary: true }] }) => {
+            const prev = modal.querySelector('.gvf-io-dialog');
+            if (prev && prev._gvfClose) prev._gvfClose(null);
+            const color = IO_TONES[tone] || IO_TONES.info;
+
+            const overlay = document.createElement('div');
+            overlay.className = 'gvf-io-dialog';
+            overlay.style.cssText = `position:absolute;inset:0;background:rgba(0,0,0,0.6);border-radius:12px;display:flex;align-items:center;justify-content:center;z-index:10;`;
+            stopEventsOn(overlay);
+
+            const box = document.createElement('div');
+            box.style.cssText = `width:340px;max-width:90%;background:rgba(24,24,30,0.99);border:2px solid ${color};border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.8);padding:16px;display:flex;flex-direction:column;gap:12px;`;
+
+            const t = document.createElement('div');
+            t.textContent = title;
+            t.style.cssText = `font-size:14px;font-weight:900;color:${color};`;
+
+            const m = document.createElement('div');
+            m.textContent = message;
+            m.style.cssText = `font-size:12px;color:#ddd;white-space:pre-line;line-height:1.5;word-break:break-word;user-select:text;`;
+
+            const row = document.createElement('div');
+            row.style.cssText = `display:flex;justify-content:flex-end;gap:8px;`;
+
+            let resolveFn;
+            const promise = new Promise(r => { resolveFn = r; });
+            const close = (value) => { overlay.remove(); resolveFn(value); };
+            overlay._gvfClose = close;
+            promise.close = () => close(null);
+
+            buttons.forEach(({ label, value, primary }) => {
+                const b = document.createElement('button');
+                b.textContent = label;
+                b.style.cssText = `padding:5px 14px;border-radius:6px;font-size:12px;font-weight:900;cursor:pointer;border:1px solid ${primary ? color : 'rgba(255,255,255,0.25)'};background:${primary ? color + '33' : 'rgba(255,255,255,0.07)'};color:${primary ? '#fff' : '#bbb'};`;
+                stopEventsOn(b);
+                b.addEventListener('click', () => close(value));
+                row.appendChild(b);
+            });
+
+            box.appendChild(t);
+            box.appendChild(m);
+            if (buttons.length) box.appendChild(row);
+            overlay.appendChild(box);
+            modal.appendChild(overlay);
+            return promise;
+        };
+
         const exportCodesBtn = _mkIoBtn('⬇', 'Export all filter codes (JSON)');
         const importCodesBtn = _mkIoBtn('⬆', 'Import filter codes (JSON)');
 
         exportCodesBtn.addEventListener('click', () => {
             const codes = customSvgCodes.filter(e => e && e.id && e.id !== '__preview__');
-            if (!codes.length) { alert('No filter codes to export.'); return; }
+            if (!codes.length) { _showIoDialog({ title: 'Export', message: 'No filter codes to export.', tone: 'warn' }); return; }
             const payload = { schema: 'gvf-custom-filter-codes', ver: 1, exportedAt: Date.now(), codes };
             const d = new Date();
             const pad = n => String(n).padStart(2, '0');
             const fileName = `gvf_filter_codes_${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}.json`;
             downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), fileName);
+            _showIoDialog({ title: 'Export finished', message: `${codes.length} filter code(s) exported.\n\nFile: ${fileName}`, tone: 'success' });
         });
 
         const importCodesInput = document.createElement('input');
@@ -3458,22 +3509,63 @@ void main(){
             const file = importCodesInput.files && importCodesInput.files[0] ? importCodesInput.files[0] : null;
             importCodesInput.value = '';
             if (!file) return;
+            _importFilterCodesFromText(await file.text());
+        });
+
+        const exampleCodesBtn = _mkIoBtn('🧪', 'Load example filter codes');
+        exampleCodesBtn.addEventListener('click', () => {
+            if (exampleCodesBtn.disabled) return;
+            exampleCodesBtn.disabled = true;
+            exampleCodesBtn.style.opacity = '0.5';
+            const loading = _showIoDialog({ title: 'Load example', message: 'Loading example filter codes from GitHub…', buttons: [] });
+            const done = () => { exampleCodesBtn.disabled = false; exampleCodesBtn.style.opacity = ''; loading.close(); };
+            const fail = (reason) => { done(); _showIoDialog({ title: 'Loading example failed', message: reason, tone: 'error' }); };
+            GM_xmlhttpRequest({
+                method: 'GET',
+                url: 'https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/refs/heads/main/gvf_filter_codes_example.json',
+                timeout: 15000,
+                onload: (resp) => {
+                    if (resp.status < 200 || resp.status >= 300) { fail('HTTP ' + resp.status); return; }
+                    done();
+                    _importFilterCodesFromText(resp.responseText);
+                },
+                onerror: () => fail('Network error.'),
+                ontimeout: () => fail('Request timed out.'),
+            });
+        });
+
+        async function _importFilterCodesFromText(text) {
             let incoming;
             try {
-                const parsed = JSON.parse(await file.text());
+                const parsed = JSON.parse(text);
                 incoming = Array.isArray(parsed) ? parsed
                     : (parsed && Array.isArray(parsed.codes)) ? parsed.codes
                     : (parsed && parsed.code) ? [parsed] : null;
             } catch (err) {
-                alert('Import failed: invalid JSON file.\n' + (err && err.message || ''));
+                _showIoDialog({ title: 'Import failed', message: 'Invalid JSON file.\n' + (err && err.message || ''), tone: 'error' });
                 return;
             }
             incoming = (incoming || []).filter(e => e && typeof e.label === 'string' && e.label.trim() && typeof e.code === 'string' && e.code.trim());
-            if (!incoming.length) { alert('No valid filter codes found in this file.'); return; }
+            if (!incoming.length) { _showIoDialog({ title: 'Import failed', message: 'No valid filter codes found in this file.', tone: 'error' }); return; }
 
-            const dupes = incoming.filter(e => customSvgCodes.some(c => c.label === e.label));
-            const overwrite = dupes.length > 0 &&
-                confirm(`${dupes.length} filter(s) with the same name already exist.\n\nOK = overwrite them\nCancel = skip them`);
+            const dupes = incoming.filter(e => customSvgCodes.some(c => c.label === e.label.trim()));
+            let overwrite = false;
+            if (dupes.length) {
+                const choice = await _showIoDialog({
+                    title: 'Duplicate filters',
+                    message: `${dupes.length} filter(s) with the same name already exist:\n` +
+                        dupes.slice(0, 8).map(e => '• ' + e.label.trim()).join('\n') +
+                        (dupes.length > 8 ? `\n… and ${dupes.length - 8} more` : ''),
+                    tone: 'warn',
+                    buttons: [
+                        { label: 'Cancel', value: 'cancel' },
+                        { label: 'Skip', value: 'skip' },
+                        { label: 'Overwrite', value: 'overwrite', primary: true },
+                    ],
+                });
+                if (choice === 'cancel' || choice === null) return;
+                overwrite = choice === 'overwrite';
+            }
 
             let added = 0, replaced = 0, skipped = 0;
             const usedIds = new Set(customSvgCodes.map(c => c.id));
@@ -3511,8 +3603,8 @@ void main(){
             updateCustomAudioOverlays();
             _syncTypeToggleCheckboxes();
             renderList();
-            alert(`Import finished.\nAdded: ${added}\nOverwritten: ${replaced}\nSkipped: ${skipped}`);
-        });
+            _showIoDialog({ title: 'Import finished', message: `Added: ${added}\nOverwritten: ${replaced}\nSkipped: ${skipped}`, tone: 'success' });
+        }
 
         const hclose = document.createElement('button');
         hclose.textContent = '✕';
@@ -3533,6 +3625,7 @@ void main(){
         hclose.addEventListener('click', () => modal.remove());
 
         hbtns.appendChild(libBtn);
+        hbtns.appendChild(exampleCodesBtn);
         hbtns.appendChild(exportCodesBtn);
         hbtns.appendChild(importCodesBtn);
         hbtns.appendChild(importCodesInput);
