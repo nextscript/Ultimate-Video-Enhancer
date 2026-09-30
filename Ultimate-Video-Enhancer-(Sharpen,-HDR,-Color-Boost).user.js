@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.16.0
+// @version      1.16.1
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -967,7 +967,7 @@
         // FidelityFX FSR v1.x compatibility controls.
         // Original mpv shader uses compile-time #if flags and two passes (EASU + RCAS).
         // GVF runs it as a safe single-pass EASU/RCAS approximation with runtime sliders.
-        if (/FidelityFX|FSR_EASU|FSR_RCAS|EASUTEX|FsrEasuTap|FSR_PQ|SHARPNESS/i.test(src)) {
+        if (/FidelityFX|FSR_EASU|FSR_RCAS|EASUTEX|FsrEasuTap|FSR_PQ/i.test(src)) {
             addSlider('u_fsr_strength', 1.0, 0.0, 2.0, 'FSR Strength', -100);
             addSlider('u_fsr_radius', 1.0, 0.25, 2.5, 'FSR Radius', -99);
             addSlider('u_fsr_sharpness', 0.70, 0.0, 2.0, 'RCAS Sharpness', -98);
