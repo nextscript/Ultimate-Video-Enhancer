@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.15.8
+// @version      1.15.9.AI
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -525,6 +525,8 @@
         AI_SCENE_ONLY: 'gvf_ai_scene_only',
         AI_DEBUG: 'gvf_ai_debug',
         AI_INTENSITY: 'gvf_ai_intensity',
+        AI_SSSR: 'gvf_ai_sssr',
+        AI_INSTRUCTION: 'gvf_ai_instruction',
         AI_PANEL_POS: 'gvf_ai_panel_pos'
     };
 
@@ -544,6 +546,46 @@
     // Custom SVG Codes  { id, label, code, enabled }
     // -------------------------
     let customSvgCodes = [];
+
+    // -------------------------
+    // Built-in SSimSuperRes (AI Auto Scene Match toggle)
+    // -------------------------
+    // Real multi-pass SSSR (port of Shiandow's mpv shader, LGPL-3.0) rendered by the Custom GLSL chain as its
+    // final upscale stage (see _renderSssr in CustomWebglOverlayManager). The entry is never stored in
+    // customSvgCodes/GM and never listed in the Custom GLSL UI. Strength is set at runtime (AI-driven).
+    const AI_SSSR_ENTRY_ID = '__gvf_ai_sssr__';
+    let _aiSssrEntry = null;
+
+    function getAiSssrEntry() {
+        if (!_aiSssrEntry) {
+            _aiSssrEntry = {
+                id: AI_SSSR_ENTRY_ID,
+                label: 'SSimSuperRes (AI)',
+                type: 'webgl',
+                builtin: 'sssr',
+                enabled: true,
+                code: '',
+                uniforms: { u_sssr_strength: 1.0 }
+            };
+        }
+        return _aiSssrEntry;
+    }
+
+    // Active WebGL chain = enabled custom GLSL entries + built-in SSSR (last, so it refines the final image).
+    function getActiveWebglEntries(video) {
+        const list = customSvgCodes.filter(e => e && e.enabled && e.type === 'webgl');
+        if (isAiSssrRunning(video)) {
+            const entry = getAiSssrEntry();
+            applyAiSssrUniforms(entry, video);
+            list.push(entry);
+        }
+        return list;
+    }
+
+    function hasWebglEntryId(id) {
+        if (id === AI_SSSR_ENTRY_ID) return !!aiSssr;
+        return customSvgCodes.some(e => e && e.id === id);
+    }
 
     // ── GLSL Domain Blacklist ─────────────────────────────────────────────────
     // Hostnames where GLSL (WebGL) custom filters are blocked (e.g. DRM sites).
@@ -2025,6 +2067,361 @@ void main(){
             return true;
         }
 
+        // ── SSimSuperRes (real multi-pass port of Shiandow's mpv shader, LGPL-3.0) ──────
+        // mpv pass            -> GVF pass (size)
+        //   (scaler)          -> up    : HOOKED = Catmull-Rom upscale of the chain output   (out W x out H)
+        //   Downscaling I     -> down1 : vertical Mitchell-ish downscale of HOOKED          (out W x native H)
+        //   Downscaling II    -> down2 : horizontal downscale -> LOWRES                     (native)
+        //   varL              -> varL  : local variance of the source (PREKERNEL)           (native)
+        //   varH              -> varH  : local variance of LOWRES                           (native)
+        //   final pass        -> final : faithfulness correction, drawn to the canvas       (out W x out H)
+        // Intermediates are RGBA16F (mpv uses float FBOs; the variance terms need it), RGBA8 as fallback.
+        let _sssr = null;          // programs + shared VAO
+        let _sssrTargets = null;   // FBO set for the current native/output size
+        let _sssrError = '';
+        let _sssrLastOk = false;
+        let _sssrFrames = 0;       // frames actually rendered through SSSR (HUD proof that it runs)
+        let _sssrOutSize = '';
+
+        const _SSSR_HEAD = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+#define Luma(rgb) ( dot((rgb) * (rgb), vec3(0.2126, 0.7152, 0.0722)) )
+`;
+
+        const _SSSR_FS_UP = _SSSR_HEAD + `
+uniform sampler2D u_src;
+uniform vec2 u_srcSize;
+// 9-tap Catmull-Rom using bilinear filtering (stands in for mpv's upscaler before POSTKERNEL)
+void main() {
+    vec2 samplePos = v_uv * u_srcSize;
+    vec2 t1 = floor(samplePos - 0.5) + 0.5;
+    vec2 f = samplePos - t1;
+    vec2 w0 = f * (-0.5 + f * (1.0 - 0.5 * f));
+    vec2 w1 = 1.0 + f * f * (-2.5 + 1.5 * f);
+    vec2 w2 = f * (0.5 + f * (2.0 - 1.5 * f));
+    vec2 w3 = f * f * (-0.5 + 0.5 * f);
+    vec2 w12 = w1 + w2;
+    vec2 p0 = (t1 - 1.0) / u_srcSize;
+    vec2 p3 = (t1 + 2.0) / u_srcSize;
+    vec2 p12 = (t1 + w2 / w12) / u_srcSize;
+    vec3 c = vec3(0.0);
+    c += textureLod(u_src, vec2(p0.x,  p0.y),  0.0).rgb * w0.x  * w0.y;
+    c += textureLod(u_src, vec2(p12.x, p0.y),  0.0).rgb * w12.x * w0.y;
+    c += textureLod(u_src, vec2(p3.x,  p0.y),  0.0).rgb * w3.x  * w0.y;
+    c += textureLod(u_src, vec2(p0.x,  p12.y), 0.0).rgb * w0.x  * w12.y;
+    c += textureLod(u_src, vec2(p12.x, p12.y), 0.0).rgb * w12.x * w12.y;
+    c += textureLod(u_src, vec2(p3.x,  p12.y), 0.0).rgb * w3.x  * w12.y;
+    c += textureLod(u_src, vec2(p0.x,  p3.y),  0.0).rgb * w0.x  * w3.y;
+    c += textureLod(u_src, vec2(p12.x, p3.y),  0.0).rgb * w12.x * w3.y;
+    c += textureLod(u_src, vec2(p3.x,  p3.y),  0.0).rgb * w3.x  * w3.y;
+    fragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+}`;
+
+        // Downscaling I (axis 1) and II (axis 0). u_addAlpha adds LOWRES_texOff(0).a in pass II.
+        const _sssrDownFs = (axis) => _SSSR_HEAD + `
+uniform sampler2D u_hooked;
+uniform vec2 u_hookedSize;
+uniform vec2 u_inputSize;
+uniform float u_addAlpha;
+#define MN(B,C,x)   (x < 1.0 ? ((2.-1.5*B-(C))*x + (-3.+2.*B+C))*x*x + (1.-(B)/3.) : (((-(B)/6.-(C))*x + (B+5.*C))*x + (-2.*B-8.*C))*x+((4./3.)*B+4.*C))
+#define Kernel(x)   MN(0.334, 0.333, abs(x))
+#define taps        2.0
+void main() {
+    const int axis = ${axis};
+    vec2 pt = 1.0 / u_hookedSize;
+    vec2 low2  = ceil((v_uv - taps / u_inputSize) * u_hookedSize - 0.5);
+    vec2 high2 = floor((v_uv + taps / u_inputSize) * u_hookedSize - 0.5);
+    float low  = low2[axis];
+    float high = high2[axis];
+
+    float W = 0.0;
+    vec4 avg = vec4(0.0);
+    vec2 pos = v_uv;
+    vec4 tex;
+    for (int i = 0; i < 256; i++) {
+        float k = low + float(i);
+        if (k > high) break;
+        pos[axis] = pt[axis] * (k + 0.5);
+        float rel = (pos[axis] - v_uv[axis]) * u_inputSize[axis];
+        float w = Kernel(rel);
+        tex.rgb = textureLod(u_hooked, pos, 0.0).rgb;
+        tex.a = Luma(tex.rgb);
+        avg += w * tex;
+        W += w;
+    }
+    avg /= W;
+    float extra = u_addAlpha > 0.5 ? textureLod(u_hooked, v_uv, 0.0).a : 0.0;
+    fragColor = vec4(avg.rgb, abs(avg.a - Luma(avg.rgb)) + extra);
+}`;
+
+        // varL (PREKERNEL = source) and varH (LOWRES): identical math, varL also stores the source pixel.
+        const _sssrVarFs = (storeRgb) => _SSSR_HEAD + `
+uniform sampler2D u_src;
+uniform vec2 u_srcSize;
+#define spread (1.0 / 1000.0)
+#define sqr(x) ((x) * (x)) // mpv uses pow(x, 2.0), which is undefined for x < 0 in GLSL ES
+vec3 Get(int x, int y) { return textureLod(u_src, v_uv + vec2(float(x), float(y)) / u_srcSize, 0.0).rgb; }
+void main() {
+    vec3 mean = vec3(0.0);
+    for (int X = -1; X <= 1; X++)
+    for (int Y = -1; Y <= 1; Y++) {
+        mean += Get(X, Y) * pow(spread, sqr(float(X)) + sqr(float(Y)));
+    }
+    mean /= (1.0 + 4.0 * spread + 4.0 * spread * spread);
+
+    float v = 0.0;
+    for (int X = -1; X <= 1; X++)
+    for (int Y = -1; Y <= 1; Y++) {
+        v += Luma(abs(Get(X, Y) - mean)) * pow(spread, sqr(float(X)) + sqr(float(Y)));
+    }
+    v /= (spread + 4.0 * spread + 4.0 * spread * spread);
+    fragColor = ${storeRgb ? 'vec4(Get(0, 0), v)' : 'vec4(v, 0.0, 0.0, 0.0)'};
+}`;
+
+        const _SSSR_FS_FINAL = _SSSR_HEAD + `
+uniform sampler2D u_hooked;
+uniform sampler2D u_low;
+uniform sampler2D u_varL;
+uniform sampler2D u_varH;
+uniform vec2 u_lowSize;
+uniform float u_strength;
+#define taps 3.0
+#define Kernel(x) (cos(acos(-1.0) * (x) / taps))
+#define EPS ((0.5 / 255.0) * (0.5 / 255.0))
+vec4 L(vec2 p)      { return textureLod(u_varL, (p + 0.5) / u_lowSize, 0.0); }
+float H(vec2 p)     { return textureLod(u_varH, (p + 0.5) / u_lowSize, 0.0).r; }
+vec4 Lowres(vec2 p) { return textureLod(u_low,  (p + 0.5) / u_lowSize, 0.0); }
+void main() {
+    vec4 c0 = textureLod(u_hooked, v_uv, 0.0);
+
+    vec2 pos = v_uv * u_lowSize - vec2(0.5);
+    vec2 offset = pos - round(pos); // taps = 3 (odd)
+    pos -= offset;
+
+    vec2 mVar = vec2(0.0);
+    for (int X = -1; X <= 1; X++)
+    for (int Y = -1; Y <= 1; Y++) {
+        vec2 w = clamp(1.5 - abs(vec2(X, Y) - offset), 0.0, 1.0);
+        mVar += w.x * w.y * vec2(Lowres(pos + vec2(X, Y)).a, 1.0);
+    }
+    mVar.x /= mVar.y;
+
+    float weightSum = 0.0;
+    vec3 diff = vec3(0.0);
+    for (int X = -1; X <= 1; X++)
+    for (int Y = -1; Y <= 1; Y++) {
+        vec2 q = pos + vec2(X, Y);
+        vec4 lq = L(q);
+        vec4 lo = Lowres(q);
+        float R = -sqrt((lq.a + EPS) / (H(q) + mVar.x + EPS));
+        vec2 krnl = Kernel(vec2(X, Y) - offset);
+        float weight = krnl.x * krnl.y / (Luma(abs(c0.rgb - lo.rgb)) + lo.a + EPS);
+        diff += weight * (lq.rgb + lo.rgb * R + (-1.0 - R) * c0.rgb);
+        weightSum += weight;
+    }
+    diff /= weightSum;
+
+    fragColor = vec4(clamp(c0.rgb + diff * u_strength, 0.0, 1.0), 1.0);
+}`;
+
+        function _sssrProgram(gl, fsSrc, names) {
+            const vs = _compileShader(gl, gl.VERTEX_SHADER, _vsSource);
+            const fs = _compileShader(gl, gl.FRAGMENT_SHADER, fsSrc);
+            const program = gl.createProgram();
+            gl.attachShader(program, vs); gl.attachShader(program, fs);
+            // Fixed attribute slots so all SSSR passes share one VAO.
+            gl.bindAttribLocation(program, 0, 'a_pos');
+            gl.bindAttribLocation(program, 1, 'a_uv');
+            gl.linkProgram(program);
+            if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+            gl.detachShader(program, vs); gl.deleteShader(vs);
+            gl.detachShader(program, fs); gl.deleteShader(fs);
+            const u = {};
+            names.forEach(n => { u[n] = gl.getUniformLocation(program, n); });
+            return { program, u };
+        }
+
+        function _ensureSssr() {
+            if (_sssr) return _sssr;
+            if (_sssrError) return null; // do not retry a failing compile every frame
+            const gl = _gl;
+            try {
+                const progs = {
+                    up:    _sssrProgram(gl, _SSSR_FS_UP, ['u_src', 'u_srcSize']),
+                    down1: _sssrProgram(gl, _sssrDownFs(1), ['u_hooked', 'u_hookedSize', 'u_inputSize', 'u_addAlpha']),
+                    down2: _sssrProgram(gl, _sssrDownFs(0), ['u_hooked', 'u_hookedSize', 'u_inputSize', 'u_addAlpha']),
+                    varL:  _sssrProgram(gl, _sssrVarFs(true), ['u_src', 'u_srcSize']),
+                    varH:  _sssrProgram(gl, _sssrVarFs(false), ['u_src', 'u_srcSize']),
+                    final: _sssrProgram(gl, _SSSR_FS_FINAL, ['u_hooked', 'u_low', 'u_varL', 'u_varH', 'u_lowSize', 'u_strength'])
+                };
+                const vao = gl.createVertexArray();
+                gl.bindVertexArray(vao);
+                const vb = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, vb);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+                gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+                const ub = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, ub);
+                gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0,0, 1,0, 0,1, 1,1]), gl.STATIC_DRAW);
+                gl.enableVertexAttribArray(1); gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 0, 0);
+                gl.bindVertexArray(null);
+                const floatOk = !!gl.getExtension('EXT_color_buffer_float');
+                _sssr = { progs, vao, vb, ub, useFloat: floatOk };
+                return _sssr;
+            } catch (e) {
+                _sssrError = String(e && e.message || e);
+                logW('[GVF WebGL Chain] SSimSuperRes compile error:', _sssrError);
+                return null;
+            }
+        }
+
+        function _sssrMakeTarget(gl, w, h, useFloat) {
+            const tex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            if (useFloat) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+            else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, w, h, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.bindTexture(gl.TEXTURE_2D, null);
+            const fbo = gl.createFramebuffer();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+            const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            return { tex, fbo, w, h, ok };
+        }
+
+        function _sssrFreeTargets() {
+            if (!_sssrTargets || !_gl) { _sssrTargets = null; return; }
+            for (const t of Object.values(_sssrTargets.t)) {
+                try { _gl.deleteFramebuffer(t.fbo); _gl.deleteTexture(t.tex); } catch (_) {}
+            }
+            _sssrTargets = null;
+        }
+
+        function _sssrEnsureTargets(nw, nh, ow, oh) {
+            const s = _sssr;
+            const key = `${nw}x${nh}>${ow}x${oh}|${s.useFloat ? 'f' : 'b'}`;
+            if (_sssrTargets && _sssrTargets.key === key) return _sssrTargets;
+            _sssrFreeTargets();
+            const gl = _gl;
+            const make = () => ({
+                hooked: _sssrMakeTarget(gl, ow, oh, s.useFloat),
+                low1:   _sssrMakeTarget(gl, ow, nh, s.useFloat),
+                low:    _sssrMakeTarget(gl, nw, nh, s.useFloat),
+                varL:   _sssrMakeTarget(gl, nw, nh, s.useFloat),
+                varH:   _sssrMakeTarget(gl, nw, nh, s.useFloat)
+            });
+            let t = make();
+            if (Object.values(t).some(x => !x.ok) && s.useFloat) {
+                // Half-float render targets not supported here: fall back to 8-bit.
+                _sssrTargets = { key, t };
+                _sssrFreeTargets();
+                s.useFloat = false;
+                t = make();
+            }
+            _sssrTargets = { key: `${nw}x${nh}>${ow}x${oh}|${s.useFloat ? 'f' : 'b'}`, t };
+            return _sssrTargets;
+        }
+
+        // Runs the SSSR passes on srcTex (native nw x nh) and draws the result to the canvas at ow x oh.
+        function _renderSssr(srcTex, nw, nh, ow, oh, strength) {
+            const gl = _gl;
+            const s = _sssrError ? null : _ensureSssr();
+            if (!s) { _sssrLastOk = false; return false; }
+            try {
+                const T = _sssrEnsureTargets(nw, nh, ow, oh).t;
+                const P = s.progs;
+                gl.bindVertexArray(s.vao);
+
+                const bind = (unit, tex, loc) => {
+                    gl.activeTexture(gl.TEXTURE0 + unit);
+                    gl.bindTexture(gl.TEXTURE_2D, tex);
+                    if (loc) gl.uniform1i(loc, unit);
+                };
+                const target = (t) => {
+                    gl.bindFramebuffer(gl.FRAMEBUFFER, t ? t.fbo : null);
+                    gl.viewport(0, 0, t ? t.w : ow, t ? t.h : oh);
+                };
+
+                // up: HOOKED
+                target(T.hooked); gl.useProgram(P.up.program);
+                bind(0, srcTex, P.up.u.u_src);
+                gl.uniform2f(P.up.u.u_srcSize, nw, nh);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                // Downscaling I (vertical): HOOKED -> low1
+                target(T.low1); gl.useProgram(P.down1.program);
+                bind(0, T.hooked.tex, P.down1.u.u_hooked);
+                gl.uniform2f(P.down1.u.u_hookedSize, ow, oh);
+                gl.uniform2f(P.down1.u.u_inputSize, nw, nh);
+                gl.uniform1f(P.down1.u.u_addAlpha, 0.0);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                // Downscaling II (horizontal): low1 -> LOWRES
+                target(T.low); gl.useProgram(P.down2.program);
+                bind(0, T.low1.tex, P.down2.u.u_hooked);
+                gl.uniform2f(P.down2.u.u_hookedSize, ow, nh);
+                gl.uniform2f(P.down2.u.u_inputSize, nw, nh);
+                gl.uniform1f(P.down2.u.u_addAlpha, 1.0);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                // varL: source variance
+                target(T.varL); gl.useProgram(P.varL.program);
+                bind(0, srcTex, P.varL.u.u_src);
+                gl.uniform2f(P.varL.u.u_srcSize, nw, nh);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                // varH: LOWRES variance
+                target(T.varH); gl.useProgram(P.varH.program);
+                bind(0, T.low.tex, P.varH.u.u_src);
+                gl.uniform2f(P.varH.u.u_srcSize, nw, nh);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                // final pass -> canvas
+                target(null); gl.useProgram(P.final.program);
+                bind(0, T.hooked.tex, P.final.u.u_hooked);
+                bind(1, T.low.tex, P.final.u.u_low);
+                bind(2, T.varL.tex, P.final.u.u_varL);
+                bind(3, T.varH.tex, P.final.u.u_varH);
+                gl.uniform2f(P.final.u.u_lowSize, nw, nh);
+                gl.uniform1f(P.final.u.u_strength, strength);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+                for (let u = 3; u >= 0; u--) { gl.activeTexture(gl.TEXTURE0 + u); gl.bindTexture(gl.TEXTURE_2D, null); }
+                gl.bindVertexArray(null);
+                _sssrLastOk = true;
+                _sssrFrames++;
+                _sssrOutSize = `${nw}x${nh} -> ${ow}x${oh}`;
+                return true;
+            } catch (e) {
+                _sssrError = String(e && e.message || e);
+                _sssrLastOk = false;
+                logW('[GVF WebGL Chain] SSimSuperRes render error:', _sssrError);
+                try { gl.bindVertexArray(null); gl.bindFramebuffer(gl.FRAMEBUFFER, null); } catch (_) {}
+                return false;
+            }
+        }
+
+        function _sssrDestroy() {
+            _sssrFreeTargets();
+            if (_sssr && _gl) {
+                try {
+                    Object.values(_sssr.progs).forEach(p => _gl.deleteProgram(p.program));
+                    _gl.deleteVertexArray(_sssr.vao); _gl.deleteBuffer(_sssr.vb); _gl.deleteBuffer(_sssr.ub);
+                } catch (_) {}
+            }
+            _sssr = null;
+        }
+
+        function getSssrStatus() {
+            if (_sssrError) return { ok: false, error: _sssrError };
+            if (!_sssr) return { ok: false, error: '' };
+            return { ok: _sssrLastOk, error: '', precision: _sssr.useFloat ? 'RGBA16F' : 'RGBA8', frames: _sssrFrames, size: _sssrOutSize };
+        }
+
         function _compileEntry(entry) {
             const gl = _gl;
             const sig = entry.id + '||' + entry.code;
@@ -2219,7 +2616,7 @@ void main(){
         function _doRender(video) {
             if (!_gl || !_canvas) return;
             const gl = _gl;
-            const activeEntries = customSvgCodes.filter(e => e && e.enabled && e.type === 'webgl');
+            const activeEntries = getActiveWebglEntries(video);
             if (!activeEntries.length || !video) {
                 _hideWebglCanvases(true);
                 return;
@@ -2240,14 +2637,19 @@ void main(){
             const RAW_W = video.videoWidth, RAW_H = video.videoHeight;
             if (!RAW_W || !RAW_H) return;
 
+            // Built-in SSSR is not a regular pass: it is the final upscale stage of the chain.
+            const sssrEntry = activeEntries.find(e => e && e.builtin === 'sssr') || null;
+            const useSssr = !!sssrEntry && !!_ensureSssr();
+
             // Compile/cache once before uploads so we can determine which auxiliary inputs
             // are actually required by the active shader chain.
             const renderEntries = [];
             for (const entry of activeEntries) {
+                if (entry.builtin) continue;
                 const rec = _compileEntry(entry);
                 if (rec) renderEntries.push({ entry, rec });
             }
-            if (!renderEntries.length) {
+            if (!renderEntries.length && !useSssr) {
                 _hideWebglCanvases(true);
                 return;
             }
@@ -2262,7 +2664,8 @@ void main(){
             const snapT = Math.round((cr.top  - pr.top)  * dpr) / dpr;
             const dispW = Math.max(1, Math.round(cr.width  * dpr));
             const dispH = Math.max(1, Math.round(cr.height * dpr));
-            const outW = Math.min(dispW, w), outH = Math.min(dispH, h);
+            // SSSR renders straight to the player's device-pixel size (it is an upscaler).
+            const outW = useSssr ? dispW : Math.min(dispW, w), outH = useSssr ? dispH : Math.min(dispH, h);
             const usePresent = (outW !== w || outH !== h) && !!_ensurePresentProgram();
             const cw = usePresent ? outW : w, ch = usePresent ? outH : h;
             const cssW = (dispW / dpr) + 'px', cssH = (dispH / dpr) + 'px';
@@ -2340,7 +2743,7 @@ void main(){
             const n = renderEntries.length;
 
             // Determine which entries need blend canvases
-            const allNonNormal = renderEntries.every(({ entry }) => (entry.blendMode || 'normal') !== 'normal');
+            const allNonNormal = !useSssr && renderEntries.every(({ entry }) => (entry.blendMode || 'normal') !== 'normal');
 
             for (let i = 0; i < n; i++) {
                 const entry = renderEntries[i].entry;
@@ -2348,7 +2751,8 @@ void main(){
 
                 const bm = entry.blendMode || 'normal';
                 const needsBlendCanvas = bm !== 'normal';
-                const isLast = (i === n - 1);
+                // With SSSR every regular pass stays in the FBO chain; SSSR draws the canvas afterwards.
+                const isLast = !useSssr && (i === n - 1);
 
                 if (needsBlendCanvas) {
                     // Render to screen so _canvas has the output, then copy to 2D blend canvas.
@@ -2416,6 +2820,13 @@ void main(){
                         if (currentDstTex === _pongTex) { currentSrc = _pongTex; currentDstFbo = _pingFbo; currentDstTex = _pingTex; }
                         else { currentSrc = _pingTex; currentDstFbo = _pongFbo; currentDstTex = _pongTex; }
                     }
+                }
+            }
+
+            if (useSssr) {
+                const strength = Number(sssrEntry.uniforms && sssrEntry.uniforms.u_sssr_strength);
+                if (!_renderSssr(currentSrc, w, h, cw, ch, Number.isFinite(strength) ? strength : 1.0)) {
+                    _presentToScreen(currentSrc, w, h, cw, ch);
                 }
             }
 
@@ -2509,13 +2920,13 @@ void main(){
                 _hideWebglCanvases(true);
             }
             _video = video;
-            const activeEntries = customSvgCodes.filter(e => e && e.enabled && e.type === 'webgl');
+            const activeEntries = getActiveWebglEntries(video);
 
             if (!activeEntries.length) {
                 _hideWebglCanvases(true);
                 _hasFrame = false;
                 for (const [id] of _compiled.entries()) {
-                    if (!customSvgCodes.find(e => e.id === id)) {
+                    if (!hasWebglEntryId(id)) {
                         const rec = _compiled.get(id);
                         try { if (_gl) { _gl.deleteProgram(rec.program); _gl.deleteVertexArray(rec.vao); _gl.deleteBuffer(rec.vb); _gl.deleteBuffer(rec.ub); } } catch(_) {}
                         _compiled.delete(id);
@@ -2538,7 +2949,7 @@ void main(){
 
             // Remove compiled programs for stale entries
             for (const [id] of _compiled.entries()) {
-                if (!customSvgCodes.find(e => e.id === id)) {
+                if (!hasWebglEntryId(id)) {
                     const rec = _compiled.get(id);
                     try { if (_gl) { _gl.deleteProgram(rec.program); _gl.deleteVertexArray(rec.vao); _gl.deleteBuffer(rec.vb); _gl.deleteBuffer(rec.ub); } } catch(_) {}
                     _compiled.delete(id);
@@ -2561,8 +2972,10 @@ void main(){
                 for (const rec of _compiled.values()) {
                     try { _gl.deleteProgram(rec.program); _gl.deleteVertexArray(rec.vao); _gl.deleteBuffer(rec.vb); _gl.deleteBuffer(rec.ub); } catch(_) {}
                 }
+                _sssrDestroy();
             }
             _compiled.clear();
+            _sssr = null; _sssrTargets = null;
             _gl = null; _canvas = null;
             _pingFbo = _pongFbo = _pingTex = _pongTex = null;
             _fboW = _fboH = 0;
@@ -2593,7 +3006,7 @@ void main(){
                 } catch (_) {}
             }
         }
-        return { update, destroyAll, stopAndHide, reparentAll, forceRender };
+        return { update, destroyAll, stopAndHide, reparentAll, forceRender, getSssrStatus };
     })();
 
     // Try-compile a GLSL fragment shader and return null on success, error string on failure
@@ -8851,13 +9264,26 @@ function downloadBlob(blob, filename) {
     let aiSceneOnly = !!gmGet(K.AI_SCENE_ONLY, true);
     let aiDebug = !!gmGet(K.AI_DEBUG, false);
     let aiIntensity = clamp(aiNum(gmGet(K.AI_INTENSITY, 2.0), 2.0), 0.5, 5.0);
+    var aiSssr = !!gmGet(K.AI_SSSR, false); // var: read by the WebGL overlay manager, possibly before this line runs
+
+    // User goal for the AI, appended to the system prompt. Editable in the AI panel; empty = conservative mode.
+    const AI_INSTRUCTION_MAX = 2000;
+    const AI_INSTRUCTION_DEFAULT = [
+        'Get the best possible picture out of every frame.',
+        'Actively fix what is visibly wrong: lift crushed shadows, recover blown highlights, correct color casts,',
+        'revive dull or flat colors and restore contrast and clarity to soft or washed-out images.',
+        'Use clearly visible corrections when a problem is clearly visible, and small or zero values when the frame already looks good.',
+        'Keep skin tones natural and never create an artificial, oversaturated or overprocessed look.'
+    ].join(' ');
+    let aiInstruction = String(gmGet(K.AI_INSTRUCTION, AI_INSTRUCTION_DEFAULT) ?? '').slice(0, AI_INSTRUCTION_MAX);
     if (!AI_MODES.includes(aiMode)) aiMode = 'ai-assisted';
     if (!Object.values(AI_PROVIDER).includes(aiProvider)) aiProvider = AI_PROVIDER.OPENAI_COMPAT;
 
     const AI_ADJ_KEYS = [
         'brightness', 'contrast', 'saturation', 'vibrance', 'gamma', 'sharpness',
         'black', 'white', 'highlights', 'shadows',
-        'redGain', 'greenGain', 'blueGain'
+        'redGain', 'greenGain', 'blueGain',
+        'denoise', 'superres'
     ];
     const aiZeroAdjustments = () => Object.fromEntries(AI_ADJ_KEYS.map(k => [k, 0]));
 
@@ -8916,7 +9342,45 @@ function downloadBlob(blob, filename) {
     function normRGB(v) { return clamp(Math.round(Number(v) || 128), 0, 255); }
     function rgbGainToFactor(v) { return (normRGB(v) / 128); }
 
-    function getSharpenA() { return Math.max(0, normSL()) * 1.0; }
+    // Runtime-only AI sharpen contribution (never persisted, never written into u_sharp).
+    // Goes through getAiAutoOverrides() so confidence/influence/intensity/autoStrength/smoothing apply.
+    // Negative AI sharpness only suppresses extra sharpening; it never adds blur.
+    function getAiSharpenAmount() {
+        if (!isAiAutoActive()) return 0;
+        try {
+            const ai = getAiAutoOverrides();
+            const raw = Math.max(0, Number(ai?.detail?.sharpness) || 0);
+            // AI sharpness range is -0.15 .. +0.15 -> max +0.35 extra sharpen.
+            return clamp(raw * 2.5, 0, 0.35);
+        } catch (_) {
+            return 0;
+        }
+    }
+
+    // Runtime-only AI denoise contribution in DN units (0..0.6). Same weighting chain as sharpness.
+    function getAiDenoiseAmount() {
+        if (!isAiAutoActive()) return 0;
+        try {
+            const ai = getAiAutoOverrides();
+            const raw = Math.max(0, Number(ai?.detail?.denoise) || 0);
+            // AI denoise range is 0 .. 0.30 -> max +0.6 DN (SVG mix 0.3 / sigma 0.48).
+            return clamp(raw * 2.0, 0, 0.6);
+        } catch (_) {
+            return 0;
+        }
+    }
+
+    // DN value for the SVG filter: manual DN plus AI denoise. A negative manual DN (grain) is a
+    // deliberate user choice and is left alone; Firefox has no SVG DN support.
+    function getEffectiveDN(manualDN) {
+        if (manualDN < 0 || isFirefoxBrowser) return manualDN;
+        return clamp(manualDN + getAiDenoiseAmount(), 0, 1.5);
+    }
+
+    function getSharpenA() {
+        const manual = Math.max(0, normSL()) * 1.0;
+        return clamp(manual + getAiSharpenAmount(), 0, 2.0);
+    }
     function getBlurSigma() { return Math.max(0, -normSL()) * 1.0; }
     function getRadius() { return Math.max(0.1, Math.abs(normSR())); }
     function blackToOffset(v) { return clamp(v, -2, 2) * 0.04; }
@@ -9092,6 +9556,49 @@ function downloadBlob(blob, filename) {
         } catch (_) { }
     }
 
+    // AI sharpness changes at runtime without a full SVG rebuild: patch the sharpen composite in place.
+    var _lastSvgSharpenA = null; // var: may be touched by ensureSvgFilter() before this line runs
+    var _lastSvgDN = null;
+    function updateAiDetailInSvg() {
+        try {
+            const svg = document.getElementById(SVG_ID);
+            if (!svg) return;
+
+            const A = Number(getSharpenA().toFixed(3));
+            if (A !== _lastSvgSharpenA) {
+                svg.querySelectorAll('feComposite[data-gvf-sharpen="1"]').forEach(n => {
+                    try {
+                        n.setAttribute('k2', String(1 + A));
+                        n.setAttribute('k3', String(-A));
+                    } catch (_) { }
+                });
+                _lastSvgSharpenA = A;
+            }
+
+            const DN = Number(getEffectiveDN(Number(normDN().toFixed(1))).toFixed(2));
+            if (DN !== _lastSvgDN) {
+                const blurs = svg.querySelectorAll('feGaussianBlur[data-gvf-dn="blur"]');
+                if (DN > 0 && !blurs.length) {
+                    // Denoise stage was not built (DN was 0 at build time): one full rebuild adds it.
+                    ensureSvgFilter(true);
+                    applyFilter({ skipSvgIfPossible: true });
+                    return;
+                }
+                // DN <= 0 with existing stage: mix 0 makes it a pass-through until the next rebuild.
+                const mix = DN > 0 ? dnToDenoiseMix(DN) : 0;
+                const sig = DN > 0 ? dnToDenoiseSigma(DN) : 0;
+                blurs.forEach(n => { try { n.setAttribute('stdDeviation', String(sig)); } catch (_) { } });
+                svg.querySelectorAll('feComposite[data-gvf-dn="mix"]').forEach(n => {
+                    try {
+                        n.setAttribute('k2', String(1 - mix));
+                        n.setAttribute('k3', String(mix));
+                    } catch (_) { }
+                });
+                _lastSvgDN = DN;
+            }
+        } catch (_) { }
+    }
+
     // -------------------------
     // BRANCHLESS SHADER LOGIC
     // -------------------------
@@ -9203,6 +9710,7 @@ function downloadBlob(blob, filename) {
             this.uAutoMatrix = null;
             this.uAvgLum = null;
             this.uLutActive = null;
+            this.uDenoise = null;
 
             // Attribute locations
             this.aPosition = null;
@@ -9410,6 +9918,7 @@ if (!gl) {
                 uniform mat4 uAutoMatrix;
                 uniform float uLutActive;
                 uniform float uEdge;
+                uniform float uDenoise;     // AI denoise 0..0.4 (runtime only)
                 uniform float uAvgLum;   // per-frame mean luminance [0..1]
 
                 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
@@ -9555,8 +10064,8 @@ if (!gl) {
                     // Bilateral Denoise + CAS Sharpening (built-in, always active in GPU mode)
                     {
                         const float SIGMA_S = 1.2;
-                        const float SIGMA_R = 0.12;
-                        const float CAS_STR = 0.8;
+                        float SIGMA_R = 0.12 + uDenoise * 0.45;
+                        float CAS_STR = 0.8 * (1.0 - uDenoise);
                         vec2 bpx = vec2(1.0 / max(uResolution.x, 1.0), 1.0 / max(uResolution.y, 1.0));
                         vec3 bsum = vec3(0.0);
                         float bwSum = 0.0;
@@ -9617,8 +10126,8 @@ if (!gl) {
                     // Bilateral Denoise + CAS Sharpening
                     {
                         const float SIGMA_S = 1.2;
-                        const float SIGMA_R = 0.12;
-                        const float CAS_STR = 0.8;
+                        float SIGMA_R = 0.12 + uDenoise * 0.45;
+                        float CAS_STR = 0.8 * (1.0 - uDenoise);
                         vec2 bpx = vec2(1.0 / max(uResolution.x, 1.0), 1.0 / max(uResolution.y, 1.0));
                         vec3 bsum = vec3(0.0);
                         float bwSum = 0.0;
@@ -9721,6 +10230,7 @@ if (!gl) {
             this.uProfileMatrix = gl.getUniformLocation(this.program, 'uProfileMatrix');
             this.uAutoMatrix = gl.getUniformLocation(this.program, 'uAutoMatrix');
             this.uEdge = gl.getUniformLocation(this.program, 'uEdge');
+            this.uDenoise = gl.getUniformLocation(this.program, 'uDenoise');
             this.uAvgLum = gl.getUniformLocation(this.program, 'uAvgLum');
             this.uLutActive = gl.getUniformLocation(this.program, 'uLutActive');
 
@@ -9871,7 +10381,7 @@ if (!gl) {
                 saturation *= 1.35;
             }
 
-            let sharpen = Math.max(0, normSL() * 0.3) + Math.max(0, u_sharp * 0.015);
+            let sharpen = Math.max(0, normSL() * 0.3) + Math.max(0, u_sharp * 0.015) + getAiSharpenAmount();
             let grain = Math.max(0, -normDN() * 0.2) + Math.max(0, -u_grain * 0.01);
             let gamma = 1.0 + u_gamma * 0.025; // used as brightness/contrast approx, not pow
             let vibrance = 1.0 + u_vib * 0.02;
@@ -9903,6 +10413,7 @@ if (!gl) {
                 vibrance: clamp(vibrance, 0.0, 2.0),
                 hdr: effectiveHdr,
                 edge: clamp(edgeVal, 0.0, 1.0),
+                denoise: clamp(getAiDenoiseAmount() / 1.5, 0.0, 0.4),
                 rGain: clamp(rGain, 0.0, 2.0),
                 gGain: clamp(gGain, 0.0, 2.0),
                 bGain: clamp(bGain, 0.0, 2.0),
@@ -10056,6 +10567,9 @@ if (!gl) {
 
                 if (this.uEdge !== null) {
                     gl.uniform1f(this.uEdge, this.params.edge);
+                }
+                if (this.uDenoise) {
+                    gl.uniform1f(this.uDenoise, this.params.denoise || 0);
                 }
                 if (this.uAvgLum !== null) {
                     const fs = window.__gvfFrameStats;
@@ -10779,6 +11293,10 @@ if (!gl) {
     }
 
     function setAutoMatrixAndApply() {
+        // AI sharpness may change even when the color matrix does not.
+        updateAiDetailInSvg();
+        if (aiSssr) { try { CustomWebglOverlayManager.forceRender(); } catch (_) { } }
+
         const m = buildAutoMatrixValues();
         const valuesStr = matToSvgValues(m);
 
@@ -11109,6 +11627,7 @@ if (!gl) {
             _autoLastMatrixStr = autoMatrixStr;
             AUTO.lastGoodMatrixStr = autoMatrixStr;
             updateAutoMatrixInSvg(autoMatrixStr);
+            updateAiDetailInSvg(); // drop runtime AI sharpen (isAiAutoActive() is false now)
 
             setAutoDotState('off');
 
@@ -11171,7 +11690,12 @@ if (!gl) {
 
         redGain: [-0.12, 0.12],
         greenGain: [-0.12, 0.12],
-        blueGain: [-0.12, 0.12]
+        blueGain: [-0.12, 0.12],
+
+        // one-sided: 0 = no extra noise reduction, positive = visible noise / compression artifacts
+        denoise: [0, 0.30],
+        // SSimSuperRes strength offset (only used when the SSimSuperRes toggle is on)
+        superres: [-0.30, 0.30]
     };
 
     const AI_RESPONSE_SCHEMA = {
@@ -11200,14 +11724,13 @@ if (!gl) {
     // Kept constant so llama.cpp can reuse its prompt cache.
     const AI_SYSTEM_PROMPT = [
         'You are a real-time video color grading assistant.',
-        'Your task is to suggest small, safe corrections for an already working automatic video enhancement system.',
-        'Never perform aggressive grading.',
+        'Your task is to suggest corrections for an already working automatic video enhancement system.',
+        'Stay within the allowed ranges.',
         'Preserve natural skin tones, highlight detail, shadow detail and scene intent.',
         'Do not attempt to create a cinematic look unless the source image already strongly indicates it.',
         'Return only valid JSON matching the requested schema.',
         'All adjustment values are relative corrections around zero.',
         '0 means no correction.',
-        'Use conservative values.',
         '',
         'JSON schema:',
         '{"scene": string, "confidence": number 0..1, "adjustments": {' + AI_ADJ_KEYS.map(k => `"${k}": number`).join(', ') + '}}',
@@ -11215,6 +11738,15 @@ if (!gl) {
         'Allowed ranges: ' + AI_ADJ_KEYS.map(k => `${k} ${AI_LIMITS[k][0]}..${AI_LIMITS[k][1]}`).join(', ') + '.',
         'Semantics: positive black lifts the black point, positive shadows lifts shadows, negative highlights recovers highlights,',
         'positive white brightens the white point, redGain/greenGain/blueGain are per-channel gain corrections.',
+        'denoise (0..0.30) requests extra noise reduction: use it only for visible sensor noise, grain or compression artifacts',
+        '(high "Noise" statistic, dark or low-bitrate footage); keep it 0 for clean or already soft images.',
+        'When denoise is above 0, keep sharpness at 0 or below, because sharpening amplifies noise.',
+        'superres (-0.30..0.30) scales the SSimSuperRes upscaler correction. Rules:',
+        '- SSimSuperRes upscaler OFF: superres 0.',
+        '- ON, Display upscale factor 1.5 or more and Noise below 0.030 (clean): +0.05 to +0.20, more for lower source resolution',
+        '  (480p and below: +0.15..+0.20, 720p: +0.08..+0.15, 1080p: +0.05..+0.08) and for animation or sharp-edged content.',
+        '- ON with Noise 0.030 or more, heavy grain or compression blocking: -0.05 to -0.20 (the correction would amplify artifacts).',
+        '- ON with upscale factor below 1.5: between -0.05 and +0.05.',
         'Scene examples: daylight, night, dark_indoor, bright_indoor, sports, animation, gameplay, cinematic, concert, snow, beach,',
         'underwater, space, high_contrast, low_contrast, warm, cool, mixed, unknown.'
     ].join('\n');
@@ -11224,6 +11756,79 @@ if (!gl) {
 
     function isAiAutoActive() {
         return !!(aiEnabled && autoOn && aiMode !== 'classic');
+    }
+
+    // ---- SSimSuperRes (built-in GLSL, toggled in the AI panel) ----------------------
+
+
+    // How much the browser enlarges the video (device pixels per source pixel, contain-fit).
+    function getAiSssrUpscale(video) {
+        try {
+            if (!video || !video.videoWidth || !video.videoHeight) return 0;
+            const r = GvfRectCache.get(video) || video.getBoundingClientRect();
+            if (!r || r.width < 1 || r.height < 1) return 0;
+            const dpr = window.devicePixelRatio || 1;
+            return Math.min((r.width * dpr) / video.videoWidth, (r.height * dpr) / video.videoHeight);
+        } catch (_) {
+            return 0;
+        }
+    }
+
+    // Like the original shader (//!WHEN NATIVE.h < OUTPUT.h): only while the video is being upscaled.
+    function isAiSssrRunning(video) {
+        if (!aiSssr || isFirefox()) return false;
+        return getAiSssrUpscale(video) >= 1.05;
+    }
+
+    // Runtime-only: 1.0 = original SSSR correction; the AI superres value scales it (0.3 .. 1.15).
+    // Measured: above ~1.1 the correction overshoots (downscaled output drifts away from the source).
+    function getAiSssrParams(video) {
+        let ai = 0;
+        if (isAiAutoActive()) {
+            try { ai = Number(getAiAutoOverrides()?.detail?.superres) || 0; } catch (_) { ai = 0; }
+        }
+        return {
+            upscale: getAiSssrUpscale(video),
+            ai,
+            strength: clamp(1.0 + ai * 2.0, 0.3, 1.15)
+        };
+    }
+
+    function applyAiSssrUniforms(entry, video) {
+        const p = getAiSssrParams(video);
+        if (!entry.uniforms) entry.uniforms = {};
+        entry.uniforms.u_sssr_strength = p.strength;
+    }
+
+    function refreshAiSssr() {
+        try { updateCustomWebglOverlays(); } catch (_) { }
+        try { CustomWebglOverlayManager.forceRender(); } catch (_) { }
+    }
+
+    function getAiSssrStatusLine() {
+        if (!aiSssr) return 'SSimSuperRes: Off';
+        if (isFirefox()) return 'SSimSuperRes: not available in Firefox (no Custom GLSL)';
+        if (isCurrentDomainGlslBlacklisted()) return 'SSimSuperRes: blocked (GLSL domain blacklist)';
+        const v = getWebglPrimaryVideo() || getGpuPrimaryVideo() || getHudPrimaryVideo();
+        if (!v) return 'SSimSuperRes: waiting for video';
+        const p = getAiSssrParams(v);
+        if (p.upscale < 1.05) return `SSimSuperRes: idle (no upscaling, x${p.upscale.toFixed(2)})`;
+        let st = null;
+        try { st = CustomWebglOverlayManager.getSssrStatus(); } catch (_) { st = null; }
+        if (st && st.error) return `SSimSuperRes: error, fallback to plain upscale (${st.error.slice(0, 120)})`;
+        const sgn = (v) => `${v >= 0 ? '+' : ''}${v.toFixed(3)}`;
+        const raw = Number(AI_AUTO.lastRaw && AI_AUTO.lastRaw.superres) || 0;
+        const aiTxt = !isAiAutoActive()
+            ? 'AI inactive -> base strength 1.00'
+            : (AI_AUTO.lastSuccessMs ? `AI answer superres ${sgn(raw)} -> applied ${sgn(p.ai)}` : 'waiting for first AI answer');
+        const runTxt = st && st.frames
+            ? `rendering (${st.frames} frames, ${st.size}, ${st.precision})`
+            : 'enabled, no frame rendered yet';
+        return [
+            `SSimSuperRes: ${runTxt}`,
+            `  Strength ${p.strength.toFixed(2)} (1.00 = original SSSR)  Upscale x${p.upscale.toFixed(2)}`,
+            `  ${aiTxt}`
+        ].join('\n');
     }
 
     // ---- Utilities -----------------------------------------------------------
@@ -11502,6 +12107,11 @@ if (!gl) {
             `Highlights: ${f(stats.highlights)}`,
             `Shadows: ${f(stats.shadows)}`,
             `Motion: ${f(stats.motion)}`,
+            `Noise: ${f(stats.noise)} (0 = clean, above 0.030 = noticeably noisy)`,
+            '',
+            `Source resolution: ${stats.srcWidth || '?'}x${stats.srcHeight || '?'}`,
+            `Display upscale factor: ${(Number(stats.upscale) || 0).toFixed(2)}`,
+            `SSimSuperRes upscaler: ${stats.sssr ? 'ON' : 'OFF'}`,
             '',
             'Determine the scene type and return subtle corrective adjustments.'
         ].join('\n');
@@ -11517,9 +12127,18 @@ if (!gl) {
         };
     }
 
+    // Base prompt + user instruction. Stays byte-identical while the instruction is unchanged,
+    // so llama.cpp can keep reusing its prompt cache.
+    function getAiSystemPrompt() {
+        const instr = String(aiInstruction || '').trim();
+        if (!instr) return AI_SYSTEM_PROMPT + '\n\nNever perform aggressive grading. Use conservative values.';
+        return AI_SYSTEM_PROMPT +
+            '\n\nUser instruction (highest priority, but always within the allowed ranges and the JSON schema):\n' + instr;
+    }
+
     function buildAiMessages({ stats, frame }) {
         const prompt = buildAiUserPrompt(stats, !!frame);
-        const system = { role: 'system', content: AI_SYSTEM_PROMPT };
+        const system = { role: 'system', content: getAiSystemPrompt() };
 
         if (!frame) return [system, { role: 'user', content: prompt }];
 
@@ -11639,7 +12258,7 @@ if (!gl) {
 
         // 5: minimal chat request (text only)
         try {
-            const sample = { luma: 0.31, contrast: 0.17, saturation: 0.09, red: 0.30, green: 0.31, blue: 0.34, highlights: 0.03, shadows: 0.32, motion: 0.20 };
+            const sample = { luma: 0.31, contrast: 0.17, saturation: 0.09, red: 0.30, green: 0.31, blue: 0.34, highlights: 0.03, shadows: 0.32, motion: 0.20, noise: 0.01, srcWidth: 1280, srcHeight: 720, upscale: 2.0, sssr: true };
             const r = await requestAiSceneAnalysis({ stats: sample, frame: null });
             const scene = String(r.result?.scene || 'unknown').slice(0, 40);
             sanitizeAiAdjustments(r.result?.adjustments);
@@ -11696,6 +12315,24 @@ if (!gl) {
         }
         const inv = 1 / Math.max(1, cnt);
         return { highlights: hi * inv, shadows: lo * inv };
+    }
+
+    // Rough noise estimate on the small analysis frame: mean |Y - avg(4 neighbours)| in flat areas only,
+    // so real edges/texture do not count as noise. Downscaling hides fine grain, so this under-reports.
+    function computeAiNoiseEstimate(imgData) {
+        const d = imgData.data;
+        const w = imgData.width, h = imgData.height;
+        const Y = (x, y) => { const k = (y * w + x) * 4; return (LUMA.r * d[k] + LUMA.g * d[k + 1] + LUMA.b * d[k + 2]) / 255; };
+        let sum = 0, cnt = 0;
+        for (let y = 1; y < h - 1; y += 2) {
+            for (let x = 1; x < w - 1; x += 2) {
+                const c = Y(x, y), l = Y(x - 1, y), r = Y(x + 1, y), t = Y(x, y - 1), b = Y(x, y + 1);
+                if (Math.abs(r - l) + Math.abs(b - t) > 0.12) continue; // edge / texture
+                sum += Math.abs(c - (l + r + t + b) * 0.25);
+                cnt++;
+            }
+        }
+        return cnt ? sum / cnt : 0;
     }
 
     function buildAiBaseStats(sig) {
@@ -11804,7 +12441,12 @@ if (!gl) {
             const fullStats = {
                 ...stats,
                 ...(img ? computeAiToneFractions(img) : { highlights: 0, shadows: 0 }),
-                motion: clamp((AUTO.motionEma || 0) / 0.10, 0, 1)
+                noise: img ? computeAiNoiseEstimate(img) : 0,
+                motion: clamp((AUTO.motionEma || 0) / 0.10, 0, 1),
+                srcWidth: video.videoWidth || 0,
+                srcHeight: video.videoHeight || 0,
+                upscale: getAiSssrUpscale(video),
+                sssr: isAiSssrRunning(video)
             };
 
             let frame = null;
@@ -11899,6 +12541,7 @@ if (!gl) {
         const target = {};
         for (const k of AI_ADJ_KEYS) target[k] = adjustments[k] * confidence;
         AI_AUTO.target = target;
+        AI_AUTO.lastRaw = adjustments;
 
         aiLog('AI Scene Match:', { scene: AI_AUTO.scene, confidence, adjustments });
     }
@@ -11958,8 +12601,10 @@ if (!gl) {
                 shadows: c('shadows')
             },
             detail: {
-                // sharpness lives outside the color matrix (SVG/GPU sharpen stage) and is reported only
+                // sharpness lives outside the color matrix; applied via getAiSharpenAmount() in the SVG/GPU sharpen stage
                 sharpness: c('sharpness'),
+                denoise: c('denoise'),
+                superres: c('superres'),
                 vibrance: c('vibrance')
             }
         };
@@ -12026,7 +12671,9 @@ if (!gl) {
         timeout: { key: K.AI_TIMEOUT, get: () => aiTimeout, set: v => { aiTimeout = clamp(aiNum(v, 15000), 3000, 300000); } },
         sceneOnly: { key: K.AI_SCENE_ONLY, get: () => aiSceneOnly, set: v => { aiSceneOnly = !!v; } },
         debug: { key: K.AI_DEBUG, get: () => aiDebug, set: v => { aiDebug = !!v; } },
-        intensity: { key: K.AI_INTENSITY, get: () => aiIntensity, set: v => { aiIntensity = clamp(aiNum(v, 2.0), 0.5, 5.0); } }
+        intensity: { key: K.AI_INTENSITY, get: () => aiIntensity, set: v => { aiIntensity = clamp(aiNum(v, 2.0), 0.5, 5.0); } },
+        sssr: { key: K.AI_SSSR, get: () => aiSssr, set: v => { aiSssr = !!v; } },
+        instruction: { key: K.AI_INSTRUCTION, get: () => aiInstruction, set: v => { aiInstruction = String(v ?? '').slice(0, AI_INSTRUCTION_MAX); } }
     };
 
     function onAiConfigChanged(name, wasActive) {
@@ -12040,6 +12687,13 @@ if (!gl) {
             if (wasActive !== isAiAutoActive() && autoOn) {
                 try { setAutoMatrixAndApply(); } catch (_) { }
             }
+        }
+        // influence/intensity/enabled/mode all change the runtime AI sharpen amount
+        try { updateAiDetailInSvg(); } catch (_) { }
+        if (name === 'sssr' || aiSssr) refreshAiSssr();
+        if (name === 'instruction') {
+            AI_AUTO.lastRequestMs = 0;
+            AI_AUTO.lastStats = null;
         }
         try { scheduleOverlayUpdate(); } catch (_) { }
     }
@@ -12228,6 +12882,7 @@ if (!gl) {
             `Vision: ${vision} (capability: ${AI_AUTO.visionCapability})`
         ];
         if (st.color === '#ff4a4a') lines.push('Fallback: Classic');
+        lines.push(getAiSssrStatusLine());
         try {
             const emb = getEmbeddedGvfStatusLine();
             if (emb) lines.push('', `Embedded player ${emb}`);
@@ -12238,12 +12893,13 @@ if (!gl) {
             lines.push('', 'Applied to image now:');
             lines.push(`Brightness ${pct(ov.tone.brightness)}  Contrast ${pct(ov.matrix.contrast)}  Saturation ${pct(ov.matrix.saturation + ov.detail.vibrance * 0.5)}`);
             lines.push(`Shadows ${pct(ov.tone.shadows)}  Highlights ${pct(ov.tone.highlights)}  R/G/B ${pct(ov.matrix.redGain)} / ${pct(ov.matrix.greenGain)} / ${pct(ov.matrix.blueGain)}`);
+            lines.push(`AI Sharpen applied: +${getAiSharpenAmount().toFixed(3)}  AI Denoise applied: +${getAiDenoiseAmount().toFixed(3)}`);
         }
         if (aiDebug && cur) {
             lines.push('', 'Active corrections:');
             lines.push(['brightness', 'contrast', 'saturation', 'vibrance'].map(fmt).join('  '));
             lines.push(['gamma', 'black', 'white', 'highlights', 'shadows'].map(fmt).join('  '));
-            lines.push(['redGain', 'greenGain', 'blueGain', 'sharpness'].map(fmt).join('  '));
+            lines.push(['redGain', 'greenGain', 'blueGain', 'sharpness', 'denoise', 'superres'].map(fmt).join('  '));
         }
         return lines.join('\n');
     }
@@ -12419,6 +13075,25 @@ if (!gl) {
         const intensityVal = mkVal();
         row('AI Intensity', intensity, intensityVal);
 
+        const instruction = document.createElement('textarea');
+        instruction.rows = 4;
+        instruction.maxLength = AI_INSTRUCTION_MAX;
+        instruction.spellcheck = false;
+        instruction.placeholder = 'Empty = conservative corrections. Any language works, e.g. "Hol das Beste aus dem Bild heraus".';
+        instruction.style.cssText = inputCss + 'resize:vertical;min-height:64px;font-family:inherit;line-height:1.35;';
+        row('AI Instruction', instruction);
+        const instrDefault = mkBtn('Default');
+        instrDefault.title = 'Restore the built-in "get the best out of the picture" instruction';
+        const instrClear = mkBtn('Clear');
+        instrClear.title = 'No instruction: the AI only makes small, conservative corrections';
+        const instrInfo = document.createElement('span');
+        instrInfo.style.cssText = 'margin-left:auto;color:#9a9a9a;font-size:11px;';
+        row('', instrDefault, instrClear, instrInfo);
+
+        const sssr = mkCheck();
+        sssr.title = 'Built-in SSimSuperRes (real multi-pass port of the mpv shader). Active only while the video is upscaled; strength is tuned by the AI.';
+        row('SSimSuperRes', sssr);
+
         const sendFrame = mkCheck();
         row('Send Video Frame', sendFrame);
 
@@ -12475,6 +13150,10 @@ if (!gl) {
             influence.value = String(aiInfluence);
             influenceVal.textContent = `${Math.round(aiInfluence * 100)} %`;
             intensity.value = String(aiIntensity);
+            sssr.checked = aiSssr;
+            if (document.activeElement !== instruction) instruction.value = aiInstruction;
+            instrInfo.textContent = !aiInstruction.trim() ? 'conservative mode'
+                : (aiInstruction === AI_INSTRUCTION_DEFAULT ? 'default instruction' : `custom (${aiInstruction.length}/${AI_INSTRUCTION_MAX})`);
             intensityVal.textContent = `${aiIntensity.toFixed(1)}×`;
             sendFrame.checked = aiSendFrame;
             const fs = `${aiFrameWidth}x${aiFrameHeight}`;
@@ -12550,6 +13229,11 @@ if (!gl) {
         });
         timeout.addEventListener('change', () => { setAiConfig('timeout', Number(timeout.value) * 1000); refresh(); });
         dbg.addEventListener('change', () => { setAiConfig('debug', dbg.checked); updateStatus(); });
+        sssr.addEventListener('change', () => { setAiConfig('sssr', sssr.checked); updateStatus(); });
+        // Saved on blur (not per keystroke) so every change produces one new, cacheable system prompt.
+        instruction.addEventListener('change', () => { setAiConfig('instruction', instruction.value); refresh(); });
+        instrDefault.addEventListener('click', () => { setAiConfig('instruction', AI_INSTRUCTION_DEFAULT); refresh(); });
+        instrClear.addEventListener('click', () => { setAiConfig('instruction', ''); refresh(); });
 
         const fillModels = (models) => {
             while (datalist.firstChild) datalist.removeChild(datalist.firstChild);
@@ -18374,6 +19058,7 @@ if ('lutProfile' in obj) {
             comp.setAttribute('k3', String(-sharpenA));
             comp.setAttribute('k4', '0');
             comp.setAttribute('result', 'r0');
+            comp.setAttribute('data-gvf-sharpen', '1');
             filter.appendChild(comp);
 
             last = 'r0';
@@ -18393,6 +19078,8 @@ if ('lutProfile' in obj) {
             const mix = dnToDenoiseMix(dnVal);
             const sig = dnToDenoiseSigma(dnVal);
             const [b, c] = mkDenoiseBlend(last, 'r_dn', sig, mix);
+            b.setAttribute('data-gvf-dn', 'blur');
+            c.setAttribute('data-gvf-dn', 'mix');
             filter.appendChild(b);
             filter.appendChild(c);
             last = 'r_dn';
@@ -18777,7 +19464,7 @@ if ('lutProfile' in obj) {
         const BS = Number(getBlurSigma().toFixed(3));
         const BL = Number(normBL().toFixed(1));
         const WL = Number(normWL().toFixed(1));
-        const DN = Number(normDN().toFixed(1));
+        const DN = Number(getEffectiveDN(Number(normDN().toFixed(1))).toFixed(2));
         const HDR = Number(normHDR().toFixed(2));
         const EDGE = Number(normEDGE().toFixed(2));
         const P = (profile || 'off');
@@ -18815,6 +19502,8 @@ if ('lutProfile' in obj) {
         const svg = document.createElementNS(svgNS, 'svg');
         svg.id = SVG_ID;
         svg.setAttribute('data-params', want);
+        _lastSvgSharpenA = A;
+        _lastSvgDN = DN;
         svg.setAttribute('width', '0');
         svg.setAttribute('height', '0');
         svg.style.position = 'absolute';
