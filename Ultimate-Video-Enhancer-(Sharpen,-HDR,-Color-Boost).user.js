@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.15.8
+// @version      1.15.9
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -10284,7 +10284,7 @@ if (!gl) {
     }
 
     // -------------------------
-    // Auto Scene Match (UNCHANGED)
+    // Auto Scene Match
     // -------------------------
     let _autoLastStyleStamp = 0;
     const AUTO_LEVELS = [2, 4, 6, 8, 10];
@@ -10497,6 +10497,8 @@ if (!gl) {
         let sumR = 0, sumG = 0, sumB = 0;
         let sumY = 0, sumY2 = 0;
         let sumCh = 0;
+        let sumSatRel = 0, satRelCount = 0;
+        let skinCount = 0;
 
         const stepPx = 2;
         const w = imgData.width;
@@ -10521,6 +10523,23 @@ if (!gl) {
                 const mn = Math.min(r, g, b);
                 sumCh += (mx - mn);
 
+                // Relative saturation (independent of brightness), so dark scenes
+                // are not mistaken for pale ones and pushed into oversaturation.
+                if (mx > 0.06) {
+                    sumSatRel += (mx - mn) / mx;
+                    satRelCount++;
+                }
+
+                // Rough skin-tone detection (orange hue band ~10-45 deg, moderate saturation)
+                if (r > g && g >= b && r > 0.12) {
+                    const span = r - b;
+                    if (span > 0.04) {
+                        const hRatio = (g - b) / span;
+                        const sRel = span / r;
+                        if (hRatio > 0.15 && hRatio < 0.80 && sRel > 0.12 && sRel < 0.70) skinCount++;
+                    }
+                }
+
                 count++;
             }
         }
@@ -10533,8 +10552,10 @@ if (!gl) {
         const vY = Math.max(0, (sumY2 * inv) - (mY * mY));
         const sdY = Math.sqrt(vY);
         const mCh = sumCh * inv;
+        const mSat = satRelCount > 0 ? (sumSatRel / satRelCount) : 0.25;
+        const skin = skinCount * inv;
 
-        return { mR, mG, mB, mY, sdY, mCh };
+        return { mR, mG, mB, mY, sdY, mCh, mSat, skin };
     }
 
     function computeMotionFromImage(imgData) {
@@ -10608,6 +10629,8 @@ if (!gl) {
         e.mY = e.mY * (1 - a) + sig.mY * a;
         e.sdY = e.sdY * (1 - a) + sig.sdY * a;
         e.mCh = e.mCh * (1 - a) + sig.mCh * a;
+        e.mSat = (e.mSat ?? sig.mSat) * (1 - a) + sig.mSat * a;
+        e.skin = (e.skin ?? sig.skin) * (1 - a) + sig.skin * a;
         e.__cutScore = sig.__cutScore;
         return e;
     }
@@ -10626,9 +10649,12 @@ if (!gl) {
         const ct = clamp(1.0 + errSd * 0.85, 1.0, 1.30);
 
         // Pale scenes get more saturation; saturation is never reduced (washed-out look).
-        const targetCh = 0.12;
-        const errCh = clamp(targetCh - sig.mCh, -0.20, 0.20);
-        const sat = clamp(1.0 + errCh * 0.90, 1.0, 1.45);
+        // Uses relative saturation so dark scenes don't get boosted, and backs off
+        // when skin tones are present so faces stay natural.
+        const targetSat = 0.30;
+        const errSat = clamp(targetSat - (sig.mSat ?? 0.25), 0, 0.20);
+        const skinDamp = 1.0 - clamp((sig.skin || 0) / 0.08, 0, 1) * 0.70;
+        const sat = clamp(1.0 + errSat * 0.60 * skinDamp, 1.0, 1.15);
 
         let hue = 0.0;
         if (autoLockWB) {
@@ -10638,7 +10664,7 @@ if (!gl) {
 
         AUTO.tgt.br = clamp(1.0 + (br - 1.0) * s, 0.78, 1.22);
         AUTO.tgt.ct = clamp(1.0 + (ct - 1.0) * s, 1.0, 1.30);
-        AUTO.tgt.sat = clamp(1.0 + (sat - 1.0) * s, 1.0, 1.45);
+        AUTO.tgt.sat = clamp(1.0 + (sat - 1.0) * s, 1.0, 1.15);
         AUTO.tgt.hue = clamp(0.0 + (hue - 0.0) * s, -12.0, 12.0);
     }
 
@@ -10656,7 +10682,7 @@ if (!gl) {
 
         const br = clamp(AUTO.cur.br, 0.78, 1.22);
         const ct = clamp(AUTO.cur.ct, 1.0, 1.30);
-        const sat = clamp(AUTO.cur.sat, 1.0, 1.45);
+        const sat = clamp(AUTO.cur.sat, 1.0, 1.15);
         const hue = clamp(AUTO.cur.hue, -12, 12);
 
         let m = matIdentity4x5();
@@ -10879,7 +10905,7 @@ if (!gl) {
                         `update=${allowUpdate ? 'YES' : 'NO'}`,
                         `motion=${motion.toFixed(4)} ema=${AUTO.motionEma.toFixed(4)} thr=${AUTO.motionThresh.toFixed(3)} frames=${AUTO.motionFrames}/${AUTO.motionMinFrames}`,
                         `raw=${rawScore.toFixed(3)} emaScore=${AUTO.scoreEma.toFixed(3)}`,
-                        `avgY=${(sig.mY || 0).toFixed(3)} avgSd=${(sig.sdY || 0).toFixed(3)} avgCh=${(sig.mCh || 0).toFixed(3)}`
+                        `avgY=${(sig.mY || 0).toFixed(3)} avgSd=${(sig.sdY || 0).toFixed(3)} avgCh=${(sig.mCh || 0).toFixed(3)} sat=${(sig.mSat || 0).toFixed(3)} skin=${(sig.skin || 0).toFixed(3)} tgtSat=${AUTO.tgt.sat.toFixed(3)}`
                     );
                 }
 
