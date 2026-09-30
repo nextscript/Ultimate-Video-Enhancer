@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.16.3
+// @version      1.16.4
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -3418,7 +3418,7 @@ void main(){
         hbtns.style.cssText = `display:flex;gap:6px;align-items:center;flex-shrink:0;`;
 
         const libBtn = document.createElement('button');
-        libBtn.textContent = '📚 Library';
+        libBtn.textContent = '📚';
         libBtn.title = 'Open SVG Filter Library';
         libBtn.style.cssText = `padding:4px 10px;background:rgba(100,180,255,0.18);color:#a0d4ff;border:1px solid rgba(100,180,255,0.45);border-radius:6px;font-size:16px;font-weight:900;cursor:pointer;`;
         libBtn.addEventListener('mouseenter', () => { libBtn.style.background = 'rgba(100,180,255,0.32)'; });
