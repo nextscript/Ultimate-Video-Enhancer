@@ -1,0 +1,89 @@
+{
+  "schema": "gvf-custom-filter-codes",
+  "ver": 1,
+  "exportedAt": 1790809794320,
+  "codes": [
+    {
+      "id": "csvg_1786390735021",
+      "label": "Auto Color Enhance",
+      "code": "// @uniform float SATURATION 1.12 0.0 2.0 \"Saturation\"                                                                                                                                                                                                                                             \n   // @uniform float WARMTH 0.02 -0.2 0.2 \"Warmth\"                                                                                                                                                                                                                                                    \n   // @uniform float WB_STRENGTH 0.3 0.0 1.0 \"White Balance\"                                                                                                                                                                                                                                          \n   // @uniform float STRENGTH 1.0 0.0 1.0 \"Strength\"                                                                                                                                                                                                                                                  \n                                                                                                                                                                                                                                                                                                      \n   void main() {                                                                                                                                                                                                                                                                                      \n       vec3 orig = texture(u_video, v_uv).rgb;                                                                                                                                                                                                                                                        \n       vec3 c = orig;                                                                                                                                                                                                                                                                                 \n                                                                                                                                                                                                                                                                                                      \n       // Smoothed auto contrast (reduced range, gentler response)                                                                                                                                                                                                                                    \n       float contrastAdj = mix(1.04, 0.98, u_avg_lum);                                                                                                                                                                                                                                                \n       float brightnessAdj = mix(0.008, -0.008, u_avg_lum);                                                                                                                                                                                                                                           \n       c = (c - 0.5) * contrastAdj + 0.5 + brightnessAdj;                                                                                                                                                                                                                                             \n                                                                                                                                                                                                                                                                                                      \n       // Smoothed auto white balance (narrower gains, lower strength)                                                                                                                                                                                                                                \n       float avgTotal = (u_avg_r + u_avg_g + u_avg_b) / 3.0;                                                                                                                                                                                                                                          \n       vec3 wbGain = vec3(                                                                                                                                                                                                                                                                            \n           mix(1.0, avgTotal / max(u_avg_r, 0.01), WB_STRENGTH * 0.5),                                                                                                                                                                                                                                \n           mix(1.0, avgTotal / max(u_avg_g, 0.01), WB_STRENGTH * 0.5),                                                                                                                                                                                                                                \n           mix(1.0, avgTotal / max(u_avg_b, 0.01), WB_STRENGTH * 0.5)                                                                                                                                                                                                                                 \n       );                                                                                                                                                                                                                                                                                             \n       wbGain = clamp(wbGain, 0.90, 1.10);                                                                                                                                                                                                                                                            \n       c *= wbGain;                                                                                                                                                                                                                                                                                   \n                                                                                                                                                                                                                                                                                                      \n       // Saturation                                                                                                                                                                                                                                                                                  \n       float lum = dot(c, vec3(0.2126, 0.7152, 0.0722));                                                                                                                                                                                                                                              \n       c = mix(vec3(lum), c, SATURATION);                                                                                                                                                                                                                                                             \n                                                                                                                                                                                                                                                                                                      \n       // Warmth                                                                                                                                                                                                                                                                                      \n       c.r += WARMTH;                                                                                                                                                                                                                                                                                 \n       c.b -= WARMTH;                                                                                                                                                                                                                                                                                 \n                                                                                                                                                                                                                                                                                                      \n       fragColor = vec4(clamp(mix(orig, c, STRENGTH), 0.0, 1.0), 1.0);                                                                                                                                                                                                                                \n   }",
+      "type": "webgl",
+      "enabled": true,
+      "blendMode": "normal",
+      "tags": [
+        "auto",
+        "color",
+        "white-balance",
+        "saturation",
+        "contrast",
+        "warmth"
+      ],
+      "category": "color",
+      "description": "Automatic contrast, white balance, saturation, and warmth correction using per-frame average color stats. Fully adjustable blend strength.",
+      "uniforms": {
+        "SATURATION": 0.99,
+        "WARMTH": -0.028,
+        "WB_STRENGTH": 0.265,
+        "STRENGTH": 0.425
+      }
+    },
+    {
+      "id": "csvg_1786390776170",
+      "label": "Vision Clarity",
+      "code": "// @uniform float SHARPNESS 1.5 0.0 5.0 \"Sharpness\"\n// @uniform float RADIUS 1.0 0.0 5.0 \"Radius\"\n// @uniform float STRENGTH 1.0 0.0 1.0 \"Strength\"\n\nvoid main() {\n    // Texel-Größe automatisch berechnen\n    vec2 ts = vec2(dFdx(v_uv.x), dFdy(v_uv.y));\n    vec3 c = texture(u_video, v_uv).rgb;\n    \n    // 3x3 Gaussian Blur berechnen\n    vec3 blur = vec3(0.0);\n    float count = 0.0;\n    \n    for(int y = -1; y <= 1; y++) {\n        for(int x = -1; x <= 1; x++) {\n            vec2 offset = vec2(float(x), float(y)) * ts * RADIUS;\n            blur += texture(u_video, v_uv + offset).rgb;\n            count++;\n        }\n    }\n    blur /= count;\n    \n    // Unsharp Mask: Original + (Original - Blur) * Stärke\n    vec3 res = c + (c - blur) * SHARPNESS;\n    \n    // Mit Original mischen basierend auf STRENGTH\n    fragColor = vec4(clamp(mix(c, res, STRENGTH), 0.0, 1.0), 1.0);\n}",
+      "type": "webgl",
+      "enabled": true,
+      "blendMode": "normal",
+      "tags": [
+        "video enhancement",
+        "motion blur reduction",
+        "GLSL shader",
+        "video sharpening",
+        "deblur filter",
+        "RCAS",
+        "ECAS",
+        "FSR",
+        "natural sharpening",
+        "video post-processing",
+        "custom shader",
+        "artifact-free"
+      ],
+      "category": "repair",
+      "description": "A lightweight GLSL video filter that reduces motion blur and enhances clarity while preserving natural textures. Features adjustable FSR, RCAS, and ECAS controls for balanced, artifact-free sharpening optimized for video content.",
+      "uniforms": {
+        "u_fsr_strength": 0.9,
+        "u_fsr_radius": 1.70125,
+        "u_fsr_sharpness": 1.2,
+        "u_fsr_edge": 0.6,
+        "u_fsr_denoise": 0.55,
+        "SHARPNESS": 1.8,
+        "RADIUS": 2,
+        "STRENGTH": 0.265
+      },
+      "hotkey": "f9"
+    },
+    {
+      "id": "csvg_1786390896494",
+      "label": "Bilateral Denoise + CAS Sharpen",
+      "code": "// @uniform float SIGMA_S 1.2 0.1 3.0 \"Spatial Radius\"\n// @uniform float SIGMA_R 0.12 0.01 0.5 \"Color Tolerance\"\n// @uniform float SHARPEN 0.8 0.0 2.0 \"Sharpening\"\n\nvoid main() {\n    vec2 px = 1.0 / u_res;\n    vec3 c = texture(u_video, v_uv).rgb;\n\n    vec3 sum = vec3(0.0);\n    float wSum = 0.0;\n    for (int dx = -1; dx <= 1; dx++) {\n        for (int dy = -1; dy <= 1; dy++) {\n            vec3 n = texture(u_video, v_uv + vec2(float(dx), float(dy)) * px).rgb;\n            float sw = exp(-float(dx*dx + dy*dy) / (2.0 * SIGMA_S * SIGMA_S));\n            float cd = length(n - c);\n            float cw = exp(-(cd * cd) / (2.0 * SIGMA_R * SIGMA_R));\n            sum  += n * sw * cw;\n            wSum += sw * cw;\n        }\n    }\n    vec3 denoised = sum / wSum;\n\n    vec3 nn = texture(u_video, v_uv + vec2( 0,-1) * px).rgb;\n    vec3 ss = texture(u_video, v_uv + vec2( 0, 1) * px).rgb;\n    vec3 ee = texture(u_video, v_uv + vec2( 1, 0) * px).rgb;\n    vec3 ww = texture(u_video, v_uv + vec2(-1, 0) * px).rgb;\n\n    vec3 minRGB = min(denoised, min(min(nn, ss), min(ee, ww)));\n    vec3 maxRGB = max(denoised, max(max(nn, ss), max(ee, ww)));\n    vec3 rcp    = -1.0 / (sqrt(minRGB / (maxRGB + 1e-4)) + 1.0);\n    vec3 amp    = clamp(min(minRGB, 2.0 - maxRGB) * rcp, -0.125, 0.0) * SHARPEN;\n    float rcpW  = 1.0 / (1.0 + 4.0 * amp.x);\n\n    fragColor = vec4(clamp((denoised + (nn + ss + ee + ww) * amp) * rcpW, 0.0, 1.0), 1.0);\n}",
+      "type": "webgl",
+      "enabled": true,
+      "blendMode": "normal",
+      "tags": [
+        "denoise",
+        "bilateral",
+        "sharpen",
+        "cas",
+        "edge-preserve",
+        "noise-reduction"
+      ],
+      "category": "denoise",
+      "description": "3×3 bilateral filter for edge-preserving denoising followed by Contrast-Adaptive Sharpening (CAS). Cleans noise while restoring lost clarity.",
+      "uniforms": {
+        "SIGMA_S": 1.173,
+        "SIGMA_R": 0.21825,
+        "SHARPEN": 0.31
+      }
+    }
+  ]
+}
