@@ -4,7 +4,7 @@
 
 
 <hr>
-<h2>Make Every Video Look Better — Instantly</h2>
+<h2>🔥 Make Every Video Look Better — Instantly</h2>
 <hr>
 
 <b>This script improves every video on any website.</b><br>
@@ -15,7 +15,7 @@ Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-li
 <b>No setup. No config. Just install and press a hotkey.</b>
 
 <hr>
-<h2>Why you need this</h2>
+<h2>⚡ Why you need this</h2>
 <hr>
 <ul>
 <li>Fix blurry or low-quality streams</li>
@@ -26,7 +26,7 @@ Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-li
 </ul>
 
 <hr>
-<h2>Key Features</h2>
+<h2>🚀 Key Features</h2>
 <hr>
 
 <ul>
@@ -42,7 +42,7 @@ Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-li
 </ul>
 
 <hr>
-<h2>One-Click Presets</h2>
+<h2>📦 One-Click Presets</h2>
 <hr>
 <ul>
 <li><b>Movie</b> → cinematic, warm, smooth</li>
@@ -53,10 +53,12 @@ Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-li
 </ul>
 
 <hr>
-<h2>Advanced Features (Optional)</h2>
+<h2>🧪 Advanced Features (Optional)</h2>
 <hr>
 <ul>
 <li>Auto-Scene-Match → auto-adjust brightness & colors</li>
+<li>Dark Scene Lift → reveals shadow detail in dark scenes, true black stays black</li>
+<li>Auto White Balance → removes color casts (webcams, phone uploads) without touching intentional grading</li>
 <li>Scopes HUD → professional video analysis tools</li>
 <li>LUT support → apply real color grading</li>
 <li>Custom SVG / GLSL / Canvas 2D filters → inject your own effects</li>
@@ -109,10 +111,11 @@ Some example presets require LUTs (color grading files).
 </p>
 
 <hr>
-<h2>Keyboard Shortcuts</h2>
+<h2>🎮 Keyboard Shortcuts</h2>
 <hr>
 
-<b>All shortcuts: CTRL + ALT + key</b>
+<b>All shortcuts: CTRL + ALT + key</b><br>
+<i>On macOS, use CONTROL + OPTION + key (⌃ + ⌥ + key). CMD is not used.</i>
 
 <ul>
 <li>B → Base Tone</li>
@@ -123,6 +126,8 @@ Some example presets require LUTs (color grading files).
 <li>C → Switch profile</li>
 <li>G → Settings / LUT / Filters</li>
 <li>A → Auto-Scene-Match</li>
+<li>L → Dark Scene Lift</li>
+<li>W → Auto White Balance</li>
 <li>I → Import / Export / Debug</li>
 <li>S → Scopes HUD</li>
 <li>X → GPU Mode</li>
@@ -133,7 +138,7 @@ Some example presets require LUTs (color grading files).
 <b>ESC</b> closes the Before / After slider.
 
 <hr>
-<h2>Before / After Slider 🆚</h2>
+<h2>🆚 Before / After Slider</h2>
 <hr>
 
 See exactly what the script does to your video — side by side, on the live picture.
@@ -152,7 +157,7 @@ See exactly what the script does to your video — side by side, on the live pic
 </p>
 
 <hr>
-<h2>Custom Filters (SVG / GLSL) 🔥</h2>
+<h2>🔥 Custom Filters (SVG / GLSL)</h2>
 <hr>
 
 Add your own filters without editing the script.
@@ -167,7 +172,7 @@ Add your own filters without editing the script.
 <a href="https://svg.ts3x.cc/" target="_blank">Filter Library</a>
 
 <hr>
-<h2>Quick Start</h2>
+<h2>🏁 Quick Start</h2>
 <hr>
 
 <ul>
@@ -179,7 +184,7 @@ Add your own filters without editing the script.
 </ul>
 
 <hr>
-<h2>Important</h2>
+<h2>⚠️ Important</h2>
 <hr>
 
 <b>Chrome / Edge:</b>
