@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.16.1
+// @version      1.16.2
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -3425,6 +3425,95 @@ void main(){
         libBtn.addEventListener('mouseleave', () => { libBtn.style.background = 'rgba(100,180,255,0.18)'; });
         libBtn.addEventListener('click', () => { window.open('https://svg.ts3x.cc/', '_blank'); });
 
+        // ── Export / Import all filter codes (JSON) ──────────────────────────
+        const _mkIoBtn = (text, title) => {
+            const b = document.createElement('button');
+            b.textContent = text;
+            b.title = title;
+            b.style.cssText = `padding:4px 10px;background:rgba(100,180,255,0.18);color:#a0d4ff;border:1px solid rgba(100,180,255,0.45);border-radius:6px;font-size:16px;font-weight:900;cursor:pointer;`;
+            b.addEventListener('mouseenter', () => { b.style.background = 'rgba(100,180,255,0.32)'; });
+            b.addEventListener('mouseleave', () => { b.style.background = 'rgba(100,180,255,0.18)'; });
+            stopEventsOn(b);
+            return b;
+        };
+        const exportCodesBtn = _mkIoBtn('⬇', 'Export all filter codes (JSON)');
+        const importCodesBtn = _mkIoBtn('⬆', 'Import filter codes (JSON)');
+
+        exportCodesBtn.addEventListener('click', () => {
+            const codes = customSvgCodes.filter(e => e && e.id && e.id !== '__preview__');
+            if (!codes.length) { alert('No filter codes to export.'); return; }
+            const payload = { schema: 'gvf-custom-filter-codes', ver: 1, exportedAt: Date.now(), codes };
+            const d = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const fileName = `gvf_filter_codes_${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}.json`;
+            downloadBlob(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }), fileName);
+        });
+
+        const importCodesInput = document.createElement('input');
+        importCodesInput.type = 'file';
+        importCodesInput.accept = '.json,application/json';
+        importCodesInput.style.display = 'none';
+        importCodesBtn.addEventListener('click', () => importCodesInput.click());
+        importCodesInput.addEventListener('change', async () => {
+            const file = importCodesInput.files && importCodesInput.files[0] ? importCodesInput.files[0] : null;
+            importCodesInput.value = '';
+            if (!file) return;
+            let incoming;
+            try {
+                const parsed = JSON.parse(await file.text());
+                incoming = Array.isArray(parsed) ? parsed
+                    : (parsed && Array.isArray(parsed.codes)) ? parsed.codes
+                    : (parsed && parsed.code) ? [parsed] : null;
+            } catch (err) {
+                alert('Import failed: invalid JSON file.\n' + (err && err.message || ''));
+                return;
+            }
+            incoming = (incoming || []).filter(e => e && typeof e.label === 'string' && e.label.trim() && typeof e.code === 'string' && e.code.trim());
+            if (!incoming.length) { alert('No valid filter codes found in this file.'); return; }
+
+            const dupes = incoming.filter(e => customSvgCodes.some(c => c.label === e.label));
+            const overwrite = dupes.length > 0 &&
+                confirm(`${dupes.length} filter(s) with the same name already exist.\n\nOK = overwrite them\nCancel = skip them`);
+
+            let added = 0, replaced = 0, skipped = 0;
+            const usedIds = new Set(customSvgCodes.map(c => c.id));
+            incoming.forEach((e, n) => {
+                const type = ['svg', 'webgl', 'canvas2d', 'audio'].includes(e.type) ? e.type : (
+                    /^\s*#version\s+300\s+es/m.test(e.code) || /\bvoid\s+main\s*\(/m.test(e.code) || /\buniform\s+sampler2D\b/m.test(e.code)
+                        ? 'webgl' : 'svg');
+                const clean = {
+                    ...e,
+                    label: e.label.trim(),
+                    type,
+                    enabled: e.enabled !== false,
+                    blendMode: e.blendMode ? String(e.blendMode) : 'normal',
+                    tags: Array.isArray(e.tags) ? e.tags : (typeof e.tags === 'string' ? e.tags.split(',').map(t => t.trim()).filter(Boolean) : []),
+                    category: e.category ? String(e.category).trim() : '',
+                };
+                const existing = customSvgCodes.find(c => c.label === clean.label);
+                if (existing) {
+                    if (!overwrite) { skipped++; return; }
+                    Object.assign(existing, clean, { id: existing.id });
+                    replaced++;
+                } else {
+                    let id = clean.id;
+                    if (!id || usedIds.has(id) || id === '__preview__') id = 'csvg_' + Date.now() + '_' + n;
+                    usedIds.add(id);
+                    customSvgCodes.push({ ...clean, id });
+                    added++;
+                }
+            });
+
+            saveCustomSvgCodes();
+            regenerateSvgImmediately();
+            updateCustomWebglOverlays();
+            updateCustomCanvas2DOverlays();
+            updateCustomAudioOverlays();
+            _syncTypeToggleCheckboxes();
+            renderList();
+            alert(`Import finished.\nAdded: ${added}\nOverwritten: ${replaced}\nSkipped: ${skipped}`);
+        });
+
         const hclose = document.createElement('button');
         hclose.textContent = '✕';
         hclose.style.cssText = `
@@ -3444,6 +3533,9 @@ void main(){
         hclose.addEventListener('click', () => modal.remove());
 
         hbtns.appendChild(libBtn);
+        hbtns.appendChild(exportCodesBtn);
+        hbtns.appendChild(importCodesBtn);
+        hbtns.appendChild(importCodesInput);
         hbtns.appendChild(hclose);
         hdr.appendChild(htitle); hdr.appendChild(hbtns);
         modal.appendChild(hdr);
@@ -3512,14 +3604,26 @@ void main(){
         const TYPE_TOGGLE_KEY = 'gvf_type_toggles';
         // Derive initial checked state from actual .enabled flags:
         // checked = at least one filter of that type is enabled (or no filters of that type exist yet)
-        let _typeToggles = (() => {
+        const _deriveTypeToggles = () => {
             const result = {};
             ['svg', 'webgl', 'canvas2d', 'audio'].forEach(key => {
                 const ofType = customSvgCodes.filter(e => (e.type || 'svg') === key);
                 result[key] = ofType.length > 0 && ofType.some(e => e.enabled);
             });
             return result;
-        })();
+        };
+        let _typeToggles = _deriveTypeToggles();
+        const _typeToggleCbs = {};
+
+        // Re-derive checkbox state from the current .enabled flags (e.g. after an import)
+        function _syncTypeToggleCheckboxes() {
+            _typeToggles = _deriveTypeToggles();
+            Object.keys(_typeToggleCbs).forEach(key => {
+                _typeToggleCbs[key].checked = !!_typeToggles[key];
+                if (_typeToggles[key]) delete _typeToggleSnapshot[key];
+            });
+            try { gmSet(TYPE_TOGGLE_KEY, JSON.stringify(_typeToggles)); } catch (_) {}
+        }
 
         const typeToggleRow = document.createElement('div');
         typeToggleRow.style.cssText = `display:flex;gap:12px;align-items:center;padding:5px 8px;background:rgba(0,0,0,0.25);border-radius:7px;margin-bottom:6px;flex-shrink:0;flex-wrap:wrap;`;
@@ -3571,6 +3675,7 @@ void main(){
             cb.type = 'checkbox';
             cb.checked = !!_typeToggles[key];
             cb.style.cssText = `width:14px;height:14px;accent-color:${color};cursor:pointer;`;
+            _typeToggleCbs[key] = cb;
             stopEventsOn(cb);
             cb.addEventListener('change', () => {
                 _typeToggles[key] = cb.checked;
