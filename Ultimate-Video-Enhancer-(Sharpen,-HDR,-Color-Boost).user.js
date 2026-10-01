@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.16.4
+// @version      1.16.5
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -2090,10 +2090,41 @@ void main(){
             uniformDefs.forEach(d => { if (customLocs[d.name] != null) gl.uniform1f(customLocs[d.name], entry.uniforms[d.name] ?? d.def); });
         }
 
+        // ── Covered-video guard ────────────────────────────────────────────────
+        // While the opaque GLSL canvas covers the video, the <video> underneath still had the
+        // full CSS/SVG filter (url(#...) convolutions) applied. That filter is already baked into
+        // the GLSL source texture, so the browser was filtering every frame twice. Worse, any
+        // repaint over the player (mouse move -> controls/tooltips fading in) forced the filtered
+        // video layer to re-rasterize -> FPS drops while moving the mouse. Drop the filter on the
+        // covered video; _getCssFilterCached() reads the <style> text, so baking is unaffected.
+        const _COVERED_CLASS = 'gvf-glsl-covered';
+        let _coveredVideo = null;
+
+        function _ensureCoveredStyle() {
+            if (document.getElementById('gvf-glsl-covered-style')) return;
+            const st = document.createElement('style');
+            st.id = 'gvf-glsl-covered-style';
+            st.textContent = `video.${_COVERED_CLASS} { filter: none !important; will-change: auto !important; }`;
+            (document.head || document.documentElement).appendChild(st);
+        }
+
+        function _setCoveredVideo(video) {
+            if (_coveredVideo === video) return;
+            if (_coveredVideo) { try { _coveredVideo.classList.remove(_COVERED_CLASS); } catch (_) {} }
+            _coveredVideo = video || null;
+            if (_coveredVideo) {
+                _ensureCoveredStyle();
+                try { _coveredVideo.classList.add(_COVERED_CLASS); } catch (_) {}
+            }
+        }
+
         function _reparentCanvas(video) {
             if (!_canvas || !video) return;
             const parent = video.parentElement || document.body;
-            if (_canvas.parentNode !== parent || _canvas.previousSibling !== video) {
+            // Only move the canvas if it left the player or ended up before the video. Requiring it to be
+            // the *direct* next sibling made it fight other overlays (blend/Canvas2D canvases, player nodes)
+            // inserted right after the video -> DOM mutation + relayout on every frame.
+            if (_canvas.parentNode !== parent || (video.compareDocumentPosition(_canvas) & Node.DOCUMENT_POSITION_PRECEDING)) {
                 _cachedParent = parent;
                 const after = video.nextSibling;
                 parent.insertBefore(_canvas, after !== _canvas ? after : null);
@@ -2146,6 +2177,7 @@ void main(){
         }
 
         function _hideWebglCanvases(clear = false) {
+            _setCoveredVideo(null);
             if (_canvas) {
                 _canvas.style.display = 'none';
                 _canvas.style.visibility = 'hidden';
@@ -2395,8 +2427,11 @@ void main(){
 
             // Show/hide main GL canvas
             if (allNonNormal) {
+                // Blend canvases mix with the video underneath, so it must keep its filter.
+                _setCoveredVideo(null);
                 if (_canvas.style.display !== 'none' || _canvas.style.visibility !== 'hidden') { _canvas.style.display = 'none'; _canvas.style.visibility = 'hidden'; _canvas.style.opacity = '0'; }
             } else {
+                _setCoveredVideo(video);
                 const nl = snapL + 'px';
                 const nt = snapT + 'px';
                 const nw = cssW;
@@ -2522,6 +2557,7 @@ void main(){
 
         function destroyAll() {
             _alive = false;
+            _setCoveredVideo(null);
             if (_rafId) cancelAnimationFrame(_rafId);
             if (_canvas && _canvas.isConnected) _canvas.remove();
             _removeAllBlendCanvases();
@@ -17857,6 +17893,7 @@ if ('lutProfile' in obj) {
         document.querySelectorAll('video').forEach(v => _attachDrmListenerToVideo(v));
         const _drmVideoObserver = new MutationObserver(mutations => {
             if (isCurrentDomainGlslBlacklisted()) { _drmVideoObserver.disconnect(); return; }
+            if (!gvfMutationsTouch(mutations, ['VIDEO'])) return;
             for (const m of mutations) {
                 m.addedNodes.forEach(node => {
                     if (node.nodeName === 'VIDEO') _attachDrmListenerToVideo(node);
