@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.16.7
+// @version      1.16.8
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -15409,6 +15409,10 @@ const fileInput = document.createElement('input');
             menu.style.display = 'flex';
             applyManagerPosition(menu, K.EXPERT_MANAGER_POS);
         } else {
+            // a focused slider / input inside the hidden window would keep swallowing all hotkeys
+            // (the keydown handler ignores events from inputs) -> release the focus
+            const active = document.activeElement;
+            if (active && menu.contains(active) && typeof active.blur === 'function') active.blur();
             menu.style.display = 'none';
         }
         updateExpertButtonState();
@@ -15428,6 +15432,8 @@ const fileInput = document.createElement('input');
             if (text != null) n.textContent = text;
             return n;
         };
+        // no innerHTML: sites with Trusted Types (e.g. YouTube, strict in Edge) throw on any innerHTML write
+        const clear = (n) => { while (n.firstChild) n.removeChild(n.firstChild); };
         const decimals = (step) => (String(step).split('.')[1] || '').length;
         const fmt = (v, step) => Number(v).toFixed(decimals(step));
 
@@ -15579,7 +15585,7 @@ const fileInput = document.createElement('input');
                     border: 1px solid ${on ? ACC : 'rgba(255,255,255,0.2)'};
                     background: ${on ? ACC : 'rgba(255,255,255,0.1)'}; transition: all 0.15s ease;
                 `;
-                b.innerHTML = '';
+                clear(b);
                 b.appendChild(el('span', `
                     position: absolute; top: 2px; left: ${on ? '24px' : '2px'};
                     width: 18px; height: 18px; border-radius: 50%; background: #fff;
@@ -15663,7 +15669,7 @@ const fileInput = document.createElement('input');
 
             const ctrlBox = el('div', 'margin-left: 16px;');
             const buildControl = () => {
-                ctrlBox.innerHTML = '';
+                clear(ctrlBox);
                 if (f.type === 'bool') {
                     ctrlBox.appendChild(mkToggle(obj[f.k], (v) => { obj[f.k] = v; markState(); changed(); }));
                 } else if (f.type === 'rgb') {
@@ -15844,7 +15850,7 @@ const fileInput = document.createElement('input');
                 if (blocks < 0) { flash('Import failed: this is not an expert settings export', '#ff6b6b'); return; }
                 applyExpertChanges();
                 renderNav();
-                content.innerHTML = '';
+                clear(content);
                 renderIO();
                 const nv = countValues(expertSettingsDiff());
                 flash(`✓ Imported ${nv} changed value${nv === 1 ? '' : 's'} and applied`);
@@ -15868,7 +15874,7 @@ const fileInput = document.createElement('input');
         };
 
         const renderContent = () => {
-            content.innerHTML = '';
+            clear(content);
             const q = search.value.trim().toLowerCase();
             if (q) {
                 let hits = 0;
@@ -15891,7 +15897,7 @@ const fileInput = document.createElement('input');
 
         // ---- navigation ----
         const renderNav = () => {
-            nav.innerHTML = '';
+            clear(nav);
             let lastSection = '';
             [...GVF_EXPERT_UI, IO_ITEM].forEach(group => {
                 if (group.section !== lastSection) {
