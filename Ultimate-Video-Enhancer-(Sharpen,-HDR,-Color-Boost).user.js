@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.16.8
+// @version      1.17.0
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -3483,6 +3483,7 @@
         modal.id = MODAL_ID;
         modal.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:560px;max-width:96vw;max-height:85vh;background:rgba(18,18,22,0.98);border:2px solid #4a9eff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,0.85);color:#eaeaea;font-family:system-ui,sans-serif;z-index:2147483647;display:flex;flex-direction:column;padding:18px;user-select:none;pointer-events:auto;`;
         stopEventsOn(modal);
+        stopClicksOn(modal);
 
         // Header
         const hdr = document.createElement('div');
@@ -4612,6 +4613,8 @@
         modal._gvfRenderList = renderList;
         const _fsEl = getFsEl();
         (_fsEl || document.body || document.documentElement).appendChild(modal);
+        // restore the saved position (after appending: clamping needs the real size)
+        applyManagerPosition(modal, 'gvf_custom_svg_modal_pos');
     }
 
     // -------------------------
@@ -7877,44 +7880,28 @@ function downloadBlob(blob, filename) {
         let notif = document.getElementById(NOTIFICATION_ID);
         if (notif) return notif;
 
+        try { ensureHudTheme(); } catch (_) { }
+
+        // Modern toast card: icon tile + title/detail + time bar (styles: .gvf-toast in the HUD theme)
         notif = document.createElement('div');
         notif.id = NOTIFICATION_ID;
-        notif.style.cssText = `
-            position: fixed;
-            top: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.85);
-            color: #fff;
-            padding: 12px 24px;
-            border-radius: 30px;
-            font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-            font-size: 16px;
-            font-weight: 900;
-            z-index: 2147483647;
-            display: none;
-            align-items: center;
-            gap: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-            border: 2px solid #2a6fdb;
-            backdrop-filter: blur(5px);
-            pointer-events: none;
-            transform: translateZ(0);
-            letter-spacing: 0.5px;
-        `;
+        notif.className = 'gvf-toast';
 
         const icon = document.createElement('span');
+        icon.className = 'gvf-toast-icon';
         icon.textContent = '🎬';
-        icon.style.cssText = `
-            font-size: 20px;
-            filter: drop-shadow(0 0 5px #2a6fdb);
-        `;
 
         const text = document.createElement('span');
         text.id = 'gvf-notification-text';
+        text.className = 'gvf-toast-text';
         text.textContent = 'Profile: Default';
+
+        const bar = document.createElement('span');
+        bar.className = 'gvf-toast-bar';
 
         notif.appendChild(icon);
         notif.appendChild(text);
+        notif.appendChild(bar);
         document.body.appendChild(notif);
 
         return notif;
@@ -8057,43 +8044,77 @@ function downloadBlob(blob, filename) {
         }
     }
 
+    const TOAST_DURATION_MS = 3000;
+    // Status from the detail color the callers already pass (green = on, red = off, else info)
+    function toastKind(color) {
+        const c = String(color || '').trim().toLowerCase();
+        if (c === '#4cff6a' || c === '#50d890' || c === '#00ff00') return 'on';
+        if (c === '#ff4c4c' || c === '#ff6060' || c === '#ff0000' || c === '#ff6666') return 'off';
+        return 'info';
+    }
+
     function showScreenNotification(message, options = null) {
         const notif = createNotificationElement();
         const textEl = document.getElementById('gvf-notification-text');
+        const iconEl = notif.querySelector('.gvf-toast-icon');
+        const barEl = notif.querySelector('.gvf-toast-bar');
 
+        let kind = 'info';
+        let accent = '#3b82f6';
         if (textEl) {
             clearNotificationTextNode(textEl);
 
             if (options && typeof options === 'object') {
                 const titleLine = document.createElement('div');
+                titleLine.className = 'gvf-toast-title';
                 titleLine.textContent = String(options.title || message || '').trim() || 'Saved';
                 textEl.appendChild(titleLine);
 
                 const detail = String(options.detail || '').trim();
                 if (detail) {
                     const detailLine = document.createElement('div');
+                    detailLine.className = 'gvf-toast-detail';
                     detailLine.textContent = detail;
-                    detailLine.style.marginTop = '4px';
-                    detailLine.style.fontSize = '14px';
-                    detailLine.style.fontWeight = '900';
-                    if (options.detailColor) detailLine.style.color = String(options.detailColor);
                     textEl.appendChild(detailLine);
                 }
+                kind = toastKind(options.detailColor);
+                if (kind === 'on') accent = '#22c55e';
+                else if (kind === 'off') accent = '#ef4444';
+                else if (options.detailColor) accent = String(options.detailColor);
             } else {
-                textEl.textContent = String(message || '').trim() || 'Saved';
+                const titleLine = document.createElement('div');
+                titleLine.className = 'gvf-toast-title';
+                titleLine.textContent = String(message || '').trim() || 'Saved';
+                textEl.appendChild(titleLine);
             }
         }
+
+        notif.style.setProperty('--gvf-toast-accent', accent);
+        notif.dataset.kind = kind;
+        if (iconEl) iconEl.textContent = kind === 'on' ? '✓' : (kind === 'off' ? '✕' : '🎬');
 
         if (notificationTimeout) {
             clearTimeout(notificationTimeout);
         }
 
+        // (re)start the slide-in and the time bar
+        notif.classList.remove('is-in');
         notif.style.display = 'flex';
+        void notif.offsetWidth;
+        notif.classList.add('is-in');
+        if (barEl) {
+            barEl.style.animation = 'none';
+            void barEl.offsetWidth;
+            barEl.style.animation = `gvf-toast-time ${TOAST_DURATION_MS}ms linear forwards`;
+        }
 
         notificationTimeout = setTimeout(() => {
-            notif.style.display = 'none';
-            notificationTimeout = null;
-        }, 3000);
+            notif.classList.remove('is-in');
+            notificationTimeout = setTimeout(() => {
+                notif.style.display = 'none';
+                notificationTimeout = null;
+            }, 220);
+        }, TOAST_DURATION_MS);
     }
 
     function showProfileNotification(profileName) {
@@ -9777,6 +9798,87 @@ function downloadBlob(blob, filename) {
 
     function matToSvgValues(m) {
         return m.map(x => (Math.abs(x) < 1e-10 ? '0' : Number(x).toFixed(6))).join(' ');
+    }
+
+    // Exact matrices of feColorMatrix type="saturate" / type="hueRotate" and the CSS filter
+    // functions saturate() / hue-rotate() (Filter Effects spec, 0.213 / 0.715 / 0.072 weights).
+    function matSaturateSpec(s) {
+        return [
+            0.213 + 0.787 * s, 0.715 - 0.715 * s, 0.072 - 0.072 * s, 0, 0,
+            0.213 - 0.213 * s, 0.715 + 0.285 * s, 0.072 - 0.072 * s, 0, 0,
+            0.213 - 0.213 * s, 0.715 - 0.715 * s, 0.072 + 0.928 * s, 0, 0,
+            0, 0, 0, 1, 0
+        ];
+    }
+    function matHueRotateSpec(deg) {
+        const rad = (deg * Math.PI) / 180;
+        const c = Math.cos(rad), s = Math.sin(rad);
+        return [
+            0.213 + c * 0.787 - s * 0.213, 0.715 - c * 0.715 - s * 0.715, 0.072 - c * 0.072 + s * 0.928, 0, 0,
+            0.213 - c * 0.213 + s * 0.143, 0.715 + c * 0.285 + s * 0.140, 0.072 - c * 0.072 - s * 0.283, 0, 0,
+            0.213 - c * 0.213 - s * 0.787, 0.715 - c * 0.715 + s * 0.715, 0.072 + c * 0.928 + s * 0.072, 0, 0,
+            0, 0, 0, 1, 0
+        ];
+    }
+    // CSS brightness(b) then contrast(c)
+    function matCssBrightness(b) {
+        return [b, 0, 0, 0, 0, 0, b, 0, 0, 0, 0, 0, b, 0, 0, 0, 0, 0, 1, 0];
+    }
+    function matCssContrast(c) {
+        const o = 0.5 - 0.5 * c;
+        return [c, 0, 0, 0, o, 0, c, 0, 0, o, 0, 0, c, 0, o, 0, 0, 0, 1, 0];
+    }
+
+    // Matrix of a feColorMatrix element, or null if it cannot be expressed as one
+    function feColorMatrixToMat(node) {
+        const type = (node.getAttribute('type') || 'matrix').trim();
+        const raw = (node.getAttribute('values') || '').trim();
+        if (type === 'matrix') {
+            if (!raw) return matIdentity4x5();
+            const v = raw.split(/[\s,]+/).map(Number);
+            return (v.length === 20 && v.every(Number.isFinite)) ? v : null;
+        }
+        if (type === 'saturate') {
+            const s = raw ? Number(raw) : 1;
+            return Number.isFinite(s) ? matSaturateSpec(s) : null;
+        }
+        if (type === 'hueRotate') {
+            const d = raw ? Number(raw) : 0;
+            return Number.isFinite(d) ? matHueRotateSpec(d) : null;
+        }
+        return null;
+    }
+
+    // Performance: merge directly chained feColorMatrix primitives into one, so the browser runs
+    // one full-frame pass instead of several. Only merges when the intermediate result is used by
+    // nothing else. The live auto matrix (data-gvf-auto) is never merged, it is updated in place.
+    function mergeChainedColorMatrices(filter) {
+        const nodes = Array.from(filter.children);
+        const refs = {};
+        nodes.forEach(n => ['in', 'in2'].forEach(a => {
+            const v = n.getAttribute(a);
+            if (v) refs[v] = (refs[v] || 0) + 1;
+        }));
+        const mergeable = (n) => n && n.localName === 'feColorMatrix'
+            && !n.hasAttribute('data-gvf-auto')
+            && !n.hasAttribute('x') && !n.hasAttribute('y') && !n.hasAttribute('width') && !n.hasAttribute('height');
+
+        for (let i = 1; i < nodes.length; i++) {
+            const a = nodes[i - 1], b = nodes[i];
+            if (!mergeable(a) || !mergeable(b)) continue;
+            const ar = a.getAttribute('result');
+            if (!ar || b.getAttribute('in') !== ar || refs[ar] !== 1) continue;
+            if (a.getAttribute('color-interpolation-filters') !== b.getAttribute('color-interpolation-filters')) continue;
+            const ma = feColorMatrixToMat(a), mb = feColorMatrixToMat(b);
+            if (!ma || !mb) continue;
+
+            b.setAttribute('type', 'matrix');
+            b.setAttribute('values', matToSvgValues(matMul4x5(mb, ma)));
+            const ain = a.getAttribute('in');
+            if (ain) b.setAttribute('in', ain); else b.removeAttribute('in');
+            a.remove();
+            nodes[i - 1] = null;
+        }
     }
 
     let autoMatrixStr = matToSvgValues(matIdentity4x5());
@@ -11913,6 +12015,7 @@ if (!gl) {
             pointer-events: auto;
         `;
         stopEventsOn(menu);
+        stopClicksOn(menu);
 
         // Header
         const header = document.createElement('div');
@@ -12583,6 +12686,7 @@ if (!gl) {
                     z-index:2147483647;display:flex;flex-direction:column;padding:20px;gap:12px;
                     user-select:none;pointer-events:auto;overflow-y:auto;`;
                 stopEventsOn(win);
+                stopClicksOn(win);
 
                 const edHeader = document.createElement('div');
                 edHeader.style.cssText = `display:flex;justify-content:space-between;align-items:center;
@@ -13278,6 +13382,7 @@ if (!gl) {
             pointer-events: auto;
         `;
         stopEventsOn(menu);
+        stopClicksOn(menu);
 
         const header = document.createElement('div');
         header.style.cssText = `
@@ -14569,6 +14674,732 @@ const fileInput = document.createElement('input');
         ].forEach(ev => el.addEventListener(ev, stop, { passive: true }));
     }
 
+    // For the root of a HUD panel / window: clicks inside must not reach the page either.
+    // Some players react to a bubbling click (e.g. "+" in Ctrl+Alt+G started Picture-in-Picture).
+    // Bubble phase on the root only, so every handler inside still runs.
+    function stopClicksOn(root) {
+        const stop = (e) => { e.stopPropagation(); };
+        ['click', 'dblclick', 'auxclick', 'contextmenu'].forEach(ev => root.addEventListener(ev, stop));
+    }
+
+    // -------------------------
+    // HUD theme (Ctrl+Alt+H / G / I)
+    // One stylesheet on top of the inline styles (!important where inline values are replaced).
+    // No backdrop-filter on purpose: blurring the playing video behind the panel costs a pass per frame.
+    // -------------------------
+    const HUD_THEME_ID = 'gvf-hud-theme';
+    function ensureHudTheme() {
+        installHudCustomSelect();
+        if (document.getElementById(HUD_THEME_ID)) return;
+        const st = document.createElement('style');
+        st.id = HUD_THEME_ID;
+        st.textContent = `
+.gvf-hud {
+  --gvf-accent: #38bdf8; --gvf-accent-2: #7dd3fc; --gvf-accent-glow: rgba(56,189,248,0.45);
+  box-sizing: border-box !important;
+  color-scheme: dark;
+  /* fully opaque on purpose: Firefox only shows / triggers its own Picture-in-Picture toggle where the
+     video is visible; a translucent panel counted as "visible", so clicks on it (e.g. "+") started PiP */
+  background: linear-gradient(180deg, rgb(30,31,40), rgb(15,16,22)) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 16px !important;
+  padding: 10px !important;
+  gap: 2px !important;
+  opacity: 1 !important;
+  color: #e9e9f1;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif !important;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+.gvf-hud::-webkit-scrollbar { width: 8px; }
+.gvf-hud::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 8px; }
+.gvf-hud.gvf-video-overlay-grade { --gvf-accent: #8b5cf6; --gvf-accent-2: #a78bfa; --gvf-accent-glow: rgba(139,92,246,0.45); }
+.gvf-hud.gvf-video-overlay-io { --gvf-accent: #3b82f6; --gvf-accent-2: #60a5fa; --gvf-accent-glow: rgba(59,130,246,0.45); }
+
+.gvf-hud .gvf-head {
+  background: transparent !important; box-shadow: none !important; border-radius: 0 !important;
+  padding: 2px 4px 9px !important; margin-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.gvf-hud .gvf-title {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px !important; font-weight: 700 !important; letter-spacing: 0.02em; color: #f5f5fa !important;
+}
+.gvf-hud .gvf-title::before {
+  content: ''; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--gvf-accent); box-shadow: 0 0 8px var(--gvf-accent-glow);
+}
+.gvf-hud .gvf-tag {
+  font-size: 10px !important; font-weight: 700 !important; letter-spacing: 0.06em;
+  color: rgba(235,235,245,0.6) !important; opacity: 1 !important;
+  padding: 2px 8px; border-radius: 999px; background: rgba(255,255,255,0.06);
+}
+.gvf-hud .gvf-sep { background: rgba(255,255,255,0.07) !important; margin: 6px 4px !important; }
+
+.gvf-hud .gvf-row {
+  background: transparent !important; box-shadow: none !important;
+  padding: 4px 6px !important; border-radius: 10px !important; gap: 10px !important; margin-top: 0 !important;
+  transition: background 0.15s ease;
+}
+.gvf-hud .gvf-row:hover { background: rgba(255,255,255,0.045) !important; }
+.gvf-hud .gvf-lbl {
+  font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.02em;
+  color: var(--gvf-lbl-color, rgba(235,235,245,0.72)) !important; text-align: left !important;
+}
+.gvf-hud .gvf-val {
+  box-sizing: border-box; width: auto !important; min-width: 46px;
+  padding: 4px 6px; border-radius: 6px; background: rgba(255,255,255,0.06);
+  font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+  font-variant-numeric: tabular-nums; text-align: right !important;
+  color: var(--gvf-val-color, #f5f5fa) !important;
+}
+
+.gvf-hud input.gvf-range {
+  -webkit-appearance: none; appearance: none;
+  height: 18px !important; margin: 0; padding: 0; background: transparent !important; cursor: pointer;
+}
+.gvf-hud input.gvf-range:focus { outline: none; }
+.gvf-hud input.gvf-range::-webkit-slider-runnable-track {
+  height: 4px; border-radius: 4px;
+  background: linear-gradient(to right,
+    rgba(255,255,255,0.12) 0 var(--gvf-a, 0%),
+    var(--gvf-accent) var(--gvf-a, 0%) var(--gvf-b, 0%),
+    rgba(255,255,255,0.12) var(--gvf-b, 0%) 100%);
+}
+.gvf-hud input.gvf-range::-moz-range-track {
+  height: 4px; border-radius: 4px;
+  background: linear-gradient(to right,
+    rgba(255,255,255,0.12) 0 var(--gvf-a, 0%),
+    var(--gvf-accent) var(--gvf-a, 0%) var(--gvf-b, 0%),
+    rgba(255,255,255,0.12) var(--gvf-b, 0%) 100%);
+}
+.gvf-hud input.gvf-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 14px; height: 14px; margin-top: -5px; border: none; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 0 2px var(--gvf-accent), 0 2px 6px rgba(0,0,0,0.5);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.gvf-hud input.gvf-range::-moz-range-thumb {
+  width: 14px; height: 14px; border: none; border-radius: 50%; background: #fff;
+  box-shadow: 0 0 0 2px var(--gvf-accent), 0 2px 6px rgba(0,0,0,0.5);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.gvf-hud input.gvf-range:hover::-webkit-slider-thumb { transform: scale(1.15); box-shadow: 0 0 0 2px var(--gvf-accent), 0 0 10px var(--gvf-accent-glow); }
+.gvf-hud input.gvf-range:hover::-moz-range-thumb { transform: scale(1.15); box-shadow: 0 0 0 2px var(--gvf-accent), 0 0 10px var(--gvf-accent-glow); }
+.gvf-hud input.gvf-range:active::-webkit-slider-thumb { transform: scale(1.25); }
+.gvf-hud input.gvf-range:active::-moz-range-thumb { transform: scale(1.25); }
+
+.gvf-hud .gvf-top { padding: 0 2px 8px !important; margin-bottom: 4px; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.gvf-hud .gvf-chip {
+  width: 26px !important; height: 26px !important; border-radius: 8px !important;
+  font-size: 11px !important; font-weight: 700 !important; text-shadow: none !important;
+  background: rgba(255,255,255,0.05) !important; color: rgba(255,255,255,0.38) !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08) !important;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+.gvf-hud .gvf-chip.is-on {
+  background: linear-gradient(180deg, var(--gvf-accent-2), var(--gvf-accent)) !important;
+  color: #04121c !important;
+  box-shadow: 0 0 12px var(--gvf-accent-glow), inset 0 1px 0 rgba(255,255,255,0.35) !important;
+}
+.gvf-hud .gvf-pill {
+  border-radius: 999px !important; padding: 4px 10px !important;
+  font-size: 10px !important; font-weight: 700 !important; letter-spacing: 0.05em;
+  background: rgba(255,255,255,0.06) !important;
+}
+
+.gvf-hud .gvf-select {
+  color-scheme: dark; /* native dropdown popup (Windows/Chrome) in dark instead of white */
+  background: #24252e !important; color: #ececf3 !important;
+  border: 1px solid rgba(255,255,255,0.1) !important; border-radius: 8px !important;
+  padding: 5px 8px !important; font-size: 11px !important; font-weight: 600 !important;
+  outline: none; transition: border-color 0.15s ease;
+}
+.gvf-hud .gvf-select:hover, .gvf-hud .gvf-select:focus { border-color: var(--gvf-accent) !important; }
+.gvf-hud .gvf-select option, .gvf-hud .gvf-select optgroup {
+  background: #1b1c24 !important; background-color: #1b1c24 !important; color: #ececf3 !important;
+}
+.gvf-hud .gvf-select optgroup { color: #9a9aab !important; font-weight: 700; }
+.gvf-hud .gvf-select option:checked { background: #3a3550 !important; color: #fff !important; }
+/* Scopes HUD (Ctrl+Alt+S) */
+.gvf-hud.gvf-video-overlay-scopes {
+  --gvf-accent: #10b981; --gvf-accent-2: #34d399; --gvf-accent-glow: rgba(16,185,129,0.45);
+  padding: 10px !important;
+}
+.gvf-hud.gvf-video-overlay-scopes .gvf-head { backdrop-filter: none !important; padding-bottom: 8px !important; }
+.gvf-hud .gvf-live { display: inline-flex; align-items: center; gap: 5px; color: #6ee7b7 !important; }
+.gvf-hud .gvf-live::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%; background: #34d399;
+  box-shadow: 0 0 6px rgba(52,211,153,0.8); animation: gvf-live-pulse 1.6s ease-in-out infinite;
+}
+@keyframes gvf-live-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.gvf-hud .gvf-scope-content {
+  background: transparent !important; box-shadow: none !important; backdrop-filter: none !important;
+  padding: 2px !important; gap: 10px !important;
+}
+.gvf-hud .gvf-scope-title {
+  font-size: 10px !important; font-weight: 700 !important; letter-spacing: 0.08em !important;
+  color: rgba(235,235,245,0.55) !important; margin-bottom: 3px;
+}
+.gvf-hud .gvf-scope-box {
+  background: rgba(0,0,0,0.35) !important; border-radius: 8px !important;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+}
+.gvf-hud .gvf-scope-luma { padding: 2px 4px !important; gap: 2px !important; } /* bars grow up to 36px in a 40px box */
+.gvf-hud .gvf-scope-luma > div { background: linear-gradient(180deg, #6ee7b7, #059669) !important; border-radius: 2px 2px 1px 1px !important; }
+.gvf-hud .gvf-scope-rgb { padding: 6px !important; gap: 6px !important; }
+.gvf-hud .gvf-scope-red, .gvf-hud .gvf-scope-green, .gvf-hud .gvf-scope-blue { gap: 2px !important; }
+.gvf-hud .gvf-scope-red > div { background: linear-gradient(180deg, #fca5a5, #ef4444) !important; border-radius: 2px 2px 1px 1px !important; }
+.gvf-hud .gvf-scope-green > div { background: linear-gradient(180deg, #86efac, #22c55e) !important; border-radius: 2px 2px 1px 1px !important; }
+.gvf-hud .gvf-scope-blue > div { background: linear-gradient(180deg, #93c5fd, #3b82f6) !important; border-radius: 2px 2px 1px 1px !important; }
+.gvf-hud .gvf-scope-ch { font-size: 9px !important; font-weight: 700 !important; margin-bottom: 2px; }
+.gvf-hud .gvf-scope-sat-track { height: 6px !important; background: rgba(255,255,255,0.08) !important; border-radius: 6px !important; }
+.gvf-hud .gvf-scope-sat-fill { background: linear-gradient(90deg, #fde047, #f59e0b, #f97316) !important; border-radius: 6px !important; }
+.gvf-hud .gvf-scope-box .gvf-val { min-width: 40px; }
+.gvf-hud .gvf-scope-stats { gap: 6px !important; margin-top: 0 !important; }
+.gvf-hud .gvf-scope-stat {
+  background: rgba(255,255,255,0.06) !important; border-radius: 6px !important; padding: 4px 2px !important;
+  font: 600 10px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace !important;
+  font-variant-numeric: tabular-nums; color: rgba(235,235,245,0.8) !important;
+}
+/* ---------- Windows / modals (Config, LUT manager, Custom SVG, Expert, Profile edit) ---------- */
+#gvf-config-menu, #gvf-userProf-edit-window { --gvf-accent: #3b82f6; --gvf-accent-glow: rgba(59,130,246,0.35); }
+#gvf-lut-config-menu { --gvf-accent: #f59e0b; --gvf-accent-glow: rgba(245,158,11,0.35); }
+#gvf-custom-svg-modal { --gvf-accent: #38bdf8; --gvf-accent-glow: rgba(56,189,248,0.35); }
+#gvf-expert-modal { --gvf-accent: #8b5cf6; --gvf-accent-glow: rgba(139,92,246,0.35); }
+#gvf-config-menu,
+#gvf-lut-config-menu,
+#gvf-custom-svg-modal,
+#gvf-expert-modal,
+#gvf-userProf-edit-window {
+  color-scheme: dark;
+  background: linear-gradient(180deg, rgb(30,31,40), rgb(16,17,23)) !important; /* opaque: see .gvf-hud (Firefox PiP toggle) */
+  border: 1px solid rgba(255,255,255,0.09) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 28px 70px rgba(0,0,0,0.6), inset 0 3px 0 var(--gvf-accent), inset 0 1px 0 rgba(255,255,255,0.06) !important;
+  backdrop-filter: none !important;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif !important;
+  color: #e9e9f1 !important;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+#gvf-config-menu *,
+#gvf-lut-config-menu *,
+#gvf-custom-svg-modal *,
+#gvf-expert-modal *,
+#gvf-userProf-edit-window * {
+  text-shadow: none !important;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+#gvf-config-menu ::-webkit-scrollbar,
+#gvf-lut-config-menu ::-webkit-scrollbar,
+#gvf-custom-svg-modal ::-webkit-scrollbar,
+#gvf-expert-modal ::-webkit-scrollbar,
+#gvf-userProf-edit-window ::-webkit-scrollbar,
+#gvf-config-menu::-webkit-scrollbar,
+#gvf-lut-config-menu::-webkit-scrollbar,
+#gvf-custom-svg-modal::-webkit-scrollbar,
+#gvf-expert-modal::-webkit-scrollbar,
+#gvf-userProf-edit-window::-webkit-scrollbar { width: 8px; height: 8px; }
+#gvf-config-menu ::-webkit-scrollbar-thumb,
+#gvf-lut-config-menu ::-webkit-scrollbar-thumb,
+#gvf-custom-svg-modal ::-webkit-scrollbar-thumb,
+#gvf-expert-modal ::-webkit-scrollbar-thumb,
+#gvf-userProf-edit-window ::-webkit-scrollbar-thumb,
+#gvf-config-menu::-webkit-scrollbar-thumb,
+#gvf-lut-config-menu::-webkit-scrollbar-thumb,
+#gvf-custom-svg-modal::-webkit-scrollbar-thumb,
+#gvf-expert-modal::-webkit-scrollbar-thumb,
+#gvf-userProf-edit-window::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 8px; }
+#gvf-config-menu ::-webkit-scrollbar-track,
+#gvf-lut-config-menu ::-webkit-scrollbar-track,
+#gvf-custom-svg-modal ::-webkit-scrollbar-track,
+#gvf-expert-modal ::-webkit-scrollbar-track,
+#gvf-userProf-edit-window ::-webkit-scrollbar-track { background: transparent; }
+
+/* header line: thin and neutral instead of the thick colored line */
+#gvf-config-menu > div:first-child,
+#gvf-lut-config-menu > div:first-child,
+#gvf-custom-svg-modal > div:first-child,
+#gvf-expert-modal > div:first-child,
+#gvf-userProf-edit-window > div:first-child {
+  border-bottom-width: 1px !important; border-bottom-color: rgba(255,255,255,0.08) !important;
+}
+
+/* calmer typography: the very heavy 900 weight becomes semi-bold */
+#gvf-config-menu [style*="font-weight:900"],
+#gvf-lut-config-menu [style*="font-weight:900"],
+#gvf-custom-svg-modal [style*="font-weight:900"],
+#gvf-expert-modal [style*="font-weight:900"],
+#gvf-userProf-edit-window [style*="font-weight:900"],
+#gvf-config-menu [style*="font-weight: 900"],
+#gvf-lut-config-menu [style*="font-weight: 900"],
+#gvf-custom-svg-modal [style*="font-weight: 900"],
+#gvf-expert-modal [style*="font-weight: 900"],
+#gvf-userProf-edit-window [style*="font-weight: 900"] { font-weight: 650 !important; }
+#gvf-config-menu [style*="font-weight:800"],
+#gvf-lut-config-menu [style*="font-weight:800"],
+#gvf-custom-svg-modal [style*="font-weight:800"],
+#gvf-expert-modal [style*="font-weight:800"],
+#gvf-userProf-edit-window [style*="font-weight:800"],
+#gvf-config-menu [style*="font-weight: 800"],
+#gvf-lut-config-menu [style*="font-weight: 800"],
+#gvf-custom-svg-modal [style*="font-weight: 800"],
+#gvf-expert-modal [style*="font-weight: 800"],
+#gvf-userProf-edit-window [style*="font-weight: 800"] { font-weight: 600 !important; }
+
+/* buttons: same colors as before, modern shape + motion */
+#gvf-config-menu button,
+#gvf-lut-config-menu button,
+#gvf-custom-svg-modal button,
+#gvf-expert-modal button,
+#gvf-userProf-edit-window button {
+  border-radius: 9px !important; border-width: 1px !important; font-family: inherit !important;
+  transition: background 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease !important;
+}
+#gvf-config-menu button:not(:disabled):hover,
+#gvf-lut-config-menu button:not(:disabled):hover,
+#gvf-custom-svg-modal button:not(:disabled):hover,
+#gvf-expert-modal button:not(:disabled):hover,
+#gvf-userProf-edit-window button:not(:disabled):hover { transform: translateY(-1px); }
+#gvf-config-menu button:not(:disabled):active,
+#gvf-lut-config-menu button:not(:disabled):active,
+#gvf-custom-svg-modal button:not(:disabled):active,
+#gvf-expert-modal button:not(:disabled):active,
+#gvf-userProf-edit-window button:not(:disabled):active { transform: translateY(0) scale(0.97); }
+#gvf-config-menu button:focus-visible,
+#gvf-lut-config-menu button:focus-visible,
+#gvf-custom-svg-modal button:focus-visible,
+#gvf-expert-modal button:focus-visible,
+#gvf-userProf-edit-window button:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--gvf-accent-glow) !important; }
+
+/* text fields, number fields, search, textareas, dropdowns */
+#gvf-config-menu input:not([type]),
+#gvf-lut-config-menu input:not([type]),
+#gvf-custom-svg-modal input:not([type]),
+#gvf-expert-modal input:not([type]),
+#gvf-userProf-edit-window input:not([type]),
+#gvf-config-menu input[type="text"],
+#gvf-lut-config-menu input[type="text"],
+#gvf-custom-svg-modal input[type="text"],
+#gvf-expert-modal input[type="text"],
+#gvf-userProf-edit-window input[type="text"],
+#gvf-config-menu input[type="search"],
+#gvf-lut-config-menu input[type="search"],
+#gvf-custom-svg-modal input[type="search"],
+#gvf-expert-modal input[type="search"],
+#gvf-userProf-edit-window input[type="search"],
+#gvf-config-menu input[type="number"],
+#gvf-lut-config-menu input[type="number"],
+#gvf-custom-svg-modal input[type="number"],
+#gvf-expert-modal input[type="number"],
+#gvf-userProf-edit-window input[type="number"],
+#gvf-config-menu input[type="url"],
+#gvf-lut-config-menu input[type="url"],
+#gvf-custom-svg-modal input[type="url"],
+#gvf-expert-modal input[type="url"],
+#gvf-userProf-edit-window input[type="url"],
+#gvf-config-menu textarea,
+#gvf-lut-config-menu textarea,
+#gvf-custom-svg-modal textarea,
+#gvf-expert-modal textarea,
+#gvf-userProf-edit-window textarea,
+#gvf-config-menu select,
+#gvf-lut-config-menu select,
+#gvf-custom-svg-modal select,
+#gvf-expert-modal select,
+#gvf-userProf-edit-window select {
+  background-color: rgba(0,0,0,0.3) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 9px !important;
+  color: #ececf3 !important;
+  outline: none !important;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+#gvf-config-menu input:focus,
+#gvf-lut-config-menu input:focus,
+#gvf-custom-svg-modal input:focus,
+#gvf-expert-modal input:focus,
+#gvf-userProf-edit-window input:focus,
+#gvf-config-menu textarea:focus,
+#gvf-lut-config-menu textarea:focus,
+#gvf-custom-svg-modal textarea:focus,
+#gvf-expert-modal textarea:focus,
+#gvf-userProf-edit-window textarea:focus,
+#gvf-config-menu select:focus,
+#gvf-lut-config-menu select:focus,
+#gvf-custom-svg-modal select:focus,
+#gvf-expert-modal select:focus,
+#gvf-userProf-edit-window select:focus {
+  border-color: var(--gvf-accent) !important;
+  box-shadow: 0 0 0 3px var(--gvf-accent-glow) !important;
+}
+#gvf-config-menu input::placeholder,
+#gvf-lut-config-menu input::placeholder,
+#gvf-custom-svg-modal input::placeholder,
+#gvf-expert-modal input::placeholder,
+#gvf-userProf-edit-window input::placeholder,
+#gvf-config-menu textarea::placeholder,
+#gvf-lut-config-menu textarea::placeholder,
+#gvf-custom-svg-modal textarea::placeholder,
+#gvf-expert-modal textarea::placeholder,
+#gvf-userProf-edit-window textarea::placeholder { color: rgba(235,235,245,0.38) !important; }
+#gvf-config-menu input[type="range"],
+#gvf-lut-config-menu input[type="range"],
+#gvf-custom-svg-modal input[type="range"],
+#gvf-expert-modal input[type="range"],
+#gvf-userProf-edit-window input[type="range"],
+#gvf-config-menu input[type="checkbox"],
+#gvf-lut-config-menu input[type="checkbox"],
+#gvf-custom-svg-modal input[type="checkbox"],
+#gvf-expert-modal input[type="checkbox"],
+#gvf-userProf-edit-window input[type="checkbox"],
+#gvf-config-menu input[type="radio"],
+#gvf-lut-config-menu input[type="radio"],
+#gvf-custom-svg-modal input[type="radio"],
+#gvf-expert-modal input[type="radio"],
+#gvf-userProf-edit-window input[type="radio"] { accent-color: var(--gvf-accent) !important; }
+
+/* ---------- Notifications (toast) ---------- */
+#gvf-profile-notification.gvf-toast {
+  position: fixed; top: 20px; left: 20px; z-index: 2147483647;
+  display: none; align-items: center; gap: 12px;
+  min-width: 220px; max-width: min(420px, calc(100vw - 40px));
+  padding: 10px 16px 12px 10px; box-sizing: border-box; overflow: hidden;
+  background: linear-gradient(180deg, rgb(30,31,40), rgb(16,17,23));
+  border: 1px solid rgba(255,255,255,0.09); border-radius: 14px;
+  box-shadow: 0 14px 36px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+  color: #f5f5fa; pointer-events: none;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  opacity: 0; transform: translateY(-8px) scale(0.98);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+#gvf-profile-notification.gvf-toast.is-in { opacity: 1; transform: translateY(0) scale(1); }
+#gvf-profile-notification .gvf-toast-icon {
+  flex: 0 0 auto; width: 32px; height: 32px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 800; line-height: 1;
+  color: var(--gvf-toast-accent, #3b82f6);
+  background: color-mix(in srgb, var(--gvf-toast-accent, #3b82f6) 18%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gvf-toast-accent, #3b82f6) 35%, transparent);
+}
+#gvf-profile-notification[data-kind="info"] .gvf-toast-icon { font-size: 16px; }
+#gvf-profile-notification .gvf-toast-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#gvf-profile-notification .gvf-toast-title {
+  font-size: 13px; font-weight: 650; letter-spacing: 0.01em; color: #f5f5fa;
+  line-height: 1.3; overflow-wrap: anywhere;
+}
+#gvf-profile-notification .gvf-toast-detail {
+  font-size: 12px; font-weight: 500; color: var(--gvf-toast-accent, rgba(235,235,245,0.7));
+  line-height: 1.35; overflow-wrap: anywhere;
+  display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden;
+}
+#gvf-profile-notification[data-kind="info"] .gvf-toast-detail { color: rgba(235,235,245,0.72); }
+#gvf-profile-notification .gvf-toast-bar {
+  position: absolute; left: 0; bottom: 0; height: 2px; width: 100%;
+  background: var(--gvf-toast-accent, #3b82f6); opacity: 0.85; transform-origin: left center;
+}
+@keyframes gvf-toast-time { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+/* own dropdown list for HUD selects (replaces the native popup) */
+.gvf-hud-popup {
+  position: fixed; z-index: 2147483647; box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 6px; padding: 6px;
+  background: #1b1c24; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0,0,0,0.6);
+  color: #e9e9f1; color-scheme: dark; user-select: none;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+.gvf-hud-popup .gvf-pop-search {
+  box-sizing: border-box; width: 100%; padding: 7px 10px; border-radius: 8px; outline: none;
+  border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.06);
+  color: #ececf3; font-family: inherit; font-size: 12px; font-weight: 500;
+}
+.gvf-hud-popup .gvf-pop-search:focus { border-color: var(--gvf-accent, #8b5cf6); }
+.gvf-hud-popup .gvf-pop-list {
+  overflow-y: auto; min-height: 0; flex: 1 1 auto;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+.gvf-hud-popup .gvf-pop-list::-webkit-scrollbar { width: 8px; }
+.gvf-hud-popup .gvf-pop-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.16); border-radius: 8px; }
+.gvf-hud-popup .gvf-pop-group {
+  padding: 8px 10px 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(235,235,245,0.45);
+}
+.gvf-hud-popup .gvf-pop-item {
+  padding: 6px 10px; border-radius: 7px; cursor: pointer;
+  font-size: 12px; font-weight: 500; color: #e9e9f1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  transition: background 0.12s ease;
+}
+.gvf-hud-popup .gvf-pop-item.in-group { padding-left: 18px; }
+.gvf-hud-popup .gvf-pop-item:hover { background: rgba(255,255,255,0.07); }
+.gvf-hud-popup .gvf-pop-item.is-sel {
+  background: rgba(255,255,255,0.1); color: #fff;
+  box-shadow: inset 3px 0 0 var(--gvf-accent, #8b5cf6);
+}
+.gvf-hud-popup .gvf-pop-item.is-disabled { opacity: 0.4; cursor: default; }
+/* every dropdown of the script (HUDs + Config / LUT / Custom SVG / Expert windows): dark native popup */
+.gvf-hud select, [id^="gvf-"] select { color-scheme: dark; }
+.gvf-hud select option, .gvf-hud select optgroup,
+[id^="gvf-"] select option, [id^="gvf-"] select optgroup {
+  background-color: #1b1c24 !important; color: #ececf3 !important;
+}
+.gvf-hud .gvf-row .gvf-select { flex: 1 1 auto; min-width: 0; width: auto !important; }
+.gvf-hud .gvf-row input.gvf-range { flex: 1 1 auto; min-width: 80px; }
+.gvf-hud .gvf-row .gvf-lbl, .gvf-hud .gvf-row .gvf-val, .gvf-hud .gvf-row .gvf-icon-btn { flex: 0 0 auto; }
+.gvf-hud .gvf-icon-btn { width: 28px !important; height: 26px !important; border-radius: 8px !important; }
+
+.gvf-hud .gvf-box { background: transparent !important; box-shadow: none !important; padding: 2px !important; }
+.gvf-hud .gvf-io-text {
+  box-sizing: border-box !important;
+  background: rgba(0,0,0,0.35) !important; color: #dfe7f1 !important;
+  border: 1px solid rgba(255,255,255,0.08) !important; border-radius: 12px !important;
+  padding: 10px !important; transition: border-color 0.15s ease;
+}
+.gvf-hud .gvf-io-text:focus { border-color: var(--gvf-accent) !important; }
+.gvf-hud .gvf-btn {
+  border-radius: 9px !important; padding: 6px 11px !important; border-width: 1px !important;
+  font-size: 11px !important; font-weight: 600 !important; letter-spacing: 0.01em;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.1s ease !important;
+}
+.gvf-hud .gvf-btn:not(:disabled):hover { transform: translateY(-1px); }
+.gvf-hud .gvf-btn:not(:disabled):active { transform: translateY(0) scale(0.97); }
+.gvf-hud .gvf-status { font-size: 11px !important; font-weight: 500 !important; color: rgba(235,235,245,0.62) !important; padding: 0 2px; }
+`;
+        (document.head || document.documentElement).appendChild(st);
+    }
+
+    // HUD dropdowns: Chrome's native <select> popup is drawn wrongly on Windows for long lists with
+    // optgroups (blank area at the bottom). The HUD selects open this own list instead. The <select>
+    // stays the source of truth: picking an entry sets its value and fires the normal 'change' event,
+    // so all existing change handlers keep working. Keyboard on the focused select still works natively.
+    let _hudPopup = null;
+    let _hudPopupCheckRaf = 0;
+    function closeHudSelectPopup() {
+        if (!_hudPopup) return;
+        try { _hudPopup.el.remove(); } catch (_) { }
+        _hudPopup = null;
+    }
+    // Close only if the select really moved / vanished. Many pages scroll something on their own all
+    // the time (chat, carousels, players) or fire resize without a size change; that must not close it.
+    function checkHudSelectPopupAnchor() {
+        _hudPopupCheckRaf = 0;
+        if (!_hudPopup) return;
+        const sel = _hudPopup.sel;
+        if (!sel.isConnected || !sel.getClientRects().length) { closeHudSelectPopup(); return; }
+        const r = sel.getBoundingClientRect();
+        const a = _hudPopup.anchor;
+        if (Math.abs(r.left - a.left) > 4 || Math.abs(r.top - a.top) > 4
+            || window.innerWidth !== a.vw || window.innerHeight !== a.vh) {
+            closeHudSelectPopup();
+        }
+    }
+    function scheduleHudSelectPopupCheck() {
+        if (_hudPopup && !_hudPopupCheckRaf) _hudPopupCheckRaf = requestAnimationFrame(checkHudSelectPopupAnchor);
+    }
+    function openHudSelectPopup(sel, hud) {
+        closeHudSelectPopup();
+
+        const pop = document.createElement('div');
+        pop.className = 'gvf-hud-popup';
+        stopClicksOn(pop);
+        const accent = getComputedStyle(hud).getPropertyValue('--gvf-accent').trim();
+        if (accent) pop.style.setProperty('--gvf-accent', accent);
+        stopEventsOn(pop);
+
+        const entries = []; // { kind: 'group' | 'item', el, text, value }
+        const list = document.createElement('div');
+        list.className = 'gvf-pop-list';
+
+        const addItem = (opt, inGroup) => {
+            const it = document.createElement('div');
+            it.className = 'gvf-pop-item' + (inGroup ? ' in-group' : '') + (opt.value === sel.value ? ' is-sel' : '');
+            it.textContent = opt.textContent;
+            it.title = opt.textContent;
+            if (opt.disabled) it.classList.add('is-disabled');
+            it.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (opt.disabled) return;
+                closeHudSelectPopup();
+                if (sel.value !== opt.value) {
+                    sel.value = opt.value;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+            list.appendChild(it);
+            const en = { kind: 'item', el: it, text: String(opt.textContent || '').toLowerCase(), value: opt.value };
+            entries.push(en);
+            return en;
+        };
+
+        Array.from(sel.children).forEach(ch => {
+            if (ch.tagName === 'OPTGROUP') {
+                const g = document.createElement('div');
+                g.className = 'gvf-pop-group';
+                g.textContent = ch.label;
+                list.appendChild(g);
+                const grp = { kind: 'group', el: g, text: String(ch.label || '').toLowerCase(), items: [] };
+                entries.push(grp);
+                Array.from(ch.children).forEach(o => { if (o.tagName === 'OPTION') grp.items.push(addItem(o, true)); });
+            } else if (ch.tagName === 'OPTION') {
+                addItem(ch, false);
+            }
+        });
+
+        // Search field for long lists (e.g. LUT)
+        const itemCount = entries.filter(e => e.kind === 'item').length;
+        let search = null;
+        if (itemCount > 12) {
+            search = document.createElement('input');
+            search.type = 'text';
+            search.className = 'gvf-pop-search';
+            search.placeholder = 'Search…';
+            search.spellcheck = false;
+            search.addEventListener('input', () => {
+                const q = search.value.trim().toLowerCase();
+                entries.forEach(en => {
+                    if (en.kind === 'item') en.el.style.display = (!q || en.text.includes(q)) ? '' : 'none';
+                });
+                entries.forEach(en => {
+                    if (en.kind !== 'group') return;
+                    const groupHit = !!q && en.text.includes(q);
+                    if (groupHit) en.items.forEach(i => { i.el.style.display = ''; });
+                    const anyVisible = en.items.some(i => i.el.style.display !== 'none');
+                    en.el.style.display = anyVisible ? '' : 'none';
+                });
+            });
+            search.addEventListener('keydown', (e) => {
+                e.stopPropagation(); // no site / script hotkeys while typing
+                if (e.key === 'Escape') { closeHudSelectPopup(); try { sel.focus(); } catch (_) { } }
+                if (e.key === 'Enter') {
+                    const first = entries.find(en => en.kind === 'item' && en.el.style.display !== 'none' && !en.el.classList.contains('is-disabled'));
+                    if (first) first.el.click();
+                }
+            });
+            pop.appendChild(search);
+        }
+        pop.appendChild(list);
+
+        // Same container as the HUD (stays visible in fullscreen)
+        (hud.parentNode || document.body || document.documentElement).appendChild(pop);
+
+        // Position: below the select if there is room, otherwise above; never off screen
+        const r = sel.getBoundingClientRect();
+        const vw = window.innerWidth, vh = window.innerHeight, margin = 8;
+        const width = Math.min(Math.max(r.width, 240), 340, vw - margin * 2);
+        const below = vh - r.bottom - margin, above = r.top - margin;
+        const openBelow = below >= 220 || below >= above;
+        const maxH = Math.max(120, Math.min(380, (openBelow ? below : above) - 6));
+        pop.style.width = width + 'px';
+        pop.style.maxHeight = maxH + 'px';
+        pop.style.left = Math.round(Math.min(Math.max(margin, r.right - width), vw - width - margin)) + 'px';
+        if (openBelow) pop.style.top = Math.round(r.bottom + 6) + 'px';
+        else pop.style.bottom = Math.round(vh - r.top + 6) + 'px';
+
+        const selItem = list.querySelector('.gvf-pop-item.is-sel');
+        if (selItem) list.scrollTop = Math.max(0, selItem.offsetTop - list.clientHeight / 2 + selItem.offsetHeight / 2);
+        if (search) setTimeout(() => { try { search.focus({ preventScroll: true }); } catch (_) { } }, 0);
+
+        _hudPopup = { el: pop, sel, anchor: { left: r.left, top: r.top, vw, vh } };
+    }
+    // HUD panels + script windows whose <select>s use the own dropdown list
+    const HUD_SELECT_SCOPE = '.gvf-hud, #gvf-config-menu, #gvf-lut-config-menu, #gvf-custom-svg-modal, #gvf-expert-modal, #gvf-userProf-edit-window';
+    function installHudCustomSelect() {
+        if (window.__gvfHudCustomSelect) return;
+        window.__gvfHudCustomSelect = true;
+        // capture phase: runs before the page and before stopEventsOn() on the select
+        document.addEventListener('mousedown', (e) => {
+            const t = e.target;
+            if (_hudPopup && t && _hudPopup.el.contains(t)) return; // click inside the list
+            if (t && t.tagName === 'SELECT' && t.closest && !t.disabled) {
+                const hud = t.closest(HUD_SELECT_SCOPE);
+                if (hud) {
+                    e.preventDefault(); // no native popup
+                    if (_hudPopup && _hudPopup.sel === t) { closeHudSelectPopup(); return; }
+                    try { t.focus({ preventScroll: true }); } catch (_) { }
+                    openHudSelectPopup(t, hud);
+                    return;
+                }
+            }
+            closeHudSelectPopup();
+        }, true);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeHudSelectPopup(); }, true);
+        document.addEventListener('scroll', (e) => {
+            // scrolling inside the list is fine; anything else only closes it if the select moved
+            if (_hudPopup && !(e.target && e.target.nodeType === 1 && _hudPopup.el.contains(e.target))) scheduleHudSelectPopupCheck();
+        }, true);
+        window.addEventListener('resize', scheduleHudSelectPopupCheck);
+        document.addEventListener('fullscreenchange', closeHudSelectPopup);
+    }
+
+    // Filled part of a themed slider: from the zero point (or min) to the current value
+    function paintRange(rng) {
+        if (!rng) return;
+        const min = Number(rng.min), max = Number(rng.max), v = Number(rng.value);
+        if (!(max > min) || !Number.isFinite(v)) return;
+        const pct = (x) => ((clamp(x, min, max) - min) / (max - min)) * 100;
+        const pz = pct(0), pv = pct(v);
+        rng.style.setProperty('--gvf-a', Math.min(pz, pv).toFixed(2) + '%');
+        rng.style.setProperty('--gvf-b', Math.max(pz, pv).toFixed(2) + '%');
+    }
+
+    // Overlay sliders (Ctrl+Alt+H / Ctrl+Alt+G): coalesce input events while dragging.
+    // While dragging: value + label update instantly, only a light preview render runs (max once per frame,
+    // SVG mode builds only the active combo filter). Storing (GM values + user profile, which also wakes the
+    // sync listeners of other tabs/iframes) and the full filter rebuild run once when the drag ends.
+    const _sliderPendingGm = new Map();
+    let _sliderPreviewRaf = 0;
+    let _sliderPersistTimer = null;
+    let _sliderApplyOverlay = false;
+    function renderSliderPreview() {
+        _sliderPreviewRaf = 0;
+        if (renderMode === 'gpu') {
+            applyGpuFilter();
+            return;
+        }
+        _svgActiveComboOnly = true;
+        try {
+            regenerateSvgImmediately();
+        } finally {
+            _svgActiveComboOnly = false;
+        }
+    }
+    function flushSliderApply() {
+        if (_sliderPreviewRaf) cancelAnimationFrame(_sliderPreviewRaf);
+        _sliderPreviewRaf = 0;
+        if (_sliderPersistTimer) clearTimeout(_sliderPersistTimer);
+        _sliderPersistTimer = null;
+        if (!_sliderPendingGm.size) return;
+        _sliderPendingGm.forEach((v, k) => gmSet(k, v));
+        _sliderPendingGm.clear();
+
+        // Save current settings in active profile
+        updateCurrentProfileSettings();
+
+        if (renderMode === 'gpu') {
+            applyGpuFilter();
+        } else {
+            regenerateSvgImmediately();
+        }
+        if (_sliderApplyOverlay) {
+            _sliderApplyOverlay = false;
+            scheduleOverlayUpdate();
+        }
+    }
+    function scheduleSliderApply(gmKey, value, withOverlay = false) {
+        _sliderPendingGm.set(gmKey, value);
+        if (withOverlay) _sliderApplyOverlay = true;
+        if (!_sliderPreviewRaf) _sliderPreviewRaf = requestAnimationFrame(renderSliderPreview);
+        // fallback in case no 'change' event arrives (e.g. touch cancelled)
+        if (_sliderPersistTimer) clearTimeout(_sliderPersistTimer);
+        _sliderPersistTimer = setTimeout(flushSliderApply, 600);
+    }
+    function bindSliderFlush(rng) {
+        // store + full rebuild immediately when the drag ends
+        rng.addEventListener('change', flushSliderApply);
+    }
+
 
     function readManagerPosition(key) {
         try {
@@ -14684,7 +15515,9 @@ const fileInput = document.createElement('input');
 
     function mkMainOverlay() {
         const overlay = document.createElement('div');
-        overlay.className = 'gvf-video-overlay-main';
+        ensureHudTheme();
+        overlay.className = 'gvf-video-overlay-main gvf-hud';
+        stopClicksOn(overlay);
         overlay.style.cssText = `
       position: fixed;
       display: none;
@@ -14700,13 +15533,14 @@ const fileInput = document.createElement('input');
     `;
 
         const top = document.createElement('div');
+        top.className = 'gvf-top';
         top.style.cssText = `display:flex;align-items:center;justify-content: space-between;gap: 8px;`;
 
         const row = document.createElement('div');
         row.style.cssText = `display:flex; gap:6px; align-items:center;`;
 
         const profBadge = document.createElement('div');
-        profBadge.className = 'gvf-prof-badge';
+        profBadge.className = 'gvf-prof-badge gvf-pill';
         profBadge.style.cssText = `
       padding: 4px 8px;border-radius: 10px;font-size: 11px;font-weight: 900;
       background: rgba(0,0,0,0.92);color: #eaeaea;
@@ -14714,7 +15548,7 @@ const fileInput = document.createElement('input');
     `;
 
         const renderBadge = document.createElement('div');
-        renderBadge.className = 'gvf-render-badge';
+        renderBadge.className = 'gvf-render-badge gvf-pill';
         renderBadge.style.cssText = `
       padding: 2px 6px;border-radius: 8px;font-size: 9px;font-weight: 900;
       background: rgba(0,0,0,0.92);color: #ffaa00;
@@ -14723,10 +15557,16 @@ const fileInput = document.createElement('input');
     `;
         renderBadge.textContent = renderMode === 'gpu' ? 'GPU' : 'SVG';
 
+        const chipTitles = {
+            base: 'Base tone (Ctrl+Alt+B)', moody: 'Dark & Moody (Ctrl+Alt+D)', teal: 'Teal & Orange (Ctrl+Alt+O)',
+            vib: 'Vibrant (Ctrl+Alt+V)', hdr: 'HDR (Ctrl+Alt+P)', auto: 'Auto scene match (Ctrl+Alt+A)'
+        };
         const mkBtn = (key, label) => {
             const el = document.createElement('div');
+            el.className = 'gvf-chip';
             el.dataset.key = key;
             el.textContent = label;
+            if (chipTitles[key]) el.title = chipTitles[key];
             el.style.cssText = `
         width: 24px;height: 24px;border-radius: 6px;background: #000;color: #666;
         display:flex;align-items:center;justify-content:center;
@@ -14754,18 +15594,26 @@ const fileInput = document.createElement('input');
 
         overlay.appendChild(top);
 
+        const sliderTitles = {
+            SL: 'Sharpen (+) / Soften (-)', SR: 'Sharpen radius', BL: 'Black level', WL: 'White level',
+            DN: 'Denoise (+) / Grain (-)', HDR: 'HDR'
+        };
         const mkSliderRow = (name, labelText, min, max, step, getVal, setVal, gmKey, snapZero, fmt = v => Number(v).toFixed(1)) => {
             const wrap = document.createElement('div');
+            wrap.className = 'gvf-row';
             wrap.style.cssText = `
         display:flex;align-items:center;gap:8px;padding: 6px 8px;border-radius: 10px;
         background: rgba(0,0,0,0.92);box-shadow: 0 0 0 1px rgba(255,255,255,0.14) inset;
       `;
+            if (sliderTitles[name]) wrap.title = sliderTitles[name];
 
             const lbl = document.createElement('div');
+            lbl.className = 'gvf-lbl';
             lbl.textContent = labelText;
             lbl.style.cssText = `min-width: 36px;text-align:center;font-size: 11px;font-weight: 900;color:#cfcfcf;`;
 
             const rng = document.createElement('input');
+            rng.className = 'gvf-range';
             rng.type = 'range';
             rng.min = String(min);
             rng.max = String(max);
@@ -14773,8 +15621,10 @@ const fileInput = document.createElement('input');
             rng.value = String(getVal());
             rng.dataset.gvfRange = name;
             rng.style.cssText = `width: 210px; height: 18px; accent-color: #fff;`;
+            paintRange(rng);
 
             const val = document.createElement('div');
+            val.className = 'gvf-val';
             val.dataset.gvfVal = name;
             val.textContent = fmt(getVal());
             val.style.cssText = `width: 52px;text-align:right;font-size: 11px;font-weight: 900;color:#e6e6e6;`;
@@ -14788,20 +15638,13 @@ const fileInput = document.createElement('input');
 
                 setVal(v);
                 rng.value = String(getVal());
+                paintRange(rng);
                 val.textContent = fmt(getVal());
 
-                gmSet(gmKey, getVal());
-                if (gmKey === K.HDR && getVal() !== 0) gmSet(K.HDR_LAST, getVal());
-
-                // Save current settings in active profile
-                updateCurrentProfileSettings();
-
-                if (renderMode === 'gpu') {
-                    applyGpuFilter();
-                } else {
-                    regenerateSvgImmediately();
-                }
+                if (gmKey === K.HDR && getVal() !== 0) _sliderPendingGm.set(K.HDR_LAST, getVal());
+                scheduleSliderApply(gmKey, getVal());
             });
+            bindSliderFlush(rng);
 
             wrap.appendChild(lbl);
             wrap.appendChild(rng);
@@ -14836,7 +15679,9 @@ const fileInput = document.createElement('input');
 
     function mkGradingOverlay() {
         const overlay = document.createElement('div');
-        overlay.className = 'gvf-video-overlay-grade';
+        ensureHudTheme();
+        overlay.className = 'gvf-video-overlay-grade gvf-hud';
+        stopClicksOn(overlay);
         overlay.style.cssText = `
       position: fixed;display: none;flex-direction: column;gap: 6px;z-index: 2147483647;
       pointer-events: auto;opacity: 0.92;
@@ -14848,6 +15693,7 @@ const fileInput = document.createElement('input');
     `;
 
         const head = document.createElement('div');
+        head.className = 'gvf-head';
         head.style.cssText = `
       display:flex;justify-content: space-between;align-items:center;
       padding: 6px 8px;border-radius: 10px;background: rgba(0,0,0,0.92);
@@ -14855,19 +15701,27 @@ const fileInput = document.createElement('input');
     `;
 
         const title = document.createElement('div');
-        title.textContent = 'Grading (G) & RGB Gain (0-255)';
+        title.className = 'gvf-title';
+        title.textContent = 'Grading & RGB Gain';
         title.style.cssText = `font-size:11px; font-weight:900; color:#eaeaea;`;
         head.appendChild(title);
+
+        const headTag = document.createElement('div');
+        headTag.className = 'gvf-tag';
+        headTag.textContent = 'CTRL+ALT+G';
+        head.appendChild(headTag);
         overlay.appendChild(head);
 
         const mkRow = (name, labelText, keyGet, keySet, gmKey) => {
             const wrap = document.createElement('div');
+            wrap.className = 'gvf-row';
             wrap.style.cssText = `
         display:flex;align-items:center;gap:8px;padding: 6px 8px;border-radius: 10px;
         background: rgba(0,0,0,0.92);box-shadow: 0 0 0 1px rgba(255,255,255,0.14) inset;
       `;
 
             const lbl = document.createElement('div');
+            lbl.className = 'gvf-lbl';
             lbl.textContent = labelText;
             lbl.style.cssText = `
         min-width: 100px;text-align:left;font-size: 11px;font-weight: 900;
@@ -14875,6 +15729,7 @@ const fileInput = document.createElement('input');
       `;
 
             const rng = document.createElement('input');
+            rng.className = 'gvf-range';
             rng.type = 'range';
             rng.min = '-10';
             rng.max = '10';
@@ -14882,8 +15737,10 @@ const fileInput = document.createElement('input');
             rng.value = String(keyGet());
             rng.dataset.gvfRange = name;
             rng.style.cssText = `width: 120px; height: 18px; accent-color: #fff;`;
+            paintRange(rng);
 
             const val = document.createElement('div');
+            val.className = 'gvf-val';
             val.dataset.gvfVal = name;
             val.textContent = Number(keyGet()).toFixed(1);
             val.style.cssText = `width: 54px;text-align:right;font-size: 11px;font-weight: 900;color:#e6e6e6;`;
@@ -14894,19 +15751,11 @@ const fileInput = document.createElement('input');
                 const v = normU(parseFloat(rng.value));
                 keySet(v);
                 rng.value = String(keyGet());
+                paintRange(rng);
                 val.textContent = Number(keyGet()).toFixed(1);
-                gmSet(gmKey, keyGet());
-
-                // Save current settings in active profile
-                updateCurrentProfileSettings();
-
-                if (renderMode === 'gpu') {
-                    applyGpuFilter();
-                } else {
-                    regenerateSvgImmediately();
-                }
-                scheduleOverlayUpdate();
+                scheduleSliderApply(gmKey, keyGet(), true);
             });
+            bindSliderFlush(rng);
 
             wrap.appendChild(lbl);
             wrap.appendChild(rng);
@@ -14916,19 +15765,23 @@ const fileInput = document.createElement('input');
 
         const mkRGBRow = (name, labelText, keyGet, keySet, gmKey, color) => {
             const wrap = document.createElement('div');
+            wrap.className = 'gvf-row';
             wrap.style.cssText = `
         display:flex;align-items:center;gap:8px;padding: 6px 8px;border-radius: 10px;
         background: rgba(0,0,0,0.92);box-shadow: 0 0 0 1px rgba(255,255,255,0.14) inset;
       `;
 
             const lbl = document.createElement('div');
+            lbl.className = 'gvf-lbl';
             lbl.textContent = labelText;
             lbl.style.cssText = `
         min-width: 100px;text-align:left;font-size: 11px;font-weight: 900;
         color:${color};padding-left: 2px;
       `;
+            lbl.style.setProperty('--gvf-lbl-color', color);
 
             const rng = document.createElement('input');
+            rng.className = 'gvf-range';
             rng.type = 'range';
             rng.min = '0';
             rng.max = '255';
@@ -14936,11 +15789,16 @@ const fileInput = document.createElement('input');
             rng.value = String(keyGet());
             rng.dataset.gvfRange = name;
             rng.style.cssText = `width: 120px; height: 18px; accent-color: ${color};`;
+            rng.style.setProperty('--gvf-accent', color);
+            rng.style.setProperty('--gvf-accent-glow', color + '73');
+            paintRange(rng);
 
             const val = document.createElement('div');
+            val.className = 'gvf-val';
             val.dataset.gvfVal = name;
             val.textContent = String(Math.round(keyGet()));
             val.style.cssText = `width: 54px;text-align:right;font-size: 11px;font-weight: 900;color:${color};`;
+            val.style.setProperty('--gvf-val-color', color);
 
             stopEventsOn(rng);
 
@@ -14948,19 +15806,11 @@ const fileInput = document.createElement('input');
                 const v = normRGB(parseFloat(rng.value));
                 keySet(v);
                 rng.value = String(keyGet());
+                paintRange(rng);
                 val.textContent = String(Math.round(keyGet()));
-                gmSet(gmKey, keyGet());
-
-                // Save current settings in active profile
-                updateCurrentProfileSettings();
-
-                if (renderMode === 'gpu') {
-                    applyGpuFilter();
-                } else {
-                    regenerateSvgImmediately();
-                }
-                scheduleOverlayUpdate();
+                scheduleSliderApply(gmKey, keyGet(), true);
             });
+            bindSliderFlush(rng);
 
             wrap.appendChild(lbl);
             wrap.appendChild(rng);
@@ -14981,6 +15831,7 @@ const fileInput = document.createElement('input');
         overlay.appendChild(mkRow('U_HUE', 'Hue Correction', () => normU(u_hue), (v) => { u_hue = v; }, K.U_HUE));
 
         const sep = document.createElement('div');
+        sep.className = 'gvf-sep';
         sep.style.cssText = `height:1px;background:rgba(255,255,255,0.14);margin:8px 0;`;
         overlay.appendChild(sep);
 
@@ -14990,10 +15841,12 @@ const fileInput = document.createElement('input');
 
         // Add color blindness filter dropdown
         const cbSep = document.createElement('div');
+        cbSep.className = 'gvf-sep';
         cbSep.style.cssText = `height:1px;background:rgba(255,255,255,0.14);margin:8px 0;`;
         overlay.appendChild(cbSep);
 
         const cbSection = document.createElement('div');
+        cbSection.className = 'gvf-row';
         cbSection.style.cssText = `
       display:flex;align-items:center;gap:8px;padding: 6px 8px;border-radius: 10px;
       background: rgba(0,0,0,0.92);box-shadow: 0 0 0 1px rgba(255,255,255,0.14) inset;
@@ -15001,6 +15854,7 @@ const fileInput = document.createElement('input');
     `;
 
         const cbLabel = document.createElement('div');
+        cbLabel.className = 'gvf-lbl';
         cbLabel.textContent = 'Color Blind';
         cbLabel.style.cssText = `
       min-width: 100px;text-align:left;font-size: 11px;font-weight: 900;
@@ -15008,6 +15862,7 @@ const fileInput = document.createElement('input');
     `;
 
         const cbSelect = document.createElement('select');
+        cbSelect.className = 'gvf-select';
         cbSelect.dataset.gvfSelect = 'cb_filter';
         cbSelect.style.cssText = `
       width: 120px;background: rgba(30,30,30,0.9);color: #eaeaea;
@@ -15062,6 +15917,7 @@ const fileInput = document.createElement('input');
 
         // Add LUT dropdown + manager button (below Color Blind)
             const lutSection = document.createElement('div');
+            lutSection.className = 'gvf-row';
             lutSection.style.cssText = `
           display:flex;align-items:center;gap:8px;padding: 6px 8px;border-radius: 10px;
           background: rgba(0,0,0,0.92);box-shadow: 0 0 0 1px rgba(255,255,255,0.14) inset;
@@ -15069,6 +15925,7 @@ const fileInput = document.createElement('input');
         `;
 
             const lutLabel = document.createElement('div');
+            lutLabel.className = 'gvf-lbl';
             lutLabel.textContent = 'LUT';
             lutLabel.style.cssText = `
           min-width: 100px;text-align:left;font-size: 11px;font-weight: 900;
@@ -15076,6 +15933,7 @@ const fileInput = document.createElement('input');
         `;
 
             const lutSelect = document.createElement('select');
+            lutSelect.className = 'gvf-select';
             lutSelect.dataset.gvfSelect = 'lut_profile';
             lutSelect.style.cssText = `
           width: 180px;background: rgba(30,30,30,0.9);color: #eaeaea;
@@ -15087,6 +15945,7 @@ const fileInput = document.createElement('input');
             lutPlus.type = 'button';
             lutPlus.textContent = '+';
             lutPlus.title = 'Open LUT Profile Manager';
+            lutPlus.className = 'gvf-icon-btn';
             lutPlus.style.cssText = `
           width: 28px;height: 24px;display:flex;align-items:center;justify-content:center;
           border-radius: 6px;cursor:pointer;
@@ -15450,6 +16309,7 @@ const fileInput = document.createElement('input');
         `);
         dlg.id = EXPERT_MODAL_ID;
         stopEventsOn(dlg);
+        stopClicksOn(dlg);
 
         // ---- header (drag handle) ----
         const header = el('div', `
@@ -15984,7 +16844,9 @@ const fileInput = document.createElement('input');
 
     function mkIOOverlay() {
         const overlay = document.createElement('div');
-        overlay.className = 'gvf-video-overlay-io';
+        ensureHudTheme();
+        overlay.className = 'gvf-video-overlay-io gvf-hud';
+        stopClicksOn(overlay);
         overlay.style.cssText = `
       position: fixed;display: none;flex-direction: column;gap: 6px;z-index: 2147483647;
       pointer-events: auto;opacity: 0.95;
@@ -15994,6 +16856,7 @@ const fileInput = document.createElement('input');
     `;
 
         const head = document.createElement('div');
+        head.className = 'gvf-head';
         head.style.cssText = `
       display:flex;justify-content: space-between;align-items:center;
       padding: 6px 8px;border-radius: 10px;background: rgba(0,0,0,0.92);
@@ -16001,11 +16864,13 @@ const fileInput = document.createElement('input');
     `;
 
         const title = document.createElement('div');
-        title.textContent = 'Settings (I) Export/Import';
+        title.className = 'gvf-title';
+        title.textContent = 'Settings · Export / Import';
         title.style.cssText = `font-size:11px; font-weight:900; color:#eaeaea;`;
 
         const hint = document.createElement('div');
-        hint.textContent = 'JSON';
+        hint.className = 'gvf-tag';
+        hint.textContent = 'CTRL+ALT+I';
         hint.style.cssText = `font-size:10px;font-weight:900;color:#cfcfcf;opacity:0.9;`;
 
         head.appendChild(title);
@@ -16013,6 +16878,7 @@ const fileInput = document.createElement('input');
         overlay.appendChild(head);
 
         const box = document.createElement('div');
+        box.className = 'gvf-box';
         box.style.cssText = `
       padding: 8px;border-radius: 10px;background: rgba(0,0,0,0.92);
       box-shadow: 0 0 0 1px rgba(255,255,255,0.14) inset;
@@ -16090,6 +16956,7 @@ const fileInput = document.createElement('input');
         const mkBtn = (text) => {
             const b = document.createElement('button');
             b.type = 'button';
+            b.className = 'gvf-btn';
             b.textContent = text;
             b.style.cssText = `
         cursor:pointer;
@@ -16113,7 +16980,7 @@ const fileInput = document.createElement('input');
         };
 
         const status = document.createElement('div');
-        status.className = 'gvf-io-status';
+        status.className = 'gvf-io-status gvf-status';
         status.style.cssText = `margin-top:8px;font-size:11px;font-weight:900;color:#cfcfcf;opacity:0.95;`;
         status.textContent = 'Tip: paste JSON here → Save';
 
@@ -16156,7 +17023,7 @@ const fileInput = document.createElement('input');
 
         // EXPERT BUTTON - opens / closes the Expert Settings window (Grading HUD GVF_*_SETTINGS)
         const btnExpert = mkBtn('🧪 Expert');
-        btnExpert.className = 'gvf-expert-btn';
+        btnExpert.classList.add('gvf-expert-btn');
         btnExpert.title = 'Fine-tune all Grading HUD settings';
         btnExpert.style.background = expertModalVisible ? 'rgba(139, 92, 246, 0.6)' : 'rgba(139, 92, 246, 0.35)';
         btnExpert.style.border = '2px solid #8b5cf6';
@@ -16438,10 +17305,11 @@ const fileInput = document.createElement('input');
         const glslModeRow = document.createElement('div');
         glslModeRow.style.cssText = `display:flex;align-items:center;gap:8px;margin-top:8px;`;
         const glslModeLabel = document.createElement('span');
-        glslModeLabel.textContent = 'GLSL Mode:';
+        glslModeLabel.className = 'gvf-lbl';
+        glslModeLabel.textContent = 'GLSL Mode';
         glslModeLabel.style.cssText = `font-size:11px;font-weight:900;color:#cfcfcf;`;
         const glslModeSel = document.createElement('select');
-        glslModeSel.className = 'gvf-glsl-mode-sel';
+        glslModeSel.className = 'gvf-glsl-mode-sel gvf-select';
         glslModeSel.style.cssText = `font-size:11px;font-weight:900;background:rgba(10,10,10,0.98);color:#eaeaea;border:1px solid rgba(255,255,255,0.14);border-radius:6px;padding:3px 6px;cursor:pointer;`;
         [['light', '30 FPS'], ['normal', '60 FPS'], ['turbo', '120 FPS']].forEach(([val, lbl]) => {
             const o = document.createElement('option'); o.value = val; o.textContent = lbl; glslModeSel.appendChild(o);
@@ -16474,7 +17342,9 @@ const fileInput = document.createElement('input');
 
     function mkScopesOverlay() {
         const overlay = document.createElement('div');
-        overlay.className = 'gvf-video-overlay-scopes';
+        ensureHudTheme();
+        overlay.className = 'gvf-video-overlay-scopes gvf-hud';
+        stopClicksOn(overlay);
         overlay.style.cssText = `
       position: fixed;
       display: none;
@@ -16490,6 +17360,7 @@ const fileInput = document.createElement('input');
     `;
 
         const head = document.createElement('div');
+        head.className = 'gvf-head';
         head.style.cssText = `
       display:flex;justify-content: space-between;align-items:center;
       padding: 4px 8px;border-radius: 8px;background: rgba(0,0,0,0.85);
@@ -16498,11 +17369,13 @@ const fileInput = document.createElement('input');
     `;
 
         const title = document.createElement('div');
-        title.textContent = 'Scopes (S)';
+        title.className = 'gvf-title';
+        title.textContent = 'Scopes';
         title.style.cssText = `font-size:10px; font-weight:900; color:#eaeaea;`;
 
         const hint = document.createElement('div');
-        hint.textContent = 'live';
+        hint.className = 'gvf-tag gvf-live';
+        hint.textContent = 'LIVE';
         hint.style.cssText = `font-size:9px;font-weight:900;color:#aaa;`;
 
         head.appendChild(title);
@@ -16510,6 +17383,7 @@ const fileInput = document.createElement('input');
         overlay.appendChild(head);
 
         const content = document.createElement('div');
+        content.className = 'gvf-scope-content';
         content.style.cssText = `
       padding: 8px;border-radius: 8px;background: rgba(0,0,0,0.85);
       box-shadow: 0 0 0 1px rgba(255,255,255,0.2) inset;
@@ -16524,7 +17398,8 @@ const fileInput = document.createElement('input');
 
         const lumaTitle = document.createElement('div');
         lumaTitle.style.cssText = `font-size:9px;font-weight:900;color:#cfcfcf;text-transform:uppercase;letter-spacing:0.5px;`;
-        lumaTitle.textContent = 'Luma Y';
+        lumaTitle.className = 'gvf-scope-title';
+        lumaTitle.textContent = 'Luma';
         lumaSection.appendChild(lumaTitle);
 
         const lumaBars = document.createElement('div');
@@ -16532,7 +17407,7 @@ const fileInput = document.createElement('input');
       display:flex;align-items:flex-end;height:40px;gap:1px;
       background:rgba(20,20,20,0.6);border-radius:4px;padding:2px;
     `;
-        lumaBars.className = 'gvf-scope-luma';
+        lumaBars.className = 'gvf-scope-luma gvf-scope-box';
         for (let i = 0; i < 16; i++) {
             const bar = document.createElement('div');
             bar.style.cssText = `
@@ -16549,10 +17424,12 @@ const fileInput = document.createElement('input');
 
         const rgbTitle = document.createElement('div');
         rgbTitle.style.cssText = `font-size:9px;font-weight:900;color:#cfcfcf;text-transform:uppercase;letter-spacing:0.5px;`;
+        rgbTitle.className = 'gvf-scope-title';
         rgbTitle.textContent = 'RGB';
         rgbSection.appendChild(rgbTitle);
 
         const rgbGrid = document.createElement('div');
+        rgbGrid.className = 'gvf-scope-box gvf-scope-rgb';
         rgbGrid.style.cssText = `
       display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;
       background:rgba(20,20,20,0.6);border-radius:4px;padding:4px;
@@ -16561,6 +17438,7 @@ const fileInput = document.createElement('input');
         const redCol = document.createElement('div');
         redCol.style.cssText = `display:flex;flex-direction:column;gap:1px;`;
         const redLabel = document.createElement('div');
+        redLabel.classList.add('gvf-scope-ch');
         redLabel.style.cssText = `font-size:8px;font-weight:900;color:#ff6b6b;text-align:center;`;
         redLabel.textContent = 'R';
         redCol.appendChild(redLabel);
@@ -16579,6 +17457,7 @@ const fileInput = document.createElement('input');
         const greenCol = document.createElement('div');
         greenCol.style.cssText = `display:flex;flex-direction:column;gap:1px;`;
         const greenLabel = document.createElement('div');
+        greenLabel.classList.add('gvf-scope-ch');
         greenLabel.style.cssText = `font-size:8px;font-weight:900;color:#6bff6b;text-align:center;`;
         greenLabel.textContent = 'G';
         greenCol.appendChild(greenLabel);
@@ -16597,6 +17476,7 @@ const fileInput = document.createElement('input');
         const blueCol = document.createElement('div');
         blueCol.style.cssText = `display:flex;flex-direction:column;gap:1px;`;
         const blueLabel = document.createElement('div');
+        blueLabel.classList.add('gvf-scope-ch');
         blueLabel.style.cssText = `font-size:8px;font-weight:900;color:#6b6bff;text-align:center;`;
         blueLabel.textContent = 'B';
         blueCol.appendChild(blueLabel);
@@ -16619,16 +17499,19 @@ const fileInput = document.createElement('input');
 
         const satTitle = document.createElement('div');
         satTitle.style.cssText = `font-size:9px;font-weight:900;color:#cfcfcf;text-transform:uppercase;letter-spacing:0.5px;`;
-        satTitle.textContent = 'Sat';
+        satTitle.className = 'gvf-scope-title';
+        satTitle.textContent = 'Saturation';
         satSection.appendChild(satTitle);
 
         const satMeter = document.createElement('div');
+        satMeter.className = 'gvf-scope-box';
         satMeter.style.cssText = `
       display:flex;align-items:center;gap:6px;
       background:rgba(20,20,20,0.6);border-radius:4px;padding:4px;
     `;
 
         const satBarBg = document.createElement('div');
+        satBarBg.className = 'gvf-scope-sat-track';
         satBarBg.style.cssText = `flex:1;height:8px;background:#333;border-radius:4px;overflow:hidden;`;
 
         const satBarFill = document.createElement('div');
@@ -16637,7 +17520,7 @@ const fileInput = document.createElement('input');
 
         const satValue = document.createElement('div');
         satValue.style.cssText = `font-size:9px;font-weight:900;color:#eaeaea;min-width:36px;text-align:right;`;
-        satValue.className = 'gvf-scope-sat-value';
+        satValue.className = 'gvf-scope-sat-value gvf-val';
         satValue.textContent = '0.00';
 
         satBarBg.appendChild(satBarFill);
@@ -16646,23 +17529,24 @@ const fileInput = document.createElement('input');
         satSection.appendChild(satMeter);
 
         const avgSection = document.createElement('div');
+        avgSection.className = 'gvf-scope-stats';
         avgSection.style.cssText = `
       display:grid;grid-template-columns:1fr 1fr 1fr;gap:2px;margin-top:2px;
       font-size:8px;font-weight:900;color:#aaa;
     `;
 
         const avgY = document.createElement('div');
-        avgY.className = 'gvf-scope-avg-y';
+        avgY.className = 'gvf-scope-avg-y gvf-scope-stat';
         avgY.style.cssText = `text-align:center;background:rgba(30,30,30,0.6);border-radius:4px;padding:2px;`;
         avgY.textContent = 'Y: 0.00';
 
         const avgRGB = document.createElement('div');
-        avgRGB.className = 'gvf-scope-avg-rgb';
+        avgRGB.className = 'gvf-scope-avg-rgb gvf-scope-stat';
         avgRGB.style.cssText = `text-align:center;background:rgba(30,30,30,0.6);border-radius:4px;padding:2px;`;
         avgRGB.textContent = 'RGB: 0.00';
 
         const avgSat = document.createElement('div');
-        avgSat.className = 'gvf-scope-avg-sat';
+        avgSat.className = 'gvf-scope-avg-sat gvf-scope-stat';
         avgSat.style.cssText = `text-align:center;background:rgba(30,30,30,0.6);border-radius:4px;padding:2px;`;
         avgSat.textContent = 'Sat: 0.00';
 
@@ -17463,6 +18347,7 @@ if ('lutProfile' in obj) {
                 el.style.background = on ? 'rgba(255,255,255,0.22)' : '#000';
             }
             el.style.boxShadow = '0 0 0 1px rgba(255,255,255,0.18) inset';
+            el.classList.toggle('is-on', on);
         });
 
         const badge = overlay.querySelector('.gvf-prof-badge');
@@ -17491,7 +18376,7 @@ if ('lutProfile' in obj) {
         const setPair = (name, v) => {
             const r = overlay.querySelector(`[data-gvf-range="${cssEscape(name)}"]`);
             const t = overlay.querySelector(`[data-gvf-val="${cssEscape(name)}"]`);
-            if (r) r.value = String(v);
+            if (r) { r.value = String(v); paintRange(r); }
             if (t) t.textContent = Number(v).toFixed(2);
         };
 
@@ -17510,7 +18395,7 @@ if ('lutProfile' in obj) {
         const setPair = (name, v) => {
             const r = overlay.querySelector(`[data-gvf-range="${cssEscape(name)}"]`);
             const t = overlay.querySelector(`[data-gvf-val="${cssEscape(name)}"]`);
-            if (r) r.value = String(v);
+            if (r) { r.value = String(v); paintRange(r); }
             if (t) t.textContent = Number(v).toFixed(1);
         };
 
@@ -17529,7 +18414,7 @@ if ('lutProfile' in obj) {
         const setRGBPair = (name, v) => {
             const r = overlay.querySelector(`[data-gvf-range="${cssEscape(name)}"]`);
             const t = overlay.querySelector(`[data-gvf-val="${cssEscape(name)}"]`);
-            if (r) r.value = String(v);
+            if (r) { r.value = String(v); paintRange(r); }
             if (t) t.textContent = String(Math.round(v));
         };
 
@@ -17751,6 +18636,16 @@ if ('lutProfile' in obj) {
                 overlay.style.left = `${Math.round(r.left + r.width - dx)}px`;
                 overlay.style.transform = 'translateX(-100%) translateZ(0)';
             }
+        }
+
+        // Grading / IO HUD start far below the video top: keep the whole panel on screen
+        // (cap the height to the space left below it, the rest scrolls inside the panel)
+        if (overlay.classList.contains('gvf-video-overlay-grade') || overlay.classList.contains('gvf-video-overlay-io')) {
+            const limitH = isWrapFs ? gvfCachedRect(container).height : _gvfVpH;
+            const topPx = parseFloat(overlay.style.top) || 0;
+            const maxH = `${Math.max(160, Math.round(limitH - topPx - 12))}px`;
+            if (overlay.style.maxHeight !== maxH) overlay.style.maxHeight = maxH;
+            if (overlay.style.overflowY !== 'auto') overlay.style.overflowY = 'auto';
         }
     }
 
@@ -18674,7 +19569,7 @@ if ('lutProfile' in obj) {
         return m.map(row => `${row[0]} ${row[1]} ${row[2]} 0 0`).join(' ') + ' 0 0 0 1 0';
     }
 
-    function buildFilter(svg, id, opts, radius, sharpenA, blurSigma, blackOffset, whiteAdj, dnVal, edgeVal, hdrVal, prof) {
+    function buildFilter(svg, id, opts, radius, sharpenA, blurSigma, blackOffset, whiteAdj, dnVal, edgeVal, hdrVal, prof, toneMat = null) {
         const { moody, teal, vib } = opts;
 
         const filter = document.createElementNS(svgNS, 'filter');
@@ -19099,14 +19994,25 @@ if ('lutProfile' in obj) {
             });
         }
 
-        const merge = document.createElementNS(svgNS, 'feMerge');
-        const n1 = document.createElementNS(svgNS, 'feMergeNode');
-        n1.setAttribute('in', last);
-        merge.appendChild(n1);
-        filter.appendChild(merge);
+        // Base tone + profile tone as one matrix inside the filter (replaces the CSS filter functions
+        // behind url(), saves extra full-frame passes). Only passed by ensureSvgFilter, see svgToneInFilter().
+        if (toneMat) {
+            const toneCM = document.createElementNS(svgNS, 'feColorMatrix');
+            toneCM.setAttribute('type', 'matrix');
+            toneCM.setAttribute('in', last);
+            toneCM.setAttribute('result', 'r_tone');
+            toneCM.setAttribute('values', matToSvgValues(toneMat));
+            filter.appendChild(toneCM);
+            last = 'r_tone';
+        }
+
+        // The last primitive is the filter output, no extra feMerge copy pass needed
+        mergeChainedColorMatrices(filter);
 
         svg.appendChild(filter);
     }
+
+    var _svgActiveComboOnly = false; // set by renderSliderPreview() while a HUD slider is dragged
 
     function ensureSvgFilter(force = false) {
         const SL = Number(normSL().toFixed(1));
@@ -19130,11 +20036,22 @@ if ('lutProfile' in obj) {
         ].map(x => Number(x).toFixed(1)).join(',');
 
         const customSig = customSvgCodes.filter(e => e && e.enabled && e.type !== 'webgl' && e.type !== 'canvas2d' && e.type !== 'audio').map(e => e.id + ':' + e.code).join('||');
-        const want = `${SL}|${SR}|${R}|${A}|${BS}|${BL}|${WL}|${DN}|${EDGE}|${HDR}|${P}|U:${uSig}|CB:${CB}|LUT:${LUTN}|CSVG:${customSig}`;
+        const toneMat = svgToneInFilter() ? svgToneMatrix() : null;
+        const toneSig = toneMat ? matToSvgValues(toneMat) : 'none';
+        const fullWant = `${SL}|${SR}|${R}|${A}|${BS}|${BL}|${WL}|${DN}|${EDGE}|${HDR}|${P}|U:${uSig}|CB:${CB}|LUT:${LUTN}|CSVG:${customSig}|TONE:${toneSig}`;
+        // slider preview: only the active combo filter (full set is rebuilt when the drag ends)
+        const activeOnly = _svgActiveComboOnly;
+        const activeId = activeOnly ? pickComboId() : '';
+        const want = activeOnly ? `${fullWant}|ONLY:${activeId}` : fullWant;
 
         const existing = document.getElementById(SVG_ID);
         if (existing) {
             const has = existing.getAttribute('data-params') || '';
+            if (activeOnly && (has === want || has === fullWant)) {
+                // value change too small to alter the filter -> nothing to rebuild
+                updateAutoMatrixInSvg(autoMatrixStr);
+                return;
+            }
             if (has === want && !force) {
                 updateAutoMatrixInSvg(autoMatrixStr);
                 return;
@@ -19163,14 +20080,20 @@ if ('lutProfile' in obj) {
         const blackOffset = blackToOffset(BL);
         const whiteAdj = whiteToHiAdj(WL);
 
-        buildFilter(svg, 'gvf_s', { moody: false, teal: false, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
-        buildFilter(svg, 'gvf_sm', { moody: true, teal: false, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
-        buildFilter(svg, 'gvf_st', { moody: false, teal: true, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
-        buildFilter(svg, 'gvf_sv', { moody: false, teal: false, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
-        buildFilter(svg, 'gvf_smt', { moody: true, teal: true, vib: false }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
-        buildFilter(svg, 'gvf_smv', { moody: true, teal: false, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
-        buildFilter(svg, 'gvf_stv', { moody: false, teal: true, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
-        buildFilter(svg, 'gvf_smtv', { moody: true, teal: true, vib: true }, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P);
+        const combos = [
+            ['gvf_s', { moody: false, teal: false, vib: false }],
+            ['gvf_sm', { moody: true, teal: false, vib: false }],
+            ['gvf_st', { moody: false, teal: true, vib: false }],
+            ['gvf_sv', { moody: false, teal: false, vib: true }],
+            ['gvf_smt', { moody: true, teal: true, vib: false }],
+            ['gvf_smv', { moody: true, teal: false, vib: true }],
+            ['gvf_stv', { moody: false, teal: true, vib: true }],
+            ['gvf_smtv', { moody: true, teal: true, vib: true }]
+        ];
+        combos.forEach(([id, opts]) => {
+            if (activeOnly && id !== activeId) return;
+            buildFilter(svg, id, opts, R, A, BS, blackOffset, whiteAdj, DN, EDGE, HDR, P, toneMat);
+        });
 
         (document.body || document.documentElement).appendChild(svg);
 
@@ -19192,12 +20115,38 @@ if ('lutProfile' in obj) {
         return 'gvf_s';
     }
 
+    const PROFILE_TONE = {
+        film: { brightness: 1.01, contrast: 1.08, saturate: 1.08 },
+        anime: { brightness: 1.03, contrast: 1.10, saturate: 1.16 },
+        gaming: { brightness: 1.01, contrast: 1.12, saturate: 1.06 },
+        eyecare: { brightness: 1.05, contrast: 0.96, saturate: 0.88, hue: -12 }
+    };
+
     function profileToneCss() {
-        if (profile === 'film') return ' brightness(1.01) contrast(1.08) saturate(1.08)';
-        if (profile === 'anime') return ' brightness(1.03) contrast(1.10) saturate(1.16)';
-        if (profile === 'gaming') return ' brightness(1.01) contrast(1.12) saturate(1.06)';
-        if (profile === 'eyecare') return ' brightness(1.05) contrast(0.96) saturate(0.88) hue-rotate(-12deg)';
-        return '';
+        const t = PROFILE_TONE[profile];
+        if (!t) return '';
+        return ` brightness(${t.brightness.toFixed(2)}) contrast(${t.contrast.toFixed(2)}) saturate(${t.saturate.toFixed(2)})`
+            + (t.hue ? ` hue-rotate(${t.hue}deg)` : '');
+    }
+
+    // Firefox keeps base/profile tone as CSS filter functions (fast path there);
+    // other browsers get them as one matrix inside the SVG filter (fewer full-frame passes).
+    function svgToneInFilter() { return !isFirefox(); }
+
+    // Same result as the CSS chain url(#filter) brightness() contrast() saturate() [profile ...] as one matrix
+    function svgToneMatrix() {
+        const ops = [];
+        if (enabled) {
+            const b = GVF_BASE_SETTINGS;
+            ops.push(matCssBrightness(b.brightness), matCssContrast(b.contrast), matSaturateSpec(b.saturation));
+        }
+        const t = PROFILE_TONE[profile];
+        if (t) {
+            ops.push(matCssBrightness(t.brightness), matCssContrast(t.contrast), matSaturateSpec(t.saturate));
+            if (t.hue) ops.push(matHueRotateSpec(t.hue));
+        }
+        if (!ops.length) return null;
+        return ops.reduce((m, op) => matMul4x5(op, m), matIdentity4x5());
     }
 
     function applyFilter(opts = {}) {
@@ -19236,8 +20185,9 @@ if ('lutProfile' in obj) {
             document.head.appendChild(style);
         }
 
-        const baseTone = enabled ? baseToneCssString() : '';
-        const profTone = profileToneCss();
+        const toneInSvg = svgToneInFilter();
+        const baseTone = (enabled && !toneInSvg) ? baseToneCssString() : '';
+        const profTone = toneInSvg ? '' : profileToneCss();
         const userTone = userToneCss();
 
         const outlineCss = (PROFILE_VIDEO_OUTLINE && profile !== 'off')
@@ -19536,6 +20486,7 @@ if ('lutProfile' in obj) {
 
     function init() {
         const isFirefoxBrowser = isFirefox();
+        try { ensureHudTheme(); } catch (_) { } // dark dropdowns also in Config / LUT / Custom SVG windows
         if (activeUserProfile && activeUserProfile.settings && typeof activeUserProfile.settings === 'object') {
             try {
                 applyUserProfileSettings(activeUserProfile.settings);
