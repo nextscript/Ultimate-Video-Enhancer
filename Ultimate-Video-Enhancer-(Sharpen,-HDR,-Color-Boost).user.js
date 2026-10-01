@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.16.6
+// @version      1.16.7
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -139,6 +139,12 @@
     const LUT_CONFIG_MENU_ID = 'gvf-lut-config-menu';
     const NOTIFICATION_ID = 'gvf-profile-notification';
     const svgNS = 'http://www.w3.org/2000/svg';
+
+    // Base Tone Chain CSS (see GVF_BASE_SETTINGS at the top of the script)
+    function baseToneCssString() {
+        const b = GVF_BASE_SETTINGS;
+        return ` brightness(${b.brightness}) contrast(${b.contrast}) saturate(${b.saturation})`;
+    }
 
     // Hotkeys
     const HDR_TOGGLE_KEY = 'p';
@@ -502,6 +508,7 @@
 
         USER_PROFILE_MANAGER_POS: 'gvf_user_profile_manager_pos',
         LUT_PROFILE_MANAGER_POS: 'gvf_lut_profile_manager_pos',
+        EXPERT_MANAGER_POS: 'gvf_expert_modal_pos',
 
         // Custom SVG filter codes
         CUSTOM_SVG_CODES: 'gvf_custom_svg_codes',
@@ -1200,37 +1207,37 @@
         const raw = String(src || '');
         if (!/Adaptive sharpen|adaptive-sharpen|curve_height|overshoot_ctrl/i.test(raw)) return null;
         return `
-float gvfASLuma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
-vec4 gvfASSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+        float gvfASLuma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+        vec4 gvfASSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
 
-void main() {
-    vec2 px = (u_as_radius * u_gvf_offset_scale) / u_res;
-    vec4 src = gvfASSample(v_uv);
+        void main() {
+            vec2 px = (u_as_radius * u_gvf_offset_scale) / u_res;
+            vec4 src = gvfASSample(v_uv);
 
-    vec3 n  = gvfASSample(v_uv + vec2( 0.0, -px.y)).rgb;
-    vec3 s  = gvfASSample(v_uv + vec2( 0.0,  px.y)).rgb;
-    vec3 e  = gvfASSample(v_uv + vec2( px.x,  0.0)).rgb;
-    vec3 w  = gvfASSample(v_uv + vec2(-px.x,  0.0)).rgb;
-    vec3 ne = gvfASSample(v_uv + vec2( px.x, -px.y)).rgb;
-    vec3 nw = gvfASSample(v_uv + vec2(-px.x, -px.y)).rgb;
-    vec3 se = gvfASSample(v_uv + vec2( px.x,  px.y)).rgb;
-    vec3 sw = gvfASSample(v_uv + vec2(-px.x,  px.y)).rgb;
+            vec3 n  = gvfASSample(v_uv + vec2( 0.0, -px.y)).rgb;
+            vec3 s  = gvfASSample(v_uv + vec2( 0.0,  px.y)).rgb;
+            vec3 e  = gvfASSample(v_uv + vec2( px.x,  0.0)).rgb;
+            vec3 w  = gvfASSample(v_uv + vec2(-px.x,  0.0)).rgb;
+            vec3 ne = gvfASSample(v_uv + vec2( px.x, -px.y)).rgb;
+            vec3 nw = gvfASSample(v_uv + vec2(-px.x, -px.y)).rgb;
+            vec3 se = gvfASSample(v_uv + vec2( px.x,  px.y)).rgb;
+            vec3 sw = gvfASSample(v_uv + vec2(-px.x,  px.y)).rgb;
 
-    vec3 crossBlur = (n + s + e + w + src.rgb * 4.0) * 0.125;
-    vec3 boxBlur = (n + s + e + w + ne + nw + se + sw + src.rgb * 4.0) / 12.0;
-    vec3 blur = mix(crossBlur, boxBlur, 0.35);
+            vec3 crossBlur = (n + s + e + w + src.rgb * 4.0) * 0.125;
+            vec3 boxBlur = (n + s + e + w + ne + nw + se + sw + src.rgb * 4.0) / 12.0;
+            vec3 blur = mix(crossBlur, boxBlur, 0.35);
 
-    float gx = gvfASLuma(e) - gvfASLuma(w);
-    float gy = gvfASLuma(s) - gvfASLuma(n);
-    float edge = smoothstep(u_as_edge_threshold, u_as_edge_threshold + 0.18, length(vec2(gx, gy)));
+            float gx = gvfASLuma(e) - gvfASLuma(w);
+            float gy = gvfASLuma(s) - gvfASLuma(n);
+            float edge = smoothstep(u_as_edge_threshold, u_as_edge_threshold + 0.18, length(vec2(gx, gy)));
 
-    vec3 detail = src.rgb - blur;
-    vec3 limited = clamp(detail * (0.65 + 1.35 * u_as_strength), -u_as_clamp, u_as_clamp);
-    vec3 fx = clamp(src.rgb + limited * edge, 0.0, 1.0);
+            vec3 detail = src.rgb - blur;
+            vec3 limited = clamp(detail * (0.65 + 1.35 * u_as_strength), -u_as_clamp, u_as_clamp);
+            vec3 fx = clamp(src.rgb + limited * edge, 0.0, 1.0);
 
-    fragColor = vec4(mix(src.rgb, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
-}
-`;
+            fragColor = vec4(mix(src.rgb, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
+        }
+    `;
     }
 
     function _buildAnime4KCNNx2MCompatBody(src) {
@@ -1240,37 +1247,37 @@ void main() {
         const raw = String(src || '');
         if (!/Anime4K-v3\.2-Upscale-CNN-x2-\(M\)|conv2d_last_tf|Depth-to-Space/i.test(raw)) return null;
         return `
-float gvfA4KLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
-vec4 gvfA4KSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+        float gvfA4KLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+        vec4 gvfA4KSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
 
-void main() {
-    vec2 px = (u_a4k_offset * u_gvf_offset_scale) / u_res;
-    vec4 src = gvfA4KSample(v_uv);
+        void main() {
+            vec2 px = (u_a4k_offset * u_gvf_offset_scale) / u_res;
+            vec4 src = gvfA4KSample(v_uv);
 
-    vec3 c  = src.rgb;
-    vec3 l  = gvfA4KSample(v_uv + vec2(-px.x,  0.0)).rgb;
-    vec3 r  = gvfA4KSample(v_uv + vec2( px.x,  0.0)).rgb;
-    vec3 t  = gvfA4KSample(v_uv + vec2( 0.0, -px.y)).rgb;
-    vec3 b  = gvfA4KSample(v_uv + vec2( 0.0,  px.y)).rgb;
-    vec3 tl = gvfA4KSample(v_uv + vec2(-px.x, -px.y)).rgb;
-    vec3 tr = gvfA4KSample(v_uv + vec2( px.x, -px.y)).rgb;
-    vec3 bl = gvfA4KSample(v_uv + vec2(-px.x,  px.y)).rgb;
-    vec3 br = gvfA4KSample(v_uv + vec2( px.x,  px.y)).rgb;
+            vec3 c  = src.rgb;
+            vec3 l  = gvfA4KSample(v_uv + vec2(-px.x,  0.0)).rgb;
+            vec3 r  = gvfA4KSample(v_uv + vec2( px.x,  0.0)).rgb;
+            vec3 t  = gvfA4KSample(v_uv + vec2( 0.0, -px.y)).rgb;
+            vec3 b  = gvfA4KSample(v_uv + vec2( 0.0,  px.y)).rgb;
+            vec3 tl = gvfA4KSample(v_uv + vec2(-px.x, -px.y)).rgb;
+            vec3 tr = gvfA4KSample(v_uv + vec2( px.x, -px.y)).rgb;
+            vec3 bl = gvfA4KSample(v_uv + vec2(-px.x,  px.y)).rgb;
+            vec3 br = gvfA4KSample(v_uv + vec2( px.x,  px.y)).rgb;
 
-    float gx = -gvfA4KLuma(tl) - 2.0 * gvfA4KLuma(l) - gvfA4KLuma(bl)
-               + gvfA4KLuma(tr) + 2.0 * gvfA4KLuma(r) + gvfA4KLuma(br);
-    float gy = -gvfA4KLuma(tl) - 2.0 * gvfA4KLuma(t) - gvfA4KLuma(tr)
-               + gvfA4KLuma(bl) + 2.0 * gvfA4KLuma(b) + gvfA4KLuma(br);
-    float edge = clamp(length(vec2(gx, gy)) * u_a4k_edge, 0.0, 1.0);
+            float gx = -gvfA4KLuma(tl) - 2.0 * gvfA4KLuma(l) - gvfA4KLuma(bl)
+                       + gvfA4KLuma(tr) + 2.0 * gvfA4KLuma(r) + gvfA4KLuma(br);
+            float gy = -gvfA4KLuma(tl) - 2.0 * gvfA4KLuma(t) - gvfA4KLuma(tr)
+                       + gvfA4KLuma(bl) + 2.0 * gvfA4KLuma(b) + gvfA4KLuma(br);
+            float edge = clamp(length(vec2(gx, gy)) * u_a4k_edge, 0.0, 1.0);
 
-    vec3 blur = (l + r + t + b + c * 4.0) * 0.125;
-    vec3 detail = c - blur;
-    vec3 fx = clamp(c + detail * u_a4k_detail * smoothstep(0.015, 0.30, edge), 0.0, 1.0);
+            vec3 blur = (l + r + t + b + c * 4.0) * 0.125;
+            vec3 detail = c - blur;
+            vec3 fx = clamp(c + detail * u_a4k_detail * smoothstep(0.015, 0.30, edge), 0.0, 1.0);
 
-    vec3 outRgb = mix(c, fx, clamp(u_a4k_strength * (0.35 + edge), 0.0, 1.0));
-    fragColor = vec4(mix(c, outRgb, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
-}
-`;
+            vec3 outRgb = mix(c, fx, clamp(u_a4k_strength * (0.35 + edge), 0.0, 1.0));
+            fragColor = vec4(mix(c, outRgb, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
+        }
+        `;
     }
 
 
@@ -1283,97 +1290,97 @@ void main() {
         const raw = String(src || '');
         if (!/LumaSharpenHook/i.test(raw) && !/sharp_strength_luma/i.test(raw) && !(/#define\s+pattern\b/i.test(raw) && /LUMA_texOff\s*\(/i.test(raw))) return null;
         return `
-float gvfLumaSharpenLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
-vec3 gvfLumaSharpenSample(vec2 offPx) {
-    return texture(u_video, clamp(v_uv + ((offPx * u_gvf_offset_scale) / u_res), vec2(0.0), vec2(1.0))).rgb;
-}
+        float gvfLumaSharpenLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+        vec3 gvfLumaSharpenSample(vec2 offPx) {
+            return texture(u_video, clamp(v_uv + ((offPx * u_gvf_offset_scale) / u_res), vec2(0.0), vec2(1.0))).rgb;
+        }
 
-void main() {
-    vec4 colorInput = texture(u_video, v_uv);
-    float ori = gvfLumaSharpenLuma(colorInput.rgb);
+        void main() {
+            vec4 colorInput = texture(u_video, v_uv);
+            float ori = gvfLumaSharpenLuma(colorInput.rgb);
 
-    float sharp_strength_luma = u_def_sharp_strength;
-    float sharp_clamp_safe = max(u_def_sharp_clamp, 0.000001);
-    float offset_bias_safe = max(u_def_offset_bias, 0.0);
-    int p = int(floor(u_def_pattern + 0.5));
+            float sharp_strength_luma = u_def_sharp_strength;
+            float sharp_clamp_safe = max(u_def_sharp_clamp, 0.000001);
+            float offset_bias_safe = max(u_def_offset_bias, 0.0);
+            int p = int(floor(u_def_pattern + 0.5));
 
-    float px = 1.0;
-    float py = 1.0;
-    float blur_ori = ori;
+            float px = 1.0;
+            float py = 1.0;
+            float blur_ori = ori;
 
-    if (p == 1) {
-        px = (px / 3.0) * offset_bias_safe;
-        py = (py / 3.0) * offset_bias_safe;
-        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
-        blur_ori *= 0.5;
-        sharp_strength_luma *= 1.5;
-    } else if (p == 3) {
-        px = px * offset_bias_safe;
-        py = py * offset_bias_safe;
-        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.4 * px, -1.2 * py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-1.2 * px, -0.4 * py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(1.2 * px, 0.4 * py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-0.4 * px, 1.2 * py)));
-        blur_ori *= 0.25;
-        sharp_strength_luma *= 0.51;
-    } else if (p == 4) {
-        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.5 * px, -py * offset_bias_safe)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(offset_bias_safe * -px, 0.5 * -py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(offset_bias_safe * px, 0.5 * py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.5 * -px, py * offset_bias_safe)));
-        blur_ori *= 0.25;
-        sharp_strength_luma *= 0.666;
-    } else if (p == 8) {
-        px = px * offset_bias_safe;
-        py = py * offset_bias_safe;
-        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, -py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
-        float blur_ori2 = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, py)));
-        blur_ori2 += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, -py)));
-        blur_ori2 += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, 0.0)));
-        blur_ori2 += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, 0.0)));
-        blur_ori2 *= 2.0;
-        blur_ori += blur_ori2 + (ori * 4.0);
-        blur_ori /= 16.0;
-        sharp_strength_luma *= 0.75;
-    } else if (p == 9) {
-        px = px * offset_bias_safe;
-        py = py * offset_bias_safe;
-        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, -py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
-        blur_ori += ori;
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, -py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, 0.0)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, 0.0)));
-        blur_ori /= 9.0;
-        sharp_strength_luma *= (8.0 / 9.0);
-    } else {
-        // Pattern 2 default: normal 9-tap gaussian with 4 texture fetches.
-        px = px * 0.5 * offset_bias_safe;
-        py = py * 0.5 * offset_bias_safe;
-        blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, -py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
-        blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, py)));
-        blur_ori *= 0.25;
-    }
+            if (p == 1) {
+                px = (px / 3.0) * offset_bias_safe;
+                py = (py / 3.0) * offset_bias_safe;
+                blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
+                blur_ori *= 0.5;
+                sharp_strength_luma *= 1.5;
+            } else if (p == 3) {
+                px = px * offset_bias_safe;
+                py = py * offset_bias_safe;
+                blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.4 * px, -1.2 * py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-1.2 * px, -0.4 * py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(1.2 * px, 0.4 * py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-0.4 * px, 1.2 * py)));
+                blur_ori *= 0.25;
+                sharp_strength_luma *= 0.51;
+            } else if (p == 4) {
+                blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.5 * px, -py * offset_bias_safe)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(offset_bias_safe * -px, 0.5 * -py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(offset_bias_safe * px, 0.5 * py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.5 * -px, py * offset_bias_safe)));
+                blur_ori *= 0.25;
+                sharp_strength_luma *= 0.666;
+            } else if (p == 8) {
+                px = px * offset_bias_safe;
+                py = py * offset_bias_safe;
+                blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, -py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
+                float blur_ori2 = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, py)));
+                blur_ori2 += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, -py)));
+                blur_ori2 += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, 0.0)));
+                blur_ori2 += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, 0.0)));
+                blur_ori2 *= 2.0;
+                blur_ori += blur_ori2 + (ori * 4.0);
+                blur_ori /= 16.0;
+                sharp_strength_luma *= 0.75;
+            } else if (p == 9) {
+                px = px * offset_bias_safe;
+                py = py * offset_bias_safe;
+                blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, -py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
+                blur_ori += ori;
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(0.0, -py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, 0.0)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, 0.0)));
+                blur_ori /= 9.0;
+                sharp_strength_luma *= (8.0 / 9.0);
+            } else {
+                // Pattern 2 default: normal 9-tap gaussian with 4 texture fetches.
+                px = px * 0.5 * offset_bias_safe;
+                py = py * 0.5 * offset_bias_safe;
+                blur_ori = gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, -py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, -py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(px, py)));
+                blur_ori += gvfLumaSharpenLuma(gvfLumaSharpenSample(vec2(-px, py)));
+                blur_ori *= 0.25;
+            }
 
-    float sharp = ori - blur_ori;
-    float sharp_strength_luma_clamp = sharp_strength_luma / (2.0 * sharp_clamp_safe);
-    float sharp_luma = clamp((sharp * sharp_strength_luma_clamp + 0.5), 0.0, 1.0);
-    sharp_luma = (sharp_clamp_safe * 2.0) * sharp_luma - sharp_clamp_safe;
+            float sharp = ori - blur_ori;
+            float sharp_strength_luma_clamp = sharp_strength_luma / (2.0 * sharp_clamp_safe);
+            float sharp_luma = clamp((sharp * sharp_strength_luma_clamp + 0.5), 0.0, 1.0);
+            sharp_luma = (sharp_clamp_safe * 2.0) * sharp_luma - sharp_clamp_safe;
 
-    vec3 sharpened = clamp(colorInput.rgb + vec3(sharp_luma), 0.0, 1.0);
-    fragColor = vec4(mix(colorInput.rgb, sharpened, clamp(u_gvf_mix, 0.0, 1.0)), colorInput.a);
-}
-`;
-    }
+            vec3 sharpened = clamp(colorInput.rgb + vec3(sharp_luma), 0.0, 1.0);
+            fragColor = vec4(mix(colorInput.rgb, sharpened, clamp(u_gvf_mix, 0.0, 1.0)), colorInput.a);
+        }
+        `;
+      }
 
     function _buildKrigBilateralCompatBody(src) {
         // KrigBilateral is a real mpv/libplacebo multi-pass chroma upscaler using
@@ -1383,45 +1390,45 @@ void main() {
         const raw = String(src || '');
         if (!/KrigBilateral|LOWRES_Y|CHROMA_tex|LUMA_tex|CHROMA\.w\s+LUMA\.w/i.test(raw)) return null;
         return `
-float gvfKrigLuma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
-vec4 gvfKrigSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+        float gvfKrigLuma(vec3 c) { return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+        vec4 gvfKrigSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
 
-void main() {
-    vec2 px = (u_krig_radius * u_gvf_offset_scale) / u_res;
-    vec4 src = gvfKrigSample(v_uv);
+        void main() {
+            vec2 px = (u_krig_radius * u_gvf_offset_scale) / u_res;
+            vec4 src = gvfKrigSample(v_uv);
 
-    vec3 c  = src.rgb;
-    vec3 l  = gvfKrigSample(v_uv + vec2(-px.x,  0.0)).rgb;
-    vec3 r  = gvfKrigSample(v_uv + vec2( px.x,  0.0)).rgb;
-    vec3 t  = gvfKrigSample(v_uv + vec2( 0.0, -px.y)).rgb;
-    vec3 b  = gvfKrigSample(v_uv + vec2( 0.0,  px.y)).rgb;
-    vec3 tl = gvfKrigSample(v_uv + vec2(-px.x, -px.y)).rgb;
-    vec3 tr = gvfKrigSample(v_uv + vec2( px.x, -px.y)).rgb;
-    vec3 bl = gvfKrigSample(v_uv + vec2(-px.x,  px.y)).rgb;
-    vec3 br = gvfKrigSample(v_uv + vec2( px.x,  px.y)).rgb;
+            vec3 c  = src.rgb;
+            vec3 l  = gvfKrigSample(v_uv + vec2(-px.x,  0.0)).rgb;
+            vec3 r  = gvfKrigSample(v_uv + vec2( px.x,  0.0)).rgb;
+            vec3 t  = gvfKrigSample(v_uv + vec2( 0.0, -px.y)).rgb;
+            vec3 b  = gvfKrigSample(v_uv + vec2( 0.0,  px.y)).rgb;
+            vec3 tl = gvfKrigSample(v_uv + vec2(-px.x, -px.y)).rgb;
+            vec3 tr = gvfKrigSample(v_uv + vec2( px.x, -px.y)).rgb;
+            vec3 bl = gvfKrigSample(v_uv + vec2(-px.x,  px.y)).rgb;
+            vec3 br = gvfKrigSample(v_uv + vec2( px.x,  px.y)).rgb;
 
-    float y = gvfKrigLuma(c);
-    float yl = gvfKrigLuma(l);
-    float yr = gvfKrigLuma(r);
-    float yt = gvfKrigLuma(t);
-    float yb = gvfKrigLuma(b);
+            float y = gvfKrigLuma(c);
+            float yl = gvfKrigLuma(l);
+            float yr = gvfKrigLuma(r);
+            float yt = gvfKrigLuma(t);
+            float yb = gvfKrigLuma(b);
 
-    float edge = clamp(abs(yr - yl) + abs(yb - yt), 0.0, 1.0);
-    float protect = 1.0 - clamp(edge * u_krig_luma, 0.0, 1.0);
+            float edge = clamp(abs(yr - yl) + abs(yb - yt), 0.0, 1.0);
+            float protect = 1.0 - clamp(edge * u_krig_luma, 0.0, 1.0);
 
-    vec3 blur = (l + r + t + b + tl + tr + bl + br + c * 4.0) / 12.0;
-    vec3 chromaOnly = c - vec3(y);
-    vec3 blurChroma = blur - vec3(gvfKrigLuma(blur));
-    vec3 restoredChroma = vec3(y) + mix(blurChroma, chromaOnly, clamp(u_krig_chroma, 0.0, 2.0));
+            vec3 blur = (l + r + t + b + tl + tr + bl + br + c * 4.0) / 12.0;
+            vec3 chromaOnly = c - vec3(y);
+            vec3 blurChroma = blur - vec3(gvfKrigLuma(blur));
+            vec3 restoredChroma = vec3(y) + mix(blurChroma, chromaOnly, clamp(u_krig_chroma, 0.0, 2.0));
 
-    vec3 detail = c - blur;
-    vec3 refined = restoredChroma + detail * (0.35 + 0.85 * u_krig_strength) * protect;
-    vec3 fx = clamp(refined, 0.0, 1.0);
+            vec3 detail = c - blur;
+            vec3 refined = restoredChroma + detail * (0.35 + 0.85 * u_krig_strength) * protect;
+            vec3 fx = clamp(refined, 0.0, 1.0);
 
-    fragColor = vec4(mix(src.rgb, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
-}
-`;
-}
+            fragColor = vec4(mix(src.rgb, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
+        }
+        `;
+        }
 
     function _buildSSimSuperResCompatBody(src) {
         // SSimSuperRes/SSSR is a multi-pass mpv/libplacebo shader using SAVE buffers
@@ -1432,32 +1439,32 @@ void main() {
         const raw = String(src || '');
         if (!/SSimSuperRes|SSSR\s+(?:Downscaling|final pass|varL|varH)/i.test(raw)) return null;
         return `
-float gvfSSSRLuma(vec3 c) { return dot(c * c, vec3(0.2126, 0.7152, 0.0722)); }
-vec4 gvfSSSRSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+        float gvfSSSRLuma(vec3 c) { return dot(c * c, vec3(0.2126, 0.7152, 0.0722)); }
+        vec4 gvfSSSRSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
 
-void main() {
-    vec2 px = u_gvf_offset_scale / u_res;
-    vec4 c0 = gvfSSSRSample(v_uv);
+        void main() {
+            vec2 px = u_gvf_offset_scale / u_res;
+            vec4 c0 = gvfSSSRSample(v_uv);
 
-    vec3 cL = gvfSSSRSample(v_uv - vec2(px.x, 0.0)).rgb;
-    vec3 cR = gvfSSSRSample(v_uv + vec2(px.x, 0.0)).rgb;
-    vec3 cU = gvfSSSRSample(v_uv - vec2(0.0, px.y)).rgb;
-    vec3 cD = gvfSSSRSample(v_uv + vec2(0.0, px.y)).rgb;
+            vec3 cL = gvfSSSRSample(v_uv - vec2(px.x, 0.0)).rgb;
+            vec3 cR = gvfSSSRSample(v_uv + vec2(px.x, 0.0)).rgb;
+            vec3 cU = gvfSSSRSample(v_uv - vec2(0.0, px.y)).rgb;
+            vec3 cD = gvfSSSRSample(v_uv + vec2(0.0, px.y)).rgb;
 
-    vec3 blur = (cL + cR + cU + cD + c0.rgb * 4.0) * 0.125;
-    float edge = clamp(
-        abs(gvfSSSRLuma(cR) - gvfSSSRLuma(cL)) +
-        abs(gvfSSSRLuma(cD) - gvfSSSRLuma(cU)),
-        0.0, 1.0
-    );
+            vec3 blur = (cL + cR + cU + cD + c0.rgb * 4.0) * 0.125;
+            float edge = clamp(
+                abs(gvfSSSRLuma(cR) - gvfSSSRLuma(cL)) +
+                abs(gvfSSSRLuma(cD) - gvfSSSRLuma(cU)),
+                0.0, 1.0
+            );
 
-    vec3 detail = c0.rgb - blur;
-    float strength = clamp(u_gvf_mix, 0.0, 1.0);
-    vec3 refined = c0.rgb + detail * (0.65 + 1.85 * strength) * smoothstep(0.01, 0.25, edge);
+            vec3 detail = c0.rgb - blur;
+            float strength = clamp(u_gvf_mix, 0.0, 1.0);
+            vec3 refined = c0.rgb + detail * (0.65 + 1.85 * strength) * smoothstep(0.01, 0.25, edge);
 
-    fragColor = vec4(clamp(mix(c0.rgb, refined, strength), 0.0, 1.0), c0.a);
-}
-`;
+            fragColor = vec4(clamp(mix(c0.rgb, refined, strength), 0.0, 1.0), c0.a);
+        }
+        `;
     }
 
     function _buildAnime4KOriginalX2CompatBody(src) {
@@ -1467,38 +1474,38 @@ void main() {
         const raw = String(src || '');
         if (!/Anime4K-v3\.2-Upscale-Original-x2/i.test(raw)) return null;
         return `
-float gvfAnimeLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
-vec4 gvfAnimeSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+        float gvfAnimeLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+        vec4 gvfAnimeSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
 
-void main(){
-    vec2 d = u_gvf_offset_scale / u_res;
-    vec4 src = gvfAnimeSample(v_uv);
+        void main(){
+            vec2 d = u_gvf_offset_scale / u_res;
+            vec4 src = gvfAnimeSample(v_uv);
 
-    float tl = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2(-d.x, -d.y)).rgb);
-    float t  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( 0.0, -d.y)).rgb);
-    float tr = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( d.x, -d.y)).rgb);
-    float l  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2(-d.x,  0.0)).rgb);
-    float c  = gvfAnimeLuma(src.rgb);
-    float r  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( d.x,  0.0)).rgb);
-    float bl = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2(-d.x,  d.y)).rgb);
-    float b  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( 0.0,  d.y)).rgb);
-    float br = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( d.x,  d.y)).rgb);
+            float tl = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2(-d.x, -d.y)).rgb);
+            float t  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( 0.0, -d.y)).rgb);
+            float tr = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( d.x, -d.y)).rgb);
+            float l  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2(-d.x,  0.0)).rgb);
+            float c  = gvfAnimeLuma(src.rgb);
+            float r  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( d.x,  0.0)).rgb);
+            float bl = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2(-d.x,  d.y)).rgb);
+            float b  = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( 0.0,  d.y)).rgb);
+            float br = gvfAnimeLuma(gvfAnimeSample(v_uv + vec2( d.x,  d.y)).rgb);
 
-    float gx = -tl - 2.0*l - bl + tr + 2.0*r + br;
-    float gy = -tl - 2.0*t - tr + bl + 2.0*b + br;
-    float edge = clamp(length(vec2(gx, gy)), 0.0, 1.0);
+            float gx = -tl - 2.0*l - bl + tr + 2.0*r + br;
+            float gy = -tl - 2.0*t - tr + bl + 2.0*b + br;
+            float edge = clamp(length(vec2(gx, gy)), 0.0, 1.0);
 
-    vec2 dir = normalize(vec2(gx, gy) + vec2(0.00001));
-    vec4 a = gvfAnimeSample(v_uv + dir * d);
-    vec4 z = gvfAnimeSample(v_uv - dir * d);
-    vec4 edgeAvg = (a + z) * 0.5;
+            vec2 dir = normalize(vec2(gx, gy) + vec2(0.00001));
+            vec4 a = gvfAnimeSample(v_uv + dir * d);
+            vec4 z = gvfAnimeSample(v_uv - dir * d);
+            vec4 edgeAvg = (a + z) * 0.5;
 
-    // REFINE_STRENGTH and REFINE_BIAS are generated from the original #define values.
-    float refine = clamp((edge * edge * (3.0 - 2.0 * edge)) * u_def_REFINE_STRENGTH + u_def_REFINE_BIAS, 0.0, 1.0);
-    vec4 fx = mix(src, edgeAvg, refine);
-    fragColor = mix(src, fx, clamp(u_gvf_mix, 0.0, 1.0));
-}
-`;
+            // REFINE_STRENGTH and REFINE_BIAS are generated from the original #define values.
+            float refine = clamp((edge * edge * (3.0 - 2.0 * edge)) * u_def_REFINE_STRENGTH + u_def_REFINE_BIAS, 0.0, 1.0);
+            vec4 fx = mix(src, edgeAvg, refine);
+            fragColor = mix(src, fx, clamp(u_gvf_mix, 0.0, 1.0));
+        }
+        `;
     }
 
     function _normalizeUserFrag(src) {
@@ -1582,97 +1589,97 @@ void main(){
         const raw = String(src || '');
         if (!/Cheap Upscaling Triangulation|EDGE_USE_FAST_LUMA|USE_DYNAMIC_BLEND|BLEND_MIN_CONTRAST_EDGE|STATIC_BLEND_SHARPNESS|HARD_EDGES_THRESHOLD|SOFT_EDGES_SHARPENING|HARD_EDGES_SEARCH_MAX_DISTANCE|screenCoords|c05|c06|c09|c10/i.test(raw)) return null;
         return `
-float gvfCUTLuma(vec3 v) {
-    float fast = v.g;
-    float full = dot(v, vec3(0.299, 0.587, 0.114));
-    return mix(full, fast, step(0.5, u_cut_fast_luma));
-}
-float gvfCUTLinearStep(float edge0, float edge1, float t) {
-    return clamp((t - edge0) / max(edge1 - edge0, 0.00001), 0.0, 1.0);
-}
-vec3 gvfCUTSample(vec2 offPx) {
-    return texture(u_video, clamp(v_uv + ((offPx * u_cut_radius * u_gvf_offset_scale) / u_res), vec2(0.0), vec2(1.0))).rgb;
-}
-float gvfCUTSharpness(float l1, float l2) {
-    float lumaDiff = abs(l1 - l2);
-    float dynContrast = gvfCUTLinearStep(u_cut_edge_min, max(u_cut_edge_min + 0.001, u_cut_edge_min + 0.35), lumaDiff);
-    float dynamicSharp = mix(0.12, clamp(u_cut_sharpness, 0.0, 1.0), dynContrast);
-    float staticSharp = clamp(u_cut_sharpness, 0.0, 1.0) * 0.5;
-    return mix(staticSharp, dynamicSharp * 0.5, step(0.5, u_cut_dynamic));
-}
-vec3 gvfCUTBlend(vec3 a, vec3 b, float t) {
-    float sh = gvfCUTSharpness(gvfCUTLuma(a), gvfCUTLuma(b));
-    return mix(a, b, gvfCUTLinearStep(sh, 1.0 - sh, t));
-}
-bool gvfCUTHasDiagonal(float a, float b, float c, float d) {
-    return abs(a - d) * 2.0 + u_cut_edge_min < abs(b - c);
-}
-vec3 gvfCUTTriangle(vec2 pxCoords) {
-    vec3 ws = vec3(0.0);
-    ws.x = pxCoords.y - pxCoords.x;
-    ws.y = 1.0 - ws.x;
-    ws.z = (pxCoords.y - ws.x) / (ws.y + 0.02);
-    return clamp(ws, 0.0, 1.0);
-}
-vec3 gvfCUTQuad(vec2 pxCoords) {
-    return clamp(vec3(pxCoords.x, pxCoords.x, pxCoords.y), 0.0, 1.0);
-}
-
-void main() {
-    vec4 src = texture(u_video, v_uv);
-
-    vec3 t05 = gvfCUTSample(vec2(-0.5, -0.5));
-    vec3 t06 = gvfCUTSample(vec2( 0.5, -0.5));
-    vec3 t09 = gvfCUTSample(vec2(-0.5,  0.5));
-    vec3 t10 = gvfCUTSample(vec2( 0.5,  0.5));
-
-    float l05 = gvfCUTLuma(t05);
-    float l06 = gvfCUTLuma(t06);
-    float l09 = gvfCUTLuma(t09);
-    float l10 = gvfCUTLuma(t10);
-
-    bool d05_10 = gvfCUTHasDiagonal(l05, l06, l09, l10);
-    bool d06_09 = gvfCUTHasDiagonal(l06, l05, l10, l09);
-
-    vec2 pxCoords = fract(v_uv * u_res);
-    vec3 p0 = t05;
-    vec3 p1 = t06;
-    vec3 p2 = t09;
-    vec3 p3 = t10;
-
-    if (d06_09) {
-        p0 = t06;
-        p1 = t05;
-        p2 = t10;
-        p3 = t09;
-        pxCoords.x = 1.0 - pxCoords.x;
-    }
-
-    vec3 weights;
-    if (d05_10 || d06_09) {
-        if (pxCoords.y > pxCoords.x) {
-            p1 = p2;
-            weights = gvfCUTTriangle(pxCoords);
-        } else {
-            p2 = p1;
-            weights = gvfCUTTriangle(vec2(pxCoords.y, pxCoords.x));
+        float gvfCUTLuma(vec3 v) {
+            float fast = v.g;
+            float full = dot(v, vec3(0.299, 0.587, 0.114));
+            return mix(full, fast, step(0.5, u_cut_fast_luma));
         }
-    } else {
-        weights = gvfCUTQuad(pxCoords);
-    }
+        float gvfCUTLinearStep(float edge0, float edge1, float t) {
+            return clamp((t - edge0) / max(edge1 - edge0, 0.00001), 0.0, 1.0);
+        }
+        vec3 gvfCUTSample(vec2 offPx) {
+            return texture(u_video, clamp(v_uv + ((offPx * u_cut_radius * u_gvf_offset_scale) / u_res), vec2(0.0), vec2(1.0))).rgb;
+        }
+        float gvfCUTSharpness(float l1, float l2) {
+            float lumaDiff = abs(l1 - l2);
+            float dynContrast = gvfCUTLinearStep(u_cut_edge_min, max(u_cut_edge_min + 0.001, u_cut_edge_min + 0.35), lumaDiff);
+            float dynamicSharp = mix(0.12, clamp(u_cut_sharpness, 0.0, 1.0), dynContrast);
+            float staticSharp = clamp(u_cut_sharpness, 0.0, 1.0) * 0.5;
+            return mix(staticSharp, dynamicSharp * 0.5, step(0.5, u_cut_dynamic));
+        }
+        vec3 gvfCUTBlend(vec3 a, vec3 b, float t) {
+            float sh = gvfCUTSharpness(gvfCUTLuma(a), gvfCUTLuma(b));
+            return mix(a, b, gvfCUTLinearStep(sh, 1.0 - sh, t));
+        }
+        bool gvfCUTHasDiagonal(float a, float b, float c, float d) {
+            return abs(a - d) * 2.0 + u_cut_edge_min < abs(b - c);
+        }
+        vec3 gvfCUTTriangle(vec2 pxCoords) {
+            vec3 ws = vec3(0.0);
+            ws.x = pxCoords.y - pxCoords.x;
+            ws.y = 1.0 - ws.x;
+            ws.z = (pxCoords.y - ws.x) / (ws.y + 0.02);
+            return clamp(ws, 0.0, 1.0);
+        }
+        vec3 gvfCUTQuad(vec2 pxCoords) {
+            return clamp(vec3(pxCoords.x, pxCoords.x, pxCoords.y), 0.0, 1.0);
+        }
 
-    vec3 tri = gvfCUTBlend(
-        gvfCUTBlend(p0, p1, weights.x),
-        gvfCUTBlend(p2, p3, weights.y),
-        weights.z
-    );
+        void main() {
+            vec4 src = texture(u_video, v_uv);
 
-    vec3 detail = tri - src.rgb;
-    vec3 fx = clamp(src.rgb + detail * u_cut_strength, 0.0, 1.0);
-    fragColor = vec4(mix(src.rgb, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
-}
-`;
-    }
+            vec3 t05 = gvfCUTSample(vec2(-0.5, -0.5));
+            vec3 t06 = gvfCUTSample(vec2( 0.5, -0.5));
+            vec3 t09 = gvfCUTSample(vec2(-0.5,  0.5));
+            vec3 t10 = gvfCUTSample(vec2( 0.5,  0.5));
+
+            float l05 = gvfCUTLuma(t05);
+            float l06 = gvfCUTLuma(t06);
+            float l09 = gvfCUTLuma(t09);
+            float l10 = gvfCUTLuma(t10);
+
+            bool d05_10 = gvfCUTHasDiagonal(l05, l06, l09, l10);
+            bool d06_09 = gvfCUTHasDiagonal(l06, l05, l10, l09);
+
+            vec2 pxCoords = fract(v_uv * u_res);
+            vec3 p0 = t05;
+            vec3 p1 = t06;
+            vec3 p2 = t09;
+            vec3 p3 = t10;
+
+            if (d06_09) {
+                p0 = t06;
+                p1 = t05;
+                p2 = t10;
+                p3 = t09;
+                pxCoords.x = 1.0 - pxCoords.x;
+            }
+
+            vec3 weights;
+            if (d05_10 || d06_09) {
+                if (pxCoords.y > pxCoords.x) {
+                    p1 = p2;
+                    weights = gvfCUTTriangle(pxCoords);
+                } else {
+                    p2 = p1;
+                    weights = gvfCUTTriangle(vec2(pxCoords.y, pxCoords.x));
+                }
+            } else {
+                weights = gvfCUTQuad(pxCoords);
+            }
+
+            vec3 tri = gvfCUTBlend(
+                gvfCUTBlend(p0, p1, weights.x),
+                gvfCUTBlend(p2, p3, weights.y),
+                weights.z
+            );
+
+            vec3 detail = tri - src.rgb;
+            vec3 fx = clamp(src.rgb + detail * u_cut_strength, 0.0, 1.0);
+            fragColor = vec4(mix(src.rgb, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
+        }
+        `;
+      }
 
 
     function _buildFidelityFXFSRCompatBody(src) {
@@ -1683,49 +1690,49 @@ void main() {
         const raw = String(src || '');
         if (!/FidelityFX|FSR_EASU|FSR_RCAS|EASUTEX|FsrEasuTap|FSR_PQ/i.test(raw)) return null;
         return `
-float gvfFSRLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
-vec4 gvfFSRSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
+        float gvfFSRLuma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+        vec4 gvfFSRSample(vec2 uv) { return texture(u_video, clamp(uv, vec2(0.0), vec2(1.0))); }
 
-void main() {
-    vec2 px = (u_fsr_radius * u_gvf_offset_scale) / u_res;
-    vec4 src = gvfFSRSample(v_uv);
+        void main() {
+            vec2 px = (u_fsr_radius * u_gvf_offset_scale) / u_res;
+            vec4 src = gvfFSRSample(v_uv);
 
-    vec3 c  = src.rgb;
-    vec3 l  = gvfFSRSample(v_uv + vec2(-px.x,  0.0)).rgb;
-    vec3 r  = gvfFSRSample(v_uv + vec2( px.x,  0.0)).rgb;
-    vec3 t  = gvfFSRSample(v_uv + vec2( 0.0, -px.y)).rgb;
-    vec3 b  = gvfFSRSample(v_uv + vec2( 0.0,  px.y)).rgb;
-    vec3 tl = gvfFSRSample(v_uv + vec2(-px.x, -px.y)).rgb;
-    vec3 tr = gvfFSRSample(v_uv + vec2( px.x, -px.y)).rgb;
-    vec3 bl = gvfFSRSample(v_uv + vec2(-px.x,  px.y)).rgb;
-    vec3 br = gvfFSRSample(v_uv + vec2( px.x,  px.y)).rgb;
+            vec3 c  = src.rgb;
+            vec3 l  = gvfFSRSample(v_uv + vec2(-px.x,  0.0)).rgb;
+            vec3 r  = gvfFSRSample(v_uv + vec2( px.x,  0.0)).rgb;
+            vec3 t  = gvfFSRSample(v_uv + vec2( 0.0, -px.y)).rgb;
+            vec3 b  = gvfFSRSample(v_uv + vec2( 0.0,  px.y)).rgb;
+            vec3 tl = gvfFSRSample(v_uv + vec2(-px.x, -px.y)).rgb;
+            vec3 tr = gvfFSRSample(v_uv + vec2( px.x, -px.y)).rgb;
+            vec3 bl = gvfFSRSample(v_uv + vec2(-px.x,  px.y)).rgb;
+            vec3 br = gvfFSRSample(v_uv + vec2( px.x,  px.y)).rgb;
 
-    float gx = -gvfFSRLuma(tl) - 2.0 * gvfFSRLuma(l) - gvfFSRLuma(bl)
-               + gvfFSRLuma(tr) + 2.0 * gvfFSRLuma(r) + gvfFSRLuma(br);
-    float gy = -gvfFSRLuma(tl) - 2.0 * gvfFSRLuma(t) - gvfFSRLuma(tr)
-               + gvfFSRLuma(bl) + 2.0 * gvfFSRLuma(b) + gvfFSRLuma(br);
-    float edge = clamp(length(vec2(gx, gy)) * u_fsr_edge, 0.0, 1.0);
+            float gx = -gvfFSRLuma(tl) - 2.0 * gvfFSRLuma(l) - gvfFSRLuma(bl)
+                       + gvfFSRLuma(tr) + 2.0 * gvfFSRLuma(r) + gvfFSRLuma(br);
+            float gy = -gvfFSRLuma(tl) - 2.0 * gvfFSRLuma(t) - gvfFSRLuma(tr)
+                       + gvfFSRLuma(bl) + 2.0 * gvfFSRLuma(b) + gvfFSRLuma(br);
+            float edge = clamp(length(vec2(gx, gy)) * u_fsr_edge, 0.0, 1.0);
 
-    // EASU-like edge-aware reconstruction.
-    vec3 crossBlur = (l + r + t + b + c * 4.0) * 0.125;
-    vec3 diagBlur = (tl + tr + bl + br + c * 4.0) * 0.125;
-    vec3 easuBase = mix(crossBlur, diagBlur, 0.35);
-    vec3 detail = c - easuBase;
-    vec3 easu = clamp(c + detail * (0.65 + 1.45 * u_fsr_strength) * smoothstep(0.02, 0.35, edge), 0.0, 1.0);
+            // EASU-like edge-aware reconstruction.
+            vec3 crossBlur = (l + r + t + b + c * 4.0) * 0.125;
+            vec3 diagBlur = (tl + tr + bl + br + c * 4.0) * 0.125;
+            vec3 easuBase = mix(crossBlur, diagBlur, 0.35);
+            vec3 detail = c - easuBase;
+            vec3 easu = clamp(c + detail * (0.65 + 1.45 * u_fsr_strength) * smoothstep(0.02, 0.35, edge), 0.0, 1.0);
 
-    // RCAS-like sharpening with denoise limiter.
-    vec3 minRing = min(min(l, r), min(t, b));
-    vec3 maxRing = max(max(l, r), max(t, b));
-    vec3 ringAvg = (l + r + t + b) * 0.25;
-    vec3 noise = abs(c - ringAvg);
-    float noiseGate = 1.0 - clamp(gvfFSRLuma(noise) * 6.0 * u_fsr_denoise, 0.0, 1.0);
-    vec3 rcas = clamp(easu + (easu - ringAvg) * u_fsr_sharpness * noiseGate, minRing - 0.08, maxRing + 0.08);
-    rcas = clamp(rcas, 0.0, 1.0);
+            // RCAS-like sharpening with denoise limiter.
+            vec3 minRing = min(min(l, r), min(t, b));
+            vec3 maxRing = max(max(l, r), max(t, b));
+            vec3 ringAvg = (l + r + t + b) * 0.25;
+            vec3 noise = abs(c - ringAvg);
+            float noiseGate = 1.0 - clamp(gvfFSRLuma(noise) * 6.0 * u_fsr_denoise, 0.0, 1.0);
+            vec3 rcas = clamp(easu + (easu - ringAvg) * u_fsr_sharpness * noiseGate, minRing - 0.08, maxRing + 0.08);
+            rcas = clamp(rcas, 0.0, 1.0);
 
-    vec3 fx = mix(c, rcas, clamp(u_fsr_strength, 0.0, 1.0));
-    fragColor = vec4(mix(c, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
-}
-`;
+            vec3 fx = mix(c, rcas, clamp(u_fsr_strength, 0.0, 1.0));
+            fragColor = vec4(mix(c, fx, clamp(u_gvf_mix, 0.0, 1.0)), src.a);
+        }
+        `;
     }
 
     function _buildFragSrc(userSrc) {
@@ -1759,37 +1766,37 @@ void main() {
         }
 
         return `#version 300 es
-precision highp float;
-precision highp sampler2D;
-uniform sampler2D u_video;        // input frame for this pass (TEXTURE0)
-uniform sampler2D u_video_raw;    // raw video frame (TEXTURE1)
-uniform vec2 u_res;
-uniform float u_time;
-uniform vec2 u_mouse;
-uniform float u_strength;
-uniform float u_layers;
-uniform float u_zoom;
-uniform float u_avg_lum;
-uniform float u_avg_r;
-uniform float u_avg_g;
-uniform float u_avg_b;
-uniform float u_contrast;
-uniform float u_gvf_mix;
-uniform float u_gvf_offset_scale;
-${_customUniformDecls}
-in vec2 v_uv;
-out vec4 fragColor;
-vec4 gvfPassTex(vec2 uv) { return texture(u_video, uv); }
-vec4 gvfPassTex(float ignored) { return texture(u_video, v_uv); }
-vec4 gvfPassTex(int ignored) { return texture(u_video, v_uv); }
-vec4 gvfPassTexOff(vec2 offsetPx) { return texture(u_video, v_uv + ((offsetPx * u_gvf_offset_scale) / u_res)); }
-vec4 gvfPassTexOff(float offsetPx) { return texture(u_video, v_uv + ((vec2(offsetPx) * u_gvf_offset_scale) / u_res)); }
-vec4 gvfPassTexOff(ivec2 offsetPx) { return texture(u_video, v_uv + ((vec2(offsetPx) * u_gvf_offset_scale) / u_res)); }
-vec4 gvfPassTexOff(int offsetPx) { return texture(u_video, v_uv + ((vec2(float(offsetPx)) * u_gvf_offset_scale) / u_res)); }
-vec4 gvfPassTexOff(vec2 baseUv, vec2 offsetPx) { return texture(u_video, baseUv + ((offsetPx * u_gvf_offset_scale) / u_res)); }
-vec4 gvfPassTexOff(vec2 baseUv, float offsetPx) { return texture(u_video, baseUv + ((vec2(offsetPx) * u_gvf_offset_scale) / u_res)); }
-vec4 gvfPassTexOff(vec2 baseUv, int offsetPx) { return texture(u_video, baseUv + ((vec2(float(offsetPx)) * u_gvf_offset_scale) / u_res)); }
-${mainBlock}`;
+        precision highp float;
+        precision highp sampler2D;
+        uniform sampler2D u_video;        // input frame for this pass (TEXTURE0)
+        uniform sampler2D u_video_raw;    // raw video frame (TEXTURE1)
+        uniform vec2 u_res;
+        uniform float u_time;
+        uniform vec2 u_mouse;
+        uniform float u_strength;
+        uniform float u_layers;
+        uniform float u_zoom;
+        uniform float u_avg_lum;
+        uniform float u_avg_r;
+        uniform float u_avg_g;
+        uniform float u_avg_b;
+        uniform float u_contrast;
+        uniform float u_gvf_mix;
+        uniform float u_gvf_offset_scale;
+        ${_customUniformDecls}
+        in vec2 v_uv;
+        out vec4 fragColor;
+        vec4 gvfPassTex(vec2 uv) { return texture(u_video, uv); }
+        vec4 gvfPassTex(float ignored) { return texture(u_video, v_uv); }
+        vec4 gvfPassTex(int ignored) { return texture(u_video, v_uv); }
+        vec4 gvfPassTexOff(vec2 offsetPx) { return texture(u_video, v_uv + ((offsetPx * u_gvf_offset_scale) / u_res)); }
+        vec4 gvfPassTexOff(float offsetPx) { return texture(u_video, v_uv + ((vec2(offsetPx) * u_gvf_offset_scale) / u_res)); }
+        vec4 gvfPassTexOff(ivec2 offsetPx) { return texture(u_video, v_uv + ((vec2(offsetPx) * u_gvf_offset_scale) / u_res)); }
+        vec4 gvfPassTexOff(int offsetPx) { return texture(u_video, v_uv + ((vec2(float(offsetPx)) * u_gvf_offset_scale) / u_res)); }
+        vec4 gvfPassTexOff(vec2 baseUv, vec2 offsetPx) { return texture(u_video, baseUv + ((offsetPx * u_gvf_offset_scale) / u_res)); }
+        vec4 gvfPassTexOff(vec2 baseUv, float offsetPx) { return texture(u_video, baseUv + ((vec2(offsetPx) * u_gvf_offset_scale) / u_res)); }
+        vec4 gvfPassTexOff(vec2 baseUv, int offsetPx) { return texture(u_video, baseUv + ((vec2(float(offsetPx)) * u_gvf_offset_scale) / u_res)); }
+        ${mainBlock}`;
     }
 
     const CustomWebglOverlayManager = (() => {
@@ -1867,13 +1874,13 @@ ${mainBlock}`;
         }
 
         const _vsSource = `#version 300 es
-in vec2 a_pos;
-in vec2 a_uv;
-out vec2 v_uv;
-void main(){
-    gl_Position = vec4(a_pos, 0.0, 1.0);
-    v_uv = a_uv;
-}`;
+        in vec2 a_pos;
+        in vec2 a_uv;
+        out vec2 v_uv;
+        void main(){
+            gl_Position = vec4(a_pos, 0.0, 1.0);
+            v_uv = a_uv;
+        }`;
 
         function _compileShader(gl, type, src) {
             const sh = gl.createShader(type);
@@ -1958,24 +1965,24 @@ void main(){
         }
 
         const _presentFsSource = `#version 300 es
-precision highp float;
-uniform sampler2D u_src;
-uniform vec2 u_srcRes;
-uniform vec2 u_dstRes;
-in vec2 v_uv;
-out vec4 fragColor;
-void main(){
-    // Area (box) downsample: 4x4 bilinear taps spread over the source footprint of this output pixel.
-    vec2 span = 1.0 / u_dstRes; // one output pixel, in source UV units
-    vec4 acc = vec4(0.0);
-    for (int y = 0; y < 4; y++) {
-        for (int x = 0; x < 4; x++) {
-            vec2 o = (vec2(float(x), float(y)) + 0.5) * 0.25 - 0.5;
-            acc += texture(u_src, v_uv + o * span);
-        }
-    }
-    fragColor = acc * (1.0 / 16.0);
-}`;
+        precision highp float;
+        uniform sampler2D u_src;
+        uniform vec2 u_srcRes;
+        uniform vec2 u_dstRes;
+        in vec2 v_uv;
+        out vec4 fragColor;
+        void main(){
+            // Area (box) downsample: 4x4 bilinear taps spread over the source footprint of this output pixel.
+            vec2 span = 1.0 / u_dstRes; // one output pixel, in source UV units
+            vec4 acc = vec4(0.0);
+            for (int y = 0; y < 4; y++) {
+                for (int x = 0; x < 4; x++) {
+                    vec2 o = (vec2(float(x), float(y)) + 0.5) * 0.25 - 0.5;
+                    acc += texture(u_src, v_uv + o * span);
+                }
+            }
+            fragColor = acc * (1.0 / 16.0);
+        }`;
 
         function _ensurePresentProgram() {
             if (_presentRec) return _presentRec;
@@ -4762,6 +4769,363 @@ void main(){
             cbFilter: 'none'
         }
     };
+
+    // =====================================================================
+    // Effect settings
+    // ---------------------------------------------------------------------
+    // Factors are multipliers: 1.00 = unchanged, > 1 = more, < 1 = less.
+    // "svg..." values apply in SVG render mode, "gpu..." values in GPU mode
+    // (WebGL pipeline and CSS fallback). Values without prefix apply to both.
+    // =====================================================================
+
+    // -------------------------
+    // Base Tone Chain (Ctrl+Alt+B)
+    // -------------------------
+    const GVF_BASE_SETTINGS = {
+        brightness: 1.02,
+        contrast: 1.05,
+        saturation: 1.15
+    };
+
+    // -------------------------
+    // Dark & Moody (Ctrl+Alt+D)
+    // -------------------------
+    const GVF_MOODY_SETTINGS = {
+        // GPU mode
+        gpuBrightness: 0.96,
+        gpuSaturation: 0.92,
+        // SVG mode: per-channel gamma curve (out = amplitude * in^exponent + offset)
+        svgAmplitude: { r: 0.96, g: 0.96, b: 0.97 },
+        svgExponent:  { r: 1.14, g: 1.13, b: 1.11 },
+        svgOffset: -0.015,
+        svgSaturation: 0.90
+    };
+
+    // -------------------------
+    // Teal & Orange (Ctrl+Alt+O)
+    // -------------------------
+    const GVF_TEAL_SETTINGS = {
+        // GPU mode
+        gpuHueShift: -5, // degrees
+        gpuSepia: 0.15, // 0..1 (CSS fallback only)
+        gpuSaturation: 1.10, // CSS fallback only
+        // SVG mode: 3x3 RGB matrices (rows = output R, G, B)
+        svgTealMatrix: [
+            [0.96, 0.02, 0.00],
+            [0.02, 1.02, 0.02],
+            [0.00, 0.04, 1.06]
+        ],
+        svgOrangeMatrix: [
+            [1.10, 0.02, 0.00],
+            [0.02, 1.00, 0.00],
+            [0.00, 0.00, 0.90]
+        ],
+        svgSaturation: 1.08
+    };
+
+    // -------------------------
+    // Vibrant & Saturated (Ctrl+Alt+V)
+    // -------------------------
+    const GVF_VIBRANT_SETTINGS = {
+        saturation: 1.35
+    };
+
+    // -------------------------
+    // HDR (Ctrl+Alt+P) - s = current HDR strength, slider range -1.0 .. 2.0
+    // -------------------------
+    const GVF_HDR_SETTINGS = {
+        // Toggle behaviour
+        useLastValue: true, // re-enable with the last used strength
+        defaultValue: 0.3, // strength when no last value exists / useLastValue = false
+        // GPU mode
+        gpuMaxSingleVideo: 0.65, // strength cap with one visible video
+        gpuMaxMultiVideo: 0.42, // strength cap with two or more visible videos
+        gpuContrastPerStep: 0.15, // CSS fallback: contrast = 1 + s * value
+        gpuSaturationPerStep: 0.10, // CSS fallback: saturate = 1 + s * value
+        // SVG mode
+        svgClarityBase: 0.55, // local contrast = base + s * perStep
+        svgClarityPerStep: 0.55,
+        svgSlopeBase: 1.10, // tone slope = base + s * perStep
+        svgSlopePerStep: 0.18,
+        svgSaturationBase: 1.10, // saturation = base + s * perStep
+        svgSaturationPerStep: 0.30
+    };
+
+    // =====================================================================
+    // Grading HUD settings (Ctrl+Alt+G)
+    // ---------------------------------------------------------------------
+    // The grading sliders run from -10 to +10. "perStep" = change per slider step.
+    // "svg..." values apply in SVG mode and the GPU CSS fallback,
+    // "webgl..." values in the WebGL pipeline.
+    // =====================================================================
+
+    // -------------------------
+    // Contrast - S-curve around a pivot tone, black, white and the pivot stay fixed
+    // u = in^k (k moves the pivot to 0.5), u' = u - amount * sin(2*pi*u) / (2*pi), out = u'^(1/k)
+    // -------------------------
+    const GVF_CONTRAST_SETTINGS = {
+        higherIsMore: true, // true: higher value = more contrast, false: less
+        perStep: 0.04,      // slope at the pivot = 1 + slider * perStep (+10 -> 1.40)
+        min: 0.60,          // lowest slope (flattest)
+        max: 1.60,          // highest slope (steepest), keep below 1.95
+        pivot: 0.5          // tone that stays fixed (0.2 .. 0.8), lower = pivot in darker tones
+    };
+
+    // -------------------------
+    // Black Level - levels black point
+    // > 0: input black point moves up (dark tones become pure black)
+    // < 0: output black is lifted (black becomes dark grey)
+    // -------------------------
+    const GVF_BLACK_SETTINGS = {
+        higherIsDarker: true, // true: higher value = deeper blacks, false: lifted blacks
+        perStep: 0.012,       // black point shift per slider step (+10 -> 0.12)
+        maxOffset: 0.12,      // limit in both directions
+        softness: 0.05        // smooth toe at the black point instead of a hard cut (0 = hard, e.g. 0.05)
+    };
+
+    // -------------------------
+    // White Level - levels white point
+    // > 0: input white point moves down (bright tones become pure white)
+    // < 0: output white is lowered (white becomes light grey)
+    // -------------------------
+    const GVF_WHITE_SETTINGS = {
+        higherIsBrighter: true, // true: higher value = brighter whites, false: lowered whites
+        perStep: 0.012,         // white point shift per slider step (+10 -> 0.12)
+        maxOffset: 0.12,        // limit in both directions
+        softness: 0.05          // smooth shoulder at the white point instead of a hard cut (0 = hard, e.g. 0.05)
+    };
+
+    // -------------------------
+    // Highlights - tone curve for bright tones only, black and white stay fixed
+    // t = (in - threshold) / (1 - threshold), curve: out = in + amount * t^power * (1 - t),
+    // normalized so the peak shift = amount; tones below the threshold stay untouched
+    // -------------------------
+    const GVF_HIGHLIGHTS_SETTINGS = {
+        higherIsBrighter: true, // true: higher value = brighter highlights, false: darker
+        perStep: 0.010,         // peak shift per slider step (+10 -> 0.10)
+        power: 3,               // curve focus: higher = only the brightest tones (peak at power/(power+1) of the range)
+        threshold: 0.0,         // tones below this stay untouched (0 = whole range, e.g. 0.5 = only above 50%)
+        maxDarken: 0.40         // largest allowed darkening at the peak
+    };
+
+    // -------------------------
+    // Shadows - tone curve for dark tones only, black and white stay fixed
+    // t = in / threshold, curve: out = in + amount * t * (1 - t)^power,
+    // normalized so the peak shift = amount; tones above the threshold stay untouched
+    // -------------------------
+    const GVF_SHADOWS_SETTINGS = {
+        higherIsDarker: true,  // true: higher value = darker shadows, false: brighter
+        perStep: 0.010,        // peak shift per slider step (+10 -> 0.10)
+        power: 3,              // curve focus: higher = only the darkest tones (peak at 1/(power+1) of the range)
+        threshold: 1.0,        // tones above this stay untouched (1 = whole range, e.g. 0.5 = only below 50%)
+        maxBrighten: 0.40      // largest allowed brightening at the peak
+    };
+
+    // -------------------------
+    // Saturation - saturation curve, grey and fully saturated colors stay fixed
+    // gain = 1 + amount * (1 - s)^power, s = current pixel saturation (0..1)
+    // -> muted colors get the full boost, vivid colors less, no clipping
+    // -------------------------
+    const GVF_SATURATION_SETTINGS = {
+        higherIsMore: true,     // true: higher value = more saturation, false: less
+        perStep: 0.05,          // amount = slider * perStep (+10 -> +0.50 boost for muted colors)
+        min: 0.40,              // lowest gain (most desaturated)
+        max: 1.80,              // highest gain for muted colors, keep at or below 2.0
+        power: 1,               // protection of vivid colors: 0 = none (all colors equal, may clip), higher = more
+        desaturateEvenly: true  // true: values < 0 desaturate all colors equally, false: use the curve as well
+    };
+
+    // -------------------------
+    // Vibrance - saturation curve focused on muted colors, vivid colors stay almost unchanged
+    // gain = 1 + amount * (1 - s)^power * (1 - skinProtect * skin), s = pixel saturation (0..1)
+    // skin = clamp((r - g) * 8) * clamp((g - b) * 8) -> high for skin-like tones (r > g > b)
+    // (applies in both directions: < 0 mutes mainly the already muted colors)
+    // -------------------------
+    const GVF_VIBRANCE_SETTINGS = {
+        higherIsMore: true, // true: higher value = more vibrance, false: less
+        perStep: 0.05,      // amount = slider * perStep (+10 -> +0.50 for grey-ish colors)
+        min: 0.50,          // lowest gain for muted colors
+        max: 1.50,          // highest gain for muted colors, keep at or below 2.0
+        power: 3,           // curve focus: higher = only the most muted colors
+        skinProtect: 0.6    // 0 = off, 1 = skin tones get no vibrance change (e.g. 0.6)
+    };
+
+    // -------------------------
+    // Gamma - midtone curve, black and white stay fixed
+    // curve: out = min(in^(1/g), in * maxShadowSlope)
+    // g > 1 brightens midtones, g < 1 darkens them; the slope limit keeps the
+    // deepest shadows from being lifted too hard (less visible noise in blacks)
+    // -------------------------
+    const GVF_GAMMA_SETTINGS = {
+        higherIsBrighter: true, // true: higher value = brighter midtones, false: darker
+        perStep: 0.025,         // g = 1 + slider * perStep (+10 -> 1.25)
+        min: 0.60,              // lower limit for g (darkest midtones)
+        max: 1.60,              // upper limit for g (brightest midtones)
+        maxShadowSlope: 2.0     // max lift factor near black when brightening (>= 1), 0 = off
+    };
+
+    // -------------------------
+    // Sharpen - detail curve on luma: > 0 sharpens, < 0 softens
+    // detail d = luma - blurred luma, change = maxChange * y / sqrt(1 + y^2),
+    // y = amount * d * gate(d) / maxChange, gate = smoothstep(0, 2 * noiseThreshold, |d|)
+    // -> noise below the threshold stays untouched, normal edges get the full boost,
+    //    strong edges are softly limited (no halos), color channels are not sharpened separately
+    // -------------------------
+    const GVF_SHARPEN_SETTINGS = {
+        higherIsSharper: true, // true: higher value = sharper, false: reversed (higher = softer)
+        maxAmount: 1.5,        // edge boost at +10 (both modes)
+        lightHalo: 0.6,        // strength of the brightening side of edges (bright halos), 0..1
+        darkHalo: 1.0,         // strength of the darkening side of edges (dark halos), 0..1
+        skinProtect: 0.5,      // 0 = off, 1 = no sharpening on skin tones (same skin detection as Vibrance)
+        noiseThreshold: 0.01,  // details smaller than this are not sharpened (noise, compression), 0 = off
+        maxChange: 0.15,       // soft limit of the brightness change per pixel (prevents halos)
+        // SVG mode / GPU CSS fallback
+        svgRadius: 1.0,        // blur radius used to find details (px)
+        svgMaxSoften: 1.2,     // blur radius at -10 (px)
+        // WebGL
+        webglPerStep: 0.1      // shader sharpen amount per slider step (+10 -> 1.0 x maxAmount)
+    };
+
+    // -------------------------
+    // Grain (Banding) - fine noise that hides color banding, weighted by brightness
+    // L' = L^k (k moves 'peak' to 0.5), weight = (4 * L' * (1 - L'))^power, L = pixel luma
+    // -> strongest at 'peak', fades out towards black and white (black and white stay clean)
+    // -------------------------
+    const GVF_GRAIN_SETTINGS = {
+        higherIsMore: true,  // true: higher value = more grain, false: lower value = more grain
+        perStep: 0.01,       // grain amount per slider step (+10 -> 0.10, at the peak)
+        power: 1,            // brightness curve focus: higher = grain only around the peak, 0 = even
+        peak: 0.35,          // brightness with the strongest grain (0.2 .. 0.8), lower = more grain in shadows
+        colorAmount: 0.3,    // 0 = grey grain, 1 = full color grain (film-like)
+        svgStrength: 1.5,    // SVG mode / GPU CSS fallback: noise strength = amount * svgStrength
+        svgFrequency: 0.9    // SVG mode / GPU CSS fallback: noise fineness (higher = finer)
+    };
+
+    // -------------------------
+    // Hue Correction - true hue rotation in the YCbCr chroma plane (BT.709)
+    // brightness (luma) stays exactly the same, grey stays grey, chroma strength is kept
+    // -------------------------
+    // skinProtect: out = mix(rotated, original, skinProtect * skin),
+    // skin = clamp((r - g) * 8) * clamp((g - b) * 8) (same skin detection as Vibrance)
+    const GVF_HUE_SETTINGS = {
+        reverse: false,   // true: reverse the rotation direction of the slider
+        perStep: 3.0,     // degrees per slider step
+        maxDegrees: 30,   // limit in both directions
+        skinProtect: 0.7  // 0 = off, 1 = skin tones keep their hue (e.g. 0.7)
+    };
+
+    // =====================================================================
+    // Expert settings - user overrides for the Grading HUD GVF_*_SETTINGS blocks above
+    // (the effect blocks Base / Moody / Teal / Vibrant / HDR are edited in the code only)
+    // Edited in IO HUD (Ctrl+Alt+I) -> Expert. Only changed values are stored,
+    // the defaults above stay untouched and can always be restored.
+    // =====================================================================
+    const GVF_EXPERT_KEY = 'gvf_expert_settings';
+    const GVF_EXPERT_TARGETS = {
+        GVF_CONTRAST_SETTINGS, GVF_BLACK_SETTINGS, GVF_WHITE_SETTINGS, GVF_HIGHLIGHTS_SETTINGS,
+        GVF_SHADOWS_SETTINGS, GVF_SATURATION_SETTINGS, GVF_VIBRANCE_SETTINGS, GVF_GAMMA_SETTINGS,
+        GVF_SHARPEN_SETTINGS, GVF_GRAIN_SETTINGS, GVF_HUE_SETTINGS
+    };
+    const GVF_EXPERT_DEFAULTS = JSON.parse(JSON.stringify(GVF_EXPERT_TARGETS));
+
+    // Copies values from src into target, only for keys that exist in def and with the same type
+    function expertMerge(target, src, def) {
+        if (!src || typeof src !== 'object' || !target || !def) return;
+        Object.keys(def).forEach(k => {
+            if (!(k in src)) return;
+            const d = def[k], v = src[k];
+            if (typeof d === 'number') {
+                const n = Number(v);
+                if (Number.isFinite(n)) target[k] = n;
+            } else if (typeof d === 'boolean') {
+                if (typeof v === 'boolean') target[k] = v;
+            } else if (Array.isArray(d)) {
+                if (!Array.isArray(v) || v.length !== d.length) return;
+                d.forEach((row, i) => {
+                    if (!Array.isArray(row) || !Array.isArray(v[i]) || v[i].length !== row.length) return;
+                    row.forEach((_, j) => {
+                        const n = Number(v[i][j]);
+                        if (Number.isFinite(n)) target[k][i][j] = n;
+                    });
+                });
+            } else if (d && typeof d === 'object') {
+                expertMerge(target[k], v, d);
+            }
+        });
+    }
+
+    function expertIsChanged(name, key) {
+        const cur = GVF_EXPERT_TARGETS[name], def = GVF_EXPERT_DEFAULTS[name];
+        if (!cur || !def) return false;
+        if (key) return JSON.stringify(cur[key]) !== JSON.stringify(def[key]);
+        return Object.keys(def).some(k => JSON.stringify(cur[k]) !== JSON.stringify(def[k]));
+    }
+
+    function loadExpertSettings() {
+        const raw = gmGet(GVF_EXPERT_KEY, '');
+        let obj = null;
+        try { obj = typeof raw === 'string' ? (raw ? JSON.parse(raw) : null) : raw; } catch (_) { obj = null; }
+        if (!obj || typeof obj !== 'object') return;
+        Object.keys(GVF_EXPERT_TARGETS).forEach(name => {
+            expertMerge(GVF_EXPERT_TARGETS[name], obj[name], GVF_EXPERT_DEFAULTS[name]);
+        });
+    }
+
+    // All values that differ from the defaults, as { GVF_..._SETTINGS: { key: value } }
+    function expertSettingsDiff() {
+        const out = {};
+        Object.keys(GVF_EXPERT_TARGETS).forEach(name => {
+            const cur = GVF_EXPERT_TARGETS[name], def = GVF_EXPERT_DEFAULTS[name];
+            const diff = {};
+            Object.keys(def).forEach(k => {
+                if (JSON.stringify(cur[k]) !== JSON.stringify(def[k])) diff[k] = JSON.parse(JSON.stringify(cur[k]));
+            });
+            if (Object.keys(diff).length) out[name] = diff;
+        });
+        return out;
+    }
+
+    function saveExpertSettings() {
+        gmSet(GVF_EXPERT_KEY, JSON.stringify(expertSettingsDiff()));
+    }
+
+    // Export format for files / clipboard
+    function exportExpertSettings() {
+        return {
+            type: 'gvf-expert-settings',
+            version: 1,
+            script: (typeof GM_info !== 'undefined' && GM_info.script) ? GM_info.script.version : '',
+            exported: new Date().toISOString(),
+            settings: expertSettingsDiff()
+        };
+    }
+
+    // Replaces all expert settings with the given export (or a plain { GVF_..._SETTINGS: {...} } object).
+    // Returns the number of imported blocks, or -1 if the data is not an expert settings export.
+    function importExpertSettings(obj) {
+        if (!obj || typeof obj !== 'object') return -1;
+        if (obj.type && obj.type !== 'gvf-expert-settings') return -1;
+        const data = (obj.settings && typeof obj.settings === 'object') ? obj.settings : obj;
+        const names = Object.keys(data).filter(n => n in GVF_EXPERT_TARGETS);
+        const isExport = obj.type === 'gvf-expert-settings';
+        if (!names.length && !isExport) return -1;
+        resetExpertSettings();
+        names.forEach(n => expertMerge(GVF_EXPERT_TARGETS[n], data[n], GVF_EXPERT_DEFAULTS[n]));
+        saveExpertSettings();
+        return names.length;
+    }
+
+    // Restores the defaults of one block (name) or of all blocks (no name)
+    function resetExpertSettings(name, key) {
+        const names = name ? [name] : Object.keys(GVF_EXPERT_TARGETS);
+        names.forEach(n => {
+            const def = GVF_EXPERT_DEFAULTS[n];
+            if (key) expertMerge(GVF_EXPERT_TARGETS[n], { [key]: def[key] }, def);
+            else expertMerge(GVF_EXPERT_TARGETS[n], def, def);
+        });
+    }
+
+    loadExpertSettings();
 
     // Profile Management Functions
     function getDefaultUserProfilesFallback() {
@@ -8098,7 +8462,7 @@ function downloadBlob(blob, filename) {
         (document.body || document.documentElement).appendChild(tmpSvg);
 
         // Build CSS filter string
-        const baseTone = (s.baseOtp !== false) ? ' brightness(1.02) contrast(1.05) saturate(1.15)' : '';
+        const baseTone = (s.baseOtp !== false) ? baseToneCssString() : '';
         let profTone = '';
         if (P==='film')    profTone = ' brightness(1.01) contrast(1.08) saturate(1.08)';
         if (P==='anime')   profTone = ' brightness(1.03) contrast(1.10) saturate(1.16)';
@@ -8106,21 +8470,8 @@ function downloadBlob(blob, filename) {
         if (P==='eyecare') profTone = ' brightness(1.05) contrast(0.96) saturate(0.88) hue-rotate(-12deg)';
         let userTone = '';
         if (P==='user') {
-            const uc=_normU(s.u_contrast),us=_normU(s.u_sat),uv=_normU(s.u_vib),uh=_normU(s.u_hue);
-            const ub=_normU(s.u_black),uw=_normU(s.u_white),ush=_normU(s.u_shadows),uhi=_normU(s.u_highlights),ug=_normU(s.u_gamma);
-            const c   = _clamp(1.0+uc*0.04,0.6,1.6);
-            const sat = _clamp(1.0+us*0.05,0.4,1.8);
-            const vb  = _clamp(1.0+uv*0.02,0.7,1.35);
-            const hue = _clamp(uh*3.0,-30,30);
-            const blk = _clamp(ub*0.012,-0.12,0.12);
-            const wht = _clamp(uw*0.012,-0.12,0.12);
-            const sh  = _clamp(ush*0.010,-0.10,0.10);
-            const hi  = _clamp(uhi*0.010,-0.10,0.10);
-            const br  = _clamp(1.0+(-blk+wht+sh+hi)*0.6,0.7,1.35);
-            const g   = _clamp(1.0+ug*0.025,0.6,1.6);
-            const gBr = _clamp(1.0+(1.0-g)*0.18,0.85,1.2);
-            const gCt = _clamp(1.0+(g-1.0)*0.10,0.9,1.15);
-            userTone = ` brightness(${(br*gBr).toFixed(3)}) contrast(${(c*gCt).toFixed(3)}) saturate(${(sat*vb).toFixed(3)}) hue-rotate(${hue.toFixed(1)}deg)`;
+            // All grading values are part of the SVG filter (buildFilter), nothing left for CSS
+            userTone = '';
         }
 
         const filterStr = `url("#${tmpComboId}")${baseTone}${profTone}${userTone}`;
@@ -8170,7 +8521,7 @@ function downloadBlob(blob, filename) {
     }
 
     function getBaseToneString() {
-        return enabled ? ' brightness(1.02) contrast(1.05) saturate(1.15)' : '';
+        return enabled ? baseToneCssString() : '';
     }
 
     function getProfileToneString() {
@@ -8184,23 +8535,8 @@ function downloadBlob(blob, filename) {
     function getUserToneString() {
         if (profile !== 'user') return '';
 
-        const c = clamp(1.0 + (uDelta(u_contrast) * 0.04), 0.60, 1.60);
-        const sat = clamp(1.0 + (uDelta(u_sat) * 0.05), 0.40, 1.80);
-        const vib = clamp(1.0 + (uDelta(u_vib) * 0.02), 0.70, 1.35);
-        const hue = clamp(uDelta(u_hue) * 3.0, -30, 30);
-
-        const blk = clamp(uDelta(u_black) * 0.012, -0.12, 0.12);
-        const wht = clamp(uDelta(u_white) * 0.012, -0.12, 0.12);
-        const sh = clamp(uDelta(u_shadows) * 0.010, -0.10, 0.10);
-        const hi = clamp(uDelta(u_highlights) * 0.010, -0.10, 0.10);
-
-        const br = clamp(1.0 + (-blk + wht + sh + hi) * 0.6, 0.70, 1.35);
-
-        const g = clamp(1.0 + (uDelta(u_gamma) * 0.025), 0.60, 1.60);
-        const gBr = clamp(1.0 + (1.0 - g) * 0.18, 0.85, 1.20);
-        const gCt = clamp(1.0 + (g - 1.0) * 0.10, 0.90, 1.15);
-
-        return ` brightness(${(br * gBr).toFixed(3)}) contrast(${(c * gCt).toFixed(3)}) saturate(${(sat * vib).toFixed(3)}) hue-rotate(${hue.toFixed(1)}deg)`;
+        // All grading values are part of the SVG filter (buildFilter), nothing left for CSS
+        return '';
     }
 
 
@@ -9084,6 +9420,204 @@ function downloadBlob(blob, filename) {
     function normHDR() { return snap0(roundTo(clamp(Number(hdr) || 0, -1.0, 2.0), 0.01), 0.005); }
     function normEDGE() { return snap0(roundTo(clamp(Number(edge) || 0, 0, 1.0), 0.01), 0.005); }
     function normU(v) { return roundTo(clamp(Number(v) || 0, -10, 10), 0.1); }
+    // Gamma slider -> gamma value. Curve is out = in^(1/g): black and white stay fixed,
+    // g > 1 brightens midtones, g < 1 darkens them.
+    function userGammaValue(v) {
+        const gs = GVF_GAMMA_SETTINGS;
+        const d = gs.higherIsBrighter === false ? -normU(v) : normU(v);
+        return clamp(1.0 + (d * gs.perStep), gs.min, gs.max);
+    }
+    function gammaShadowSlope() {
+        const sl = Number(GVF_GAMMA_SETTINGS.maxShadowSlope) || 0;
+        return sl > 0 ? Math.max(1, sl) : 0;
+    }
+    function gammaCurve(x, g) {
+        if (Math.abs(g - 1.0) < 0.0005) return x;
+        let y = Math.pow(Math.max(0, x), 1.0 / g);
+        const sl = gammaShadowSlope();
+        if (sl > 0) y = Math.min(y, x * sl);
+        return clamp(y, 0, 1);
+    }
+    // Grading sliders -> filter values (see GVF_*_SETTINGS)
+    function userFactor(v, cfg) { return clamp(1.0 + (normU(v) * cfg.perStep), cfg.min, cfg.max); }
+    function userOffset(v, cfg) { return clamp(normU(v) * cfg.perStep, -cfg.maxOffset, cfg.maxOffset); }
+    // Contrast curve amount: midtone slope - 1, limited so the curve never inverts
+    function userContrastAmount(v) {
+        const d = GVF_CONTRAST_SETTINGS.higherIsMore === false ? -normU(v) : normU(v);
+        return clamp(userFactor(d, GVF_CONTRAST_SETTINGS) - 1.0, -0.95, 0.95);
+    }
+    function contrastPivot() { return clamp(Number(GVF_CONTRAST_SETTINGS.pivot) || 0.5, 0.2, 0.8); }
+    // exponent that moves the pivot to 0.5 (pivot^k = 0.5)
+    function contrastPivotExp() { return Math.log(0.5) / Math.log(contrastPivot()); }
+    function contrastCurve(x, amount) {
+        const k = contrastPivotExp();
+        const u = Math.pow(clamp(x, 0, 1), k);
+        const v = clamp(u - amount * Math.sin(2 * Math.PI * u) / (2 * Math.PI), 0, 1);
+        return Math.pow(v, 1 / k);
+    }
+    // Saturation curve amount (gain - 1), see GVF_SATURATION_SETTINGS
+    function userSaturationAmount(v) {
+        const d = GVF_SATURATION_SETTINGS.higherIsMore === false ? -normU(v) : normU(v);
+        return clamp(userFactor(d, GVF_SATURATION_SETTINGS) - 1.0, -1.0, 1.0);
+    }
+    function saturationPower() { return Math.max(0, Number(GVF_SATURATION_SETTINGS.power) || 0); }
+    // true when this amount is applied as uniform saturate (no per-pixel curve needed)
+    function saturationIsUniform(a) {
+        return saturationPower() === 0 || (a < 0 && GVF_SATURATION_SETTINGS.desaturateEvenly !== false);
+    }
+    // Vibrance curve amount (gain - 1 for grey-ish colors), see GVF_VIBRANCE_SETTINGS
+    function userVibranceAmount(v) {
+        const d = GVF_VIBRANCE_SETTINGS.higherIsMore === false ? -normU(v) : normU(v);
+        return clamp(userFactor(d, GVF_VIBRANCE_SETTINGS) - 1.0, -1.0, 1.0);
+    }
+    function vibranceSkinProtect() { return clamp(Number(GVF_VIBRANCE_SETTINGS.skinProtect) || 0, 0, 1); }
+    function vibrancePower() { return Math.max(0.5, Number(GVF_VIBRANCE_SETTINGS.power) || 3); }
+    function userBlackOffset(v) {
+        const o = userOffset(v, GVF_BLACK_SETTINGS);
+        return GVF_BLACK_SETTINGS.higherIsDarker === false ? -o : o;
+    }
+    function userWhiteOffset(v) {
+        const o = userOffset(v, GVF_WHITE_SETTINGS);
+        return GVF_WHITE_SETTINGS.higherIsBrighter === false ? -o : o;
+    }
+    // Highlights curve: peak value of in^p * (1 - in) is used to normalize the shift
+    function highlightsPower() { return Math.max(1, Number(GVF_HIGHLIGHTS_SETTINGS.power) || 3); }
+    function highlightsThreshold() { return clamp(Number(GVF_HIGHLIGHTS_SETTINGS.threshold) || 0, 0, 0.9); }
+    function highlightsCurvePeak() {
+        const p = highlightsPower();
+        return Math.pow(p / (p + 1), p) / (p + 1);
+    }
+    // Signed peak shift; limited so the curve never inverts (in either direction)
+    function userHighlightsAmount(v) {
+        const hs = GVF_HIGHLIGHTS_SETTINGS;
+        const d = hs.higherIsBrighter ? normU(v) : -normU(v);
+        const p = highlightsPower(), range = 1 - highlightsThreshold(), peak = highlightsCurvePeak();
+        // steepest rise of t^p * (1 - t), limits darkening
+        let maxRise = 0;
+        for (let i = 1; i < 200; i++) {
+            const t = i / 200;
+            maxRise = Math.max(maxRise, p * Math.pow(t, p - 1) - (p + 1) * Math.pow(t, p));
+        }
+        const darkCap = Math.min(Math.max(0, Number(hs.maxDarken) || 0), 0.95 * peak * range / Math.max(maxRise, 0.0001));
+        return clamp(d * hs.perStep, -darkCap, peak * range * 0.95);
+    }
+    function highlightsCurve(x, amount) {
+        const th = highlightsThreshold();
+        if (x <= th) return clamp(x, 0, 1);
+        const t = (x - th) / (1 - th);
+        return clamp(x + (amount / highlightsCurvePeak()) * Math.pow(t, highlightsPower()) * (1 - t), 0, 1);
+    }
+    // Hue rotation as RGB 3x3 matrix (rows), rotation of (Cb, Cr) around the luma axis
+    function hueRotationMatrix(deg) {
+        const t = deg * Math.PI / 180, cs = Math.cos(t), sn = Math.sin(t);
+        const lr = 0.2126, lg = 0.7152, lb = 0.0722, kb = 1.8556, kr = 1.5748;
+        const rot = (c) => {
+            const y = lr * c[0] + lg * c[1] + lb * c[2];
+            const cb = (c[2] - y) / kb, cr = (c[0] - y) / kr;
+            const cb2 = cs * cb - sn * cr, cr2 = sn * cb + cs * cr;
+            const r = y + kr * cr2, b = y + kb * cb2;
+            return [r, (y - lr * r - lb * b) / lg, b];
+        };
+        const cr = rot([1, 0, 0]), cg = rot([0, 1, 0]), cbl = rot([0, 0, 1]);
+        return [
+            [cr[0], cg[0], cbl[0]],
+            [cr[1], cg[1], cbl[1]],
+            [cr[2], cg[2], cbl[2]]
+        ];
+    }
+    function userHueDegrees(v) {
+        const hs = GVF_HUE_SETTINGS;
+        const d = hs.reverse === true ? -normU(v) : normU(v);
+        return clamp(d * hs.perStep, -hs.maxDegrees, hs.maxDegrees);
+    }
+    function hueSkinProtect() { return clamp(Number(GVF_HUE_SETTINGS.skinProtect) || 0, 0, 1); }
+    function userGrainAmount(v) {
+        const gs = GVF_GRAIN_SETTINGS;
+        const d = gs.higherIsMore ? normU(v) : -normU(v);
+        return Math.max(0, d * gs.perStep);
+    }
+    function grainPower() { return Math.max(0, Number(GVF_GRAIN_SETTINGS.power) || 0); }
+    function grainPeak() { return clamp(Number(GVF_GRAIN_SETTINGS.peak) || 0.5, 0.2, 0.8); }
+    // exponent that moves the peak to 0.5 (peak^k = 0.5)
+    function grainPeakExp() { return Math.log(0.5) / Math.log(grainPeak()); }
+    function grainColorAmount() { return clamp(Number(GVF_GRAIN_SETTINGS.colorAmount) || 0, 0, 1); }
+    // Grain weight by luma (0..1): strongest at the peak, 0 at black and white
+    function grainWeight(l) {
+        const p = grainPower();
+        if (p === 0) return 1;
+        const lk = Math.pow(clamp(l, 0, 1), grainPeakExp());
+        return Math.pow(clamp(4 * lk * (1 - lk), 0, 1), p);
+    }
+    // Black/White Level -> levels mapping (input black/white point, output black/white)
+    function userLevels() {
+        const b = userBlackOffset(u_black);
+        const w = userWhiteOffset(u_white);
+        return {
+            inBlack: Math.max(0, b),
+            inWhite: 1 - Math.max(0, w),
+            outBlack: Math.max(0, -b),
+            outWhite: 1 + Math.min(0, w)
+        };
+    }
+    function userLevelsActive() { return normU(u_black) !== 0 || normU(u_white) !== 0; }
+    function levelsSoftness(cfg) { return clamp(Number(cfg.softness) || 0, 0, 0.5); }
+    // Smooth toe: 0 below -k, (t + k)^2 / (4k) between, t above k (C1-continuous)
+    function softToe(t, k) {
+        if (k <= 0) return Math.max(0, t);
+        if (t <= -k) return 0;
+        if (t >= k) return t;
+        return (t + k) * (t + k) / (4 * k);
+    }
+    function levelsCurve(x, L) {
+        let t = (x - L.inBlack) / Math.max(L.inWhite - L.inBlack, 0.0001);
+        if (L.inBlack > 0.0001) t = softToe(t, levelsSoftness(GVF_BLACK_SETTINGS));
+        if (L.inWhite < 0.9999) t = 1 - softToe(1 - t, levelsSoftness(GVF_WHITE_SETTINGS));
+        t = clamp(t, 0, 1);
+        return L.outBlack + (L.outWhite - L.outBlack) * t;
+    }
+    // Shadows curve: mirror of the highlights curve, peak of in * (1 - in)^p normalizes the shift
+    function shadowsCurvePower() { return Math.max(1, Number(GVF_SHADOWS_SETTINGS.power) || 3); }
+    function shadowsCurvePeak() {
+        const p = shadowsCurvePower();
+        return Math.pow(p / (p + 1), p) / (p + 1);
+    }
+    function shadowsThreshold() { return clamp(Number(GVF_SHADOWS_SETTINGS.threshold) || 1, 0.1, 1); }
+    // Signed peak shift; limited so the curve never inverts (in either direction)
+    function userShadowsAmount(v) {
+        const ss = GVF_SHADOWS_SETTINGS;
+        const d = ss.higherIsDarker ? -normU(v) : normU(v);
+        const p = shadowsCurvePower(), range = shadowsThreshold(), peak = shadowsCurvePeak();
+        // steepest fall of t * (1 - t)^p, limits brightening
+        let maxFall = 0;
+        for (let i = 1; i < 200; i++) {
+            const t = i / 200;
+            maxFall = Math.max(maxFall, -(Math.pow(1 - t, p) - p * t * Math.pow(1 - t, p - 1)));
+        }
+        const brightCap = Math.min(Math.max(0, Number(ss.maxBrighten) || 0), 0.95 * peak * range / Math.max(maxFall, 0.0001));
+        return clamp(d * ss.perStep, -peak * range * 0.95, brightCap);
+    }
+    function shadowsCurve(x, amount) {
+        const th = shadowsThreshold();
+        if (x >= th) return clamp(x, 0, 1);
+        const t = Math.max(0, x) / th;
+        return clamp(x + (amount / shadowsCurvePeak()) * t * Math.pow(1 - t, shadowsCurvePower()), 0, 1);
+    }
+    function glslFloat(x) { return Number(x).toFixed(4); }
+    function userSharpenValue(v) { return GVF_SHARPEN_SETTINGS.higherIsSharper === false ? -uDelta(v) : uDelta(v); }
+    function sharpenLightHalo() { return clamp(Number(GVF_SHARPEN_SETTINGS.lightHalo ?? 1), 0, 1); }
+    function sharpenDarkHalo() { return clamp(Number(GVF_SHARPEN_SETTINGS.darkHalo ?? 1), 0, 1); }
+    function sharpenSkinProtect() { return clamp(Number(GVF_SHARPEN_SETTINGS.skinProtect) || 0, 0, 1); }
+    // Sharpen detail curve: detail d -> brightness change (see GVF_SHARPEN_SETTINGS)
+    function sharpenCurve(d, amount) {
+        const ss = GVF_SHARPEN_SETTINGS;
+        const m = Math.max(0.001, Number(ss.maxChange) || 0.15);
+        const t = Math.max(0, Number(ss.noiseThreshold) || 0);
+        const ad = Math.abs(d);
+        let gate = 1;
+        if (t > 0) { const k = clamp(ad / (2 * t), 0, 1); gate = k * k * (3 - 2 * k); }
+        const y = amount * d * gate / m;
+        return m * y / Math.sqrt(1 + y * y);
+    }
     function uDelta(v) { return normU(v); }
     function normRGB(v) { return clamp(Math.round(Number(v) || 128), 0, 255); }
     function rgbGainToFactor(v) { return (normRGB(v) / 128); }
@@ -9407,7 +9941,7 @@ function downloadBlob(blob, filename) {
                 hue: 0.0,
                 cosHue: 1.0,
                 sinHue: 0.0,
-                vibrance: 1.0,
+                vibrance: 0.0,
                 black: 0.0,
                 white: 1.0
             };
@@ -9575,13 +10109,18 @@ if (!gl) {
                 uniform vec2 uResolution;
 
                 uniform vec4 uParams;      // x:contrast, y:saturation, z:brightness, w:sharpen
-                uniform vec4 uParams2;      // x:gamma, y:grain, z:vibrance, w:hdr
-                uniform vec4 uRGBGain;      // x:rGain, y:gGain, z:bGain, w:unused
+                uniform vec4 uParams2;      // x:gamma, y:grain, z:vibrance curve amount, w:hdr
+                uniform vec4 uRGBGain;      // x:rGain, y:gGain, z:bGain, w:highlights amount
                 uniform vec2 uHueRotate;    // x:cosHue, y:sinHue
                 uniform mat4 uProfileMatrix;
                 uniform mat4 uAutoMatrix;
                 uniform float uLutActive;
                 uniform float uEdge;
+                uniform float uShadows;    // shadows curve amount
+                uniform vec4 uLevels;      // x:inBlack, y:inWhite, z:outBlack, w:outWhite
+                uniform float uContrastCurve; // contrast S-curve amount
+                uniform float uSatCurve;   // saturation curve amount
+                uniform float uGrainCurve; // grading grain amount (luma-weighted)
                 uniform float uAvgLum;   // per-frame mean luminance [0..1]
 
                 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
@@ -9635,22 +10174,16 @@ if (!gl) {
                     color = ACESOutputMat * color;
                     return clamp(color, 0.0, 1.0);
                 }
+                // True hue rotation: rotate (Cb, Cr) around the luma axis (BT.709), luma stays the same
                 vec3 applyHueRotate(vec3 color, float cosHue, float sinHue) {
-                    float lr = LUMA.r, lg = LUMA.g, lb = LUMA.b;
-                    float a00 = lr + cosHue*(1.0-lr) + sinHue*(-lr);
-                    float a01 = lg + cosHue*(-lg) + sinHue*(-lg);
-                    float a02 = lb + cosHue*(-lb) + sinHue*(1.0-lb);
-                    float a10 = lr + cosHue*(-lr) + sinHue*(0.143);
-                    float a11 = lg + cosHue*(1.0-lg) + sinHue*(0.140);
-                    float a12 = lb + cosHue*(-lb) + sinHue*(-0.283);
-                    float a20 = lr + cosHue*(-lr) + sinHue*(-(1.0-lr));
-                    float a21 = lg + cosHue*(-lg) + sinHue*(lg);
-                    float a22 = lb + cosHue*(1.0-lb) + sinHue*(lb);
-                    return vec3(
-                        a00*color.r + a01*color.g + a02*color.b,
-                        a10*color.r + a11*color.g + a12*color.b,
-                        a20*color.r + a21*color.g + a22*color.b
-                    );
+                    float y = dot(color, LUMA);
+                    float cb = (color.b - y) / 1.8556;
+                    float cr = (color.r - y) / 1.5748;
+                    float cb2 = cosHue * cb - sinHue * cr;
+                    float cr2 = sinHue * cb + cosHue * cr;
+                    float r = y + 1.5748 * cr2;
+                    float b = y + 1.8556 * cb2;
+                    return vec3(r, (y - LUMA.r * r - LUMA.b * b) / LUMA.g, b);
                 }
 
                 vec3 applyColorMatrix(vec3 color, mat4 m) {
@@ -9673,34 +10206,81 @@ if (!gl) {
                     // Auto Matrix (scene match — applied early, in raw space)
                     color = applyColorMatrix(color, uAutoMatrix);
 
-                    // Hue Rotate
-                    color = applyHueRotate(color, uHueRotate.x, uHueRotate.y);
-
                     // Decode to perceptual space (approx sRGB gamma) so ops match CSS filter behavior
                     color = pow(max(color, vec3(0.0001)), vec3(1.0 / 2.2));
 
-                    // Vibrance
-                    float luma = dot(color, LUMA);
-                    vec3 delta = color - luma;
-                    color = luma + delta * uParams2.z;
+                    // Hue Rotate (perceptual space, same as SVG mode)
+                    ${hueSkinProtect() > 0
+                        ? `{ float hsk = ${glslFloat(hueSkinProtect())} * clamp((color.r - color.g) * 8.0, 0.0, 1.0) * clamp((color.g - color.b) * 8.0, 0.0, 1.0);
+                    color = mix(applyHueRotate(color, uHueRotate.x, uHueRotate.y), color, hsk); } // skin protect`
+                        : 'color = applyHueRotate(color, uHueRotate.x, uHueRotate.y);'}
+
+                    // Vibrance curve (user control): muted colors boosted most, vivid colors almost unchanged
+                    if (abs(uParams2.z) > 0.0001) {
+                        float lv = dot(color, LUMA);
+                        float mv = (color.r + color.g + color.b) / 3.0;
+                        float sv = clamp((abs(color.r - mv) + abs(color.g - mv) + abs(color.b - mv)) * 0.75, 0.0, 1.0);
+                        float vg = 1.0 + uParams2.z * pow(max(1.0 - sv, 0.0001), ${glslFloat(vibrancePower())})
+                            ${vibranceSkinProtect() > 0 ? `* (1.0 - ${glslFloat(vibranceSkinProtect())} * clamp((color.r - color.g) * 8.0, 0.0, 1.0) * clamp((color.g - color.b) * 8.0, 0.0, 1.0))` : ''};
+                        color = lv + (color - lv) * vg;
+                    }
 
                     // Saturation (recalc luma after vibrance to avoid double-shift)
                     float luma2 = dot(color, LUMA);
                     color = luma2 + uParams.y * (color - luma2);
 
+                    // Saturation curve (user control): grey and fully saturated colors stay fixed
+                    if (abs(uSatCurve) > 0.0001) {
+                        float ls = dot(color, LUMA);
+                        float mn = (color.r + color.g + color.b) / 3.0;
+                        float sm = clamp((abs(color.r - mn) + abs(color.g - mn) + abs(color.b - mn)) * 0.75, 0.0, 1.0);
+                        float sw = ${saturationPower() === 0 ? '1.0' : `pow(max(1.0 - sm, 0.0001), ${glslFloat(saturationPower())})`};
+                        float sg = ${GVF_SATURATION_SETTINGS.desaturateEvenly !== false ? 'uSatCurve > 0.0 ? 1.0 + uSatCurve * sw : 1.0 + uSatCurve' : '1.0 + uSatCurve * sw'};
+                        color = ls + (color - ls) * sg;
+                    }
+
                     // Contrast & Brightness
                     color = (color - 0.5) * uParams.x + 0.5;
                     color *= uParams.z;
 
+                    // Black/White Level (user control): levels black and white point
+                    if (uLevels.x > 0.0001 || uLevels.y < 0.9999 || uLevels.z > 0.0001 || uLevels.w < 0.9999) {
+                        vec3 lt = (color - uLevels.x) / max(uLevels.y - uLevels.x, 0.0001);
+                        ${levelsSoftness(GVF_BLACK_SETTINGS) > 0 ? `if (uLevels.x > 0.0001) { float kb = ${glslFloat(levelsSoftness(GVF_BLACK_SETTINGS))}; vec3 tb = clamp(lt + kb, 0.0, 2.0 * kb); lt = mix(tb * tb / (4.0 * kb), lt, step(vec3(kb), lt)); } // soft black toe` : '// soft black toe off'}
+                        ${levelsSoftness(GVF_WHITE_SETTINGS) > 0 ? `if (uLevels.y < 0.9999) { float kw = ${glslFloat(levelsSoftness(GVF_WHITE_SETTINGS))}; vec3 uw = 1.0 - lt; vec3 tw = clamp(uw + kw, 0.0, 2.0 * kw); lt = 1.0 - mix(tw * tw / (4.0 * kw), uw, step(vec3(kw), uw)); } // soft white shoulder` : '// soft white shoulder off'}
+                        lt = clamp(lt, 0.0, 1.0);
+                        color = uLevels.z + (uLevels.w - uLevels.z) * lt;
+                    }
+
+                    // Contrast (user control): S-curve around the pivot, black, white and pivot stay fixed
+                    if (abs(uContrastCurve) > 0.0001) {
+                        vec3 cc = clamp(color, 0.0, 1.0);
+                        ${Math.abs(contrastPivotExp() - 1) > 0.0001 ? `cc = pow(max(cc, vec3(0.0)), vec3(${glslFloat(contrastPivotExp())})); // pivot -> 0.5` : '// pivot = 0.5'}
+                        cc = clamp(cc - uContrastCurve * sin(6.2831853 * cc) * 0.1591549, 0.0, 1.0);
+                        ${Math.abs(contrastPivotExp() - 1) > 0.0001 ? `cc = pow(max(cc, vec3(0.0)), vec3(${glslFloat(1 / contrastPivotExp())})); // back from 0.5 to pivot` : '// pivot = 0.5'}
+                        color = cc;
+                    }
+
+                    // Shadows (user control): dark tones only, black and white stay fixed
+                    if (abs(uShadows) > 0.0001) {
+                        vec3 sc = clamp(clamp(color, 0.0, 1.0) / ${glslFloat(shadowsThreshold())}, 0.0, 1.0);
+                        color += uShadows * ${glslFloat(1 / shadowsCurvePeak())} * sc * pow(max(1.0 - sc, vec3(0.0001)), vec3(${glslFloat(shadowsCurvePower())}));
+                    }
+
+                    // Highlights (user control): bright tones only, black and white stay fixed
+                    if (abs(uRGBGain.w) > 0.0001) {
+                        vec3 hc = clamp((clamp(color, 0.0, 1.0) - ${glslFloat(highlightsThreshold())}) / ${glslFloat(1 - highlightsThreshold())}, 0.0, 1.0);
+                        color += uRGBGain.w * ${glslFloat(1 / highlightsCurvePeak())} * pow(max(hc, vec3(0.0001)), vec3(${glslFloat(highlightsPower())})) * (1.0 - hc);
+                    }
+
+                    // Gamma (user control): midtone curve, black and white stay fixed
+                    float gInv = 1.0 / clampFast(uParams2.x, 0.5, 2.0);
+                    vec3 gIn = max(color, vec3(0.0));
+                    color = pow(max(gIn, vec3(0.0001)), vec3(gInv));
+                    ${gammaShadowSlope() > 0 ? `color = min(color, gIn * ${glslFloat(gammaShadowSlope())}); // shadow slope limit` : '// shadow slope limit off'}
+
                     // Re-encode to linear
                     color = pow(max(color, vec3(0.0001)), vec3(2.2));
-
-                    // Gamma (user control)
-                    float g = clampFast(uParams2.x, 0.5, 2.0);
-                    float gInv = 1.0 / mix(1.0, g, 0.25);
-                    color.r = pow(max(color.r, 0.0001), gInv);
-                    color.g = pow(max(color.g, 0.0001), gInv);
-                    color.b = pow(max(color.b, 0.0001), gInv);
 
                     // HDR (WebGL HDR-like: linear-light + exposure lift + ACES tonemapping)
                     float hdr = clampFast(uParams2.w, 0.0, 1.0);
@@ -9721,8 +10301,19 @@ if (!gl) {
                     }
                     // Grain
                     float noise = fract(sin(vTexCoord.x * 12.9898 + vTexCoord.y * 78.233) * 43758.5453);
-                    noise = (noise - 0.5) * uParams2.y;
-                    color += vec3(noise);
+                    color += vec3((noise - 0.5) * uParams2.y);
+
+                    // Grain curve (user control): strongest at the peak brightness, black and white stay clean
+                    if (uGrainCurve > 0.0001) {
+                        float glum = clamp(dot(color, LUMA), 0.0, 1.0);
+                        ${Math.abs(grainPeakExp() - 1) > 0.0001 ? `glum = pow(glum, ${glslFloat(grainPeakExp())}); // peak -> 0.5` : '// peak = 0.5'}
+                        float gw = ${grainPower() === 0 ? '1.0' : `pow(clamp(4.0 * glum * (1.0 - glum), 0.0, 1.0), ${glslFloat(grainPower())})`};
+                        vec3 gn = vec3(noise);
+                        ${grainColorAmount() > 0 ? `gn = mix(gn, vec3(noise,
+                            fract(sin(dot(vTexCoord, vec2(39.3468, 11.1351))) * 24634.6345),
+                            fract(sin(dot(vTexCoord, vec2(73.1562, 52.2351))) * 14375.8453)), ${glslFloat(grainColorAmount())}); // color grain` : '// grey grain'}
+                        color += (gn - 0.5) * uGrainCurve * gw;
+                    }
 
                     // Bilateral Denoise + CAS Sharpening (built-in, always active in GPU mode)
                     {
@@ -9756,12 +10347,22 @@ if (!gl) {
                         color = clamp((denoised + (cn + cs + ce + cw2) * amp) * rcpW, 0.0, 1.0);
                     }
 
-                    // Additional luma sharpen from SL slider
-                    if (uParams.w > 0.0) {
-                        float lumaOrig = dot(color, LUMA);
-                        float lumaSharpened = clampFast(lumaOrig * (1.0 + uParams.w * 0.5), 0.0, 1.0);
-                        float lumaDelta = lumaSharpened - lumaOrig;
-                        color = clamp(color + lumaDelta, 0.0, 1.0);
+                    // Luma detail curve (SL slider + grading Sharpen): > 0 sharpens edges, < 0 softens
+                    if (abs(uParams.w) > 0.0001) {
+                        vec2 spx = vec2(1.0 / max(uResolution.x, 1.0), 1.0 / max(uResolution.y, 1.0));
+                        float lc = sampleLuma(vTexCoord);
+                        float lavg = (sampleLuma(vTexCoord + vec2( 0.0, -1.0) * spx)
+                                    + sampleLuma(vTexCoord + vec2( 0.0,  1.0) * spx)
+                                    + sampleLuma(vTexCoord + vec2(-1.0,  0.0) * spx)
+                                    + sampleLuma(vTexCoord + vec2( 1.0,  0.0) * spx)) * 0.25;
+                        // Detail curve (see GVF_SHARPEN_SETTINGS): noise gate + soft limit
+                        float sd = lc - lavg;
+                        float sgate = ${(Number(GVF_SHARPEN_SETTINGS.noiseThreshold) || 0) > 0 ? `smoothstep(0.0, ${glslFloat(2 * GVF_SHARPEN_SETTINGS.noiseThreshold)}, abs(sd))` : '1.0'};
+                        float sy = sd * sgate * uParams.w * ${glslFloat(GVF_SHARPEN_SETTINGS.maxAmount)} / ${glslFloat(Math.max(0.001, Number(GVF_SHARPEN_SETTINGS.maxChange) || 0.15))};
+                        float lumaDelta = ${glslFloat(Math.max(0.001, Number(GVF_SHARPEN_SETTINGS.maxChange) || 0.15))} * sy / sqrt(1.0 + sy * sy);
+                        lumaDelta *= lumaDelta > 0.0 ? ${glslFloat(sharpenLightHalo())} : ${glslFloat(sharpenDarkHalo())}; // halo balance
+                        ${sharpenSkinProtect() > 0 ? `lumaDelta *= 1.0 - ${glslFloat(sharpenSkinProtect())} * clamp((color.r - color.g) * 8.0, 0.0, 1.0) * clamp((color.g - color.b) * 8.0, 0.0, 1.0); // skin protect` : '// skin protect off'}
+                        color = clamp(color + vec3(lumaDelta), 0.0, 1.0);
                     }
 
                     // Real edge detection: Sobel on source luma, then darken only true edges.
@@ -9893,6 +10494,11 @@ if (!gl) {
             this.uProfileMatrix = gl.getUniformLocation(this.program, 'uProfileMatrix');
             this.uAutoMatrix = gl.getUniformLocation(this.program, 'uAutoMatrix');
             this.uEdge = gl.getUniformLocation(this.program, 'uEdge');
+            this.uShadows = gl.getUniformLocation(this.program, 'uShadows');
+            this.uLevels = gl.getUniformLocation(this.program, 'uLevels');
+            this.uContrastCurve = gl.getUniformLocation(this.program, 'uContrastCurve');
+            this.uSatCurve = gl.getUniformLocation(this.program, 'uSatCurve');
+            this.uGrainCurve = gl.getUniformLocation(this.program, 'uGrainCurve');
             this.uAvgLum = gl.getUniformLocation(this.program, 'uAvgLum');
             this.uLutActive = gl.getUniformLocation(this.program, 'uLutActive');
 
@@ -10000,23 +10606,19 @@ if (!gl) {
         }
 
         updateParams() {
-            let contrast = 1.0 + (u_contrast * 0.04);
-            let saturation = 1.0 + (u_sat * 0.05);
-            // Match SVG formula: br = 1.0 + (-blk + wht + sh + hi) * 0.6
-            const _blk = Math.min(Math.max(u_black * 0.012, -0.12), 0.12);
-            const _wht = Math.min(Math.max(u_white * 0.012, -0.12), 0.12);
-            const _sh  = Math.min(Math.max(u_shadows * 0.010, -0.10), 0.10);
-            const _hi  = Math.min(Math.max(u_highlights * 0.010, -0.10), 0.10);
-            let brightness = Math.min(Math.max(1.0 + (-_blk + _wht + _sh + _hi) * 0.6, 0.70), 1.35);
+            let contrast = 1.0; // grading Contrast is applied as S-curve in the shader (uContrastCurve)
+            let saturation = 1.0; // grading Saturation is applied as curve in the shader (uSatCurve)
+            // Black/White Level are applied as levels in the shader (uLevels)
+            let brightness = 1.0;
 
             let rGain = u_r_gain / 128.0;
             let gGain = u_g_gain / 128.0;
             let bGain = u_b_gain / 128.0;
 
             if (enabled) {
-                contrast *= 1.05;
-                saturation *= 1.15;
-                brightness *= 1.02;
+                contrast *= GVF_BASE_SETTINGS.contrast;
+                saturation *= GVF_BASE_SETTINGS.saturation;
+                brightness *= GVF_BASE_SETTINGS.brightness;
             }
 
             if (profile === 'film') {
@@ -10035,24 +10637,24 @@ if (!gl) {
             }
 
             if (darkMoody) {
-                saturation *= 0.92;
-                brightness *= 0.96;
+                saturation *= GVF_MOODY_SETTINGS.gpuSaturation;
+                brightness *= GVF_MOODY_SETTINGS.gpuBrightness;
             }
 
             if (vibrantSat) {
-                saturation *= 1.35;
+                saturation *= GVF_VIBRANT_SETTINGS.saturation;
             }
 
-            let sharpen = Math.max(0, normSL() * 0.3) + Math.max(0, u_sharp * 0.015);
-            let grain = Math.max(0, -normDN() * 0.2) + Math.max(0, -u_grain * 0.01);
-            let gamma = 1.0 + u_gamma * 0.025; // used as brightness/contrast approx, not pow
-            let vibrance = 1.0 + u_vib * 0.02;
+            let sharpen = Math.max(0, normSL() * 0.3) + userSharpenValue(u_sharp) * GVF_SHARPEN_SETTINGS.webglPerStep;
+            let grain = Math.max(0, -normDN() * 0.2); // grading Grain uses its own curve (uGrainCurve)
+            let gamma = userGammaValue(u_gamma); // real gamma curve in the shader (out = in^(1/g))
+            let vibrance = userVibranceAmount(u_vib); // curve amount, applied in the shader
             let hdrVal = normHDR();
             let edgeVal = normEDGE();
 
-            let hue = u_hue * 3;
+            let hue = userHueDegrees(u_hue);
             if (tealOrange) {
-                hue += -5;
+                hue += GVF_TEAL_SETTINGS.gpuHueShift;
             }
             let hueRad = hue * Math.PI / 180;
 
@@ -10061,7 +10663,7 @@ if (!gl) {
             let effectiveHdr = clamp(hdrVal, -1.0, 2.0);
             if (effectiveHdr > 0) {
                 // Clamp HDR intensity in GPU mode so the shader does not run at the most expensive path.
-                effectiveHdr = Math.min(effectiveHdr, activeVisibleVideos >= 2 ? 0.42 : 0.65);
+                effectiveHdr = Math.min(effectiveHdr, activeVisibleVideos >= 2 ? GVF_HDR_SETTINGS.gpuMaxMultiVideo : GVF_HDR_SETTINGS.gpuMaxSingleVideo);
                 effectiveHdr *= hdrWarmupFactor;
             }
 
@@ -10069,15 +10671,21 @@ if (!gl) {
                 contrast: clamp(contrast, 0.5, 2.0),
                 saturation: clamp(saturation, 0.0, 3.0),
                 brightness: clamp(brightness, 0.5, 2.0),
-                sharpen: clamp(sharpen, 0.0, 2.0),
+                sharpen: clamp(sharpen, -1.0, 2.0),
                 gamma: clamp(gamma, 0.5, 2.0),
                 grain: clamp(grain, 0.0, 0.5),
-                vibrance: clamp(vibrance, 0.0, 2.0),
+                vibrance: clamp(vibrance, -1.0, 1.0),
                 hdr: effectiveHdr,
                 edge: clamp(edgeVal, 0.0, 1.0),
                 rGain: clamp(rGain, 0.0, 2.0),
                 gGain: clamp(gGain, 0.0, 2.0),
                 bGain: clamp(bGain, 0.0, 2.0),
+                highlights: userHighlightsAmount(u_highlights),
+                shadows: userShadowsAmount(u_shadows),
+                levels: userLevels(),
+                contrastCurve: userContrastAmount(u_contrast),
+                satCurve: userSaturationAmount(u_sat),
+                grainCurve: userGrainAmount(u_grain),
                 hue: hue,
                 cosHue: Math.cos(hueRad),
                 sinHue: Math.sin(hueRad)
@@ -10223,11 +10831,27 @@ if (!gl) {
                     this.params.rGain,
                     this.params.gGain,
                     this.params.bGain,
-                    1.0
+                    this.params.highlights || 0.0
                 );
 
                 if (this.uEdge !== null) {
                     gl.uniform1f(this.uEdge, this.params.edge);
+                }
+                if (this.uShadows) {
+                    gl.uniform1f(this.uShadows, this.params.shadows || 0.0);
+                }
+                if (this.uGrainCurve) {
+                    gl.uniform1f(this.uGrainCurve, this.params.grainCurve || 0.0);
+                }
+                if (this.uSatCurve) {
+                    gl.uniform1f(this.uSatCurve, this.params.satCurve || 0.0);
+                }
+                if (this.uContrastCurve) {
+                    gl.uniform1f(this.uContrastCurve, this.params.contrastCurve || 0.0);
+                }
+                if (this.uLevels) {
+                    const lv = this.params.levels || { inBlack: 0, inWhite: 1, outBlack: 0, outWhite: 1 };
+                    gl.uniform4f(this.uLevels, lv.inBlack, lv.inWhite, lv.outBlack, lv.outWhite);
                 }
                 if (this.uAvgLum !== null) {
                     const fs = window.__gvfFrameStats;
@@ -10438,9 +11062,9 @@ if (!gl) {
         const filters = [];
 
         if (enabled) {
-            filters.push('brightness(1.02)');
-            filters.push('contrast(1.05)');
-            filters.push('saturate(1.15)');
+            filters.push(`brightness(${GVF_BASE_SETTINGS.brightness})`);
+            filters.push(`contrast(${GVF_BASE_SETTINGS.contrast})`);
+            filters.push(`saturate(${GVF_BASE_SETTINGS.saturation})`);
         }
 
         const slVal = normSL();
@@ -10466,8 +11090,8 @@ if (!gl) {
 
         const hdrVal = normHDR();
         if (hdrVal > 0) {
-            const hdrContrast = 1 + (hdrVal * 0.15);
-            const hdrSaturate = 1 + (hdrVal * 0.1);
+            const hdrContrast = 1 + (hdrVal * GVF_HDR_SETTINGS.gpuContrastPerStep);
+            const hdrSaturate = 1 + (hdrVal * GVF_HDR_SETTINGS.gpuSaturationPerStep);
             filters.push(`contrast(${hdrContrast.toFixed(2)})`);
             filters.push(`saturate(${hdrSaturate.toFixed(2)})`);
         } else if (hdrVal < 0) {
@@ -10476,18 +11100,18 @@ if (!gl) {
         }
 
         if (darkMoody) {
-            filters.push('brightness(0.96)');
-            filters.push('saturate(0.92)');
+            filters.push(`brightness(${GVF_MOODY_SETTINGS.gpuBrightness})`);
+            filters.push(`saturate(${GVF_MOODY_SETTINGS.gpuSaturation})`);
         }
 
         if (tealOrange) {
-            filters.push('sepia(0.15)');
-            filters.push('hue-rotate(-5deg)');
-            filters.push('saturate(1.1)');
+            filters.push(`sepia(${GVF_TEAL_SETTINGS.gpuSepia})`);
+            filters.push(`hue-rotate(${GVF_TEAL_SETTINGS.gpuHueShift}deg)`);
+            filters.push(`saturate(${GVF_TEAL_SETTINGS.gpuSaturation})`);
         }
 
         if (vibrantSat) {
-            filters.push('saturate(1.35)');
+            filters.push(`saturate(${GVF_VIBRANT_SETTINGS.saturation})`);
         }
 
         if (profile === 'film') {
@@ -10503,32 +11127,6 @@ if (!gl) {
         }
 
         if (profile === 'user') {
-            if (u_contrast !== 0) {
-                const c = 1 + (u_contrast * 0.04);
-                filters.push(`contrast(${c.toFixed(2)})`);
-            }
-            if (u_sat !== 0) {
-                const sat = 1 + (u_sat * 0.05);
-                filters.push(`saturate(${sat.toFixed(2)})`);
-            }
-            if (u_vib !== 0) {
-                const vib = 1 + (u_vib * 0.02);
-                filters.push(`saturate(${vib.toFixed(2)})`);
-            }
-            if (u_hue !== 0) {
-                const hue = u_hue * 3;
-                filters.push(`hue-rotate(${hue.toFixed(1)}deg)`);
-            }
-            if (u_black !== 0 || u_white !== 0) {
-                const blk = u_black * 0.012;
-                const wht = u_white * 0.012;
-                const br = 1 + (-blk + wht) * 0.6;
-                filters.push(`brightness(${br.toFixed(2)})`);
-            }
-            if (u_gamma !== 0) {
-                const g = 1 + (u_gamma * 0.025);
-                filters.push(`brightness(${g.toFixed(2)})`);
-            }
         }
 
         // Color blindness filter for GPU mode
@@ -14624,6 +15222,760 @@ const fileInput = document.createElement('input');
         return overlay;
     }
 
+    // -------------------------
+    // Expert Settings modal (IO HUD -> Expert)
+    // Edits the GVF_*_SETTINGS blocks live, see GVF_EXPERT_TARGETS / saveExpertSettings
+    // -------------------------
+    const EXPERT_MODAL_ID = 'gvf-expert-modal';
+
+    // UI description of every setting: type num | bool | rgb | mat3
+    const GVF_EXPERT_UI = [
+        {
+            section: 'Grading HUD', name: 'GVF_CONTRAST_SETTINGS', title: 'Contrast', hotkey: 'Ctrl+Alt+G',
+            desc: 'S-curve around a pivot tone. Black, white and the pivot stay fixed, nothing is clipped.',
+            fields: [
+                { k: 'higherIsMore', label: 'Higher = more contrast', type: 'bool', desc: 'Slider direction. Off reverses the slider.' },
+                { k: 'perStep', label: 'Strength per step', type: 'num', min: 0.005, max: 0.09, step: 0.005, desc: 'How much each slider step changes the contrast.' },
+                { k: 'min', label: 'Lowest contrast', type: 'num', min: 0.1, max: 1, step: 0.01, desc: 'Limit for the flattest curve (slider at the low end).' },
+                { k: 'max', label: 'Highest contrast', type: 'num', min: 1, max: 1.95, step: 0.01, desc: 'Limit for the steepest curve (slider at the high end).' },
+                { k: 'pivot', label: 'Pivot tone', type: 'num', min: 0.2, max: 0.8, step: 0.01, desc: 'Tone that stays fixed. Lower = contrast turns around darker tones (good for dark videos).' }
+            ]
+        },
+        {
+            section: 'Grading HUD', name: 'GVF_BLACK_SETTINGS', title: 'Black Level', hotkey: 'Ctrl+Alt+G',
+            desc: 'Black point like in a levels tool: deepen or lift the blacks.',
+            fields: [
+                { k: 'higherIsDarker', label: 'Higher = deeper blacks', type: 'bool', desc: 'Slider direction. Off reverses the slider.' },
+                { k: 'perStep', label: 'Shift per step', type: 'num', min: 0.002, max: 0.03, step: 0.001, desc: 'How far each slider step moves the black point.' },
+                { k: 'maxOffset', label: 'Max shift', type: 'num', min: 0.02, max: 0.3, step: 0.01, desc: 'Limit of the black point shift in both directions.' },
+                { k: 'softness', label: 'Softness', type: 'num', min: 0, max: 0.2, step: 0.01, desc: 'Smooth transition into black instead of a hard cut. 0 = hard.' }
+            ]
+        },
+        {
+            section: 'Grading HUD', name: 'GVF_WHITE_SETTINGS', title: 'White Level', hotkey: 'Ctrl+Alt+G',
+            desc: 'White point like in a levels tool: brighten or lower the whites.',
+            fields: [
+                { k: 'higherIsBrighter', label: 'Higher = brighter whites', type: 'bool', desc: 'Slider direction. Off reverses the slider.' },
+                { k: 'perStep', label: 'Shift per step', type: 'num', min: 0.002, max: 0.03, step: 0.001, desc: 'How far each slider step moves the white point.' },
+                { k: 'maxOffset', label: 'Max shift', type: 'num', min: 0.02, max: 0.3, step: 0.01, desc: 'Limit of the white point shift in both directions.' },
+                { k: 'softness', label: 'Softness', type: 'num', min: 0, max: 0.2, step: 0.01, desc: 'Smooth transition into white instead of a hard cut. 0 = hard.' }
+            ]
+        },
+        {
+            section: 'Grading HUD', name: 'GVF_HIGHLIGHTS_SETTINGS', title: 'Highlights', hotkey: 'Ctrl+Alt+G',
+            desc: 'Tone curve for bright tones only. Black and white stay fixed.',
+            fields: [
+                { k: 'higherIsBrighter', label: 'Higher = brighter highlights', type: 'bool', desc: 'Slider direction. Off reverses the slider.' },
+                { k: 'perStep', label: 'Strength per step', type: 'num', min: 0.002, max: 0.03, step: 0.001, desc: 'How much each slider step brightens or darkens the highlights.' },
+                { k: 'power', label: 'Focus', type: 'num', min: 1, max: 8, step: 0.5, desc: 'Higher = only the very brightest tones are affected.' },
+                { k: 'threshold', label: 'Start tone', type: 'num', min: 0, max: 0.9, step: 0.01, desc: 'Tones below this stay completely untouched. 0 = whole range.' },
+                { k: 'maxDarken', label: 'Max darkening', type: 'num', min: 0, max: 0.6, step: 0.01, desc: 'Strongest allowed darkening of the highlights.' }
+            ]
+        },
+        {
+            section: 'Grading HUD', name: 'GVF_SHADOWS_SETTINGS', title: 'Shadows', hotkey: 'Ctrl+Alt+G',
+            desc: 'Tone curve for dark tones only. Black and white stay fixed.',
+            fields: [
+                { k: 'higherIsDarker', label: 'Higher = darker shadows', type: 'bool', desc: 'Slider direction. Off reverses the slider.' },
+                { k: 'perStep', label: 'Strength per step', type: 'num', min: 0.002, max: 0.03, step: 0.001, desc: 'How much each slider step darkens or lifts the shadows.' },
+                { k: 'power', label: 'Focus', type: 'num', min: 1, max: 8, step: 0.5, desc: 'Higher = only the very darkest tones are affected.' },
+                { k: 'threshold', label: 'End tone', type: 'num', min: 0.1, max: 1, step: 0.01, desc: 'Tones above this stay completely untouched. 1 = whole range.' },
+                { k: 'maxBrighten', label: 'Max lifting', type: 'num', min: 0, max: 0.6, step: 0.01, desc: 'Strongest allowed lifting of the shadows.' }
+            ]
+        },
+        {
+            section: 'Grading HUD', name: 'GVF_SATURATION_SETTINGS', title: 'Saturation', hotkey: 'Ctrl+Alt+G',
+            desc: 'Saturation curve: muted colors get the full boost, vivid colors less, so nothing clips.',
+            fields: [
+                { k: 'higherIsMore', label: 'Higher = more color', type: 'bool', desc: 'Slider direction. Off reverses the slider.' },
+                { k: 'perStep', label: 'Strength per step', type: 'num', min: 0.01, max: 0.1, step: 0.005, desc: 'How much each slider step changes the color strength.' },
+                { k: 'min', label: 'Lowest saturation', type: 'num', min: 0, max: 1, step: 0.01, desc: 'Limit when reducing color. 0 = can go fully grey.' },
+                { k: 'max', label: 'Highest saturation', type: 'num', min: 1, max: 2, step: 0.01, desc: 'Limit of the boost for muted colors.' },
+                { k: 'power', label: 'Vivid color protection', type: 'num', min: 0, max: 4, step: 0.1, desc: '0 = all colors boosted equally (may clip). Higher = vivid colors are protected more.' },
+                { k: 'desaturateEvenly', label: 'Desaturate evenly', type: 'bool', desc: 'On: lowering removes color from all colors equally. Off: vivid colors keep more color.' }
+            ]
+        },
+        {
+            section: 'Grading HUD', name: 'GVF_VIBRANCE_SETTINGS', title: 'Vibrance', hotkey: 'Ctrl+Alt+G',
+            desc: 'Boosts mainly the muted colors, vivid colors and skin tones stay natural.',
+            fields: [
+                { k: 'higherIsMore', label: 'Higher = more vibrance', type: 'bool', desc: 'Slider direction. Off reverses the slider.' },
+                { k: 'perStep', label: 'Strength per step', type: 'num', min: 0.01, max: 0.1, step: 0.005, desc: 'How much each slider step changes the muted colors.' },
+                { k: 'min', label: 'Lowest vibrance', type: 'num', min: 0, max: 1, step: 0.01, desc: 'Limit when reducing vibrance.' },
+                { k: 'max', label: 'Highest vibrance', type: 'num', min: 1, max: 2, step: 0.01, desc: 'Limit of the boost for muted colors.' },
+                { k: 'power', label: 'Focus on muted colors', type: 'num', min: 0.5, max: 6, step: 0.1, desc: 'Higher = only the most muted colors are boosted.' },
+                { k: 'skinProtect', label: 'Skin protection', type: 'num', min: 0, max: 1, step: 0.05, desc: '0 = off, 1 = skin tones are not changed at all.' }
+            ]
+        },
+        {
+            section: 'Grading HUD', name: 'GVF_GAMMA_SETTINGS', title: 'Gamma', hotkey: 'Ctrl+Alt+G',
+            desc: 'Brightens or darkens the midtones. Black and white stay fixed.',
+            fields: [
+                { k: 'higherIsBrighter', label: 'Higher = brighter midtones', type: 'bool', desc: 'Slider direction. Off reverses the slider.' },
+                { k: 'perStep', label: 'Strength per step', type: 'num', min: 0.005, max: 0.08, step: 0.005, desc: 'How much each slider step changes the midtones.' },
+                { k: 'min', label: 'Darkest midtones', type: 'num', min: 0.3, max: 1, step: 0.01, desc: 'Lower limit of the gamma value.' },
+                { k: 'max', label: 'Brightest midtones', type: 'num', min: 1, max: 3, step: 0.01, desc: 'Upper limit of the gamma value.' },
+                { k: 'maxShadowSlope', label: 'Shadow noise protection', type: 'num', min: 0, max: 6, step: 0.1, desc: 'Limits how hard near-black tones are lifted (less visible noise). 0 = off.' }
+            ]
+        },
+        {
+            section: 'Grading HUD', name: 'GVF_SHARPEN_SETTINGS', title: 'Sharpen', hotkey: 'Ctrl+Alt+G',
+            desc: 'Detail curve on brightness: real details get sharper, noise and halos are kept low.',
+            fields: [
+                { k: 'higherIsSharper', label: 'Higher = sharper', type: 'bool', desc: 'Slider direction. Off reverses the slider.' },
+                { k: 'maxAmount', label: 'Strength at +10', type: 'num', min: 0.2, max: 4, step: 0.1, desc: 'Edge boost at the highest slider value.' },
+                { k: 'lightHalo', label: 'Bright halos', type: 'num', min: 0, max: 1, step: 0.05, desc: 'Strength of the brightening side of edges. Lower = fewer bright halos.' },
+                { k: 'darkHalo', label: 'Dark halos', type: 'num', min: 0, max: 1, step: 0.05, desc: 'Strength of the darkening side of edges. Lower = fewer dark outlines.' },
+                { k: 'skinProtect', label: 'Skin protection', type: 'num', min: 0, max: 1, step: 0.05, desc: 'Less sharpening on skin (pores, blemishes). 0 = off.' },
+                { k: 'noiseThreshold', label: 'Noise threshold', type: 'num', min: 0, max: 0.05, step: 0.001, desc: 'Details smaller than this are not sharpened (noise, compression). 0 = off.' },
+                { k: 'maxChange', label: 'Max change', type: 'num', min: 0.02, max: 0.4, step: 0.01, desc: 'Soft limit of the brightness change per pixel (prevents halos).' },
+                { k: 'svgRadius', label: 'Detail radius (SVG)', type: 'num', min: 0.3, max: 3, step: 0.1, desc: 'SVG mode: size of the details that are sharpened, in pixels.' },
+                { k: 'svgMaxSoften', label: 'Soften radius (SVG)', type: 'num', min: 0.2, max: 4, step: 0.1, desc: 'SVG mode: blur radius at -10, in pixels.' },
+                { k: 'webglPerStep', label: 'Strength per step (WebGL)', type: 'num', min: 0.02, max: 0.3, step: 0.01, desc: 'WebGL: sharpening per slider step.' }
+            ]
+        },
+        {
+            section: 'Grading HUD', name: 'GVF_GRAIN_SETTINGS', title: 'Grain (Banding)', hotkey: 'Ctrl+Alt+G',
+            desc: 'Fine noise that hides color banding. Black and white stay clean.',
+            fields: [
+                { k: 'higherIsMore', label: 'Higher = more grain', type: 'bool', desc: 'Slider direction. Off reverses the slider.' },
+                { k: 'perStep', label: 'Amount per step', type: 'num', min: 0.002, max: 0.04, step: 0.001, desc: 'How much grain each slider step adds.' },
+                { k: 'power', label: 'Focus', type: 'num', min: 0, max: 4, step: 0.1, desc: 'Higher = grain only around the peak tone. 0 = even on all tones.' },
+                { k: 'peak', label: 'Peak tone', type: 'num', min: 0.2, max: 0.8, step: 0.01, desc: 'Brightness with the strongest grain. Lower = more grain in the shadows.' },
+                { k: 'colorAmount', label: 'Color grain', type: 'num', min: 0, max: 1, step: 0.05, desc: '0 = grey grain, 1 = full color grain like film.' },
+                { k: 'svgStrength', label: 'Strength (SVG)', type: 'num', min: 0.2, max: 4, step: 0.1, desc: 'SVG mode: grain strength, to match the WebGL look.' },
+                { k: 'svgFrequency', label: 'Fineness (SVG)', type: 'num', min: 0.2, max: 2, step: 0.05, desc: 'SVG mode: grain size. Higher = finer grain.' }
+            ]
+        },
+        {
+            section: 'Grading HUD', name: 'GVF_HUE_SETTINGS', title: 'Hue Correction', hotkey: 'Ctrl+Alt+G',
+            desc: 'Rotates all hues while brightness stays exactly the same. Useful against color casts.',
+            fields: [
+                { k: 'reverse', label: 'Reverse direction', type: 'bool', desc: 'On: the slider rotates the hue the other way.' },
+                { k: 'perStep', label: 'Degrees per step', type: 'num', min: 0.5, max: 10, step: 0.5, desc: 'Hue rotation per slider step.' },
+                { k: 'maxDegrees', label: 'Max rotation', type: 'num', min: 5, max: 180, step: 1, desc: 'Limit of the rotation in both directions, in degrees.' },
+                { k: 'skinProtect', label: 'Skin protection', type: 'num', min: 0, max: 1, step: 0.05, desc: 'Skin tones keep their hue. 0 = off, 1 = full protection.' }
+            ]
+        }
+    ];
+
+    let expertApplyTimer = null;
+    let expertShaderTimer = null;
+
+    // Saves the expert values and re-renders the active mode (WebGL shader rebuild is debounced)
+    function applyExpertChanges() {
+        saveExpertSettings();
+        if (expertApplyTimer) clearTimeout(expertApplyTimer);
+        expertApplyTimer = setTimeout(() => {
+            expertApplyTimer = null;
+            try {
+                if (renderMode === 'gpu') {
+                    if (expertShaderTimer) clearTimeout(expertShaderTimer);
+                    expertShaderTimer = setTimeout(() => {
+                        expertShaderTimer = null;
+                        try {
+                            // shader text contains the settings -> rebuild the pipeline
+                            if (webglPipeline) { deactivateWebGLMode(); activateWebGLMode(); }
+                            applyGpuFilter();
+                        } catch (err) { logW('Expert: GPU refresh failed', err); }
+                    }, 250);
+                } else {
+                    regenerateSvgImmediately();
+                }
+            } catch (err) { logW('Expert: refresh failed', err); }
+        }, 120);
+    }
+
+    // Open / close like the other managers: built once, then only shown / hidden
+    let expertModalVisible = false;
+
+    function updateExpertButtonState() {
+        document.querySelectorAll('.gvf-expert-btn').forEach(b => {
+            b.style.background = expertModalVisible ? 'rgba(139, 92, 246, 0.6)' : 'rgba(139, 92, 246, 0.35)';
+        });
+    }
+
+    function toggleExpertModal() {
+        expertModalVisible = !expertModalVisible;
+        let menu = document.getElementById(EXPERT_MODAL_ID);
+        if (!menu) menu = createExpertModal();
+
+        if (expertModalVisible) {
+            // In fullscreen only the fullscreen element is rendered -> mount the window there
+            const fsEl = getFsEl();
+            const host = (fsEl && fsEl.tagName !== 'VIDEO') ? fsEl : (document.body || document.documentElement);
+            if (menu.parentNode !== host) host.appendChild(menu);
+            if (typeof menu._gvfRefresh === 'function') menu._gvfRefresh();
+            menu.style.display = 'flex';
+            applyManagerPosition(menu, K.EXPERT_MANAGER_POS);
+        } else {
+            menu.style.display = 'none';
+        }
+        updateExpertButtonState();
+    }
+
+    function createExpertModal() {
+        const old = document.getElementById(EXPERT_MODAL_ID);
+        if (old) old.remove();
+
+        const ACC = '#8b5cf6';
+        const ACC_SOFT = 'rgba(139,92,246,0.18)';
+        const FONT = 'system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif';
+
+        const el = (tag, css, text) => {
+            const n = document.createElement(tag);
+            if (css) n.style.cssText = css;
+            if (text != null) n.textContent = text;
+            return n;
+        };
+        const decimals = (step) => (String(step).split('.')[1] || '').length;
+        const fmt = (v, step) => Number(v).toFixed(decimals(step));
+
+        // ---- frame: floating window like the other managers (no backdrop, draggable by the header) ----
+        const dlg = el('div', `
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 980px; max-width: 96vw; height: 84vh; max-height: 780px;
+            display: flex; flex-direction: column; overflow: hidden;
+            background: rgba(20, 20, 20, 0.98);
+            border: 2px solid ${ACC}; border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255,255,255,0.1) inset;
+            color: #eaeaea; font-family: ${FONT}; z-index: 2147483647;
+            user-select: none; pointer-events: auto;
+        `);
+        dlg.id = EXPERT_MODAL_ID;
+        stopEventsOn(dlg);
+
+        // ---- header (drag handle) ----
+        const header = el('div', `
+            display: flex; align-items: center; gap: 14px; padding: 16px 20px;
+            border-bottom: 2px solid ${ACC};
+        `);
+        const titleBox = el('div', 'flex: 1; min-width: 0;');
+        titleBox.appendChild(el('div', 'font-size: 19px; font-weight: 900; color: #fff; letter-spacing: 0.2px;', '🧪 Expert Settings'));
+        titleBox.appendChild(el('div', 'font-size: 12px; color: #a9a3c0; margin-top: 3px;',
+            'Fine-tune every curve of the Grading HUD (Ctrl+Alt+G). Changes apply instantly and are saved automatically.'));
+        const search = el('input', `
+            width: 220px; padding: 8px 12px; border-radius: 10px; outline: none;
+            border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06);
+            color: #fff; font-size: 12px; font-family: ${FONT};
+        `);
+        search.type = 'search';
+        search.placeholder = '🔍  Search settings…';
+        search.addEventListener('focus', () => { search.style.borderColor = ACC; });
+        search.addEventListener('blur', () => { search.style.borderColor = 'rgba(255,255,255,0.14)'; });
+        // same close button as the User Profile / LUT managers
+        const closeBtn = el('button', `
+            background: rgba(255, 255, 255, 0.1); color: #fff; font-size: 20px; cursor: pointer;
+            width: 36px; height: 36px; flex-shrink: 0; border-radius: 8px; padding: 0; line-height: 1;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; border: 1px solid rgba(255,255,255,0.2); font-family: ${FONT};
+        `, '✕');
+        closeBtn.type = 'button';
+        closeBtn.title = 'Close';
+        closeBtn.addEventListener('mouseenter', () => {
+            closeBtn.style.background = 'rgba(255, 68, 68, 0.3)';
+            closeBtn.style.borderColor = '#ff4444';
+        });
+        closeBtn.addEventListener('mouseleave', () => {
+            closeBtn.style.background = 'rgba(255, 255, 255, 0.1)';
+            closeBtn.style.borderColor = 'rgba(255,255,255,0.2)';
+        });
+        header.appendChild(titleBox);
+        header.appendChild(search);
+        header.appendChild(closeBtn);
+        dlg.appendChild(header);
+
+        // ---- body: nav + content ----
+        const body = el('div', 'flex: 1; display: flex; min-height: 0;');
+        const nav = el('div', `
+            width: 230px; flex-shrink: 0; overflow-y: auto; padding: 12px 10px;
+            border-right: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.18);
+        `);
+        const content = el('div', 'flex: 1; overflow-y: auto; padding: 18px 22px;');
+        body.appendChild(nav);
+        body.appendChild(content);
+        dlg.appendChild(body);
+
+        // ---- footer ----
+        const footer = el('div', `
+            display: flex; align-items: center; gap: 10px; padding: 12px 20px;
+            border-top: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.2);
+        `);
+        const status = el('div', 'flex: 1; font-size: 12px; color: #a9a3c0;', 'Values marked with a purple dot differ from the defaults.');
+        const mkFooterBtn = (text, bg, border) => {
+            const b = el('button', `
+                padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 900;
+                color: #fff; background: ${bg}; border: 1px solid ${border}; font-family: ${FONT};
+                transition: filter 0.15s ease;
+            `, text);
+            b.type = 'button';
+            b.addEventListener('mouseenter', () => { b.style.filter = 'brightness(1.25)'; });
+            b.addEventListener('mouseleave', () => { b.style.filter = ''; });
+            return b;
+        };
+        const resetAllBtn = mkFooterBtn('↺ Reset all', 'rgba(255,80,80,0.16)', 'rgba(255,80,80,0.5)');
+        footer.appendChild(status);
+        footer.appendChild(resetAllBtn);
+        dlg.appendChild(footer);
+
+        let statusTimer = null;
+        const flash = (text, color = '#4cff6a') => {
+            status.textContent = text;
+            status.style.color = color;
+            if (statusTimer) clearTimeout(statusTimer);
+            statusTimer = setTimeout(() => {
+                status.textContent = 'Values marked with a purple dot differ from the defaults.';
+                status.style.color = '#a9a3c0';
+            }, 2200);
+        };
+
+        let current = GVF_EXPERT_UI[0].name;
+
+        const changed = () => {
+            applyExpertChanges();
+            renderNav();
+            flash('✓ Saved and applied');
+        };
+
+        // ---- controls ----
+        const mkSlider = (value, f, onChange) => {
+            const wrap = el('div', 'display: flex; align-items: center; gap: 10px;');
+            const range = el('input', `flex: 1; accent-color: ${ACC}; cursor: pointer;`);
+            range.type = 'range';
+            range.min = String(f.min); range.max = String(f.max); range.step = String(f.step);
+            range.value = String(value);
+            const num = el('input', `
+                width: 78px; padding: 5px 8px; border-radius: 8px; outline: none; text-align: right;
+                border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.35);
+                color: #fff; font-size: 12px; font-family: ui-monospace, Consolas, monospace;
+            `);
+            num.type = 'number';
+            num.step = String(f.step);
+            num.value = fmt(value, f.step);
+            range.addEventListener('input', () => {
+                const v = Number(range.value);
+                num.value = fmt(v, f.step);
+                onChange(v);
+            });
+            num.addEventListener('change', () => {
+                let v = Number(num.value);
+                if (!Number.isFinite(v)) v = Number(range.value);
+                v = clamp(v, f.min, f.max);
+                num.value = fmt(v, f.step);
+                range.value = String(v);
+                onChange(v);
+            });
+            wrap.appendChild(range);
+            wrap.appendChild(num);
+            return wrap;
+        };
+
+        const mkToggle = (value, onChange) => {
+            const b = el('button', '');
+            b.type = 'button';
+            const paint = (on) => {
+                b.style.cssText = `
+                    position: relative; width: 46px; height: 24px; border-radius: 12px; cursor: pointer;
+                    border: 1px solid ${on ? ACC : 'rgba(255,255,255,0.2)'};
+                    background: ${on ? ACC : 'rgba(255,255,255,0.1)'}; transition: all 0.15s ease;
+                `;
+                b.innerHTML = '';
+                b.appendChild(el('span', `
+                    position: absolute; top: 2px; left: ${on ? '24px' : '2px'};
+                    width: 18px; height: 18px; border-radius: 50%; background: #fff;
+                    transition: left 0.15s ease;
+                `));
+                b.setAttribute('aria-checked', on ? 'true' : 'false');
+            };
+            b.setAttribute('role', 'switch');
+            let state = !!value;
+            paint(state);
+            b.addEventListener('click', () => { state = !state; paint(state); onChange(state); });
+            const wrap = el('div', 'display: flex; align-items: center; gap: 10px;');
+            const lbl = el('span', 'font-size: 12px; font-weight: 800; color: #cfc9e6;', state ? 'On' : 'Off');
+            b.addEventListener('click', () => { lbl.textContent = state ? 'On' : 'Off'; });
+            wrap.appendChild(b);
+            wrap.appendChild(lbl);
+            return wrap;
+        };
+
+        const mkMatrix = (mat, f, onChange) => {
+            const grid = el('div', 'display: grid; grid-template-columns: 52px repeat(3, 1fr); gap: 6px; align-items: center; max-width: 360px;');
+            ['', 'in R', 'in G', 'in B'].forEach(h => grid.appendChild(el('div', 'font-size: 10px; font-weight: 800; color: #8d87a6; text-align: center;', h)));
+            ['out R', 'out G', 'out B'].forEach((rowName, i) => {
+                grid.appendChild(el('div', 'font-size: 10px; font-weight: 800; color: #8d87a6;', rowName));
+                for (let j = 0; j < 3; j++) {
+                    const n = el('input', `
+                        width: 100%; box-sizing: border-box; padding: 5px 6px; border-radius: 8px; outline: none; text-align: right;
+                        border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.35);
+                        color: #fff; font-size: 12px; font-family: ui-monospace, Consolas, monospace;
+                    `);
+                    n.type = 'number';
+                    n.step = String(f.step);
+                    n.value = fmt(mat[i][j], f.step);
+                    n.addEventListener('change', () => {
+                        let v = Number(n.value);
+                        if (!Number.isFinite(v)) v = mat[i][j];
+                        v = clamp(v, f.min, f.max);
+                        n.value = fmt(v, f.step);
+                        mat[i][j] = v;
+                        onChange();
+                    });
+                    grid.appendChild(n);
+                }
+            });
+            return grid;
+        };
+
+        // ---- field card ----
+        const mkField = (group, f) => {
+            const obj = GVF_EXPERT_TARGETS[group.name];
+            const card = el('div', `
+                padding: 12px 14px; border-radius: 12px; margin-bottom: 10px;
+                background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07);
+            `);
+            const top = el('div', 'display: flex; align-items: center; gap: 8px; margin-bottom: 3px;');
+            const dot = el('span', `width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; background: ${ACC};`);
+            const label = el('div', 'font-size: 13px; font-weight: 800; color: #fff;', f.label);
+            const key = el('div', 'font-size: 10px; color: #6f6a86; font-family: ui-monospace, Consolas, monospace;', f.k);
+            const spacer = el('div', 'flex: 1;');
+            const resetBtn = el('button', `
+                padding: 3px 9px; border-radius: 8px; cursor: pointer; font-size: 11px; font-weight: 800;
+                border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: #cfc9e6;
+                font-family: ${FONT};
+            `, '↺ Default');
+            resetBtn.type = 'button';
+            resetBtn.title = 'Restore the default value';
+            top.appendChild(dot);
+            top.appendChild(label);
+            top.appendChild(key);
+            top.appendChild(spacer);
+            top.appendChild(resetBtn);
+            card.appendChild(top);
+            card.appendChild(el('div', 'font-size: 12px; color: #a9a3c0; margin: 0 0 10px 16px; line-height: 1.4;', f.desc));
+
+            const markState = () => {
+                const isChanged = expertIsChanged(group.name, f.k);
+                dot.style.visibility = isChanged ? 'visible' : 'hidden';
+                resetBtn.style.visibility = isChanged ? 'visible' : 'hidden';
+                card.style.borderColor = isChanged ? 'rgba(139,92,246,0.45)' : 'rgba(255,255,255,0.07)';
+            };
+
+            const ctrlBox = el('div', 'margin-left: 16px;');
+            const buildControl = () => {
+                ctrlBox.innerHTML = '';
+                if (f.type === 'bool') {
+                    ctrlBox.appendChild(mkToggle(obj[f.k], (v) => { obj[f.k] = v; markState(); changed(); }));
+                } else if (f.type === 'rgb') {
+                    ['r', 'g', 'b'].forEach(ch => {
+                        const row = el('div', 'display: flex; align-items: center; gap: 10px; margin-bottom: 4px;');
+                        row.appendChild(el('div', `width: 14px; font-size: 11px; font-weight: 900; color: ${ch === 'r' ? '#ff7a7a' : ch === 'g' ? '#7aff9a' : '#7ab0ff'};`, ch.toUpperCase()));
+                        const s = mkSlider(obj[f.k][ch], f, (v) => { obj[f.k][ch] = v; markState(); changed(); });
+                        s.style.flex = '1';
+                        row.appendChild(s);
+                        ctrlBox.appendChild(row);
+                    });
+                } else if (f.type === 'mat3') {
+                    ctrlBox.appendChild(mkMatrix(obj[f.k], f, () => { markState(); changed(); }));
+                } else {
+                    ctrlBox.appendChild(mkSlider(obj[f.k], f, (v) => { obj[f.k] = v; markState(); changed(); }));
+                }
+            };
+            buildControl();
+            card.appendChild(ctrlBox);
+
+            resetBtn.addEventListener('click', () => {
+                resetExpertSettings(group.name, f.k);
+                buildControl();
+                markState();
+                changed();
+            });
+            markState();
+            return card;
+        };
+
+        // ---- group view ----
+        const renderGroupHeader = (group, withReset) => {
+            const head = el('div', 'display: flex; align-items: flex-start; gap: 12px; margin: 4px 0 14px;');
+            const box = el('div', 'flex: 1;');
+            const tRow = el('div', 'display: flex; align-items: center; gap: 10px;');
+            tRow.appendChild(el('div', 'font-size: 17px; font-weight: 900; color: #fff;', group.title));
+            tRow.appendChild(el('span', `
+                font-size: 10px; font-weight: 900; color: #d9ccff; padding: 3px 8px; border-radius: 999px;
+                background: ${ACC_SOFT}; border: 1px solid rgba(139,92,246,0.45);
+            `, group.hotkey));
+            box.appendChild(tRow);
+            box.appendChild(el('div', 'font-size: 12px; color: #a9a3c0; margin-top: 5px; line-height: 1.4;', group.desc));
+            head.appendChild(box);
+            if (withReset) {
+                const rb = el('button', `
+                    padding: 6px 12px; border-radius: 10px; cursor: pointer; font-size: 11px; font-weight: 900;
+                    border: 1px solid rgba(255,255,255,0.16); background: rgba(255,255,255,0.06); color: #eaeaea;
+                    font-family: ${FONT}; flex-shrink: 0;
+                `, '↺ Reset section');
+                rb.type = 'button';
+                rb.addEventListener('click', () => {
+                    resetExpertSettings(group.name);
+                    changed();
+                    renderContent();
+                    flash(`✓ ${group.title} reset to defaults`);
+                });
+                head.appendChild(rb);
+            }
+            return head;
+        };
+
+        // ---- Import / Export view ----
+        const IO_ITEM = { section: 'Tools', name: '__io__', title: '⇅ Import / Export' };
+
+        const mkActionBtn = (text, primary) => {
+            const b = el('button', `
+                padding: 8px 14px; border-radius: 10px; cursor: pointer; font-size: 12px; font-weight: 900;
+                font-family: ${FONT}; color: #fff;
+                background: ${primary ? ACC : 'rgba(255,255,255,0.07)'};
+                border: 1px solid ${primary ? ACC : 'rgba(255,255,255,0.16)'};
+                transition: filter 0.15s ease;
+            `, text);
+            b.type = 'button';
+            b.addEventListener('mouseenter', () => { b.style.filter = 'brightness(1.25)'; });
+            b.addEventListener('mouseleave', () => { b.style.filter = ''; });
+            return b;
+        };
+        const mkCard = (title, desc) => {
+            const card = el('div', `
+                padding: 14px 16px; border-radius: 12px; margin-bottom: 14px;
+                background: rgba(255,255,255,0.035); border: 1px solid rgba(255,255,255,0.07);
+            `);
+            card.appendChild(el('div', 'font-size: 14px; font-weight: 900; color: #fff; margin-bottom: 4px;', title));
+            card.appendChild(el('div', 'font-size: 12px; color: #a9a3c0; margin-bottom: 12px; line-height: 1.4;', desc));
+            return card;
+        };
+        const mkJsonArea = (readOnly) => {
+            const ta = el('textarea', `
+                width: 100%; box-sizing: border-box; height: 150px; resize: vertical; margin-top: 10px;
+                padding: 10px; border-radius: 10px; outline: none;
+                border: 1px solid rgba(255,255,255,0.14); background: rgba(0,0,0,0.35); color: #eaeaea;
+                font-family: ui-monospace, Consolas, monospace; font-size: 11px; line-height: 1.35;
+                user-select: text;
+            `);
+            ta.spellcheck = false;
+            ta.readOnly = !!readOnly;
+            stopEventsOn(ta);
+            return ta;
+        };
+        const countValues = (diff) => Object.values(diff).reduce((n, o) => n + Object.keys(o).length, 0);
+
+        const renderIO = () => {
+            const head = el('div', 'margin: 4px 0 14px;');
+            head.appendChild(el('div', 'font-size: 17px; font-weight: 900; color: #fff;', 'Import / Export'));
+            head.appendChild(el('div', 'font-size: 12px; color: #a9a3c0; margin-top: 5px; line-height: 1.4;',
+                'Save your expert settings to a file or share them, and load them again on another browser or PC.'));
+            content.appendChild(head);
+
+            // export
+            const data = exportExpertSettings();
+            const n = countValues(data.settings);
+            const exp = mkCard('Export',
+                n ? `Contains the ${n} value${n === 1 ? '' : 's'} that differ from the defaults. Everything else stays at default when imported.`
+                  : 'All expert settings are at their defaults, so the export is empty.');
+            const expRow = el('div', 'display: flex; gap: 8px; flex-wrap: wrap;');
+            const btnFile = mkActionBtn('⬇ Export .json', true);
+            const btnCopy = mkActionBtn('📋 Copy to clipboard', false);
+            expRow.appendChild(btnFile);
+            expRow.appendChild(btnCopy);
+            exp.appendChild(expRow);
+            const expArea = mkJsonArea(true);
+            expArea.value = JSON.stringify(data, null, 2);
+            exp.appendChild(expArea);
+            content.appendChild(exp);
+
+            btnFile.addEventListener('click', () => {
+                try {
+                    const blob = new Blob([JSON.stringify(exportExpertSettings(), null, 2)], { type: 'application/json;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    const d = new Date();
+                    const pad = (x) => String(x).padStart(2, '0');
+                    a.href = url;
+                    a.download = `gvf-expert-settings_${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}.json`;
+                    (document.body || document.documentElement).appendChild(a);
+                    a.click();
+                    a.remove();
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    flash('✓ Exported to .json file');
+                } catch (_) { flash('Export failed', '#ff6b6b'); }
+            });
+            btnCopy.addEventListener('click', async () => {
+                const text = JSON.stringify(exportExpertSettings(), null, 2);
+                let ok = false;
+                try { await navigator.clipboard.writeText(text); ok = true; } catch (_) { }
+                if (!ok) {
+                    try { expArea.focus(); expArea.select(); ok = document.execCommand('copy'); } catch (_) { }
+                }
+                flash(ok ? '✓ Copied to clipboard' : 'Copy failed - select the text and copy it manually', ok ? '#4cff6a' : '#ff6b6b');
+            });
+
+            // import
+            const imp = mkCard('Import',
+                'Load a .json file or paste exported JSON. Importing replaces all current expert settings.');
+            const impRow = el('div', 'display: flex; gap: 8px; flex-wrap: wrap;');
+            const btnLoad = mkActionBtn('⬆ Import .json', true);
+            const btnApply = mkActionBtn('Apply pasted JSON', false);
+            impRow.appendChild(btnLoad);
+            impRow.appendChild(btnApply);
+            imp.appendChild(impRow);
+            const impArea = mkJsonArea(false);
+            impArea.placeholder = 'Paste exported expert settings JSON here…';
+            imp.appendChild(impArea);
+            const fileInput = el('input', 'display: none;');
+            fileInput.type = 'file';
+            fileInput.accept = 'application/json,.json';
+            stopEventsOn(fileInput);
+            imp.appendChild(fileInput);
+            content.appendChild(imp);
+
+            const doImport = (raw) => {
+                let obj = null;
+                try { obj = JSON.parse(String(raw || '').trim()); } catch (_) {
+                    flash('Import failed: invalid JSON', '#ff6b6b');
+                    return;
+                }
+                const blocks = importExpertSettings(obj);
+                if (blocks < 0) { flash('Import failed: this is not an expert settings export', '#ff6b6b'); return; }
+                applyExpertChanges();
+                renderNav();
+                content.innerHTML = '';
+                renderIO();
+                const nv = countValues(expertSettingsDiff());
+                flash(`✓ Imported ${nv} changed value${nv === 1 ? '' : 's'} and applied`);
+            };
+            btnApply.addEventListener('click', () => {
+                if (!impArea.value.trim()) { flash('Paste JSON first', '#ffcc66'); return; }
+                doImport(impArea.value);
+            });
+            btnLoad.addEventListener('click', () => {
+                try { fileInput.value = ''; } catch (_) { }
+                fileInput.click();
+            });
+            fileInput.addEventListener('change', () => {
+                const f = fileInput.files && fileInput.files[0];
+                if (!f) return;
+                const reader = new FileReader();
+                reader.onload = () => doImport(reader.result);
+                reader.onerror = () => flash('Import failed: file could not be read', '#ff6b6b');
+                reader.readAsText(f);
+            });
+        };
+
+        const renderContent = () => {
+            content.innerHTML = '';
+            const q = search.value.trim().toLowerCase();
+            if (q) {
+                let hits = 0;
+                GVF_EXPERT_UI.forEach(group => {
+                    const fields = group.fields.filter(f =>
+                        (group.title + ' ' + f.label + ' ' + f.desc + ' ' + f.k).toLowerCase().includes(q));
+                    if (!fields.length) return;
+                    hits += fields.length;
+                    content.appendChild(renderGroupHeader(group, false));
+                    fields.forEach(f => content.appendChild(mkField(group, f)));
+                });
+                if (!hits) content.appendChild(el('div', 'padding: 40px; text-align: center; color: #8d87a6; font-size: 13px;', 'No settings match your search.'));
+                return;
+            }
+            if (current === IO_ITEM.name) { renderIO(); return; }
+            const group = GVF_EXPERT_UI.find(g => g.name === current) || GVF_EXPERT_UI[0];
+            content.appendChild(renderGroupHeader(group, true));
+            group.fields.forEach(f => content.appendChild(mkField(group, f)));
+        };
+
+        // ---- navigation ----
+        const renderNav = () => {
+            nav.innerHTML = '';
+            let lastSection = '';
+            [...GVF_EXPERT_UI, IO_ITEM].forEach(group => {
+                if (group.section !== lastSection) {
+                    lastSection = group.section;
+                    nav.appendChild(el('div', `
+                        font-size: 10px; font-weight: 900; letter-spacing: 1.2px; color: #7c7696;
+                        text-transform: uppercase; margin: ${nav.childNodes.length ? '14px' : '2px'} 8px 6px;
+                    `, group.section));
+                }
+                const active = !search.value.trim() && group.name === current;
+                const item = el('button', `
+                    display: flex; align-items: center; gap: 8px; width: 100%; text-align: left;
+                    padding: 8px 10px; margin-bottom: 2px; border-radius: 9px; cursor: pointer;
+                    font-size: 12.5px; font-weight: ${active ? '900' : '700'}; font-family: ${FONT};
+                    color: ${active ? '#fff' : '#cfc9e6'};
+                    background: ${active ? ACC_SOFT : 'transparent'};
+                    border: 1px solid ${active ? 'rgba(139,92,246,0.5)' : 'transparent'};
+                `);
+                item.type = 'button';
+                item.appendChild(el('span', 'flex: 1;', group.title));
+                if (expertIsChanged(group.name)) {
+                    const d = el('span', `width: 7px; height: 7px; border-radius: 50%; background: ${ACC};`);
+                    d.title = 'Contains changed values';
+                    item.appendChild(d);
+                }
+                item.addEventListener('mouseenter', () => { if (!active) item.style.background = 'rgba(255,255,255,0.05)'; });
+                item.addEventListener('mouseleave', () => { if (!active) item.style.background = 'transparent'; });
+                item.addEventListener('click', () => {
+                    current = group.name;
+                    search.value = '';
+                    renderNav();
+                    renderContent();
+                    content.scrollTop = 0;
+                });
+                nav.appendChild(item);
+            });
+        };
+
+        // ---- actions ----
+        // closes only via the X button (no Esc, no click outside)
+        closeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (expertModalVisible) toggleExpertModal();
+        });
+        search.addEventListener('input', () => { renderNav(); renderContent(); });
+
+        // two-step confirm, no browser dialog
+        let resetArmed = false, resetTimer = null;
+        resetAllBtn.addEventListener('click', () => {
+            if (!resetArmed) {
+                resetArmed = true;
+                resetAllBtn.textContent = 'Click again to reset ALL';
+                resetAllBtn.style.background = 'rgba(255,80,80,0.45)';
+                resetTimer = setTimeout(() => {
+                    resetArmed = false;
+                    resetAllBtn.textContent = '↺ Reset all';
+                    resetAllBtn.style.background = 'rgba(255,80,80,0.16)';
+                }, 3000);
+                return;
+            }
+            if (resetTimer) clearTimeout(resetTimer);
+            resetArmed = false;
+            resetAllBtn.textContent = '↺ Reset all';
+            resetAllBtn.style.background = 'rgba(255,80,80,0.16)';
+            resetExpertSettings();
+            changed();
+            renderContent();
+            flash('✓ All expert settings reset to defaults', '#ffcc66');
+        });
+
+        // re-read all values when the window is shown again (values may have changed meanwhile)
+        dlg._gvfRefresh = () => { renderNav(); renderContent(); };
+        renderNav();
+        renderContent();
+
+        // built hidden; toggleExpertModal shows it and mounts it in fullscreen if needed
+        // (reparentGvfModals moves it along when fullscreen is entered or left later)
+        dlg.style.display = 'none';
+        (document.body || document.documentElement).appendChild(dlg);
+        makeFloatingManagerDraggable(dlg, header, K.EXPERT_MANAGER_POS);
+        return dlg;
+    }
+
     function mkIOOverlay() {
         const overlay = document.createElement('div');
         overlay.className = 'gvf-video-overlay-io';
@@ -14794,6 +16146,22 @@ const fileInput = document.createElement('input');
             e.stopPropagation();
             log('Config button clicked!');
             toggleConfigMenu();
+        });
+
+        // EXPERT BUTTON - opens / closes the Expert Settings window (Grading HUD GVF_*_SETTINGS)
+        const btnExpert = mkBtn('🧪 Expert');
+        btnExpert.className = 'gvf-expert-btn';
+        btnExpert.title = 'Fine-tune all Grading HUD settings';
+        btnExpert.style.background = expertModalVisible ? 'rgba(139, 92, 246, 0.6)' : 'rgba(139, 92, 246, 0.35)';
+        btnExpert.style.border = '2px solid #8b5cf6';
+        btnExpert.style.color = '#fff';
+        btnExpert.style.padding = '6px 12px';
+        btnExpert.addEventListener('mouseenter', () => { btnExpert.style.background = 'rgba(139, 92, 246, 0.7)'; });
+        btnExpert.addEventListener('mouseleave', () => { updateExpertButtonState(); });
+        btnExpert.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleExpertModal();
         });
 
         // Debug Button
@@ -15052,6 +16420,7 @@ const fileInput = document.createElement('input');
         row.appendChild(btnShot);
         row.appendChild(btnRec);
         row.appendChild(btnConfig);  // Config Button
+        row.appendChild(btnExpert);  // Expert Settings Button
         row.appendChild(btnDebug);
 
         box.appendChild(ta);
@@ -15789,6 +17158,7 @@ if ('lutProfile' in obj) {
 
         const fe = document.createElementNS(svgNS, 'feColorMatrix');
         fe.setAttribute('type', 'matrix');
+        fe.setAttribute('result', 'g_rgb');
         fe.setAttribute('values', [
             r, 0, 0, 0, 0,
             0, g, 0, 0, 0,
@@ -15796,6 +17166,19 @@ if ('lutProfile' in obj) {
             0, 0, 0, 1, 0
         ].join(' '));
         f.appendChild(fe);
+
+        // Sharpen + Grain (grading HUD)
+        let gLast = appendUserGrain(f, appendUserSharpen(f, 'g_rgb', 'g_usharp'), 'g_ugrain');
+
+        // Black/White Level + Contrast + Shadows + Highlights + Gamma (tone curve)
+        gLast = appendUserToneCurve(f, gLast, 'g_utone');
+
+        // Vibrance + Saturation curves
+        gLast = appendUserVibrance(f, gLast, 'g_uvib');
+        gLast = appendUserSaturation(f, gLast, 'g_usat');
+
+        // Hue Correction
+        gLast = appendUserHue(f, gLast, 'g_uhue');
     }
 
     function gpuProfileMatrixActive() {
@@ -15959,7 +17342,7 @@ if ('lutProfile' in obj) {
 
     function gpuGainActive() {
         if (profile !== 'user') return false;
-        return (u_r_gain !== 128) || (u_g_gain !== 128) || (u_b_gain !== 128);
+        return (u_r_gain !== 128) || (u_g_gain !== 128) || (u_b_gain !== 128) || normU(u_gamma) !== 0 || normU(u_sharp) !== 0 || userGrainAmount(u_grain) > 0 || userHighlightsAmount(u_highlights) !== 0 || userShadowsAmount(u_shadows) !== 0 || userLevelsActive() || userContrastAmount(u_contrast) !== 0 || userSaturationAmount(u_sat) !== 0 || userVibranceAmount(u_vib) !== 0 || userHueDegrees(u_hue) !== 0;
     }
 
     function applyGpuFilter() {
@@ -16454,8 +17837,9 @@ if ('lutProfile' in obj) {
     // Called on fullscreenchange; also called when a panel is opened while in FS.
     function reparentGvfModals() {
         const fsEl = getFsEl();
-        const target = fsEl || document.body || document.documentElement;
-        const IDS = [CONFIG_MENU_ID, LUT_CONFIG_MENU_ID, 'gvf-custom-svg-modal'];
+        // a <video> cannot render child elements -> fall back to body in that case
+        const target = (fsEl && fsEl.tagName !== 'VIDEO') ? fsEl : (document.body || document.documentElement);
+        const IDS = [CONFIG_MENU_ID, LUT_CONFIG_MENU_ID, 'gvf-custom-svg-modal', EXPERT_MODAL_ID];
         IDS.forEach(id => {
             const el = document.getElementById(id);
             if (el && el.parentNode !== target) {
@@ -16958,26 +18342,330 @@ if ('lutProfile' in obj) {
     function userToneCss() {
         if (profile !== 'user') return '';
 
-        const c = clamp(1.0 + (uDelta(u_contrast) * 0.04), 0.60, 1.60);
-        const sat = clamp(1.0 + (uDelta(u_sat) * 0.05), 0.40, 1.80);
-        const vib = clamp(1.0 + (uDelta(u_vib) * 0.02), 0.70, 1.35);
-        const hue = clamp(uDelta(u_hue) * 3.0, -30, 30);
+        // All grading values are part of the SVG filter (buildFilter), nothing left for CSS
+        return '';
+    }
 
-        const blk = clamp(uDelta(u_black) * 0.012, -0.12, 0.12);
-        const wht = clamp(uDelta(u_white) * 0.012, -0.12, 0.12);
-        const sh = clamp(uDelta(u_shadows) * 0.010, -0.10, 0.10);
-        const hi = clamp(uDelta(u_highlights) * 0.010, -0.10, 0.10);
+    // Grading HUD Sharpen (-10..10) as SVG primitives.
+    // > 0: luma detail curve (see GVF_SHARPEN_SETTINGS), < 0: soft blur. Returns the new result name.
+    function appendUserSharpen(filter, inName, prefix) {
+        const v = userSharpenValue(u_sharp);
+        if (Math.abs(v) < 0.05) return inName;
+        const blur = document.createElementNS(svgNS, 'feGaussianBlur');
+        blur.setAttribute('in', inName);
+        if (v > 0) {
+            const a = (v / 10) * GVF_SHARPEN_SETTINGS.maxAmount;
+            const mk = (tag, attrs) => {
+                const el = document.createElementNS(svgNS, tag);
+                Object.keys(attrs).forEach(k => el.setAttribute(k, attrs[k]));
+                filter.appendChild(el);
+                return el;
+            };
+            blur.setAttribute('stdDeviation', String(GVF_SHARPEN_SETTINGS.svgRadius));
+            blur.setAttribute('result', prefix + '_blur');
+            filter.appendChild(blur);
+            // inverted blur (1 - blur), so the next step keeps alpha at 1
+            const inv = mk('feComponentTransfer', { in: prefix + '_blur', result: prefix + '_inv' });
+            ['feFuncR', 'feFuncG', 'feFuncB'].forEach(ch => {
+                const fn = document.createElementNS(svgNS, ch);
+                fn.setAttribute('type', 'linear');
+                fn.setAttribute('slope', '-1');
+                fn.setAttribute('intercept', '1');
+                inv.appendChild(fn);
+            });
+            // detail per channel: 0.5 * in + 0.5 * (1 - blur) = 0.5 + d/2 (alpha = 0.5 + 0.5 = 1)
+            mk('feComposite', { in: inName, in2: prefix + '_inv', operator: 'arithmetic',
+                k1: '0', k2: '0.5', k3: '0.5', k4: '0', result: prefix + '_d' });
+            // luma detail in all channels (no color fringes)
+            mk('feColorMatrix', { in: prefix + '_d', type: 'matrix', result: prefix + '_dl', values:
+                '0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0' });
+            // detail curve as two lookup tables, so "no change" is stored exactly (0 / 1, not 0.5):
+            // _cp = brightening part, _cn = 1 - darkening part
+            const N = 512;
+            const lh = sharpenLightHalo(), dh = sharpenDarkHalo(), sk = sharpenSkinProtect();
+            const tPos = [], tNeg = [], tNegInv = [];
+            for (let i = 0; i <= N; i++) {
+                const c = sharpenCurve((i / N - 0.5) * 2, a);
+                tPos.push((Math.max(0, c) * lh).toFixed(4));
+                tNeg.push((Math.max(0, -c) * dh).toFixed(4));
+                tNegInv.push((1 - Math.max(0, -c) * dh).toFixed(4));
+            }
+            const mkTable = (result, values) => {
+                const ct = mk('feComponentTransfer', { in: prefix + '_dl', result });
+                ['feFuncR', 'feFuncG', 'feFuncB'].forEach(ch => {
+                    const fn = document.createElementNS(svgNS, ch);
+                    fn.setAttribute('type', 'table');
+                    fn.setAttribute('tableValues', values.join(' '));
+                    ct.appendChild(fn);
+                });
+            };
+            let cpName = prefix + '_cp';
+            if (sk <= 0) {
+                mkTable(prefix + '_cp', tPos);
+                mkTable(prefix + '_cn', tNegInv);
+            } else {
+                // skin weight sp = 1 - skinProtect * clamp((r - g) * 8) * clamp((g - b) * 8)
+                mk('feColorMatrix', { in: inName, type: 'matrix', result: prefix + '_k1', values:
+                    '8 -8 0 0 0 8 -8 0 0 0 8 -8 0 0 0 0 0 0 1 0' });
+                mk('feColorMatrix', { in: inName, type: 'matrix', result: prefix + '_k2', values:
+                    '0 8 -8 0 0 0 8 -8 0 0 0 8 -8 0 0 0 0 0 1 0' });
+                mk('feComposite', { in: prefix + '_k1', in2: prefix + '_k2', operator: 'arithmetic',
+                    k1: '1', k2: '0', k3: '0', k4: '0', result: prefix + '_sk' });
+                const mkLinear = (from, result, slope, intercept) => {
+                    const ct = mk('feComponentTransfer', { in: from, result });
+                    ['feFuncR', 'feFuncG', 'feFuncB'].forEach(ch => {
+                        const fn = document.createElementNS(svgNS, ch);
+                        fn.setAttribute('type', 'linear');
+                        fn.setAttribute('slope', String(slope));
+                        fn.setAttribute('intercept', String(intercept));
+                        ct.appendChild(fn);
+                    });
+                };
+                mkLinear(prefix + '_sk', prefix + '_sp', -sk, 1);
+                // brightening * sp, darkening * sp, then 1 - darkening (all steps keep alpha at 1)
+                mkTable(prefix + '_cp0', tPos);
+                mk('feComposite', { in: prefix + '_cp0', in2: prefix + '_sp', operator: 'arithmetic',
+                    k1: '1', k2: '0', k3: '0', k4: '0', result: prefix + '_cp' });
+                mkTable(prefix + '_cn0', tNeg);
+                mk('feComposite', { in: prefix + '_cn0', in2: prefix + '_sp', operator: 'arithmetic',
+                    k1: '1', k2: '0', k3: '0', k4: '0', result: prefix + '_cn1' });
+                mkLinear(prefix + '_cn1', prefix + '_cn', -1, 1);
+            }
+            // out = in + brightening (alpha = 1 + 1 -> 1)
+            mk('feComposite', { in: inName, in2: cpName, operator: 'arithmetic',
+                k1: '0', k2: '1', k3: '1', k4: '0', result: prefix + '_up' });
+            // out = up - darkening = up + (1 - darkening) - 1 (alpha = 1 + 1 - 1 = 1)
+            mk('feComposite', { in: prefix + '_up', in2: prefix + '_cn', operator: 'arithmetic',
+                k1: '0', k2: '1', k3: '1', k4: '-1', result: prefix });
+        } else {
+            blur.setAttribute('stdDeviation', String((-v / 10) * GVF_SHARPEN_SETTINGS.svgMaxSoften));
+            blur.setAttribute('result', prefix);
+            filter.appendChild(blur);
+        }
+        return prefix;
+    }
 
-        const br = clamp(1.0 + (-blk + wht + sh + hi) * 0.6, 0.70, 1.35);
+    // Grading HUD Grain as SVG primitives (zero-mean noise, keeps overall brightness).
+    function appendUserGrain(filter, inName, prefix) {
+        const amt = userGrainAmount(u_grain);
+        if (amt <= 0) return inName;
+        const alpha = amt * GVF_GRAIN_SETTINGS.svgStrength;
+        const parts = mkGrain(inName, prefix, alpha);
+        parts[0].setAttribute('baseFrequency', String(GVF_GRAIN_SETTINGS.svgFrequency));
+        // grey <-> color noise mix; alpha row '0 0 0 0 1' makes the noise opaque
+        // (turbulence alpha is noise as well and would otherwise darken / thin out the result)
+        const cA = grainColorAmount();
+        const dg = (1 / 3 + 2 * cA / 3).toFixed(4), od = (1 / 3 - cA / 3).toFixed(4);
+        parts[1].setAttribute('values',
+            `${dg} ${od} ${od} 0 0 ${od} ${dg} ${od} 0 0 ${od} ${od} ${dg} 0 0 0 0 0 0 1`);
+        // noise only (turbulence + mix), the plain add step of mkGrain is replaced below
+        filter.appendChild(parts[0]);
+        filter.appendChild(parts[1]);
+        const mk = (tag, attrs) => {
+            const el = document.createElementNS(svgNS, tag);
+            Object.keys(attrs).forEach(k => el.setAttribute(k, attrs[k]));
+            filter.appendChild(el);
+            return el;
+        };
+        // weight map W = grainWeight(luma)
+        mk('feColorMatrix', { in: inName, type: 'matrix', result: prefix + '_l', values:
+            '0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0' });
+        const N = 32;
+        const table = [];
+        for (let i = 0; i <= N; i++) table.push(grainWeight(i / N).toFixed(4));
+        const ct = mk('feComponentTransfer', { in: prefix + '_l', result: prefix + '_w' });
+        ['feFuncR', 'feFuncG', 'feFuncB'].forEach(ch => {
+            const fn = document.createElementNS(svgNS, ch);
+            fn.setAttribute('type', 'table');
+            fn.setAttribute('tableValues', table.join(' '));
+            ct.appendChild(fn);
+        });
+        // R = 0.5 + (noise - 0.5) * W
+        mk('feComposite', { in: prefix + '_nm', in2: prefix + '_w', operator: 'arithmetic',
+            k1: '1', k2: '0', k3: '-0.5', k4: '0.5', result: prefix + '_r' });
+        // out = in + alpha * (noise - 0.5) * W (zero-mean, keeps overall brightness)
+        mk('feComposite', { in: inName, in2: prefix + '_r', operator: 'arithmetic',
+            k1: '0', k2: '1', k3: String(alpha), k4: String(-alpha * 0.5), result: prefix });
+        return prefix;
+    }
 
-        const g = clamp(1.0 + (uDelta(u_gamma) * 0.025), 0.60, 1.60);
-        const gBr = clamp(1.0 + (1.0 - g) * 0.18, 0.85, 1.20);
-        const gCt = clamp(1.0 + (g - 1.0) * 0.10, 0.90, 1.15);
+    // Grading HUD Hue Correction as SVG color matrix (luma-preserving YCbCr rotation).
+    function appendUserHue(filter, inName, prefix) {
+        const deg = userHueDegrees(u_hue);
+        if (Math.abs(deg) < 0.05) return inName;
+        const k = hueSkinProtect();
+        const mk = (tag, attrs) => {
+            const el = document.createElementNS(svgNS, tag);
+            Object.keys(attrs).forEach(a => el.setAttribute(a, attrs[a]));
+            filter.appendChild(el);
+            return el;
+        };
+        const rotName = k > 0 ? prefix + '_rot' : prefix;
+        mk('feColorMatrix', { in: inName, type: 'matrix', result: rotName,
+            values: rgb3x3ToSvgValues(hueRotationMatrix(deg).map(r => r.map(v => Number(v.toFixed(5))))) });
+        if (k <= 0) return prefix;
+        // skin mask m = k * clamp((r - g) * 8) * clamp((g - b) * 8) on the original colors
+        mk('feColorMatrix', { in: inName, type: 'matrix', result: prefix + '_k1', values:
+            '8 -8 0 0 0 8 -8 0 0 0 8 -8 0 0 0 0 0 0 1 0' });
+        mk('feColorMatrix', { in: inName, type: 'matrix', result: prefix + '_k2', values:
+            '0 8 -8 0 0 0 8 -8 0 0 0 8 -8 0 0 0 0 0 1 0' });
+        mk('feComposite', { in: prefix + '_k1', in2: prefix + '_k2', operator: 'arithmetic',
+            k1: '1', k2: '0', k3: '0', k4: '0', result: prefix + '_sk' }); // k1 = 1 keeps alpha at 1
+        // m = k * skin and 1 - m (component transfer leaves alpha untouched)
+        const mkLinear = (result, slope, intercept) => {
+            const ct = mk('feComponentTransfer', { in: prefix + '_sk', result });
+            ['feFuncR', 'feFuncG', 'feFuncB'].forEach(ch => {
+                const fn = document.createElementNS(svgNS, ch);
+                fn.setAttribute('type', 'linear');
+                fn.setAttribute('slope', String(slope));
+                fn.setAttribute('intercept', String(intercept));
+                ct.appendChild(fn);
+            });
+        };
+        mkLinear(prefix + '_m', k, 0);
+        mkLinear(prefix + '_im', -k, 1);
+        // out = original * m + rotated * (1 - m)  (every step keeps alpha at 1)
+        mk('feComposite', { in: inName, in2: prefix + '_m', operator: 'arithmetic',
+            k1: '1', k2: '0', k3: '0', k4: '0', result: prefix + '_a' });
+        mk('feComposite', { in: rotName, in2: prefix + '_im', operator: 'arithmetic',
+            k1: '1', k2: '0', k3: '0', k4: '0', result: prefix + '_b' });
+        mk('feComposite', { in: prefix + '_a', in2: prefix + '_b', operator: 'arithmetic',
+            k1: '0', k2: '1', k3: '1', k4: '0', result: prefix });
+        return prefix;
+    }
 
-        const s = uDelta(u_sharp);
-        const cssSharp = s > 0 ? ` drop-shadow(0 0 ${Math.max(0.001, (s / 10) * 0.35).toFixed(3)}px rgba(0,0,0,0.0))` : '';
+    // Grading HUD Saturation curve: gain = 1 + a * (1 - s)^power (see GVF_SATURATION_SETTINGS).
+    function appendUserSaturation(filter, inName, prefix) {
+        const a = userSaturationAmount(u_sat);
+        if (Math.abs(a) < 0.0005) return inName;
+        if (saturationIsUniform(a)) {
+            const el = document.createElementNS(svgNS, 'feColorMatrix');
+            el.setAttribute('in', inName);
+            el.setAttribute('type', 'saturate');
+            el.setAttribute('values', String(1 + a));
+            el.setAttribute('result', prefix);
+            filter.appendChild(el);
+            return prefix;
+        }
+        const p = saturationPower();
+        return appendSatCurve(filter, inName, prefix, sv => 1 + a * Math.pow(1 - sv, p));
+    }
 
-        return ` brightness(${(br * gBr).toFixed(3)}) contrast(${(c * gCt).toFixed(3)}) saturate(${(sat * vib).toFixed(3)}) hue-rotate(${hue.toFixed(1)}deg)${cssSharp}`;
+    // Grading HUD Vibrance curve: gain = 1 + a * (1 - s)^power * (1 - skinProtect * skin) (both directions).
+    function appendUserVibrance(filter, inName, prefix) {
+        const a = userVibranceAmount(u_vib);
+        if (Math.abs(a) < 0.0005) return inName;
+        const p = vibrancePower();
+        const k = vibranceSkinProtect();
+        return appendSatCurve(filter, inName, prefix, sv => 1 + a * Math.pow(1 - sv, p),
+            k > 0 ? { amount: a, weightOf: sv => Math.pow(1 - sv, p), strength: k } : null);
+    }
+
+    // Saturation-dependent gain as SVG primitives:
+    // out = L + (c - L) * gainOf(s), s = 0.75 * sum|c - mean| (pixel saturation 0..1), gain 0..2.
+    // skin (optional): { amount, weightOf, strength } -> gain = 1 + amount * weightOf(s) * (1 - strength * skinMask)
+    function appendSatCurve(filter, inName, prefix, gainOf, skin = null) {
+        const mk = (tag, attrs) => {
+            const el = document.createElementNS(svgNS, tag);
+            Object.keys(attrs).forEach(k => el.setAttribute(k, attrs[k]));
+            filter.appendChild(el);
+            return el;
+        };
+        const lr = 0.2126, lg = 0.7152, lb = 0.0722;
+        // luma (grey)
+        mk('feColorMatrix', { in: inName, type: 'matrix', result: prefix + '_l', values:
+            `${lr} ${lg} ${lb} 0 0 ${lr} ${lg} ${lb} 0 0 ${lr} ${lg} ${lb} 0 0 0 0 0 1 0` });
+        // chroma vector D = c - L, stored as 0.5 + D/2
+        mk('feColorMatrix', { in: inName, type: 'matrix', result: prefix + '_d', values:
+            `${(1 - lr) / 2} ${-lg / 2} ${-lb / 2} 0 0.5 ` +
+            `${-lr / 2} ${(1 - lg) / 2} ${-lb / 2} 0 0.5 ` +
+            `${-lr / 2} ${-lg / 2} ${(1 - lb) / 2} 0 0.5 0 0 0 1 0` });
+        // saturation measure s: |c - mean| per channel, summed
+        mk('feColorMatrix', { in: inName, type: 'matrix', result: prefix + '_m', values:
+            '0.3333 -0.1667 -0.1667 0 0.5 -0.1667 0.3333 -0.1667 0 0.5 -0.1667 -0.1667 0.3333 0 0.5 0 0 0 1 0' });
+        const abs = mk('feComponentTransfer', { in: prefix + '_m', result: prefix + '_a' });
+        ['feFuncR', 'feFuncG', 'feFuncB'].forEach(ch => {
+            const fn = document.createElementNS(svgNS, ch);
+            fn.setAttribute('type', 'table');
+            fn.setAttribute('tableValues', '1 0 1');
+            abs.appendChild(fn);
+        });
+        mk('feColorMatrix', { in: prefix + '_a', type: 'matrix', result: prefix + '_s', values:
+            '0.75 0.75 0.75 0 0 0.75 0.75 0.75 0 0 0.75 0.75 0.75 0 0 0 0 0 1 0' });
+        const N = 32;
+        const mkFuncs = (ct, type, attrs) => ['feFuncR', 'feFuncG', 'feFuncB'].forEach(ch => {
+            const fn = document.createElementNS(svgNS, ch);
+            fn.setAttribute('type', type);
+            Object.keys(attrs).forEach(k => fn.setAttribute(k, attrs[k]));
+            ct.appendChild(fn);
+        });
+        if (!skin) {
+            // gain map G = gainOf(s) / 2
+            const gTable = [];
+            for (let i = 0; i <= N; i++) gTable.push(clamp(gainOf(i / N) / 2, 0, 1).toFixed(4));
+            mkFuncs(mk('feComponentTransfer', { in: prefix + '_s', result: prefix + '_g' }), 'table', { tableValues: gTable.join(' ') });
+        } else {
+            // weight map W = weightOf(s)
+            const wTable = [];
+            for (let i = 0; i <= N; i++) wTable.push(clamp(skin.weightOf(i / N), 0, 1).toFixed(4));
+            mkFuncs(mk('feComponentTransfer', { in: prefix + '_s', result: prefix + '_wt' }), 'table', { tableValues: wTable.join(' ') });
+            // skin mask = clamp((r - g) * 8) * clamp((g - b) * 8), all channels (alpha stays 1)
+            mk('feColorMatrix', { in: inName, type: 'matrix', result: prefix + '_k1', values:
+                '8 -8 0 0 0 8 -8 0 0 0 8 -8 0 0 0 0 0 0 1 0' });
+            mk('feColorMatrix', { in: inName, type: 'matrix', result: prefix + '_k2', values:
+                '0 8 -8 0 0 0 8 -8 0 0 0 8 -8 0 0 0 0 0 1 0' });
+            mk('feComposite', { in: prefix + '_k1', in2: prefix + '_k2', operator: 'arithmetic',
+                k1: '1', k2: '0', k3: '0', k4: '0', result: prefix + '_sk' });
+            // 1 - strength * skin
+            mkFuncs(mk('feComponentTransfer', { in: prefix + '_sk', result: prefix + '_sp' }), 'linear',
+                { slope: String(-skin.strength), intercept: '1' });
+            // protected weight = W * (1 - strength * skin)
+            mk('feComposite', { in: prefix + '_wt', in2: prefix + '_sp', operator: 'arithmetic',
+                k1: '1', k2: '0', k3: '0', k4: '0', result: prefix + '_w2' });
+            // gain map G = (1 + amount * weight) / 2
+            mkFuncs(mk('feComponentTransfer', { in: prefix + '_w2', result: prefix + '_g' }), 'linear',
+                { slope: String(skin.amount / 2), intercept: '0.5' });
+        }
+        // R = 0.5 + D * gain / 2
+        mk('feComposite', { in: prefix + '_d', in2: prefix + '_g', operator: 'arithmetic',
+            k1: '2', k2: '0', k3: '-1', k4: '0.5', result: prefix + '_r' });
+        // out = L + D * gain
+        mk('feComposite', { in: prefix + '_l', in2: prefix + '_r', operator: 'arithmetic',
+            k1: '0', k2: '1', k3: '2', k4: '-1', result: prefix });
+        return prefix;
+    }
+
+    // Grading HUD Black/White Level + Contrast + Shadows + Highlights + Gamma as one SVG tone curve (lookup table).
+    function appendUserToneCurve(filter, inName, prefix) {
+        const shAmt = userShadowsAmount(u_shadows);
+        const hiAmt = userHighlightsAmount(u_highlights);
+        const ctAmt = userContrastAmount(u_contrast);
+        const gam = userGammaValue(u_gamma);
+        const lvOn = userLevelsActive();
+        if (!lvOn && Math.abs(ctAmt) < 0.0005 && Math.abs(shAmt) < 0.0005 && Math.abs(hiAmt) < 0.0005
+            && Math.abs(gam - 1.0) < 0.0005) return inName;
+        const L = userLevels();
+        const N = 256;
+        const table = [];
+        for (let i = 0; i <= N; i++) {
+            const x = lvOn ? levelsCurve(i / N, L) : i / N;
+            table.push(gammaCurve(highlightsCurve(shadowsCurve(contrastCurve(x, ctAmt), shAmt), hiAmt), gam).toFixed(4));
+        }
+        const ct = document.createElementNS(svgNS, 'feComponentTransfer');
+        ct.setAttribute('in', inName);
+        ct.setAttribute('result', prefix);
+        ['feFuncR', 'feFuncG', 'feFuncB'].forEach(ch => {
+            const fn = document.createElementNS(svgNS, ch);
+            fn.setAttribute('type', 'table');
+            fn.setAttribute('tableValues', table.join(' '));
+            ct.appendChild(fn);
+        });
+        filter.appendChild(ct);
+        return prefix;
+    }
+
+    function rgb3x3ToSvgValues(m) {
+        return m.map(row => `${row[0]} ${row[1]} ${row[2]} 0 0`).join(' ') + ' 0 0 0 1 0';
     }
 
     function buildFilter(svg, id, opts, radius, sharpenA, blurSigma, blackOffset, whiteAdj, dnVal, edgeVal, hdrVal, prof) {
@@ -17045,7 +18733,7 @@ if ('lutProfile' in obj) {
             if (hdrVal > 0) {
                 const s = clamp(hdrVal, 0, 2);
 
-                const clarityAmt = 0.55 + s * 0.55;
+                const clarityAmt = GVF_HDR_SETTINGS.svgClarityBase + s * GVF_HDR_SETTINGS.svgClarityPerStep;
                 const claritySigma = clamp(1.3 + radius * 0.75, 1.3, 3.6);
                 const [b, c] = mkClarityHighpass(last, 'r_hdr_cl', claritySigma, clarityAmt);
                 filter.appendChild(b);
@@ -17057,14 +18745,14 @@ if ('lutProfile' in obj) {
                 filter.appendChild(mkSCurveTableCT(last, 'r_hdr_tm', s));
                 last = 'r_hdr_tm';
 
-                const slope = 1.10 + s * 0.18;
+                const slope = GVF_HDR_SETTINGS.svgSlopeBase + s * GVF_HDR_SETTINGS.svgSlopePerStep;
                 const intercept = -0.015 + s * 0.006;
                 filter.appendChild(mkLinearCT(last, 'r_hdr_lin', slope, intercept));
                 last = 'r_hdr_lin';
 
                 const sat = document.createElementNS(svgNS, 'feColorMatrix');
                 sat.setAttribute('type', 'saturate');
-                sat.setAttribute('values', String(1.10 + s * 0.30));
+                sat.setAttribute('values', String(GVF_HDR_SETTINGS.svgSaturationBase + s * GVF_HDR_SETTINGS.svgSaturationPerStep));
                 sat.setAttribute('in', last);
                 sat.setAttribute('result', 'r_hdr_sat');
                 filter.appendChild(sat);
@@ -17129,20 +18817,37 @@ if ('lutProfile' in obj) {
                 filter.appendChild(rgbCM);
                 last = 'r_rgb';
             }
+
+            // Sharpen (grading HUD)
+            last = appendUserSharpen(filter, last, 'r_usharp');
+
+            // Grain (grading HUD)
+            last = appendUserGrain(filter, last, 'r_ugrain');
+
+            // Black/White Level + Contrast + Shadows + Highlights + Gamma (tone curve)
+            last = appendUserToneCurve(filter, last, 'r_utone');
+
+            // Vibrance + Saturation curves
+            last = appendUserVibrance(filter, last, 'r_uvib');
+            last = appendUserSaturation(filter, last, 'r_usat');
+
+            // Hue Correction
+            last = appendUserHue(filter, last, 'r_uhue');
         }
 
         if (moody) {
             const ct = document.createElementNS(svgNS, 'feComponentTransfer');
             ct.setAttribute('in', last);
             ct.setAttribute('result', 'r1');
-            ct.appendChild(mkGamma('feFuncR', 0.96, 1.14, -0.015));
-            ct.appendChild(mkGamma('feFuncG', 0.96, 1.13, -0.015));
-            ct.appendChild(mkGamma('feFuncB', 0.97, 1.11, -0.015));
+            const ms = GVF_MOODY_SETTINGS;
+            ct.appendChild(mkGamma('feFuncR', ms.svgAmplitude.r, ms.svgExponent.r, ms.svgOffset));
+            ct.appendChild(mkGamma('feFuncG', ms.svgAmplitude.g, ms.svgExponent.g, ms.svgOffset));
+            ct.appendChild(mkGamma('feFuncB', ms.svgAmplitude.b, ms.svgExponent.b, ms.svgOffset));
             filter.appendChild(ct);
 
             const sat = document.createElementNS(svgNS, 'feColorMatrix');
             sat.setAttribute('type', 'saturate');
-            sat.setAttribute('values', '0.90');
+            sat.setAttribute('values', String(ms.svgSaturation));
             sat.setAttribute('in', 'r1');
             sat.setAttribute('result', 'r2');
             filter.appendChild(sat);
@@ -17153,31 +18858,21 @@ if ('lutProfile' in obj) {
         if (teal) {
             const cool = document.createElementNS(svgNS, 'feColorMatrix');
             cool.setAttribute('type', 'matrix');
-            cool.setAttribute('values',
-                '0.96 0.02 0.00 0 0 ' +
-                '0.02 1.02 0.02 0 0 ' +
-                '0.00 0.04 1.06 0 0 ' +
-                '0    0    0    1 0'
-            );
+            cool.setAttribute('values', rgb3x3ToSvgValues(GVF_TEAL_SETTINGS.svgTealMatrix));
             cool.setAttribute('in', last);
             cool.setAttribute('result', 'r3');
             filter.appendChild(cool);
 
             const warm = document.createElementNS(svgNS, 'feColorMatrix');
             warm.setAttribute('type', 'matrix');
-            warm.setAttribute('values',
-                '1.10 0.02 0.00 0 0 ' +
-                '0.02 1.00 0.00 0 0 ' +
-                '0.00 0.00 0.90 0 0 ' +
-                '0    0    0    1 0'
-            );
+            warm.setAttribute('values', rgb3x3ToSvgValues(GVF_TEAL_SETTINGS.svgOrangeMatrix));
             warm.setAttribute('in', 'r3');
             warm.setAttribute('result', 'r4');
             filter.appendChild(warm);
 
             const pop = document.createElementNS(svgNS, 'feColorMatrix');
             pop.setAttribute('type', 'saturate');
-            pop.setAttribute('values', '1.08');
+            pop.setAttribute('values', String(GVF_TEAL_SETTINGS.svgSaturation));
             pop.setAttribute('in', 'r4');
             pop.setAttribute('result', 'r4b');
             filter.appendChild(pop);
@@ -17188,7 +18883,7 @@ if ('lutProfile' in obj) {
         if (vib) {
             const vSat = document.createElementNS(svgNS, 'feColorMatrix');
             vSat.setAttribute('type', 'saturate');
-            vSat.setAttribute('values', '1.35');
+            vSat.setAttribute('values', String(GVF_VIBRANT_SETTINGS.saturation));
             vSat.setAttribute('in', last);
             vSat.setAttribute('result', 'r5');
             filter.appendChild(vSat);
@@ -17535,7 +19230,7 @@ if ('lutProfile' in obj) {
             document.head.appendChild(style);
         }
 
-        const baseTone = enabled ? ' brightness(1.02) contrast(1.05) saturate(1.15)' : '';
+        const baseTone = enabled ? baseToneCssString() : '';
         const profTone = profileToneCss();
         const userTone = userToneCss();
 
@@ -18063,8 +19758,9 @@ if ('lutProfile' in obj) {
                 if (isFilterBlockedByDrm()) { showToggleNotification('Filter unavailable', false, 'Not supported in Edge — Widevine L1 + Hardware-Compositing'); return; }
                 const cur = normHDR();
                 if (cur === 0) {
-                    const last = Number(gmGet(K.HDR_LAST, 0.3));
-                    hdr = clamp(last || 1.2, -1.0, 2.0);
+                    const hs = GVF_HDR_SETTINGS;
+                    const last = hs.useLastValue ? Number(gmGet(K.HDR_LAST, hs.defaultValue)) : hs.defaultValue;
+                    hdr = clamp(last || hs.defaultValue, -1.0, 2.0);
                     logToggle('HDR (Ctrl+Alt+P)', true, `value=${normHDR().toFixed(2)}`);
                     showValueNotification('HDR', `Enabled (${normHDR().toFixed(2)})`, '#4cff6a');
                 } else {
