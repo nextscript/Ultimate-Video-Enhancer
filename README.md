@@ -2,15 +2,14 @@
 
 <a href="https://greasyfork.org/en/scripts/561189-ultimate-video-enhancer-sharpen-hdr-color-boost?locale_override=1" target="_blank">Ultimate Video Enhancer (Sharpen, HDR, Color Boost)</a>
 
-
 <hr>
+
 <h2>🔥 Make Every Video Look Better — Instantly</h2>
 <hr>
 
 <b>This script improves every video on any website.</b><br>
 Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-like look — in real-time.
 
-<br><br>
 
 <b>No setup. No config. Just install and press a hotkey.</b>
 
@@ -63,6 +62,7 @@ Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-li
 <li>LUT support → apply real color grading</li>
 <li>Custom SVG / GLSL / Canvas 2D filters → inject your own effects</li>
 <li>Edge Detection → boost details & outlines</li>
+<li>Expert Settings → fine-tune every Grading HUD slider (CTRL + ALT + I → 🧪 Expert)</li>
 </ul>
 
 <hr>
@@ -77,10 +77,28 @@ Open the settings menu with <b>CTRL + ALT + I</b>.
 <li>Edit your own values</li>
 <li>Export / import settings</li>
 <li>Modify profiles directly</li>
+<li>Fine-tune the Grading HUD sliders with <b>🧪 Expert</b></li>
 </ul>
 
-<h3>📥 Load Example Settings</h3>
+<hr>
+<h3>🧪 Expert Settings</h3>
+<hr>
+<p>
+Click <b>🧪 Expert</b> in the settings menu (<b>CTRL + ALT + I</b>) to change how every Grading HUD slider works:
+Contrast, Black / White Level, Highlights, Shadows, Saturation, Vibrance, Gamma, Sharpen, Grain and Hue Correction.
+</p>
 
+<ul>
+<li>Every setting has a short description of what it does</li>
+<li>Search, reset single values, whole sections or everything</li>
+<li>Changes apply instantly and are saved automatically</li>
+<li>Import / Export your expert settings as .json file or via clipboard</li>
+<li>Draggable window, remembers its position, works in fullscreen</li>
+</ul>
+
+<hr>
+<h3>📥 Load Example Settings</h3>
+<hr>
 <p>
 You can load ready-to-use example presets directly in the JSON menu.
 Perfect for testing strong looks instantly.
@@ -289,4 +307,3 @@ Add your own filters without editing the script.
   <strong>DRM sites (all browsers)</strong> — Widevine blocks canvas readback on DRM-protected sites, disabling WebGL / GLSL overlays in every browser.<br><br>
   <strong>Firefox</strong> — WebGL2 canvas readback is blocked, disabling all GPU-based filters, overlays, screenshots and recordings.
 </p>
-
