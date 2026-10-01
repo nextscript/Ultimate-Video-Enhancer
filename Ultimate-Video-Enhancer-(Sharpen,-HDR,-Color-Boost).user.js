@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.16.5
+// @version      1.16.6
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -173,16 +173,24 @@
         requestAnimationFrame(throttledRender);
     }
 
+    // Viewport size cached on resize: window.innerWidth/innerHeight can force a style/layout
+    // flush, and the visibility helpers below run on every overlay update.
+    let _gvfVpW = window.innerWidth || 0, _gvfVpH = window.innerHeight || 0;
+    window.addEventListener('resize', () => {
+        _gvfVpW = window.innerWidth || 0;
+        _gvfVpH = window.innerHeight || 0;
+    }, { passive: true });
+
     function isVideoRenderable(video) {
         if (!video) return false;
         if (video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) return false;
         if (video.paused || video.ended) return false;
         const cs = window.getComputedStyle(video);
         if (!cs || cs.display === 'none' || cs.visibility === 'hidden') return false;
-        const r = video.getBoundingClientRect();
+        const r = gvfCachedRect(video);
         if (!r || r.width < 40 || r.height < 40) return false;
         if (r.bottom <= 0 || r.right <= 0) return false;
-        if (r.top >= (window.innerHeight || 0) || r.left >= (window.innerWidth || 0)) return false;
+        if (r.top >= _gvfVpH || r.left >= _gvfVpW) return false;
         return true;
     }
 
@@ -207,10 +215,10 @@
         if (video.readyState < 1) return false;
         const cs = window.getComputedStyle(video);
         if (!cs || cs.display === 'none' || cs.visibility === 'hidden') return false;
-        const r = video.getBoundingClientRect();
+        const r = gvfCachedRect(video);
         if (!r || r.width < 40 || r.height < 40) return false;
         if (r.bottom <= 0 || r.right <= 0) return false;
-        if (r.top >= (window.innerHeight || 0) || r.left >= (window.innerWidth || 0)) return false;
+        if (r.top >= _gvfVpH || r.left >= _gvfVpW) return false;
         return true;
     }
 
@@ -221,7 +229,7 @@
         let bestArea = 0;
         for (const video of videos) {
             if (!isHudVideoVisible(video)) continue;
-            const r = video.getBoundingClientRect();
+            const r = gvfCachedRect(video);
             const area = Math.max(0, r.width) * Math.max(0, r.height);
             if (area > bestArea) {
                 bestArea = area;
@@ -237,7 +245,7 @@
         let bestArea = 0;
         for (const video of videos) {
             if (!isVideoRenderable(video)) continue;
-            const r = video.getBoundingClientRect();
+            const r = gvfCachedRect(video);
             const area = Math.max(0, r.width) * Math.max(0, r.height);
             if (area > bestArea) {
                 bestArea = area;
@@ -261,10 +269,10 @@
             if (video.readyState < 1 || video.videoWidth === 0 || video.videoHeight === 0) continue;
             const cs = window.getComputedStyle(video);
             if (!cs || cs.display === 'none' || cs.visibility === 'hidden') continue;
-            const r = video.getBoundingClientRect();
+            const r = gvfCachedRect(video);
             if (!r || r.width < 40 || r.height < 40) continue;
             if (r.bottom <= 0 || r.right <= 0) continue;
-            if (r.top >= (window.innerHeight || 0) || r.left >= (window.innerWidth || 0)) continue;
+            if (r.top >= _gvfVpH || r.left >= _gvfVpW) continue;
             const area = r.width * r.height;
             if (area > bestArea) { bestArea = area; best = video; }
         }
@@ -724,19 +732,34 @@
     //   in vec2           v_uv;     (0..1 UV, WebGL2 / GLSL300)
     // -------------------------
     // ── GLSL overlay shared state ─────────────────────────────────────────────
-    let _mouseX = 0.5, _mouseY = 0.5;
     let _scrollZoom = 1.0;
     const _ZOOM_MIN = 0.5, _ZOOM_MAX = 8.0, _ZOOM_STEP = 0.15;
     document.addEventListener('wheel', e => {
         // Only zoom when mouse is over a video element
         const vid = document.querySelector('video');
         if (!vid) return;
-        const r = vid.getBoundingClientRect();
+        // Cached rect: a live getBoundingClientRect() here forced a full reflow on every wheel tick.
+        const r = GvfRectCache.get(vid);
         if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
         e.preventDefault();
         const delta = e.deltaY > 0 ? -_ZOOM_STEP : _ZOOM_STEP;
         _scrollZoom = Math.min(_ZOOM_MAX, Math.max(_ZOOM_MIN, _scrollZoom + delta));
     }, { passive: false });
+    // Runs fn right after the next frame has been rendered. Layout is clean at that point,
+    // so getBoundingClientRect()/getComputedStyle() reads don't force a synchronous reflow.
+    function gvfAfterNextPaint(fn) {
+        requestAnimationFrame(() => setTimeout(fn, 0));
+    }
+
+    // Rect via GvfRectCache for the video/overlay helpers (visibility checks, primary-video
+    // selection, HUD positioning). These run on timeupdate/scroll/overlay updates and used to
+    // interleave style writes with live getBoundingClientRect() reads -> repeated forced reflows
+    // while the page was layout-dirty from hover effects. Falls back to a live read if the cache
+    // is not initialised yet.
+    function gvfCachedRect(el) {
+        try { return GvfRectCache.get(el); } catch (_) { return el.getBoundingClientRect(); }
+    }
+
     // ── GvfRectCache ──────────────────────────────────────────────────────────
     // Root cause of hover-nav lag: _doRender()/drawLoop() called getBoundingClientRect()
     // on the video (and its parent) on EVERY rAF tick (24-60x/sec), unconditionally.
@@ -749,33 +772,42 @@
     // Fix: stop reading layout every frame. Cache the rect and only recompute it when the
     // element could actually have moved/resized (ResizeObserver + scroll/resize), plus a
     // slow safety-net poll. The render loop then does zero forced-layout reads.
+    //
+    // Mouse-move-outside-the-player lag: the recompute itself (poll + scroll) ran from a
+    // timer / *before* the frame's layout (rAF). While the mouse moves over page elements
+    // with hover effects, layout is dirty almost all the time, so each of those reads forced
+    // a full synchronous reflow of the whole page -> periodic main-thread stalls -> the GLSL
+    // loop missed frames. Recomputes now run right AFTER a frame has been rendered, when the
+    // browser has just finished layout and reading rects is (nearly) free.
     const GvfRectCache = (() => {
         const _cache = new WeakMap(); // el -> DOMRect
         const _tracked = new Set();
         const _ro = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(entries => {
+            // RO callbacks run after layout -> these reads are clean.
             for (const entry of entries) {
                 const el = entry.target;
                 if (el.isConnected) _cache.set(el, el.getBoundingClientRect());
             }
         }) : null;
-        let _scrollPending = false;
+        let _recomputePending = false;
         function _recomputeAll() {
-            _scrollPending = false;
+            _recomputePending = false;
             for (const el of _tracked) {
                 if (el.isConnected) _cache.set(el, el.getBoundingClientRect());
+                else untrack(el); // drop removed elements (and their strong ref in _tracked)
             }
         }
         function _scheduleRecompute() {
-            if (_scrollPending) return;
-            _scrollPending = true;
-            requestAnimationFrame(_recomputeAll);
+            if (_recomputePending) return;
+            _recomputePending = true;
+            gvfAfterNextPaint(_recomputeAll);
         }
         window.addEventListener('scroll', _scheduleRecompute, { passive: true, capture: true });
         window.addEventListener('resize', _scheduleRecompute, { passive: true });
         document.addEventListener('fullscreenchange', _scheduleRecompute, { passive: true });
         // Safety net for layout shifts that aren't scroll/resize/element-resize
         // (e.g. sibling elements loading in, theater-mode toggles).
-        setInterval(_recomputeAll, 400);
+        setInterval(() => { if (!document.hidden && _tracked.size) _scheduleRecompute(); }, 400);
         function track(el) {
             if (!el || _tracked.has(el)) return;
             _tracked.add(el);
@@ -802,9 +834,10 @@
         // Store raw client coords — each instance computes relative to its own video BCR
         _rawMouseClientX = e.clientX;
         _rawMouseClientY = e.clientY;
-        // Also keep normalized fallback
-        _mouseX = e.clientX / (window.innerWidth  || 1);
-        _mouseY = e.clientY / (window.innerHeight || 1);
+        // Nothing else here: this runs on EVERY mouse event. The old normalized fallback read
+        // window.innerWidth/innerHeight, which can force a synchronous style/layout flush — and
+        // while the mouse moves over page elements with hover effects the layout is dirty on
+        // every event -> forced reflow per mousemove -> GLSL loop misses frames (stutter).
     }, { passive: true });
 
     function _getStrength() {
@@ -2069,7 +2102,7 @@ void main(){
             if (uRes)      gl.uniform2f(uRes, w, h);
             if (uTime)     gl.uniform1f(uTime, performance.now() * 0.001);
             if (uMouse) {
-                const _vr = videoRect || _video.getBoundingClientRect();
+                const _vr = videoRect || GvfRectCache.get(_video);
                 const _vAsp = _video.videoWidth / (_video.videoHeight || 1);
                 const _bAsp = _vr.width / (_vr.height || 1);
                 let _contentL = _vr.left, _contentT = _vr.top, _contentW = _vr.width, _contentH = _vr.height;
@@ -2974,8 +3007,9 @@ void main(){
             let alive = true;
             const drawLoop = (frameMs) => {
                 if (!alive) return;
-                const vr = video.getBoundingClientRect();
-                const pr = (video.parentElement || document.body).getBoundingClientRect();
+                // Cached rects (GvfRectCache): live reads here forced a reflow every frame.
+                const vr = GvfRectCache.get(video);
+                const pr = GvfRectCache.get(video.parentElement || document.body);
                 const w = vr.width, h = vr.height;
                 if (canvas.width !== Math.round(w) || canvas.height !== Math.round(h)) {
                     canvas.width  = Math.round(w) || 1;
@@ -8602,7 +8636,7 @@ function downloadBlob(blob, filename) {
             document.body.appendChild(hud);
         }
 
-        const r = video.getBoundingClientRect();
+        const r = gvfCachedRect(video);
         hud.style.position = 'fixed';
         hud.style.top = (r.top + 10) + 'px';
         hud.style.left = (r.left + 10) + 'px';
@@ -10680,7 +10714,7 @@ if (!gl) {
 
     function getVideoRect(v) {
         try {
-            const r = v.getBoundingClientRect();
+            const r = gvfCachedRect(v);
             if (r && r.width > 0 && r.height > 0) return r;
         } catch (_) { }
         const w = (v.offsetWidth || 0);
@@ -10715,7 +10749,7 @@ if (!gl) {
                 const r = getVideoRect(v);
                 const area = r.width * r.height;
 
-                const inView = !(r.bottom < 0 || r.right < 0 || r.top > (window.innerHeight || 0) || r.left > (window.innerWidth || 0));
+                const inView = !(r.bottom < 0 || r.right < 0 || r.top > _gvfVpH || r.left > _gvfVpW);
                 const playing = (!v.paused && !v.seeking);
 
                 const score = area * (inView ? 1.25 : 0.90) * (playing ? 1.20 : 1.00);
@@ -16296,11 +16330,11 @@ if ('lutProfile' in obj) {
         const isWrapFs = fsEl && container === fsEl && fsEl.classList && fsEl.classList.contains('gvf-fs-wrap');
         overlay.style.position = isWrapFs ? 'absolute' : 'fixed';
 
-        const r = video.getBoundingClientRect();
+        const r = gvfCachedRect(video);
         if (!r || r.width < 40 || r.height < 40) { overlay.style.display = 'none'; return; }
 
         if (!fsEl) {
-            if (r.bottom < 0 || r.right < 0 || r.top > (window.innerHeight || 0) || r.left > (window.innerWidth || 0)) {
+            if (r.bottom < 0 || r.right < 0 || r.top > _gvfVpH || r.left > _gvfVpW) {
                 overlay.style.display = 'none';
                 return;
             }
@@ -16308,7 +16342,7 @@ if ('lutProfile' in obj) {
 
         if (overlay.classList.contains('gvf-video-overlay-scopes')) {
             if (isWrapFs) {
-                const cr = container.getBoundingClientRect();
+                const cr = gvfCachedRect(container);
                 overlay.style.top = `${Math.round((r.top - cr.top) + dy)}px`;
                 overlay.style.left = `${Math.round((r.left - cr.left) + dx)}px`;
                 overlay.style.transform = 'none';
@@ -16319,7 +16353,7 @@ if ('lutProfile' in obj) {
             }
         } else {
             if (isWrapFs) {
-                const cr = container.getBoundingClientRect();
+                const cr = gvfCachedRect(container);
                 overlay.style.top = `${Math.round((r.top - cr.top) + dy)}px`;
                 overlay.style.left = `${Math.round((r.left - cr.left) + r.width - dx)}px`;
                 overlay.style.transform = 'translateX(-100%) translateZ(0)';
@@ -16407,7 +16441,10 @@ if ('lutProfile' in obj) {
     function scheduleOverlayUpdate() {
         if (rafScheduled) return;
         rafScheduled = true;
-        requestAnimationFrame(() => {
+        // After the frame is painted (layout clean) instead of inside rAF (before layout): the
+        // getComputedStyle()/rect reads in updateAllOverlays() no longer force a reflow while the
+        // page is busy with hover effects. Runs ~4x/s via timeupdate, so this matters.
+        gvfAfterNextPaint(() => {
             rafScheduled = false;
             updateAllOverlays();
         });
@@ -18117,4 +18154,3 @@ if ('lutProfile' in obj) {
 
 
 })();
-s
