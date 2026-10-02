@@ -8461,7 +8461,7 @@ function downloadBlob(blob, filename) {
         const EDGE= Number(_normED().toFixed(2));
         const P   = String(s.profile || 'off');
         const CB  = String(s.cbFilter || 'none');
-        const _bOff = _clamp(BL,-2,2)*0.04;
+        const _bOff = -_clamp(BL,-2,2)*0.04;
         const _wAdj = _clamp(WL,-2,2)*0.06;
 
         const moody = !!s.darkMoody, teal = !!s.tealOrange, vib = !!s.vibrantSat;
@@ -9646,7 +9646,7 @@ function downloadBlob(blob, filename) {
     function getSharpenA() { return Math.max(0, normSL()) * 1.0; }
     function getBlurSigma() { return Math.max(0, -normSL()) * 1.0; }
     function getRadius() { return Math.max(0.1, Math.abs(normSR())); }
-    function blackToOffset(v) { return clamp(v, -2, 2) * 0.04; }
+    function blackToOffset(v) { return -clamp(v, -2, 2) * 0.04; } // higher = deeper blacks
     function whiteToHiAdj(v) { return clamp(v, -2, 2) * 0.06; }
     function dnToDenoiseMix(v) { return clamp(v, 0, 1.5) * 0.5; }
     function dnToDenoiseSigma(v) { return clamp(v, 0, 1.5) * 0.8; }
@@ -11180,7 +11180,7 @@ if (!gl) {
 
         const blVal = normBL();
         if (blVal !== 0) {
-            const blackAdj = 1 + (blVal * 0.03);
+            const blackAdj = 1 - (blVal * 0.03);
             filters.push(`brightness(${blackAdj.toFixed(2)})`);
         }
 
@@ -14698,9 +14698,7 @@ const fileInput = document.createElement('input');
   --gvf-accent: #38bdf8; --gvf-accent-2: #7dd3fc; --gvf-accent-glow: rgba(56,189,248,0.45);
   box-sizing: border-box !important;
   color-scheme: dark;
-  /* fully opaque on purpose: Firefox only shows / triggers its own Picture-in-Picture toggle where the
-     video is visible; a translucent panel counted as "visible", so clicks on it (e.g. "+") started PiP */
-  background: linear-gradient(180deg, rgb(30,31,40), rgb(15,16,22)) !important;
+  background: linear-gradient(180deg, rgba(30,31,40,0.95), rgba(15,16,22,0.95)) !important;
   border: 1px solid rgba(255,255,255,0.08) !important;
   border-radius: 16px !important;
   padding: 10px !important;
@@ -14873,7 +14871,7 @@ const fileInput = document.createElement('input');
 #gvf-expert-modal,
 #gvf-userProf-edit-window {
   color-scheme: dark;
-  background: linear-gradient(180deg, rgb(30,31,40), rgb(16,17,23)) !important; /* opaque: see .gvf-hud (Firefox PiP toggle) */
+  background: linear-gradient(180deg, rgba(30,31,40,0.985), rgba(16,17,23,0.985)) !important;
   border: 1px solid rgba(255,255,255,0.09) !important;
   border-radius: 18px !important;
   box-shadow: 0 28px 70px rgba(0,0,0,0.6), inset 0 3px 0 var(--gvf-accent), inset 0 1px 0 rgba(255,255,255,0.06) !important;
@@ -15065,7 +15063,7 @@ const fileInput = document.createElement('input');
   display: none; align-items: center; gap: 12px;
   min-width: 220px; max-width: min(420px, calc(100vw - 40px));
   padding: 10px 16px 12px 10px; box-sizing: border-box; overflow: hidden;
-  background: linear-gradient(180deg, rgb(30,31,40), rgb(16,17,23));
+  background: linear-gradient(180deg, rgba(30,31,40,0.96), rgba(16,17,23,0.96));
   border: 1px solid rgba(255,255,255,0.09); border-radius: 14px;
   box-shadow: 0 14px 36px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
   color: #f5f5fa; pointer-events: none;
