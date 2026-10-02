@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.17.3
+// @version      1.17.4
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -4746,7 +4746,7 @@
             vibrantSat: false,
             sl: 1.3,
             sr: -1.1,
-            bl: 1.2,
+            bl: 0.3,
             wl: 0.2,
             dn: 0.0,
             edge: 0.0,
@@ -15194,6 +15194,10 @@ const fileInput = document.createElement('input');
     function closeHudSelectPopup() {
         if (!_hudPopup) return;
         try { _hudPopup.el.remove(); } catch (_) { }
+        try {
+            _hudPopup.sel.removeEventListener('change', _hudPopup.onSelChange);
+            _hudPopup.sel.removeEventListener('input', _hudPopup.onSelChange);
+        } catch (_) { }
         _hudPopup = null;
     }
     // Close only if the select really moved / vanished. Many pages scroll something on their own all
@@ -15315,9 +15319,28 @@ const fileInput = document.createElement('input');
 
         const selItem = list.querySelector('.gvf-pop-item.is-sel');
         if (selItem) list.scrollTop = Math.max(0, selItem.offsetTop - list.clientHeight / 2 + selItem.offsetHeight / 2);
-        if (search) setTimeout(() => { try { search.focus({ preventScroll: true }); } catch (_) { } }, 0);
+        // No auto-focus on the search field: the select keeps focus, so profiles / entries can be
+        // picked right away (click or arrow keys) and the hotkeys keep working. Click into it to search.
 
-        _hudPopup = { el: pop, sel, anchor: { left: r.left, top: r.top, vw, vh } };
+        // Arrow keys on the focused select change its value natively: keep the highlight in sync
+        const onSelChange = () => {
+            let cur = null;
+            entries.forEach(en => {
+                if (en.kind !== 'item') return;
+                const on = en.value === sel.value;
+                en.el.classList.toggle('is-sel', on);
+                if (on) cur = en.el;
+            });
+            if (cur && cur.style.display !== 'none') {
+                const top = cur.offsetTop, bottom = top + cur.offsetHeight;
+                if (top < list.scrollTop) list.scrollTop = top;
+                else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+            }
+        };
+        sel.addEventListener('change', onSelChange);
+        sel.addEventListener('input', onSelChange);
+
+        _hudPopup = { el: pop, sel, onSelChange, anchor: { left: r.left, top: r.top, vw, vh } };
     }
     // HUD panels + script windows whose <select>s use the own dropdown list
     const HUD_SELECT_SCOPE = '.gvf-hud, #gvf-config-menu, #gvf-lut-config-menu, #gvf-custom-svg-modal, #gvf-expert-modal, #gvf-userProf-edit-window';
