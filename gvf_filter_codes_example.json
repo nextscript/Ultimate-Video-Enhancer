@@ -1,7 +1,7 @@
 {
   "schema": "gvf-custom-filter-codes",
   "ver": 1,
-  "exportedAt": 1790811213184,
+  "exportedAt": 1790953693592,
   "codes": [
     {
       "id": "csvg_1786390735021",
@@ -56,9 +56,9 @@
         "u_fsr_sharpness": 1.2,
         "u_fsr_edge": 0.6,
         "u_fsr_denoise": 0.55,
-        "SHARPNESS": 1.8,
-        "RADIUS": 2,
-        "STRENGTH": 0.265
+        "SHARPNESS": 1.3,
+        "RADIUS": 1.8,
+        "STRENGTH": 0.25
       },
       "hotkey": "f9"
     },
