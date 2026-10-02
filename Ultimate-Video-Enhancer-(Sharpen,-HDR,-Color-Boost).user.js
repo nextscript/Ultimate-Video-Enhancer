@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.17.0
+// @version      1.17.2
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -4703,7 +4703,7 @@
             vibrantSat: false,
             sl: 1.0,
             sr: 0.5,
-            bl: -1.2,
+            bl: 1.2,
             wl: 0.2,
             dn: 0.0,
             edge: 0.1,
@@ -9379,7 +9379,7 @@ function downloadBlob(blob, filename) {
     } else {
         var sl = Number(gmGet(K.SL, 1.0));
         var sr = Number(gmGet(K.SR, 0.5));
-        var bl = Number(gmGet(K.BL, -1.2));
+        var bl = Number(gmGet(K.BL, 1.2));
         var wl = Number(gmGet(K.WL, 0.2));
         var dn = Number(gmGet(K.DN, -0.6));
         var profile = String(gmGet(K.PROF, 'user')).toLowerCase();
@@ -17183,7 +17183,7 @@ const fileInput = document.createElement('input');
 
                 defaults = {
                     baseOtp: true, notify: true, darkMoody: true, tealOrange: false, vibrantSat: false,
-                    sl: 1.0, sr: 0.5, bl: -1.2, wl: 0.2, dn: 0.0,
+                    sl: 1.0, sr: 0.5, bl: 1.2, wl: 0.2, dn: 0.0,
                     edge: 0.1,
                     hdr: 0.0, profile: 'user',
                     renderMode: 'svg',
