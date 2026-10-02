@@ -4746,7 +4746,7 @@
             vibrantSat: false,
             sl: 1.3,
             sr: -1.1,
-            bl: 0.3,
+            bl: 1.2,
             wl: 0.2,
             dn: 0.0,
             edge: 0.0,
