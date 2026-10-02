@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.17.2
+// @version      1.17.3
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -453,6 +453,8 @@
         SL: 'gvf_sl',
         SR: 'gvf_sr',
         BL: 'gvf_bl',
+        MIG_BL_FLIP: 'gvf_mig_bl_flip',
+        MIG_BL_FLIP_PROF: 'gvf_mig_bl_flip_prof',
         WL: 'gvf_wl',
         DN: 'gvf_dn',
         EDGE: 'gvf_edge',
@@ -5298,6 +5300,16 @@
                     migrated = true;
                 }
             }
+            // One-time migration: BL direction was flipped, old default -1.2 in saved profiles becomes 1.2
+            if (!gmGet(K.MIG_BL_FLIP_PROF, false)) {
+                for (const p of userProfiles) {
+                    if (p.settings && Math.abs(Number(p.settings.bl) + 1.2) < 0.005) {
+                        p.settings.bl = 1.2;
+                        migrated = true;
+                    }
+                }
+                gmSet(K.MIG_BL_FLIP_PROF, true);
+            }
             if (migrated) saveUserProfiles();
 
             log('User profiles loaded:', userProfiles.length, 'Active:', activeUserProfile?.name, 'Source:', useLs ? 'localStorage' : (useGm ? 'GM' : 'fallback'));
@@ -9385,7 +9397,13 @@ function downloadBlob(blob, filename) {
         var profile = String(gmGet(K.PROF, 'user')).toLowerCase();
     }
 
-    let hdr = Number(gmGet(K.HDR, 0.0));
+    // One-time migration: BL direction was flipped (higher = deeper blacks), old default -1.2 becomes 1.2
+    if (!gmGet(K.MIG_BL_FLIP, false)) {
+        if (Math.abs(Number(bl) + 1.2) < 0.005) { bl = 1.2; gmSet(K.BL, bl); }
+        gmSet(K.MIG_BL_FLIP, true);
+    }
+
+    let hdr =Number(gmGet(K.HDR, 0.0));
     let edge = Number(gmGet(K.EDGE, 0.0));
 
     if (!['off', 'film', 'anime', 'gaming', 'eyecare', 'user'].includes(profile)) profile = 'off';
