@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.17.4
+// @version      1.17.5
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -22,6 +22,7 @@
 // @connect      github.com
 // @connect      api.github.com
 // @connect      cdn.jsdelivr.net
+// @require      https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js#sha256=acc7e41455a80765b5fd9c7ee1b8078a6d160bbbca455aeae854de65c947d59e
 // @connect      colormind.io
 // @iconURL      https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/refs/heads/main/logomes.png
 // @downloadURL https://update.greasyfork.org/scripts/561189/Ultimate%20Video%20Enhancer%20%28Sharpen%2C%20HDR%2C%20Color%20Boost%29.user.js
@@ -38,7 +39,8 @@
     (function handleImportPage() {
         try {
             const host = (location.hostname || '').toLowerCase();
-            const isImportPage = host === 'svg.ts3x.cc' || document.documentElement.hasAttribute('data-gvf-import-page');
+            // Only the official gallery host may install entries. A page-controlled attribute is not trusted.
+            const isImportPage = location.protocol === 'https:' && host === 'svg.ts3x.cc';
             if (!isImportPage) return;
             window.__GVF_IMPORT_PAGE__ = true;
             window.GVF_DETECTED = true;
@@ -47,14 +49,86 @@
                 document.dispatchEvent(new CustomEvent('gvf-detected'));
             } catch (_) {}
 
+            function gvfInstallModal({ title, message, warn, preview, confirmLabel, cancelLabel, tone }) {
+                return new Promise((resolve) => {
+                    const host = document.createElement('div');
+                    host.setAttribute('data-gvf-install-modal', '1');
+                    host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483647;';
+                    const root = host.attachShadow({ mode: 'closed' });
+                    const accent = tone === 'error' ? '#ff4444' : '#2a6fdb';
+                    root.innerHTML = `
+                        <style>
+                            .bd{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;
+                                font:13px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#eee;padding:16px;box-sizing:border-box}
+                            .dlg{background:#16181d;border:1px solid ${accent};border-radius:10px;box-shadow:0 12px 40px rgba(0,0,0,.6);
+                                width:min(560px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;overflow:hidden}
+                            .hd{padding:14px 16px 6px;font-size:15px;font-weight:700;color:#fff}
+                            .bd2{padding:0 16px 12px;overflow:auto}
+                            .msg{margin:0 0 10px;white-space:pre-wrap}
+                            .warn{margin:0 0 10px;padding:8px 10px;border-radius:6px;background:rgba(255,170,0,.12);
+                                border:1px solid rgba(255,170,0,.5);color:#ffcc66;white-space:pre-wrap}
+                            pre{margin:0;padding:10px;background:#0c0d10;border:1px solid #2b2f38;border-radius:6px;max-height:220px;overflow:auto;
+                                font:12px/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;color:#cfd6e4;white-space:pre-wrap;word-break:break-word}
+                            .ft{display:flex;justify-content:flex-end;gap:8px;padding:12px 16px;border-top:1px solid #2b2f38}
+                            button{font:inherit;font-weight:700;padding:7px 14px;border-radius:6px;cursor:pointer;border:1px solid #444;background:#24272e;color:#ddd}
+                            button.ok{background:${accent};border-color:${accent};color:#fff}
+                            button:focus-visible{outline:2px solid #fff;outline-offset:2px}
+                        </style>
+                        <div class="bd"><div class="dlg" role="dialog" aria-modal="true">
+                            <div class="hd"></div>
+                            <div class="bd2"><p class="msg"></p><p class="warn" hidden></p><pre hidden></pre></div>
+                            <div class="ft"><button class="no" type="button"></button><button class="ok" type="button"></button></div>
+                        </div></div>`;
+                    // All dynamic text goes through textContent — entry data is never parsed as HTML.
+                    root.querySelector('.hd').textContent = title || 'GVF';
+                    root.querySelector('.msg').textContent = message || '';
+                    const w = root.querySelector('.warn');
+                    if (warn) { w.hidden = false; w.textContent = warn; }
+                    const pre = root.querySelector('pre');
+                    if (preview) { pre.hidden = false; pre.textContent = preview; }
+                    const ok = root.querySelector('.ok');
+                    const no = root.querySelector('.no');
+                    ok.textContent = confirmLabel || 'OK';
+                    const hasCancel = cancelLabel !== null;
+                    if (!hasCancel) no.remove(); else no.textContent = cancelLabel || 'Cancel';
+
+                    let done = false;
+                    const finish = (val) => {
+                        if (done) return; done = true;
+                        document.removeEventListener('keydown', onKey, true);
+                        host.remove();
+                        resolve(val);
+                    };
+                    const onKey = (e) => {
+                        if (!e.isTrusted) return;
+                        if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); finish(false); }
+                    };
+                    ok.addEventListener('click', (e) => { if (e.isTrusted) finish(true); });
+                    if (hasCancel) no.addEventListener('click', (e) => { if (e.isTrusted) finish(false); });
+                    root.querySelector('.bd').addEventListener('click', (e) => {
+                        if (e.isTrusted && e.target === e.currentTarget) finish(false);
+                    });
+                    document.addEventListener('keydown', onKey, true);
+                    (document.body || document.documentElement).appendChild(host);
+                    try { ok.focus(); } catch (_) {}
+                });
+            }
+
             function wireButtons() {
                 document.querySelectorAll('[data-gvf-install]').forEach(btn => {
                     if (btn.__gvfWired) return;
                     btn.__gvfWired = true;
-                    btn.addEventListener('click', () => {
+                    btn.addEventListener('click', async (ev) => {
+                        // Ignore synthetic clicks (btn.click() / dispatchEvent from page scripts).
+                        if (!ev || !ev.isTrusted) return;
+                        if (btn.__gvfBusy) return;
+                        btn.__gvfBusy = true;
                         try {
                             const entry = JSON.parse(btn.getAttribute('data-gvf-install') || '{}');
-                            if (!entry.label || !entry.code) { alert('Invalid entry.'); return; }
+                            if (!entry.label || !entry.code || typeof entry.code !== 'string') {
+                                await gvfInstallModal({ title: 'Install failed', message: 'Invalid entry.', confirmLabel: 'OK', cancelLabel: null, tone: 'error' });
+                                return;
+                            }
 
                             let codes = [];
                             try {
@@ -77,8 +151,29 @@
                             const entryCategory = entry.category ? String(entry.category).trim() : '';
                             const entryBlend = entry.blendMode ? String(entry.blendMode) : 'normal';
                             const entryDesc = entry.description ? String(entry.description).trim() : '';
-                            if (exists) {
-                                if (!confirm(`"${entry.label}" already exists. Overwrite?`)) return;
+                            // Explicit confirmation with a code preview (one modal, also covers overwrite).
+                            const isJsType = detectedType === 'canvas2d' || detectedType === 'audio';
+                            const typeName = { webgl: 'GLSL shader', svg: 'SVG filter', canvas2d: 'Canvas 2D script', audio: 'Audio script' }[detectedType] || detectedType;
+                            const okInstall = await gvfInstallModal({
+                                title: exists ? `Overwrite "${entry.label}"?` : `Install "${entry.label}"?`,
+                                message: (exists ? 'A filter with this name already exists and will be replaced.\n' : '')
+                                    + `Type: ${typeName} · ${entry.code.length} characters`,
+                                warn: isJsType
+                                    ? '⚠ This entry contains JavaScript that will run on every website where GVF is active. Only install it if you trust the source.'
+                                    : '',
+                                preview: String(entry.code).slice(0, 1500) + (entry.code.length > 1500 ? '\n…' : ''),
+                                confirmLabel: exists ? 'Overwrite' : 'Install',
+                            });
+                            if (!okInstall) return;
+                            // Re-read storage: the modal may have been open while another tab changed it.
+                            try {
+                                const raw2 = GM_getValue('gvf_custom_svg_codes', null);
+                                const p2 = raw2 ? JSON.parse(raw2) : null;
+                                if (Array.isArray(p2)) codes = p2;
+                            } catch (_) {}
+                            const existsNow = codes.find(e => e.label === entry.label);
+                            if (existsNow) {
+                                const exists = existsNow;
                                 exists.code = entry.code;
                                 exists.type = detectedType;
                                 exists.enabled = true;
@@ -105,7 +200,11 @@
                                 btn.classList.add('btn-success');
                                 btn.classList.remove('btn-outline-success');
                             }, 2000);
-                        } catch (e) { alert('Install failed: ' + e.message); }
+                        } catch (e) {
+                            try { await gvfInstallModal({ title: 'Install failed', message: String(e && e.message || e), confirmLabel: 'OK', cancelLabel: null, tone: 'error' }); } catch (_) {}
+                        } finally {
+                            btn.__gvfBusy = false;
+                        }
                     });
                 });
             }
@@ -163,21 +262,7 @@
     let lastRenderTime = 0;
     const RENDER_THROTTLE = 41; // ~24 FPS cap to reduce GPU load
 
-    function render() {
-        if (renderMode === 'gpu') {
-            applyGpuFilter();
-        } else {
-            regenerateSvgImmediately();
-        }
-    }
 
-    function throttledRender(timestamp) {
-        if (timestamp - lastRenderTime >= RENDER_THROTTLE) {
-            lastRenderTime = timestamp;
-            render();
-        }
-        requestAnimationFrame(throttledRender);
-    }
 
     // Viewport size cached on resize: window.innerWidth/innerHeight can force a style/layout
     // flush, and the visibility helpers below run on every overlay update.
@@ -389,6 +474,27 @@
     // Page-wide subtree observers fire constantly on sites like YouTube (hover states, tooltips,
     // lazy UI); reacting to every mutation with querySelectorAll + overlay updates stalls the
     // main thread and makes the GLSL render loop miss frames.
+    // One shared subtree MutationObserver for the whole script instead of one per feature.
+    // Subscribers get the raw mutation list; gvfObserveDom returns { disconnect() }.
+    function gvfObserveDom(cb) {
+        const self = gvfObserveDom;
+        if (!self._subs) {
+            self._subs = new Set();
+            self._mo = new MutationObserver(mutations => {
+                for (const fn of Array.from(self._subs)) {
+                    try { fn(mutations); } catch (e) { try { console.warn('[GVF] DOM observer callback failed:', e); } catch (_) { } }
+                }
+            });
+            self._mo.observe(document.documentElement || document.body, { childList: true, subtree: true });
+        }
+        self._subs.add(cb);
+        return { disconnect() { self._subs.delete(cb); } };
+    }
+
+    // Live collection: checking .length is O(1), unlike querySelectorAll('video').
+    const _gvfVideoElements = document.getElementsByTagName('video');
+    function gvfHasVideos() { return _gvfVideoElements.length > 0; }
+
     function gvfMutationsTouch(mutations, tags) {
         for (const m of mutations) {
             for (const list of [m.addedNodes, m.removedNodes]) {
@@ -405,21 +511,25 @@
     function installGvfVideoReadyGuard() {
         try {
             document.querySelectorAll('video').forEach(wireGvfVideoReadyGuard);
-            const mo = new MutationObserver(mutations => {
+            gvfObserveDom(mutations => {
                 if (!gvfMutationsTouch(mutations, ['VIDEO'])) return;
                 document.querySelectorAll('video').forEach(wireGvfVideoReadyGuard);
                 refreshGvfVideoReadyClasses();
             });
-            mo.observe(document.documentElement || document.body, { childList: true, subtree: true });
-            setInterval(refreshGvfVideoReadyClasses, 500);
+            // Safety net only — skip work in background tabs and on pages without videos.
+            setInterval(() => {
+                if (document.hidden || !gvfHasVideos()) return;
+                refreshGvfVideoReadyClasses();
+            }, 500);
         } catch (_) {}
     }
 
     installGvfVideoReadyGuard();
 
     setInterval(() => {
+        if (document.hidden || !gvfHasVideos()) return;
         try {
-            document.querySelectorAll('video').forEach(v => {
+            Array.from(_gvfVideoElements).forEach(v => {
                 if (gvfIsProbablyTransparentWebm(v)) gvfRemoveCustomWebglCanvasesForVideo(v);
             });
         } catch (_) {}
@@ -884,7 +994,7 @@
         window.__gvfFrameStats = { avg_lum: 0.5, avg_r: 0.5, avg_g: 0.5, avg_b: 0.5, contrast: 0.5 };
 
         function _analyze() {
-            if (!_video || _video.readyState < 2 || _video.paused) return;
+            if (!_ctx || !_video || _video.readyState < 2 || _video.paused) return;
             try {
                 _ctx.drawImage(_video, 0, 0, 64, 36);
                 const d = _ctx.getImageData(0, 0, 64, 36).data;
@@ -1884,18 +1994,6 @@
             v_uv = a_uv;
         }`;
 
-        function _compileShader(gl, type, src) {
-            const sh = gl.createShader(type);
-            gl.shaderSource(sh, src);
-            gl.compileShader(sh);
-            if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
-                const err = gl.getShaderInfoLog(sh);
-                gl.deleteShader(sh);
-                throw new Error(err);
-            }
-            return sh;
-        }
-
         // ── Per-instance GL helpers ────────────────────────────────────────────
 
         function _compileShader(gl, type, src) {
@@ -2335,7 +2433,7 @@
                 if (noFilter && w === RAW_W && h === RAW_H) {
                     // Fastest path: one direct video -> GPU upload, no intermediate 2D canvas.
                     gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, video);
-                } else {
+                } else if (_filteredCtx) {
                     // Required for CSS-filter baking and/or internal resolution scaling.
                     if (_filteredCanvas.width !== w || _filteredCanvas.height !== h) {
                         _filteredCanvas.width = w;
@@ -2685,6 +2783,21 @@
     // positioned directly after the <video> element (same as WebGL manager).
     // User code receives: ctx, canvas, video, width, height, frame, u_mouse, u_zoom
     // ─────────────────────────────────────────────────────────────────────────
+    // Deepgram STT state. Kept private (not on unsafeWindow) so page scripts cannot read
+    // the API key, the transcript or the microphone stream, nor start the microphone.
+    // Overlay code receives it as the `__gvfDG` parameter; legacy references such as
+    // `unsafeWindow.__gvfDG` / `window.__gvfDG` are rewritten to that parameter at compile time.
+    const GVF_DG_STATE = {
+        ws: null, lines: [], interim: '',
+        state: 'idle', error: null,
+        mediaRecorder: null, audioCtx: null, stream: null,
+        _apiKey: null, _lang: 'de', _maxLines: 5
+    };
+    const GVF_USER_FN_ARGS = ['ctx','canvas','video','width','height','frame','u_mouse','u_zoom','__gvfDG'];
+    function gvfPrepareUserCode(code) {
+        return String(code || '').replace(/\b(?:unsafeWindow|window|globalThis|self)\s*\.\s*__gvfDG\b/g, '__gvfDG');
+    }
+
     const CustomCanvas2DOverlayManager = (() => {
         // Map: entry.id -> { canvas, fn, rafId, lastTime }
         const _instances = new Map();
@@ -2693,7 +2806,8 @@
         // GM_addElement injects a <script> bypassing CSP/Trusted Types — it's
         // executed in the page context synchronously before the next microtask.
         function _compileUserFn(code) {
-            const args = ['ctx','canvas','video','width','height','frame','u_mouse','u_zoom'];
+            const args = GVF_USER_FN_ARGS;
+            code = gvfPrepareUserCode(code);
 
             // 1. Direct new Function (works on most sites)
             try { return new Function(...args, code); } catch(e) {
@@ -2811,6 +2925,7 @@
                 lastTime = now;
 
                 const ctx2d = canvas.getContext('2d');
+                if (!ctx2d) return; // no 2D context available — stop this overlay loop instead of throwing every frame
                 ctx2d.clearRect(0, 0, w, h);
 
                 // Letterbox: map canvas coords to actual video content area
@@ -2837,7 +2952,7 @@
 
                 ctx2d.translate(vx, vy);
                 try {
-                    fn(ctx2d, canvas, video, vw, vh, frameMs, u_mouse, u_zoom);
+                    inst.fn(ctx2d, canvas, video, vw, vh, frameMs, u_mouse, u_zoom, GVF_DG_STATE);
                 } catch (e) { /* silently skip */ }
 
                 ctx2d.restore();
@@ -2851,14 +2966,6 @@
             return inst;
         }
 
-        function _reparentCanvas(canvas, video) {
-            if (!video) return;
-            const parent = video.parentElement;
-            if (!parent) return;
-            if (canvas.parentElement !== parent) {
-                parent.insertBefore(canvas, video.nextSibling);
-            }
-        }
 
         function _destroyInstance(inst) {
             if (inst._stop) inst._stop();
@@ -2976,7 +3083,8 @@
         const _instances = new Map(); // entry.id → { canvas, fn, rafId, alive }
 
         function _compileUserFn(code) {
-            const args = ['ctx','canvas','video','width','height','frame','u_mouse','u_zoom'];
+            const args = GVF_USER_FN_ARGS;
+            code = gvfPrepareUserCode(code);
             try { return new Function(...args, code); } catch(e) {
                 try {
                     if (typeof unsafeWindow !== 'undefined')
@@ -3012,6 +3120,7 @@
             canvas.style.cssText = 'display:none;position:absolute;pointer-events:none;z-index:5;';
             canvas.setAttribute('data-gvf-custom-audio', entry.id);
             const ctx = canvas.getContext('2d');
+            if (!ctx) return null;
 
             let alive = true;
             const drawLoop = (frameMs) => {
@@ -3039,7 +3148,7 @@
                     y: Math.max(0, Math.min(1, (rawMy - vr.top)  / (vr.height || 1))),
                 };
                 const u_zoom = typeof _scrollZoom !== 'undefined' ? _scrollZoom : 1.0;
-                try { fn(ctx, canvas, video, canvas.width, canvas.height, frameMs, u_mouse, u_zoom); } catch(e) {
+                try { inst.fn(ctx, canvas, video, canvas.width, canvas.height, frameMs, u_mouse, u_zoom, GVF_DG_STATE); } catch(e) {
                     ctx.font = '11px monospace'; ctx.fillStyle = '#ff4444';
                     ctx.fillText('[GVF Audio] ' + e.message, 8, 20);
                 }
@@ -3275,21 +3384,37 @@
 
     // ── Deepgram STT ──────────────────────────────────────────────────────────
     // Runs natively in userscript context to bypass Trusted Types / CSP.
-    // Canvas2D overlays configure and read from unsafeWindow.__gvfDG.
+    // Canvas2D/audio overlays configure and read the private GVF_DG_STATE via their
+    // `__gvfDG` parameter (see GVF_USER_FN_ARGS).
     (function initGvfDeepgram() {
-        if (unsafeWindow.__gvfDG) return;
-        unsafeWindow.__gvfDG = {
-            ws: null, lines: [], interim: '',
-            state: 'idle', error: null,
-            mediaRecorder: null, audioCtx: null, stream: null,
-            _apiKey: null, _lang: 'de', _maxLines: 5
-        };
+        const dg = GVF_DG_STATE;
+        let _retryDelay = 0;      // ms, exponential backoff after failures
+        let _retryTimer = null;   // single pending (re)start
+        let _stoppedByUs = false; // intentional close → no auto-restart
 
-        const dg = unsafeWindow.__gvfDG;
+        function _releaseMic() {
+            try { if (dg.stream) dg.stream.getTracks().forEach(t => t.stop()); } catch(_) {}
+            dg.stream = null;
+        }
+
+        function scheduleStart(delay) {
+            if (_retryTimer) return;
+            _retryTimer = setTimeout(() => { _retryTimer = null; startDeepgram(); }, Math.max(0, delay | 0));
+        }
+
+        function stopDeepgram() {
+            if (_retryTimer) { clearTimeout(_retryTimer); _retryTimer = null; }
+            _stoppedByUs = true;
+            try { if (dg.ws && dg.ws.readyState <= 1) dg.ws.close(1000, 'stop'); } catch(_) {}
+            _releaseMic();
+            dg.state = 'idle';
+        }
 
         async function startDeepgram() {
             if (dg.state === 'connecting' || dg.state === 'running') return;
             if (!dg._apiKey) return;
+            if (document.hidden) return; // never open the microphone for a background tab
+            _stoppedByUs = false;
             dg.state = 'connecting';
             dg.error = null;
 
@@ -3313,6 +3438,7 @@
 
             ws.onopen = async () => {
                 dg.state = 'running';
+                _retryDelay = 0;
                 try {
                     const ac = new AudioContext();
                     dg.audioCtx = ac;
@@ -3400,6 +3526,8 @@
             ws.onerror = () => { dg.state = 'error'; dg.error = 'WS error'; };
 
             ws.onclose = (e) => {
+                // A newer socket already replaced this one (fast hide/show) — don't touch its state.
+                if (dg.ws && dg.ws !== ws) return;
                 dg.state = 'idle';
                 dg.interim = '';
                 try { if (dg._worklet) { dg._worklet.disconnect(); } } catch(_) {}
@@ -3407,64 +3535,45 @@
                 try { if (dg._processor) { dg._processor.disconnect(); } } catch(_) {}
                 try { if (dg.audioCtx) { dg.audioCtx.close(); dg.audioCtx = null; } } catch(_) {}
                 dg._worklet = null; dg._processor = null; dg._src = null;
-                if (e.code === 1008) { dg.error = 'Invalid API key'; return; }
-                setTimeout(startDeepgram, 1000);
+                if (dg.ws === ws) dg.ws = null;
+                if (e.code === 1008) { dg.error = 'Invalid API key'; _releaseMic(); return; }
+                if (_stoppedByUs || !dg._apiKey) { _releaseMic(); return; }
+                // Exponential backoff: 1s, 2s, 4s … max 60s (was a fixed 1s loop on network errors)
+                _retryDelay = Math.min(_retryDelay ? _retryDelay * 2 : 1000, 60000);
+                scheduleStart(_retryDelay);
             };
         }
 
         dg._start = startDeepgram;
+        dg._stop = stopDeepgram;
 
-        // Auto-reconnect every 20s to prevent Deepgram timeout
+        // Keep the stream alive with Deepgram's KeepAlive message instead of tearing the socket
+        // down every 20s (the old ws.close(1001) always threw InvalidAccessError: close() only
+        // accepts 1000 or 3000-4999). Also auto-starts once an overlay has set an API key.
+        // The timer does nothing until an API key exists.
         setInterval(() => {
-            if (dg.state === 'running' && dg._apiKey) {
-                console.log('[GVF Deepgram] Refreshing connection...');
-                try { if (dg.ws) dg.ws.close(1001, 'refresh'); } catch(_) {}
+            if (!dg._apiKey) return;
+            if (dg.state === 'running' && dg.ws && dg.ws.readyState === 1) {
+                try { dg.ws.send(JSON.stringify({ type: 'KeepAlive' })); } catch(_) {}
+                return;
             }
-            // Auto-start if idle with valid key
-            if (dg.state === 'idle' && dg._apiKey && dg.error !== 'Invalid API key') {
-                console.log('[GVF Deepgram] Auto-starting...');
+            if (dg.state === 'idle' && !_retryTimer && !document.hidden && dg.error !== 'Invalid API key') {
                 startDeepgram();
             }
-        }, 20000);
+        }, 8000);
+
+        // Release the microphone while the tab is in the background; resume when visible again.
+        document.addEventListener('visibilitychange', () => {
+            if (!dg._apiKey) return;
+            if (document.hidden) {
+                if (dg.state === 'running' || dg.state === 'connecting') stopDeepgram();
+            } else if (dg.state === 'idle' && dg.error !== 'Invalid API key') {
+                _retryDelay = 0;
+                scheduleStart(250);
+            }
+        });
     })();
 
-    // Returns the best available filtered frame source for Canvas2D overlays.
-    // WebGL mode: reuses __gvfFilteredFrame (already baked with full filter).
-    // SVG mode: bakes CSS-only part (brightness/contrast/saturate etc.) into a cached canvas.
-    function gvfGetFilteredSource(video) {
-        if (window.__gvfFilteredFrame && window.__gvfFilteredFrame.width > 0) {
-            return window.__gvfFilteredFrame;
-        }
-        // SVG mode fallback: apply CSS filter portion only (no SVG url())
-        try {
-            const w = video.videoWidth || video.clientWidth || 1280;
-            const h = video.videoHeight || video.clientHeight || 720;
-            if (!gvfGetFilteredSource._c) {
-                gvfGetFilteredSource._c = document.createElement('canvas');
-                gvfGetFilteredSource._x = gvfGetFilteredSource._c.getContext('2d', { alpha: false });
-            }
-            const c = gvfGetFilteredSource._c, x = gvfGetFilteredSource._x;
-            if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
-            let f = 'none';
-            try {
-                const s = document.getElementById('global-video-filter-style');
-                if (s) {
-                    const m = s.textContent.match(/filter\s*:\s*([^!;]+)/);
-                    if (m && m[1]) f = m[1].trim().replace(/url\([^)]*\)/g, '').replace(/\s+/g, ' ').trim() || 'none';
-                }
-            } catch(_) {}
-            x.filter = f;
-            try {
-                x.drawImage(video, 0, 0, w, h);
-            } catch(_) {
-                // SecurityError (e.g. YouTube tainted video) — use __gvfFilteredFrame fallback
-                const fb = window.__gvfFilteredFrame;
-                if (fb && fb.width > 0) { try { x.drawImage(fb, 0, 0, w, h); } catch(__) { return video; } }
-                else return video;
-            }
-            return c;
-        } catch(_) { return video; }
-    }
 
     function updateCustomCanvas2DOverlays() {
         if (isFirefox()) return;
@@ -4474,7 +4583,7 @@
                         const mgr = type === 'audio' ? CustomAudioOverlayManager : CustomCanvas2DOverlayManager;
                         const testFn = mgr._compileUserFn
                             ? mgr._compileUserFn(prefix + code)
-                            : new Function('ctx', 'canvas', 'video', 'width', 'height', 'frame', 'u_mouse', 'u_zoom', prefix + code);
+                            : new Function(...GVF_USER_FN_ARGS, gvfPrepareUserCode(prefix + code));
                         if (!testFn) throw new Error('Compilation failed');
                     } catch (e) {
                         errMsg.textContent = '❌ ' + (type === 'audio' ? 'Audio' : 'Canvas 2D') + ' error: ' + e.message; return;
@@ -5377,6 +5486,24 @@
         }
     }
 
+    // Set by the LUT menu builder; module-level import code calls it through setActiveLutInfo().
+    let _gvfActiveLutInfoUpdater = null;
+    function setActiveLutInfo() {
+        if (typeof _gvfActiveLutInfoUpdater === 'function') _gvfActiveLutInfoUpdater();
+    }
+
+    function setActiveProfileInfo(el, profileName) {
+        if (!el) return;
+        while (el.firstChild) el.removeChild(el.firstChild);
+
+        const name = profileName || 'Default';
+        el.append('🔵 Active profile: ');
+
+        const strong = document.createElement('strong');
+        strong.textContent = name;
+        el.appendChild(strong);
+    }
+
     function refreshUserProfileManagerUi() {
         try { updateProfileList(); } catch (_) { }
         try {
@@ -5387,89 +5514,8 @@
         } catch (_) { }
     }
 
-    function pullUserProfilesFromSharedStorage(reason = '', force = false) {
-        if (_applyingRemoteProfileSync || _isSwitchingUserProfile) return false;
-
-        try {
-            const storedGm = gmGet(K.USER_PROFILES, null);
-            const normalizedGm = normalizeUserProfilesForStorage(storedGm);
-            const storedLs = readUserProfilesFromLocalStorage();
-            const gmRev = readUserProfilesRevFromGM();
-            const lsRev = readUserProfilesRevFromLocalStorage();
-            const newestRev = Math.max(gmRev, lsRev, 0);
-
-            let nextProfiles = [];
-            if (storedLs && storedLs.length && lsRev > gmRev) {
-                nextProfiles = storedLs;
-            } else if (normalizedGm.length) {
-                nextProfiles = normalizedGm;
-            } else if (storedLs && storedLs.length) {
-                nextProfiles = storedLs;
-            } else {
-                nextProfiles = getDefaultUserProfilesFallback();
-            }
-
-            const nextActiveId = resolveStoredActiveUserProfileId(
-                nextProfiles,
-                !!(storedLs && storedLs.length && lsRev >= gmRev)
-            );
-
-            const currentSnapshot = JSON.stringify(normalizeUserProfilesForStorage(userProfiles));
-            const nextSnapshot = JSON.stringify(normalizeUserProfilesForStorage(nextProfiles));
-            const currentActiveId = String(activeUserProfile && activeUserProfile.id ? activeUserProfile.id : '');
-            const snapshotChanged = nextSnapshot != currentSnapshot;
-            const activeChanged = nextActiveId !== currentActiveId;
-
-            if (!force) {
-                if (newestRev < _lastProfileStorageRev) return false;
-                if (activeChanged && !snapshotChanged && newestRev <= _lastProfileStorageRev) {
-                    log('Ignored stale active-profile sync:', reason || 'unknown', 'Incoming:', nextActiveId, 'Current:', currentActiveId);
-                    return false;
-                }
-            }
-
-            const hasChanged = force
-                || newestRev > _lastProfileStorageRev
-                || activeChanged
-                || snapshotChanged;
-
-            if (!hasChanged) return false;
-
-            userProfiles = normalizeUserProfilesForStorage(nextProfiles);
-            if (!userProfiles.length) userProfiles = getDefaultUserProfilesFallback();
-            activeUserProfile = userProfiles.find(p => p.id === nextActiveId) || userProfiles[0] || null;
-            if (!activeUserProfile && userProfiles.length) activeUserProfile = userProfiles[0] || null;
-
-            _lastProfileStorageRev = newestRev || Date.now();
-            _lastProfileStorageActiveId = String(activeUserProfile && activeUserProfile.id ? activeUserProfile.id : 'default');
-
-            if (activeUserProfile && activeUserProfile.settings && typeof activeUserProfile.settings === 'object') {
-                _applyingRemoteProfileSync = true;
-                try {
-                    applyUserProfileSettings(activeUserProfile.settings);
-                } finally {
-                    _applyingRemoteProfileSync = false;
-                }
-            }
-
-            refreshUserProfileManagerUi();
-            log('User profiles synced from shared storage:', reason || 'unknown', 'Active:', activeUserProfile && activeUserProfile.name ? activeUserProfile.name : 'none');
-            return true;
-        } catch (e) {
-            _applyingRemoteProfileSync = false;
-            logW('User profile sync from shared storage failed:', reason, e);
-            return false;
-        }
-    }
 
     let _remoteProfilePullTimer = null;
-    function schedulePullUserProfilesFromSharedStorage(reason = '', force = false, delay = 60) {
-        if (_remoteProfilePullTimer) clearTimeout(_remoteProfilePullTimer);
-        _remoteProfilePullTimer = setTimeout(() => {
-            _remoteProfilePullTimer = null;
-            pullUserProfilesFromSharedStorage(reason, force);
-        }, Math.max(0, Number(delay) || 0));
-    }
 
     // LUT Profiles (Storage + Apply)
     // -------------------------
@@ -5693,11 +5739,6 @@
         }
     }
 
-    function getActiveLutProfile() {
-        const want = lutParseKey(activeLutProfileKey);
-        if (want.key === 'none') return null;
-        return (Array.isArray(lutProfiles) ? lutProfiles : []).find(x => lutKeyFromProfile(x) === want.key) || null;
-    }
 
     function upsertLutProfile(profile) {
         const name = String(profile && profile.name ? profile.name : '').trim();
@@ -5791,7 +5832,9 @@
         if (_jszipPromise) return _jszipPromise;
 
         _jszipPromise = new Promise((resolve, reject) => {
-            const JSZIP_URL = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+            // Normally JSZip comes from @require; this loader is only a fallback (e.g. when the
+            // page defines an AMD `define` and the UMD bundle registers there instead).
+            const JSZIP_URL = 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js';
 
             const resolveIfReady = () => {
                 const ctor = getJSZipCtor();
@@ -7591,33 +7634,43 @@ function downloadBlob(blob, filename) {
         return 'https://raw.githubusercontent.com/' + LUT_REPO_OWNER + '/' + LUT_REPO_NAME + '/' + LUT_REPO_BRANCH + '/' + fileName;
     }
 
+    // GitHub requests go through GM_xmlhttpRequest (hosts are whitelisted via @connect):
+    // not subject to the page's CSP/CORS and no third-party CORS proxy sees the data.
+    function gvfGmRequest(url, responseType) {
+        return new Promise((resolve, reject) => {
+            if (typeof GM_xmlhttpRequest !== 'function') { reject(new Error('GM_xmlhttpRequest unavailable.')); return; }
+            try {
+                GM_xmlhttpRequest({
+                    method: 'GET',
+                    url,
+                    responseType: responseType || 'text',
+                    timeout: 30000,
+                    headers: { 'Accept': responseType === 'json' ? 'application/vnd.github+json' : '*/*' },
+                    onload: (res) => resolve(res),
+                    onerror: () => reject(new Error('Network error: ' + url)),
+                    ontimeout: () => reject(new Error('Timed out: ' + url)),
+                });
+            } catch (e) { reject(e); }
+        });
+    }
+
     async function fetchRepoFileAsBlob(fileName) {
         const rawUrl = lutRepoRawUrl(fileName);
-        const candidates = [
-            rawUrl,
-            'https://api.allorigins.win/raw?url=' + encodeURIComponent(rawUrl),
-            'https://corsproxy.io/?' + encodeURIComponent(rawUrl),
-            'https://proxy.cors.sh/' + rawUrl,
-        ];
-        let response = null;
-        for (const url of candidates) {
-            try {
-                const r = await fetch(url);
-                if (r && r.ok) { response = r; break; }
-            } catch (_) { }
+        let res;
+        try { res = await gvfGmRequest(rawUrl, 'arraybuffer'); }
+        catch (e) { throw new Error('GitHub is not reachable (' + (e && e.message || e) + ').'); }
+        if (!res || res.status < 200 || res.status >= 300 || !res.response) {
+            throw new Error('GitHub download failed (HTTP ' + (res && res.status) + ').');
         }
-        if (!response) {
-            throw new Error('GitHub is not reachable (all download attempts failed).');
-        }
-        return response.blob();
+        return new Blob([res.response], { type: 'application/zip' });
     }
 
     async function listRepoLutZipFiles() {
         const api = 'https://api.github.com/repos/' + LUT_REPO_OWNER + '/' + LUT_REPO_NAME + '/contents';
-        const r = await fetch(api);
+        const r = await gvfGmRequest(api, 'text');
         if (!r) throw new Error('GitHub API unreachable.');
-        if (!r.ok) throw new Error('GitHub API HTTP ' + r.status);
-        const data = await r.json();
+        if (r.status < 200 || r.status >= 300) throw new Error('GitHub API HTTP ' + r.status);
+        const data = JSON.parse(r.responseText || 'null');
         if (!Array.isArray(data)) throw new Error('Unexpected GitHub API response.');
         const names = [];
         for (const entry of data) {
@@ -7924,137 +7977,7 @@ function downloadBlob(blob, filename) {
         while (node.firstChild) node.removeChild(node.firstChild);
     }
 
-    function prettySettingName(key) {
-        const map = {
-            gvf_enabled: 'Enabled',
-            gvf_moody: 'Dark Moody',
-            gvf_teal: 'Teal Orange',
-            gvf_vib: 'Vibrant Saturation',
-            gvf_icons: 'Icons',
-            gvf_sl: 'Sharpen Level',
-            gvf_sr: 'Sharpen Radius',
-            gvf_bl: 'Black Level',
-            gvf_wl: 'White Level',
-            gvf_dn: 'Denoise',
-            gvf_edge: 'Edge Detection',
-            gvf_hdr: 'HDR',
-            gvf_profile: 'Profile',
-            gvf_g_hud: 'Grading HUD',
-            gvf_i_hud: 'IO HUD',
-            gvf_s_hud: 'Scopes HUD',
-            gvf_render_mode: 'Render Mode',
-            gvf_u_contrast: 'Contrast',
-            gvf_u_black: 'Black',
-            gvf_u_white: 'White',
-            gvf_u_highlights: 'Highlights',
-            gvf_u_shadows: 'Shadows',
-            gvf_u_saturation: 'Saturation',
-            gvf_u_vibrance: 'Vibrance',
-            gvf_u_sharpen: 'Sharpen',
-            gvf_u_gamma: 'Gamma',
-            gvf_u_grain: 'Grain',
-            gvf_u_hue: 'Hue',
-            gvf_u_r_gain: 'Red Gain',
-            gvf_u_g_gain: 'Green Gain',
-            gvf_u_b_gain: 'Blue Gain',
-            gvf_auto_on: 'Auto-Scene-Match',
-            gvf_auto_strength: 'Auto Strength',
-            gvf_auto_lock_wb: 'Auto Lock WB',
-            gvf_notify: 'Notify',
-            gvf_logs: 'Logs',
-            gvf_debug: 'Debug',
-            gvf_cb_filter: 'Color Blind Filter',
-            enabled: 'Enabled',
-            darkMoody: 'Dark Moody',
-            tealOrange: 'Teal Orange',
-            vibrantSat: 'Vibrant Saturation',
-            sl: 'Sharpen Level',
-            sr: 'Sharpen Radius',
-            bl: 'Black Level',
-            wl: 'White Level',
-            dn: 'Denoise',
-            edge: 'Edge Detection',
-            hdr: 'HDR',
-            profile: 'Profile',
-            renderMode: 'Render Mode',
-            autoOn: 'Auto-Scene-Match',
-            autoStrength: 'Auto Strength',
-            autoLockWB: 'Auto Lock WB',
-            notify: 'Notify',
-            logs: 'Logs',
-            debug: 'Debug',
-            cbFilter: 'Color Blind Filter'
-        };
-        if (Object.prototype.hasOwnProperty.call(map, key)) return map[key];
-        return String(key || 'Setting')
-            .replace(/^gvf_/, '')
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, c => c.toUpperCase());
-    }
 
-    function resolveReasonValue(reason, currentSettings) {
-        const key = String(reason || '').trim();
-        if (!key) return undefined;
-
-        const gmToInternal = {
-            gvf_enabled: 'enabled',
-            gvf_moody: 'darkMoody',
-            gvf_teal: 'tealOrange',
-            gvf_vib: 'vibrantSat',
-            gvf_icons: 'iconsShown',
-            gvf_sl: 'sl',
-            gvf_sr: 'sr',
-            gvf_bl: 'bl',
-            gvf_wl: 'wl',
-            gvf_dn: 'dn',
-            gvf_edge: 'edge',
-            gvf_hdr: 'hdr',
-            gvf_profile: 'profile',
-            gvf_g_hud: 'gradingHudShown',
-            gvf_i_hud: 'ioHudShown',
-            gvf_s_hud: 'scopesHudShown',
-            gvf_render_mode: 'renderMode',
-            gvf_u_contrast: 'u_contrast',
-            gvf_u_black: 'u_black',
-            gvf_u_white: 'u_white',
-            gvf_u_highlights: 'u_highlights',
-            gvf_u_shadows: 'u_shadows',
-            gvf_u_saturation: 'u_sat',
-            gvf_u_vibrance: 'u_vib',
-            gvf_u_sharpen: 'u_sharp',
-            gvf_u_gamma: 'u_gamma',
-            gvf_u_grain: 'u_grain',
-            gvf_u_hue: 'u_hue',
-            gvf_u_r_gain: 'u_r_gain',
-            gvf_u_g_gain: 'u_g_gain',
-            gvf_u_b_gain: 'u_b_gain',
-            gvf_auto_on: 'autoOn',
-            gvf_auto_strength: 'autoStrength',
-            gvf_auto_lock_wb: 'autoLockWB',
-            gvf_notify: 'notify',
-            gvf_logs: 'logs',
-            gvf_debug: 'debug',
-            gvf_cb_filter: 'cbFilter'
-        };
-
-        const directKey = gmToInternal[key] || key;
-        if (currentSettings && Object.prototype.hasOwnProperty.call(currentSettings, directKey)) {
-            return currentSettings[directKey];
-        }
-
-        switch (directKey) {
-            case 'enabled': return enabled;
-            case 'darkMoody': return darkMoody;
-            case 'tealOrange': return tealOrange;
-            case 'vibrantSat': return vibrantSat;
-            case 'autoOn': return autoOn;
-            case 'autoLockWB': return autoLockWB;
-            case 'notify': return notify;
-            case 'logs': return logs;
-            case 'debug': return debug;
-            default: return undefined;
-        }
-    }
 
     const TOAST_DURATION_MS = 3000;
     // Status from the detail color the callers already pass (green = on, red = off, else info)
@@ -8157,49 +8080,6 @@ function downloadBlob(blob, filename) {
         });
     }
 
-    function showAutoSaveNotification(profileName, reason, currentSettings) {
-        const readableName = prettySettingName(reason);
-        const resolvedValue = resolveReasonValue(reason, currentSettings);
-        const reasonKey = String(reason || '').trim();
-        const isHdrReason = (reasonKey === 'hdr' || reasonKey === K.HDR);
-        const isRenderModeReason = (reasonKey === 'renderMode' || reasonKey === K.RENDER_MODE);
-        let detailText = readableName;
-        let detailColor = '#ffffff';
-
-        if (typeof resolvedValue === 'boolean') {
-            if (resolvedValue) {
-                detailText = `${readableName} enabled`;
-                detailColor = '#4cff6a';
-            } else {
-                detailText = `${readableName} disabled`;
-                detailColor = '#ff4c4c';
-            }
-        } else if (isHdrReason) {
-            const hdrValue = Number(resolvedValue);
-            if (Number.isFinite(hdrValue) && Math.abs(hdrValue) > 0.0001) {
-                detailText = `${readableName} enabled (${hdrValue.toFixed(2)})`;
-                detailColor = '#4cff6a';
-            } else {
-                detailText = `${readableName} disabled`;
-                detailColor = '#ff4c4c';
-            }
-        } else if (isRenderModeReason) {
-            const modeValue = String(resolvedValue || '').toLowerCase();
-            if (modeValue === 'gpu') {
-                detailText = `${readableName}: GPU / WebGL2 Canvas Pipeline`;
-                detailColor = '#4cff6a';
-            } else {
-                detailText = `${readableName}: SVG`;
-                detailColor = '#88ccff';
-            }
-        }
-
-        showScreenNotification('', {
-            title: `Profile "${profileName}" saved`,
-            detail: detailText,
-            detailColor: detailColor
-        });
-    }
 
     let _autoSaveProfileTimer = null;
     let _autoSaveProfileReason = '';
@@ -8244,15 +8124,6 @@ function downloadBlob(blob, filename) {
         return changed;
     }
 
-    function scheduleAutoSaveCurrentProfile(reason = '') {
-        void reason;
-        if (_autoSaveProfileTimer) {
-            clearTimeout(_autoSaveProfileTimer);
-            _autoSaveProfileTimer = null;
-        }
-        _autoSaveProfileReason = '';
-        return false;
-    }
 
     function getCurrentSettings() {
         return {
@@ -9381,21 +9252,16 @@ function downloadBlob(blob, filename) {
 
     const isFirefoxBrowser = isFirefox();
 
-    if (isFirefoxBrowser) {
-        var sl = Number(gmGet(K.SL, 1.3));
-        var sr = Number(gmGet(K.SR, -1.1));
-        var bl = Number(gmGet(K.BL, 0.3));
-        var wl = Number(gmGet(K.WL, 0.2));
-        var dn = Number(gmGet(K.DN, 0.6));
-        var profile = String(gmGet(K.PROF, 'off')).toLowerCase();
-    } else {
-        var sl = Number(gmGet(K.SL, 1.0));
-        var sr = Number(gmGet(K.SR, 0.5));
-        var bl = Number(gmGet(K.BL, 1.2));
-        var wl = Number(gmGet(K.WL, 0.2));
-        var dn = Number(gmGet(K.DN, -0.6));
-        var profile = String(gmGet(K.PROF, 'user')).toLowerCase();
-    }
+    // Browser-specific defaults (Firefox renders the SVG chain differently).
+    const _GVF_TONE_DEFAULTS = isFirefoxBrowser
+        ? { SL: 1.3, SR: -1.1, BL: 0.3, WL: 0.2, DN: 0.6, PROF: 'off' }
+        : { SL: 1.0, SR: 0.5, BL: 1.2, WL: 0.2, DN: -0.6, PROF: 'user' };
+    let sl = Number(gmGet(K.SL, _GVF_TONE_DEFAULTS.SL));
+    let sr = Number(gmGet(K.SR, _GVF_TONE_DEFAULTS.SR));
+    let bl = Number(gmGet(K.BL, _GVF_TONE_DEFAULTS.BL));
+    let wl = Number(gmGet(K.WL, _GVF_TONE_DEFAULTS.WL));
+    let dn = Number(gmGet(K.DN, _GVF_TONE_DEFAULTS.DN));
+    let profile = String(gmGet(K.PROF, _GVF_TONE_DEFAULTS.PROF)).toLowerCase();
 
     // One-time migration: BL direction was flipped (higher = deeper blacks), old default -1.2 becomes 1.2
     if (!gmGet(K.MIG_BL_FLIP, false)) {
@@ -9918,78 +9784,16 @@ function downloadBlob(blob, filename) {
         } catch (_) { }
     }
 
-    // -------------------------
-    // BRANCHLESS SHADER LOGIC
-    // -------------------------
-    function branchlessClamp(x, min, max) {
-        return Math.min(max, Math.max(min, x));
-    }
 
-    function branchlessSign(x) {
-        return (x > 0) - (x < 0);
-    }
 
-    function branchlessStep(edge, x) {
-        return (x >= edge) | 0;
-    }
 
-    function branchlessMix(a, b, t) {
-        return a + (b - a) * t;
-    }
 
-    function branchlessSmoothStep(edge0, edge1, x) {
-        const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
-        return t * t * (3 - 2 * t);
-    }
 
-    function branchlessGamma(x, gamma) {
-        const g = branchlessClamp(gamma, 0.5, 2.0);
-        if (g < 1.0) {
-            return x * (1.0 + (1.0 - g) * (1.0 - x) * 0.5);
-        } else {
-            return x * (1.0 - (g - 1.0) * x * 0.3);
-        }
-    }
 
-    function branchlessRGBGain(r, g, b, rGain, gGain, bGain) {
-        return [
-            r * rGain / 128.0,
-            g * gGain / 128.0,
-            b * bGain / 128.0
-        ];
-    }
 
-    function branchlessSaturation(r, g, b, sat) {
-        const luma = LUMA.r * r + LUMA.g * g + LUMA.b * b;
-        return [
-            branchlessMix(luma, r, sat),
-            branchlessMix(luma, g, sat),
-            branchlessMix(luma, b, sat)
-        ];
-    }
 
-    function branchlessContrast(r, g, b, contrast) {
-        const factor = (259.0 * (contrast * 255.0 + 255.0)) / (255.0 * (259.0 - contrast * 255.0));
-        return [
-            branchlessClamp(factor * (r - 128) + 128, 0, 255),
-            branchlessClamp(factor * (g - 128) + 128, 0, 255),
-            branchlessClamp(factor * (b - 128) + 128, 0, 255)
-        ];
-    }
 
-    function branchlessHDRToneMap(r, g, b, exposure) {
-        const luma = LUMA.r * r + LUMA.g * g + LUMA.b * b;
-        const scale = (luma * exposure + 1.0) / (luma + 1.0);
-        return [r * scale, g * scale, b * scale];
-    }
 
-    function branchlessSharpen(original, blurred, amount) {
-        return [
-            branchlessClamp(original[0] * (1.0 + amount) - blurred[0] * amount, 0, 255),
-            branchlessClamp(original[1] * (1.0 + amount) - blurred[1] * amount, 0, 255),
-            branchlessClamp(original[2] * (1.0 + amount) - blurred[2] * amount, 0, 255)
-        ];
-    }
 
     function branchlessMotionDetect(curr, prev) {
         let diff = 0;
@@ -9999,11 +9803,6 @@ function downloadBlob(blob, filename) {
         return diff / curr.length;
     }
 
-    function branchlessAdaptiveFps(motionScore, currentFps, minFps, maxFps) {
-        const targetFps = minFps + motionScore * (maxFps - minFps);
-        const alpha = 0.2;
-        return currentFps * (1 - alpha) + targetFps * alpha;
-    }
 
     // ===================== REAL WEBGL2 CANVAS PIPELINE =====================
     let webglPipeline = null;
@@ -11742,13 +11541,6 @@ if (!gl) {
         } catch (_) { }
     }
 
-    function scoreToIdx(score) {
-        if (score < 0.020) return 0;
-        if (score < 0.045) return 1;
-        if (score < 0.075) return 2;
-        if (score < 0.115) return 3;
-        return 4;
-    }
 
     function pickAutoFps(nowT, cutScore) {
         const a = clamp(AUTO.scoreAlpha, 0.05, 0.95);
@@ -12106,18 +11898,6 @@ if (!gl) {
             align-items: center;
             gap: 8px;
         `;
-
-        function setActiveProfileInfo(el, profileName) {
-            if (!el) return;
-            while (el.firstChild) el.removeChild(el.firstChild);
-
-            const name = profileName || 'Default';
-            el.append('🔵 Active profile: ');
-
-            const strong = document.createElement('strong');
-            strong.textContent = name;
-            el.appendChild(strong);
-        }
 
         setActiveProfileInfo(activeInfo, activeUserProfile?.name);
         menu.appendChild(activeInfo);
@@ -12923,24 +12703,6 @@ if (!gl) {
     // -------------------------
     let lutConfigMenuVisible = false;
 
-    /**
-     * Applies a 4x5 feColorMatrix (row-major, 20 floats) to ImageData in-place.
-     * Runs on a downscaled buffer for speed; caller handles up/downscaling.
-     */
-    function applyLut4x5ToImageData(imageData, matrix4x5) {
-        if (!imageData || !Array.isArray(matrix4x5) || matrix4x5.length !== 20) return;
-        const d = imageData.data;
-        const m = matrix4x5.map(Number);
-        const m0=m[0],m1=m[1],m2=m[2],m4=m[4]*255;
-        const m5=m[5],m6=m[6],m7=m[7],m9=m[9]*255;
-        const m10=m[10],m11=m[11],m12=m[12],m14=m[14]*255;
-        for (let i = 0; i < d.length; i += 4) {
-            const r=d[i], g=d[i+1], b=d[i+2];
-            d[i]   = m0*r+m1*g+m2*b+m4   < 0 ? 0 : m0*r+m1*g+m2*b+m4   > 255 ? 255 : m0*r+m1*g+m2*b+m4;
-            d[i+1] = m5*r+m6*g+m7*b+m9   < 0 ? 0 : m5*r+m6*g+m7*b+m9   > 255 ? 255 : m5*r+m6*g+m7*b+m9;
-            d[i+2] = m10*r+m11*g+m12*b+m14 < 0 ? 0 : m10*r+m11*g+m12*b+m14 > 255 ? 255 : m10*r+m11*g+m12*b+m14;
-        }
-    }
 
     /**
      * Captures one shared raw ImageData at 320x180 from the current video frame
@@ -13032,12 +12794,13 @@ if (!gl) {
     function fetchColormindPalette(inputColors) {
         const input = (inputColors || []).map(c => (Array.isArray(c) ? c : 'N')).slice(0, 5);
         while (input.length < 5) input.push('N');
-        return new Promise((resolve, reject) => {
+        const body = JSON.stringify({ model: 'default', input });
+        const once = (url) => new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: 'POST',
-                url: 'http://colormind.io/api/',
+                url,
                 headers: { 'Content-Type': 'application/json' },
-                data: JSON.stringify({ model: 'default', input }),
+                data: body,
                 onload: (resp) => {
                     try {
                         const data = JSON.parse(resp.responseText);
@@ -13045,11 +12808,14 @@ if (!gl) {
                         else reject(new Error('No result in response'));
                     } catch (e) { reject(e); }
                 },
-                onerror: (e) => reject(new Error('GM_xmlhttpRequest failed')),
+                onerror: () => reject(new Error('GM_xmlhttpRequest failed')),
                 ontimeout: () => reject(new Error('Request timed out')),
                 timeout: 10000,
             });
         });
+        // Prefer HTTPS; the public Colormind API historically only answered on plain HTTP,
+        // so fall back to it (only non-sensitive palette data is sent).
+        return once('https://colormind.io/api/').catch(() => once('http://colormind.io/api/'));
     }
 
     /**
@@ -13105,25 +12871,6 @@ if (!gl) {
     }
 
 
-    function getColormindAutoGradeEntry() {
-        return customSvgCodes.find(e =>
-            e &&
-            e.type === 'webgl' &&
-            e.label === 'Colormind Auto Grade' &&
-            e.uniforms &&
-            (
-                e.uniforms.u_cm_rr !== undefined ||
-                e.uniforms.u_cm_rg !== undefined ||
-                e.uniforms.u_cm_rb !== undefined ||
-                e.uniforms.u_cm_gr !== undefined ||
-                e.uniforms.u_cm_gg !== undefined ||
-                e.uniforms.u_cm_gb !== undefined ||
-                e.uniforms.u_cm_br !== undefined ||
-                e.uniforms.u_cm_bg !== undefined ||
-                e.uniforms.u_cm_bb !== undefined
-            )
-        ) || null;
-    }
 
     function buildCubeFromColormindGlslEntry(entry) {
         if (!entry || !entry.uniforms) throw new Error('No Colormind Auto Grade uniforms found.');
@@ -13465,13 +13212,14 @@ if (!gl) {
             gap:8px;
         `;
 
-        const setActiveLutInfo = () => {
+        const setActiveLutInfoLocal = () => {
             while (activeInfo.firstChild) activeInfo.removeChild(activeInfo.firstChild);
             activeInfo.append('🟠 Active LUT: ');
             const strong = document.createElement('strong');
             strong.textContent = (activeLutProfileKey && activeLutProfileKey !== 'none') ? lutParseKey(activeLutProfileKey).name : 'None';
             activeInfo.appendChild(strong);
         };
+        _gvfActiveLutInfoUpdater = setActiveLutInfoLocal;
         setActiveLutInfo();
         menu.appendChild(activeInfo);
 
@@ -18959,6 +18707,7 @@ if ('lutProfile' in obj) {
             lastTime = t;
 
             const vw = video.videoWidth, vh = video.videoHeight;
+            if (!ctx) return;
             ctx.clearRect(0, 0, cw, ch);
             if (!vw || !vh) return;
             // Emulate object-fit: contain (default for <video>)
@@ -20245,53 +19994,9 @@ if ('lutProfile' in obj) {
         scheduleOverlayUpdate();
     }
 
-    function getSelfCode() {
-        try {
-            if (document.currentScript && document.currentScript.textContent) {
-                const t = document.currentScript.textContent.trim();
-                if (t.length > 200) return t;
-            }
-        } catch (_) { }
-        try {
-            if (typeof GM_info !== 'undefined' && GM_info.script && GM_info.script.source) {
-                return String(GM_info.script.source || '');
-            }
-        } catch (_) { }
-        return null;
-    }
-
-    function injectIntoIframe(iframe, code) {
-        try {
-            const doc = iframe.contentDocument;
-            const win = iframe.contentWindow;
-            if (!doc || !win) return;
-            if (win.__GLOBAL_VIDEO_FILTER__) return;
-            if (!code) return;
-
-            const s = doc.createElement('script');
-            s.type = 'text/javascript';
-            s.textContent = code;
-            (doc.head || doc.documentElement).appendChild(s);
-            s.remove();
-        } catch (_) { }
-    }
-
-    function watchIframes() {
-        const code = getSelfCode();
-        if (!code) return;
-
-        const scan = () => document.querySelectorAll('iframe').forEach(ifr => injectIntoIframe(ifr, code));
-        scan();
-
-        document.addEventListener('load', (e) => {
-            const t = e.target;
-            if (t && t.tagName && t.tagName.toLowerCase() === 'iframe') injectIntoIframe(t, code);
-        }, true);
-
-        new MutationObserver(mutations => {
-            if (gvfMutationsTouch(mutations, ['IFRAME'])) scan();
-        }).observe(document.documentElement, { childList: true, subtree: true });
-    }
+    // (1.17.5) Removed getSelfCode/injectIntoIframe/watchIframes: the userscript manager
+    // already injects GVF into frames (no @noframes); the page-context copy had no GM APIs,
+    // ran twice and was blocked by CSP/Trusted Types on many sites.
 
     let _globalSyncApplyTimer = null;
     function scheduleGlobalSyncApply(delay = 50) {
@@ -20605,7 +20310,6 @@ if ('lutProfile' in obj) {
         }
 
         listenGlobalSync();
-        watchIframes();
         primeAutoOnVideoActivity();
 
         // Ensure GLSL overlays are created as soon as any video becomes ready
@@ -20619,7 +20323,7 @@ if ('lutProfile' in obj) {
         //    encrypted event — it fires before playback starts, so late attachment = miss.
         // 3. Fallback mediaKeys check on play/timeupdate for already-playing DRM videos.
         document.querySelectorAll('video').forEach(v => _attachDrmListenerToVideo(v));
-        const _drmVideoObserver = new MutationObserver(mutations => {
+        const _drmVideoObserver = gvfObserveDom(mutations => {
             if (isCurrentDomainGlslBlacklisted()) { _drmVideoObserver.disconnect(); return; }
             if (!gvfMutationsTouch(mutations, ['VIDEO'])) return;
             for (const m of mutations) {
@@ -20631,7 +20335,6 @@ if ('lutProfile' in obj) {
                 });
             }
         });
-        _drmVideoObserver.observe(document.documentElement, { childList: true, subtree: true });
 
         let _drmTimeupdateBound = false;
         ['play', 'playing'].forEach(evt => {
@@ -20830,12 +20533,12 @@ if ('lutProfile' in obj) {
         document.addEventListener('fullscreenchange', onFsChange);
         document.addEventListener('webkitfullscreenchange', onFsChange);
 
-        new MutationObserver(mutations => {
+        gvfObserveDom(mutations => {
             if (!document.getElementById(SVG_ID) && renderMode === 'svg') {
                 regenerateSvgImmediately();
             }
             if (gvfMutationsTouch(mutations, ['VIDEO'])) scheduleOverlayUpdate();
-        }).observe(document.documentElement, { childList: true, subtree: true });
+        });
 
         scheduleOverlayUpdate();
     }
