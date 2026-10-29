@@ -1,0 +1,89 @@
+{
+  "name": "uve-manager",
+  "productName": "UVE Manager",
+  "version": "1.0.0",
+  "description": "UVE Manager \u2013 desktop video look editor and offline renderer built on the Ultimate Video Enhancer effect chain.",
+  "author": "UVE Manager",
+  "license": "SEE LICENSE IN docs/LICENSES.md",
+  "private": true,
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "build:main": "node scripts/build-main.mjs",
+    "build:renderer": "vite build",
+    "build": "npm run typecheck && npm run build:main && npm run build:renderer",
+    "start": "npm run build:main && npm run build:renderer && electron .",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node scripts/build-tests.mjs && node --test dist-tests/*.test.mjs",
+    "fetch-ffmpeg": "node scripts/fetch-ffmpeg.mjs",
+    "dist": "npm run build && electron-builder --win nsis dir && node scripts/build-portable.mjs",
+    "dist:dir": "npm run build && electron-builder --win dir",
+    "selftest": "npm run build:main && npm run build:renderer && electron . --selftest",
+    "dist:portable": "npm run build && electron-builder --win dir && node scripts/build-portable.mjs"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "electron": "^45.1.0",
+    "electron-builder": "^26.0.0",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5"
+  },
+  "build": {
+    "appId": "com.uve.manager",
+    "productName": "UVE Manager",
+    "artifactName": "UVE-Manager-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**",
+      "dist-electron/**",
+      "!dist-electron/*.map",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "dir"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "artifactName": "UVE-Manager-${version}-setup.${ext}"
+    },
+    "fileAssociations": [
+      {
+        "ext": "uveproj",
+        "name": "UVE Manager Project",
+        "role": "Editor"
+      }
+    ],
+    "extraFiles": [
+      {
+        "from": "tools",
+        "to": "tools",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "extraResources": [
+      {
+        "from": "docs",
+        "to": "docs"
+      }
+    ]
+  }
+}

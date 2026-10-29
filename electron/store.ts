@@ -1,0 +1,146 @@
+import { promises as fsp } from 'node:fs';
+import path from 'node:path';
+import { app } from 'electron';
+import { APP_VERSION, type AppPrefs, DEFAULT_EXPORT, DEFAULT_UPDATE_REPO } from '../shared/types';
+import { DEFAULT_SHORTCUTS } from '../shared/shortcuts';
+import { isWritableDir, readJson, writeJson } from './util';
+
+export { DEFAULT_SHORTCUTS };
+
+export const DEFAULT_PREFS: AppPrefs = {
+    ffmpegDir: '',
+    autoUpdate: true,
+    updateRepo: DEFAULT_UPDATE_REPO,
+    skippedVersions: {},
+    autoDownloadLuts: true,
+    previewQuality: 'full',
+    parityMode: false,
+    lastOutputDir: '',
+    recentProjects: [],
+    recentFiles: [],
+    shortcuts: { ...DEFAULT_SHORTCUTS },
+    defaultExport: { ...DEFAULT_EXPORT }
+};
+
+export interface WindowState { x?: number; y?: number; width: number; height: number; maximized: boolean; fullscreen: boolean }
+
+/** settings.json: everything the user chose, so nothing has to be selected again after a restart. */
+export interface SettingsFile {
+    schema: 'uve-manager-settings';
+    version: 1;
+    app: string;
+    savedAt: string;
+    prefs: AppPrefs;
+    window: WindowState;
+    /** Last editor session (effect settings, export settings, open video, view/tab, wipe, …) written by the renderer */
+    editor: Record<string, unknown> | null;
+}
+
+export const userDir = () => app.getPath('userData');
+export const settingsFile = () => path.join(userDir(), 'settings.json');
+export const cacheDir = () => path.join(userDir(), 'cache');
+
+/** Folder that contains the application: next to the portable/installed exe, or the project root in dev. */
+export function appRootDir(): string {
+    if (!app.isPackaged) return path.resolve(__dirname, '..');
+    if (process.env.PORTABLE_EXECUTABLE_DIR) return process.env.PORTABLE_EXECUTABLE_DIR;
+    return path.dirname(app.getPath('exe'));
+}
+
+let toolsDirCache: Promise<string> | null = null;
+/** Portable tools folder (tools/ next to the app); falls back to userData/tools when not writable. Resolved once. */
+export function toolsDir(): Promise<string> {
+    if (!toolsDirCache) {
+        const preferred = path.join(appRootDir(), 'tools');
+        toolsDirCache = isWritableDir(preferred).then(ok => ok ? preferred : path.join(userDir(), 'tools'));
+    }
+    return toolsDirCache;
+}
+
+const DEFAULT_WINDOW: WindowState = { width: 1600, height: 1000, maximized: false, fullscreen: false };
+
+let settings: SettingsFile | null = null;
+
+function normalizePrefs(raw: Partial<AppPrefs> | undefined): AppPrefs {
+    const r = raw || {};
+    return {
+        ...DEFAULT_PREFS, ...r,
+        shortcuts: { ...DEFAULT_SHORTCUTS, ...(r.shortcuts || {}) },
+        defaultExport: { ...DEFAULT_EXPORT, ...(r.defaultExport || {}) },
+        skippedVersions: { ...(r.skippedVersions || {}) }
+    };
+}
+
+/** Loads settings.json; on first start migrates the older prefs.json / session.json files. */
+export async function getSettings(): Promise<SettingsFile> {
+    if (settings) return settings;
+    const raw = await readJson<Partial<SettingsFile> | null>(settingsFile(), null);
+    if (raw && raw.schema === 'uve-manager-settings') {
+        settings = {
+            schema: 'uve-manager-settings', version: 1, app: APP_VERSION, savedAt: String(raw.savedAt || ''),
+            prefs: normalizePrefs(raw.prefs),
+            window: { ...DEFAULT_WINDOW, ...(raw.window || {}) },
+            editor: raw.editor && typeof raw.editor === 'object' ? raw.editor : null
+        };
+        return settings;
+    }
+    const oldPrefs = await readJson<Partial<AppPrefs> | undefined>(path.join(userDir(), 'prefs.json'), undefined);
+    const oldSession = await readJson<Record<string, unknown> | null>(path.join(userDir(), 'session.json'), null);
+    settings = {
+        schema: 'uve-manager-settings', version: 1, app: APP_VERSION, savedAt: '',
+        prefs: normalizePrefs(oldPrefs), window: { ...DEFAULT_WINDOW }, editor: oldSession
+    };
+    await saveSettings();
+    if (oldPrefs) await fsp.rm(path.join(userDir(), 'prefs.json'), { force: true }).catch(() => undefined);
+    if (oldSession) await fsp.rm(path.join(userDir(), 'session.json'), { force: true }).catch(() => undefined);
+    return settings;
+}
+
+let writing: Promise<void> = Promise.resolve();
+/** Serialized write of settings.json (atomic temp file + rename). */
+export function saveSettings(): Promise<void> {
+    writing = writing.then(async () => {
+        if (!settings) return;
+        settings.savedAt = new Date().toISOString();
+        settings.app = APP_VERSION;
+        await writeJson(settingsFile(), settings);
+    }).catch(() => undefined);
+    return writing;
+}
+
+export async function getPrefs(): Promise<AppPrefs> {
+    return (await getSettings()).prefs;
+}
+
+export async function setPrefs(patch: Partial<AppPrefs>): Promise<AppPrefs> {
+    const s = await getSettings();
+    s.prefs = { ...s.prefs, ...patch };
+    await saveSettings();
+    return s.prefs;
+}
+
+export async function getWindowState(): Promise<WindowState> {
+    return (await getSettings()).window;
+}
+
+export async function setWindowState(w: WindowState): Promise<void> {
+    const s = await getSettings();
+    s.window = w;
+    await saveSettings();
+}
+
+export async function getEditorState(): Promise<Record<string, unknown> | null> {
+    return (await getSettings()).editor;
+}
+
+export async function setEditorState(e: Record<string, unknown> | null): Promise<void> {
+    const s = await getSettings();
+    s.editor = e;
+    await saveSettings();
+}
+
+export async function pushRecent(kind: 'recentProjects' | 'recentFiles', p: string) {
+    const cur = await getPrefs();
+    const list = [p, ...cur[kind].filter(x => x.toLowerCase() !== p.toLowerCase())].slice(0, 12);
+    await setPrefs({ [kind]: list } as Partial<AppPrefs>);
+}

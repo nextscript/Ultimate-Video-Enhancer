@@ -1,0 +1,52 @@
+feature,source_symbol,source_line,user_label,type,default,min,max,step,stage,preview,render,test,status,deviation
+Base Tone,GVF_BASE_SETTINGS/svgToneMatrix,4898;19925,Base Tone (Ctrl+Alt+B),bool,true,,,,tone matrix (end of chain),yes,yes,core.test tone matrix,ported,none
+Dark & Moody,GVF_MOODY_SETTINGS/buildFilter,4907;19527,Dark & Moody (Ctrl+Alt+D),bool,true,,,,feComponentTransfer gamma + saturate,yes,yes,graph structure test,ported,none
+Teal & Orange,GVF_TEAL_SETTINGS/buildFilter,4921;19547,Teal & Orange (Ctrl+Alt+O),bool,false,,,,two 3x3 matrices + saturate,yes,yes,matrix merge test,ported,none
+Vibrant,GVF_VIBRANT_SETTINGS,4943;19572,Vibrant (Ctrl+Alt+V),bool,false,,,,saturate 1.35,yes,yes,matrix merge test,ported,none
+HDR boost/soft,GVF_HDR_SETTINGS/buildFilter,4950;19421,HDR Boost,number,0,-1,2,0.01,clarity high-pass + S-curve table + linear + saturate,yes,yes,selftest look render,ported,SDR output only (as in UVE)
+Sharpen/Blur (SL),normSL/getSharpenA/getBlurSigma,9320;9530,Sharpen / Blur,number,1.0,-2,2,0.1,unsharp mask arithmetic / Gaussian blur,yes,yes,graph structure test,ported,blur radius in source pixels (browser: CSS pixels)
+Radius (SR),normSR/getRadius,9321;9532,Radius,number,0.5,-2,2,0.1,blur stdDeviation,yes,yes,graph structure test,ported,source pixels
+Black level (BL),blackToOffset/mkOffsetCT,9533;18803,Black Level,number,1.2,-2,2,0.1,feFunc gamma offset,yes,yes,graph structure test,ported,none
+White level (WL),whiteToHiAdj/mkHighlightsTableCT,9534;18813,White Level,number,0.2,-2,2,0.1,17-step table above 0.78,yes,yes,graph structure test,ported,none
+Denoise/Grain (DN),dnToDenoiseMix/mkDenoiseBlend/mkGrain,9535;18845;18864,Denoise / Grain,number,0,-1.5,1.5,0.1,blur blend / feTurbulence grain,yes,yes,turbulence lattice test,ported,turbulence per SVG 1.1 reference implementation
+Edge detection,normEDGE/buildFilter,9326;19670,Edge Detection,number,0.1,0,1,0.01,Sobel convolve x/y + lighten + mask multiply,yes,yes,graph structure test,ported,edge mode duplicate (SVG default)
+Profiles Movie/Anime/Gaming/EyeCare,mkProfileMatrixCT/PROFILE_TONE,18993;19906,Tone profile,enum,user,,,,profile matrix + saturate + tone,yes,yes,profile graph test,ported,Anime line-art branch reproduces the Chromium result (premultiplied Sobel = transparent → no-op)
+User grading Contrast,GVF_CONTRAST_SETTINGS/contrastCurve,4980;9357,Contrast,number,0,-10,10,0.1,256-entry tone table,yes,yes,curve tests,ported,only with profile User (as in UVE SVG mode)
+User grading Black/White level,GVF_BLACK/WHITE_SETTINGS/levelsCurve,4993;9476,Black Level / White Level,number,0,-10,10,0.1,tone table,yes,yes,levels test,ported,none
+User grading Highlights,GVF_HIGHLIGHTS_SETTINGS/highlightsCurve,5017;9409,Highlights,number,0,-10,10,0.1,tone table,yes,yes,monotonic test,ported,none
+User grading Shadows,GVF_SHADOWS_SETTINGS/shadowsCurve,5030;9504,Shadows,number,0,-10,10,0.1,tone table,yes,yes,monotonic test,ported,none
+User grading Gamma,GVF_GAMMA_SETTINGS/gammaCurve,5073;9339,Gamma,number,0,-10,10,0.1,tone table,yes,yes,curve test,ported,none
+User grading Saturation,GVF_SATURATION_SETTINGS/appendUserSaturation,5043;19227,Saturation,number,0,-10,10,0.1,saturation curve primitives,yes,yes,graph test,ported,none
+User grading Vibrance,GVF_VIBRANCE_SETTINGS/appendUserVibrance,5058;19244,Vibrance,number,0,-10,10,0.1,saturation curve + skin mask,yes,yes,graph test,ported,none
+User grading Hue,GVF_HUE_SETTINGS/appendUserHue,5124;19182,Hue Correction,number,0,-10,10,0.1,YCbCr rotation matrix + skin protect,yes,yes,graph test,ported,none
+User grading Sharpen,GVF_SHARPEN_SETTINGS/appendUserSharpen,5088;19040,Sharpen,number,0,-10,10,0.1,luma detail tables 513 entries,yes,yes,graph test,ported,none
+User grading Grain,GVF_GRAIN_SETTINGS/appendUserGrain,5108;19138,Grain (Banding),number,0,-10,10,0.1,turbulence + luma weight table,yes,yes,turbulence test,ported,none
+RGB gain,u_r_gain/matRGBGain,9300;19494,Red/Green/Blue Gain,number,128,0,255,1,color matrix,yes,yes,graph test,ported,none
+Color blindness filter,getColorBlindnessMatrix,9553,Color blindness,enum,none,,,,color matrix,yes,yes,sanitize test,ported,none
+LUT profiles (4x5 matrix),activeLutMatrix4x5/buildFilter,19482,LUT,key,none,,,,feColorMatrix after HDR/CB,yes,yes,LUT zip test,ported,missing LUT is warned and not applied
+LUT import .cube,cubeTextToMatrix4x5,6297,Import LUTs,file,,,,,affine fit 11^3 grid,n/a,n/a,cube identity test,ported,none
+LUT import tiled PNG,pngFileToMatrix4x5,6144,Import LUTs,file,,,,,affine fit,n/a,n/a,manual,ported,decoded via createImageBitmap (colorSpaceConversion none)
+LUT import MBLook,parseMbLookArrayBuffer,7053,,file,,,,,,no,no,,blocked,MBLook binary parser not ported in 1.0.0
+LUT package auto download,listRepoLutZipFiles/fetchRepoFileAsBlob,7633-7700,LUT Library,action,,,,,,n/a,n/a,LUT zip test,desktop-replaced,downloads LUTsProfiles_v3.0.zip automatically; newer packages reported by the update check
+Auto-Scene-Match,AUTO/updateAutoTargetsFromStats/buildAutoMatrixValues,11084;11423;11465,Auto-Scene-Match (Ctrl+Alt+A),bool,true,,,,auto matrix node,yes,yes,auto determinism test,desktop-replaced,pre-analysis 96x54 @10 fps; state machine replayed on media time (deterministic)
+Auto strength,autoStrength,9306,Auto Strength,number,0.65,0,1,0.01,auto targets,yes,yes,auto test,ported,none
+Auto white balance (WB lock),autoLockWB,11445,Auto White Balance (Ctrl+Alt+W),bool,true,,,,hue correction ±10°,yes,yes,auto test,ported,none
+Dark Scene Lift,—,—,,,,,,,,n/a,n/a,,not-applicable,no separate control exists in UVE 1.17.5; dark-scene protection is part of Auto-Scene-Match
+Expert settings (11 blocks),GVF_EXPERT_TARGETS/GVF_EXPERT_UI,5137;15878,Expert tab,object,defaults,per field,per field,per field,curves/tables,yes,yes,expert round trip test,ported,stored per project/profile instead of globally
+Expert import/export/clipboard,exportExpertSettings/importExpertSettings,5207;5219,Expert tab,action,,,,,,n/a,n/a,expert round trip test,ported,none
+Custom SVG filters,customSvgCodes/parseCustomSvgCode,775;19753,Filter Studio,code,,,,,after auto matrix,yes,yes,svg parser test,ported,proper nesting of feFunc*/feMergeNode (browser parser flattens them); feImage/lighting not supported
+Custom GLSL (WebGL) filters,_buildFragSrc/CustomWebglOverlayManager,1859;1914,Filter Studio,code,,,,,after the graph,yes,yes,filter import test,ported,u_time = media time; u_mouse fixed at centre
+Custom GLSL @uniform/@select,parseUniformDefs,1029,Inspector Custom tab,number,,,,,uniforms,yes,yes,filter import test,ported,numeric #define sliders hidden (they only work for mpv shaders in UVE)
+mpv/libplacebo hook shader compat,_normalizeMpvHookShader + compat bodies,1255-1900,,code,,,,,,no,no,lint test,blocked,multi-pass compatibility layer not ported; reported and bypassed
+Canvas2D custom filters,CustomCanvas2DOverlayManager,2797-3080,,code,,,,,,no,no,,blocked,arbitrary JavaScript is not executed by the desktop app
+Audio custom filters / Deepgram,CustomAudioOverlayManager,3082-3570,,code,,,,,,no,no,,not-applicable,audio overlays/speech-to-text are not video effects
+Filter codes import/export,_importFilterCodesFromText,3726,Filter Studio,file,,,,,,n/a,n/a,round trip test,ported,unknown non-dangerous fields preserved
+User profiles + ZIP,importSingleUserProfileObject/exportAllUserProfilesAsZip,7808;7481,Presets,file,,,,,,n/a,n/a,profile import test,ported,desktop extension field stores expert/custom filters/LUT
+gvf-settings JSON,My_Profile.json schema,repo,Presets,file,,,,,,n/a,n/a,profile import test,ported,none
+Scopes HUD,Scopes HUD (Ctrl+Alt+S),14588,Scopes,view,,,,,,yes,no,manual,ported,histogram/parade/waveform/vectorscope; never burned into export
+Before/After slider,BeforeAfterSlider (Ctrl+Alt+U),18554,Wipe,view,,,,,,yes,n/a,manual,ported,none
+GPU render mode,WebGL2Pipeline (Ctrl+Alt+X),9990-10945,,enum,svg,,,,,n/a,n/a,,desktop-replaced,desktop always executes the SVG-mode graph on the GPU (WebGL2); Ctrl+Alt+X toggles preview quality
+GLSL light/normal/turbo,glslMode,9285,,enum,normal,,,,,n/a,n/a,,not-applicable,browser frame pacing
+Recorder / screenshot,startCanvasRecorderPipeline/takeVideoScreenshot,8636;8986,,action,,,,,,no,no,static check,not-applicable,forbidden by V4 spec; not ported
+DRM detection / domain blacklist,_runDrmCheck/K_GLSL_BLACKLIST,656-750,,,,,,,,n/a,n/a,,not-applicable,local files only; encrypted files are rejected
+Overlay icons / notifications,iconsShown/notify,9251,Ctrl+Alt+H,bool,false,,,,,n/a,n/a,,desktop-replaced,toggles editor overlay badges

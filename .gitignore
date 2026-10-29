@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dist-electron/
+dist-tests/
+release/
+tools/ffmpeg/*.exe
+tools/rve/
+data/
+*.log
