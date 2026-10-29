@@ -1,0 +1,92 @@
+{
+  "app": "UVE Manager 1.0.1",
+  "probedAt": "2026-10-29T13:43:12.074Z",
+  "host": "FREDY",
+  "platform": "win32",
+  "arch": "x64",
+  "os": "Windows_NT 10.0.19044",
+  "cpu": "AMD Ryzen 7 5800X3D 8-Core Processor           ",
+  "cores": 16,
+  "ramGB": 63.9,
+  "electron": "45.1.0",
+  "chrome": "156.0.8078.49",
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 5060 Ti",
+    "vendor": "nvidia",
+    "driver": "617.42",
+    "devices": [
+      {
+        "active": true,
+        "deviceId": 11524,
+        "deviceString": "NVIDIA GeForce RTX 5060 Ti",
+        "driverVendor": "NVIDIA",
+        "driverVersion": "32.0.16.1742",
+        "gpuPreference": 0,
+        "revision": 161,
+        "subSysId": -215412560,
+        "vendorId": 4318
+      },
+      {
+        "active": false,
+        "deviceId": 140,
+        "deviceString": "Microsoft Basic Render Driver",
+        "driverVersion": "10.0.19041.7802",
+        "gpuPreference": 0,
+        "revision": 0,
+        "subSysId": 0,
+        "vendorId": 5140
+      }
+    ]
+  },
+  "ffmpeg": {
+    "version": "N-116051-g0b330d8642-20240629",
+    "path": "C:\\Windows\\System32\\ffmpeg.exe",
+    "source": "path"
+  },
+  "hardwareEncoders": {
+    "h264_nvenc": true,
+    "hevc_nvenc": true,
+    "av1_nvenc": true,
+    "h264_amf": false,
+    "h264_qsv": false,
+    "hevc_amf": false,
+    "hevc_qsv": false,
+    "av1_amf": false,
+    "av1_qsv": false
+  },
+  "hardwareDecoders": [
+    "cuda",
+    "vaapi",
+    "dxva2",
+    "qsv",
+    "d3d11va",
+    "opencl",
+    "vulkan",
+    "d3d12va"
+  ],
+  "softwareEncoders": {
+    "libx264": true,
+    "libx265": true,
+    "libsvtav1": true,
+    "libaom-av1": true,
+    "libvpx-vp9": true,
+    "prores_ks": true,
+    "aac": true,
+    "libopus": true,
+    "libfdk_aac": false
+  },
+  "filters": {
+    "zscale": true,
+    "tonemap": true,
+    "scale": true,
+    "libplacebo": true
+  },
+  "webgpuValidation": {
+    "ok": true,
+    "maxDiff": 127,
+    "meanDiff": 0.013599537037037037,
+    "outlierRate": 0.00009645061728395061,
+    "prims": 85,
+    "ms": 175
+  }
+}

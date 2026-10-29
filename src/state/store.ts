@@ -70,6 +70,8 @@ export interface AppState {
     canRedo: boolean;
     /** REAL-Video-Enhancer (AI upscaling) installation status */
     rve: RveStatusUi | null;
+    /** v1.0.1: filter engine used by the preview (and why) */
+    engineInfo: { kind: 'webgpu' | 'webgl2'; adapter: string; reason: string; validation: { ok: boolean; maxDiff: number; meanDiff: number; prims: number; ms: number; error?: string } | null } | null;
 }
 
 export const initialEffect = (): EffectState => ({ settings: { ...DEFAULT_SETTINGS }, expert: expertDefaults(), customFilters: [], lut: null });
@@ -83,7 +85,7 @@ let state: AppState = {
     luts: { profiles: [], groups: [], repo: { status: 'idle', message: '' } },
     analysis: { status: 'none', pct: 0, keys: null }, jobs: [], updates: null, updateModal: false, updateBusy: null,
     toasts: [], graphWarnings: [], customErrors: {}, scopes: null, scopesHud: false, showIcons: true,
-    renderStats: { ms: 0, prims: 0, w: 0, h: 0, dropped: 0 }, canUndo: false, canRedo: false, rve: null
+    renderStats: { ms: 0, prims: 0, w: 0, h: 0, dropped: 0 }, canUndo: false, canRedo: false, rve: null, engineInfo: null
 };
 
 const listeners = new Set<() => void>();

@@ -39,8 +39,8 @@ export async function checkUpdates(): Promise<UpdateCheckResult> {
         }
     }
 
-    // 2. Portable FFmpeg
-    try {
+    // 2. Portable FFmpeg (Windows builds only; Linux/macOS use the system FFmpeg)
+    if (process.platform === 'win32') try {
         const st = await toolsStatus();
         const rel = await latestFfmpegRelease();
         if (!st.installed) {
@@ -146,6 +146,7 @@ export async function applyUpdate(id: UpdateItem['id'], progress: (m: string, pc
             shell.showItemInFolder(target);
             return { ok: true, message: `The new portable version was saved to ${target}. Close UVE Manager, start that file and choose this folder (${pdir}) – your settings in "data" and the tools are kept.` };
         }
+        if (process.platform !== 'win32') { await shell.openExternal(rel.html_url); return { ok: true, message: 'The release page was opened in your browser – download the package for your system there.' }; }
         const file = path.join(os.tmpdir(), `uve-manager-update-${Date.now()}-${asset.name.replace(/[^\w.-]/g, '_')}`);
         await fsp.writeFile(file, data);
         spawn(file, [], { detached: true, stdio: 'ignore', windowsHide: false }).unref();

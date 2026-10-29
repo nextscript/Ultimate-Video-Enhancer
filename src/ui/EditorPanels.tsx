@@ -1,4 +1,6 @@
 import type { Container, ExportSettings, VideoCodec } from '../../shared/types';
+import { FPS_MAX, FPS_MIN, FPS_PRESETS, parseFps } from '../../shared/fps';
+import { HW_FAMILY_LABEL, type HwFamily } from '../../shared/hw';
 import { api } from '../api';
 import { enqueueCurrent } from '../state/actions';
 import { getState, setState, useStore } from '../state/store';
@@ -47,9 +49,11 @@ export function ExportPanel() {
     const rveInstalled = !!rve?.python && !!rve?.backend;
     const aiModel = rve?.models.find(m => m.id === ex.aiUpscale);
     const set = (p: Partial<ExportSettings>) => setState({ exportSettings: { ...getState().exportSettings, ...p }, dirty: true });
-    const gpuFor: Record<VideoCodec, string> = { h264: 'h264_nvenc', hevc: 'hevc_nvenc', av1: 'av1_nvenc', vp9: '', prores: '' };
-    const gpuAvail = !!caps?.nvencWorking[gpuFor[ex.videoCodec]];
-    const encLabel = ex.encoder === 'cpu' || !gpuAvail ? 'CPU' : 'NVENC';
+    // v1.0.1: any verified hardware encoder family (NVENC / AMF / QSV / VideoToolbox / VA-API) for the codec
+    const hwFor = Object.entries(caps?.hwEncoders || {}).find(([k, ok]) => ok && k.startsWith(`${ex.videoCodec}_`))?.[0] || '';
+    const gpuAvail = !!hwFor && !(ex.videoCodec === 'h264' && ex.tenBit);
+    const hwLabel = hwFor ? (HW_FAMILY_LABEL[hwFor.split('_')[1] as HwFamily] || hwFor) : '';
+    const encLabel = ex.encoder === 'cpu' || !gpuAvail ? 'CPU' : 'HW';
     const v = media?.video;
     const srcLabel = v ? `Source (${v.rotation % 180 ? v.height : v.width} × ${v.rotation % 180 ? v.width : v.height})` : 'Source';
     return (
@@ -63,14 +67,22 @@ export function ExportPanel() {
                 <Select label="Resolution" value={ex.resolution} onChange={r => set({ resolution: r })} options={[
                     { value: 'source', label: aiModel && v ? `AI output (${(v.rotation % 180 ? v.height : v.width) * aiModel.scale} × ${(v.rotation % 180 ? v.width : v.height) * aiModel.scale})` : srcLabel }, { value: '2160', label: '2160p (4K UHD)' }, { value: '1440', label: '1440p' }, { value: '1080', label: '1080p (FHD)' },
                     { value: '720', label: '720p' }, { value: '480', label: '480p' }, ...(ex.aiUpscale ? [] : [{ value: 'x2' as const, label: '2× Upscale (Lanczos, not AI)' }])]} />
+                <label className="select-row" title="Output frame rate. Empty = keep the source frame rate. Accepts e.g. 30, 29.97, 59.94 or 24000/1001. Frames are duplicated or dropped (no interpolation).">
+                    <span className="select-label">Frame rate (fps)</span>
+                    <input className={`text num fps${ex.fps && !parseFps(ex.fps) ? ' invalid' : ''}`} list="uve-fps-presets" value={ex.fps}
+                        placeholder={v ? `Source (${(v.fpsNum / (v.fpsDen || 1)).toFixed(3).replace(/\.?0+$/, '')})` : 'Source'}
+                        onChange={e => set({ fps: e.target.value.replace(/[^\d.,/]/g, '') })} />
+                    <datalist id="uve-fps-presets">{FPS_PRESETS.map(f => <option key={f} value={f} />)}</datalist>
+                    <span className="dim small">{ex.fps ? (parseFps(ex.fps) ? 'fps' : `invalid (${FPS_MIN}–${FPS_MAX})`) : 'source'}</span>
+                </label>
                 <Select label="Container" value={ex.container} onChange={c => set({ container: c as Container, ...(c === 'webm' && !['vp9', 'av1'].includes(ex.videoCodec) ? { videoCodec: 'vp9' as VideoCodec } : {}) })}
                     options={[{ value: 'mp4', label: 'MP4' }, { value: 'mkv', label: 'MKV' }, { value: 'mov', label: 'MOV' }, { value: 'webm', label: 'WebM' }]} />
                 <Select label="Video Codec" value={ex.videoCodec} onChange={c => set({ videoCodec: c, ...(c === 'prores' ? { container: 'mov' as Container } : {}) })}
                     options={CODECS.filter(c => ex.container !== 'webm' || c.value === 'vp9' || c.value === 'av1')} />
                 <Select label="Encoder" value={ex.encoder} onChange={e => set({ encoder: e })} options={[
-                    { value: 'auto', label: `Auto (${gpuAvail ? 'NVENC GPU' : 'CPU'})` }, { value: 'gpu', label: 'GPU – NVENC' }, { value: 'cpu', label: 'CPU (software)' }]} />
-                <label className="select-row" title={encLabel === 'NVENC' ? 'Constant quality (CQ) for NVENC' : 'Constant rate factor (CRF)'}>
-                    <span className="select-label">Quality ({encLabel === 'NVENC' ? 'CQ' : 'CRF'})</span>
+                    { value: 'auto', label: `Automatic (${gpuAvail ? hwLabel : 'software'})` }, { value: 'gpu', label: `Prefer Hardware${gpuAvail ? ` – ${hwLabel}` : ' (none verified)'}` }, { value: 'cpu', label: 'Software (CPU)' }]} />
+                <label className="select-row" title={encLabel === 'HW' ? 'Constant quality for the hardware encoder (same 0–51 scale)' : 'Constant rate factor (CRF)'}>
+                    <span className="select-label">Quality ({encLabel === 'HW' ? 'CQ' : 'CRF'})</span>
                     <input type="number" className="text num" min={0} max={51} value={ex.quality} disabled={ex.videoCodec === 'prores'} onChange={e => set({ quality: Math.max(0, Math.min(63, Number(e.target.value) || 0)) })} />
                     <span className="dim small">{ex.quality <= 16 ? 'very high' : ex.quality <= 20 ? 'high' : ex.quality <= 26 ? 'medium' : 'low'}</span>
                 </label>

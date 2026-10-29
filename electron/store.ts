@@ -1,4 +1,4 @@
-import { promises as fsp } from 'node:fs';
+import { constants, promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
 import { APP_VERSION, type AppPrefs, DEFAULT_EXPORT, DEFAULT_UPDATE_REPO } from '../shared/types';
@@ -9,6 +9,8 @@ export { DEFAULT_SHORTCUTS };
 
 export const DEFAULT_PREFS: AppPrefs = {
     ffmpegDir: '',
+    gpuEngine: 'auto',
+    hwDecode: 'auto',
     autoUpdate: true,
     updateRepo: DEFAULT_UPDATE_REPO,
     skippedVersions: {},
@@ -75,6 +77,11 @@ function normalizePrefs(raw: Partial<AppPrefs> | undefined): AppPrefs {
 export async function getSettings(): Promise<SettingsFile> {
     if (settings) return settings;
     const raw = await readJson<Partial<SettingsFile> | null>(settingsFile(), null);
+    if (raw && raw.schema === 'uve-manager-settings' && raw.app && raw.app !== APP_VERSION) {
+        // additive migration: keep an untouched copy of the previous version's settings (rollback)
+        const backup = path.join(userDir(), `settings.backup-v${String(raw.app).replace(/[^\w.-]/g, '_')}.json`);
+        await fsp.copyFile(settingsFile(), backup, constants.COPYFILE_EXCL).catch(() => undefined);
+    }
     if (raw && raw.schema === 'uve-manager-settings') {
         settings = {
             schema: 'uve-manager-settings', version: 1, app: APP_VERSION, savedAt: String(raw.savedAt || ''),

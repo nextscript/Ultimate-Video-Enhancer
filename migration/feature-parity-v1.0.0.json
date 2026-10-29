@@ -1,0 +1,4428 @@
+{
+  "schema": "uve-feature-parity",
+  "baseline": {
+    "tag": "v1.0.0-baseline",
+    "sha": "3457352bd8377c85bf9cac0b72abec68c4b8854d",
+    "source": "M:\\LAPS\\UVE Manager (v1.0.0), copied unchanged as the baseline commit"
+  },
+  "generatedAt": "2026-10-29T13:43:37.142Z",
+  "generator": "migration/generate-inventory.mjs",
+  "total_items": 185,
+  "by_parity_status": {
+    "unchanged": 44,
+    "blocked (as in v1.0.0)": 3,
+    "desktop-replaced (as in v1.0.0)": 4,
+    "not-applicable (as in v1.0.0)": 5,
+    "unchanged (implementing functions identical to baseline)": 35,
+    "verified": 92,
+    "new": 1,
+    "diff-reviewed: Windows path identical; non-Windows branches untested": 1
+  },
+  "changed_modules_since_baseline": [
+    "CHANGELOG_1.0.1.md",
+    "README.md",
+    "docs/BUILD.md",
+    "docs/EXPORT_PARITY_REPORT.md",
+    "docs/LICENSES.md",
+    "docs/README.md",
+    "docs/RENDER_PIPELINE.md",
+    "electron/exportPreload.ts",
+    "electron/harness.ts",
+    "electron/main.ts",
+    "electron/media.ts",
+    "electron/platform.ts",
+    "electron/render.ts",
+    "electron/rve.ts",
+    "electron/selftest.ts",
+    "electron/store.ts",
+    "electron/tools.ts",
+    "electron/updates.ts",
+    "migration/MIGRATION_NOTES.md",
+    "migration/benchmark/windows-rtx5060ti.json",
+    "migration/benchmark/windows-rtx5060ti.md",
+    "migration/capabilities/windows-rtx5060ti.json",
+    "migration/compare-parity.mjs",
+    "migration/feature-parity-v1.0.0.json",
+    "migration/generate-inventory.mjs",
+    "migration/parity-v1.0.0-vs-v1.0.1.json",
+    "migration/report-benchmark.mjs",
+    "package-lock.json",
+    "package.json",
+    "shared/fps.ts",
+    "shared/hw.ts",
+    "shared/types.ts",
+    "src/engine/GpuEngine.ts",
+    "src/engine/Webgl2Engine.ts",
+    "src/engine/createEngine.ts",
+    "src/engine/types.ts",
+    "src/export/worker.ts",
+    "src/main.tsx",
+    "src/state/store.ts",
+    "src/ui/App.tsx",
+    "src/ui/EditorPanels.tsx",
+    "src/ui/Player.tsx",
+    "src/ui/RenderingSettings.tsx",
+    "src/ui/Views.tsx",
+    "src/ui/styles.css",
+    "tests/hw.test.ts",
+    "tsconfig.json"
+  ],
+  "items": [
+    {
+      "id": "effect.base_tone",
+      "display_name": "Base Tone (Ctrl+Alt+B)",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "bool",
+      "defaults": "true",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "core.test tone matrix",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.dark_moody",
+      "display_name": "Dark & Moody (Ctrl+Alt+D)",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "bool",
+      "defaults": "true",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph structure test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.teal_orange",
+      "display_name": "Teal & Orange (Ctrl+Alt+O)",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "bool",
+      "defaults": "false",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "matrix merge test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.vibrant",
+      "display_name": "Vibrant (Ctrl+Alt+V)",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "bool",
+      "defaults": "false",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "matrix merge test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.hdr_boost_soft",
+      "display_name": "HDR Boost",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-1",
+        "max": "2",
+        "step": "0.01"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest look render",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: SDR output only (as in UVE)"
+    },
+    {
+      "id": "effect.sharpen_blur_sl",
+      "display_name": "Sharpen / Blur",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "1.0",
+      "allowed_values": {
+        "min": "-2",
+        "max": "2",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph structure test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: blur radius in source pixels (browser: CSS pixels)"
+    },
+    {
+      "id": "effect.radius_sr",
+      "display_name": "Radius",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0.5",
+      "allowed_values": {
+        "min": "-2",
+        "max": "2",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph structure test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: source pixels"
+    },
+    {
+      "id": "effect.black_level_bl",
+      "display_name": "Black Level",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "1.2",
+      "allowed_values": {
+        "min": "-2",
+        "max": "2",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph structure test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.white_level_wl",
+      "display_name": "White Level",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0.2",
+      "allowed_values": {
+        "min": "-2",
+        "max": "2",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph structure test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.denoise_grain_dn",
+      "display_name": "Denoise / Grain",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-1.5",
+        "max": "1.5",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "turbulence lattice test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: turbulence per SVG 1.1 reference implementation"
+    },
+    {
+      "id": "effect.edge_detection",
+      "display_name": "Edge Detection",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0.1",
+      "allowed_values": {
+        "min": "0",
+        "max": "1",
+        "step": "0.01"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph structure test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: edge mode duplicate (SVG default)"
+    },
+    {
+      "id": "effect.profiles_movie_anime_gaming_eyecare",
+      "display_name": "Tone profile",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "enum",
+      "defaults": "user",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "profile graph test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: Anime line-art branch reproduces the Chromium result (premultiplied Sobel = transparent → no-op)"
+    },
+    {
+      "id": "effect.user_grading_contrast",
+      "display_name": "Contrast",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-10",
+        "max": "10",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "curve tests",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: only with profile User (as in UVE SVG mode)"
+    },
+    {
+      "id": "effect.user_grading_black_white_level",
+      "display_name": "Black Level / White Level",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-10",
+        "max": "10",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "levels test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.user_grading_highlights",
+      "display_name": "Highlights",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-10",
+        "max": "10",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "monotonic test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.user_grading_shadows",
+      "display_name": "Shadows",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-10",
+        "max": "10",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "monotonic test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.user_grading_gamma",
+      "display_name": "Gamma",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-10",
+        "max": "10",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "curve test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.user_grading_saturation",
+      "display_name": "Saturation",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-10",
+        "max": "10",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.user_grading_vibrance",
+      "display_name": "Vibrance",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-10",
+        "max": "10",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.user_grading_hue",
+      "display_name": "Hue Correction",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-10",
+        "max": "10",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.user_grading_sharpen",
+      "display_name": "Sharpen",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-10",
+        "max": "10",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.user_grading_grain",
+      "display_name": "Grain (Banding)",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0",
+      "allowed_values": {
+        "min": "-10",
+        "max": "10",
+        "step": "0.1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "turbulence test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.rgb_gain",
+      "display_name": "Red/Green/Blue Gain",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "128",
+      "allowed_values": {
+        "min": "0",
+        "max": "255",
+        "step": "1"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "graph test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.color_blindness_filter",
+      "display_name": "Color blindness",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "enum",
+      "defaults": "none",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "sanitize test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.lut_profiles_4x5_matrix",
+      "display_name": "LUT",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "key",
+      "defaults": "none",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "LUT zip test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: missing LUT is warned and not applied"
+    },
+    {
+      "id": "effect.lut_import_cube",
+      "display_name": "Import LUTs",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "file",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "cube identity test",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.lut_import_tiled_png",
+      "display_name": "Import LUTs",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "file",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: decoded via createImageBitmap (colorSpaceConversion none)"
+    },
+    {
+      "id": "effect.lut_import_mblook",
+      "display_name": "LUT import MBLook",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "file",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": null,
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "blocked (as in v1.0.0)",
+      "differences": "v1.0.0 deviation kept: MBLook binary parser not ported in 1.0.0"
+    },
+    {
+      "id": "effect.lut_package_auto_download",
+      "display_name": "LUT Library",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "action",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "LUT zip test",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "desktop-replaced (as in v1.0.0)",
+      "differences": "v1.0.0 deviation kept: downloads LUTsProfiles_v3.0.zip automatically; newer packages reported by the update check"
+    },
+    {
+      "id": "effect.auto_scene_match",
+      "display_name": "Auto-Scene-Match (Ctrl+Alt+A)",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "bool",
+      "defaults": "true",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "auto determinism test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "desktop-replaced (as in v1.0.0)",
+      "differences": "v1.0.0 deviation kept: pre-analysis 96x54 @10 fps; state machine replayed on media time (deterministic)"
+    },
+    {
+      "id": "effect.auto_strength",
+      "display_name": "Auto Strength",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "number",
+      "defaults": "0.65",
+      "allowed_values": {
+        "min": "0",
+        "max": "1",
+        "step": "0.01"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "auto test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.auto_white_balance_wb_lock",
+      "display_name": "Auto White Balance (Ctrl+Alt+W)",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "bool",
+      "defaults": "true",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "auto test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.dark_scene_lift",
+      "display_name": "Dark Scene Lift",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": null,
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "not-applicable (as in v1.0.0)",
+      "differences": "v1.0.0 deviation kept: no separate control exists in UVE 1.17.5; dark-scene protection is part of Auto-Scene-Match"
+    },
+    {
+      "id": "effect.expert_settings_11_blocks",
+      "display_name": "Expert tab",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "object",
+      "defaults": "defaults",
+      "allowed_values": {
+        "min": "per field",
+        "max": "per field",
+        "step": "per field"
+      },
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "expert round trip test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: stored per project/profile instead of globally"
+    },
+    {
+      "id": "effect.expert_import_export_clipboard",
+      "display_name": "Expert tab",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "action",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "expert round trip test",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.custom_svg_filters",
+      "display_name": "Filter Studio",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/graph.ts",
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "code",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "svg parser test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: proper nesting of feFunc*/feMergeNode (browser parser flattens them); feImage/lighting not supported"
+    },
+    {
+      "id": "effect.custom_glsl_webgl_filters",
+      "display_name": "Filter Studio",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/customFilters.ts",
+        "src/engine/EffectEngine.ts"
+      ],
+      "inputs": "code",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "filter import test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgl2 (custom GLSL keeps the v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "Projects with enabled custom GLSL filters are processed by the WebGL2 engine (identical to v1.0.0)."
+    },
+    {
+      "id": "effect.custom_glsl_uniform_select",
+      "display_name": "Inspector Custom tab",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/customFilters.ts",
+        "src/engine/EffectEngine.ts"
+      ],
+      "inputs": "number",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "filter import test",
+      "v1_0_1_test": "migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995); unit tests; WebGPU start-up validation (85 primitives)",
+      "supported_backends": [
+        "webgl2 (custom GLSL keeps the v1.0.0 engine)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "Projects with enabled custom GLSL filters are processed by the WebGL2 engine (identical to v1.0.0)."
+    },
+    {
+      "id": "effect.mpv_libplacebo_hook_shader_compat",
+      "display_name": "mpv/libplacebo hook shader compat",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/customFilters.ts",
+        "src/engine/EffectEngine.ts"
+      ],
+      "inputs": "code",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "lint test",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "webgl2 (custom GLSL keeps the v1.0.0 engine)"
+      ],
+      "parity_status": "blocked (as in v1.0.0)",
+      "differences": "Projects with enabled custom GLSL filters are processed by the WebGL2 engine (identical to v1.0.0)."
+    },
+    {
+      "id": "effect.canvas2d_custom_filters",
+      "display_name": "Canvas2D custom filters",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "code",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": null,
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "blocked (as in v1.0.0)",
+      "differences": "v1.0.0 deviation kept: arbitrary JavaScript is not executed by the desktop app"
+    },
+    {
+      "id": "effect.audio_custom_filters_deepgram",
+      "display_name": "Audio custom filters / Deepgram",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "code",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": null,
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "not-applicable (as in v1.0.0)",
+      "differences": "v1.0.0 deviation kept: audio overlays/speech-to-text are not video effects"
+    },
+    {
+      "id": "effect.filter_codes_import_export",
+      "display_name": "Filter Studio",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "file",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "round trip test",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: unknown non-dangerous fields preserved"
+    },
+    {
+      "id": "effect.user_profiles_zip",
+      "display_name": "Presets",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "file",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "profile import test",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: desktop extension field stores expert/custom filters/LUT"
+    },
+    {
+      "id": "effect.gvf_settings_json",
+      "display_name": "Presets",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "file",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "profile import test",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.scopes_hud",
+      "display_name": "Scopes",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "view",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "v1.0.0 deviation kept: histogram/parade/waveform/vectorscope; never burned into export"
+    },
+    {
+      "id": "effect.before_after_slider",
+      "display_name": "Wipe",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "view",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "effect.gpu_render_mode",
+      "display_name": "GPU render mode",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "enum",
+      "defaults": "svg",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": null,
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "desktop-replaced (as in v1.0.0)",
+      "differences": "v1.0.0 deviation kept: desktop always executes the SVG-mode graph on the GPU (WebGL2); Ctrl+Alt+X toggles preview quality"
+    },
+    {
+      "id": "effect.glsl_light_normal_turbo",
+      "display_name": "GLSL light/normal/turbo",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/customFilters.ts",
+        "src/engine/EffectEngine.ts"
+      ],
+      "inputs": "enum",
+      "defaults": "normal",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": null,
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "webgl2 (custom GLSL keeps the v1.0.0 engine)"
+      ],
+      "parity_status": "not-applicable (as in v1.0.0)",
+      "differences": "Projects with enabled custom GLSL filters are processed by the WebGL2 engine (identical to v1.0.0)."
+    },
+    {
+      "id": "effect.recorder_screenshot",
+      "display_name": "Recorder / screenshot",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "action",
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "static check",
+      "v1_0_1_test": "tests/core.test.ts (unchanged, passing)",
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "not-applicable (as in v1.0.0)",
+      "differences": "v1.0.0 deviation kept: forbidden by V4 spec; not ported"
+    },
+    {
+      "id": "effect.drm_detection_domain_blacklist",
+      "display_name": "DRM detection / domain blacklist",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": null,
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "not-applicable (as in v1.0.0)",
+      "differences": "v1.0.0 deviation kept: local files only; encrypted files are rejected"
+    },
+    {
+      "id": "effect.overlay_icons_notifications",
+      "display_name": "Ctrl+Alt+H",
+      "entry_point": "Inspector / EditorPanels",
+      "current_module": [
+        "shared/uve/settings.ts"
+      ],
+      "inputs": "bool",
+      "defaults": "false",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.effect (shared/types.ts) / gvf-settings JSON",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": null,
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "n/a (no pixel processing)"
+      ],
+      "parity_status": "desktop-replaced (as in v1.0.0)",
+      "differences": "v1.0.0 deviation kept: toggles editor overlay badges"
+    },
+    {
+      "id": "shortcut.base",
+      "display_name": "Shortcut base",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+B",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.moody",
+      "display_name": "Shortcut moody",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+D",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.teal",
+      "display_name": "Shortcut teal",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+O",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.vibrant",
+      "display_name": "Shortcut vibrant",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+V",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.hdr",
+      "display_name": "Shortcut hdr",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+P",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.cycleProfile",
+      "display_name": "Shortcut cycleProfile",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+C",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.hud",
+      "display_name": "Shortcut hud",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+H",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.gpu",
+      "display_name": "Shortcut gpu",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+X",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.expert",
+      "display_name": "Shortcut expert",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+I",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.manager",
+      "display_name": "Shortcut manager",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+G",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.scopes",
+      "display_name": "Shortcut scopes",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+S",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.auto",
+      "display_name": "Shortcut auto",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+A",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.compare",
+      "display_name": "Shortcut compare",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+U",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.bypass",
+      "display_name": "Shortcut bypass",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Alt+Y",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.playPause",
+      "display_name": "Shortcut playPause",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Space",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.frameBack",
+      "display_name": "Shortcut frameBack",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "ArrowLeft",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.frameFwd",
+      "display_name": "Shortcut frameFwd",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "ArrowRight",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.start",
+      "display_name": "Shortcut start",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Home",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.end",
+      "display_name": "Shortcut end",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "End",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.setIn",
+      "display_name": "Shortcut setIn",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "I",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.setOut",
+      "display_name": "Shortcut setOut",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "O",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.zoomIn",
+      "display_name": "Shortcut zoomIn",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "+",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.zoomOut",
+      "display_name": "Shortcut zoomOut",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "-",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.undo",
+      "display_name": "Shortcut undo",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Z",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.redo",
+      "display_name": "Shortcut redo",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+Y",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.save",
+      "display_name": "Shortcut save",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+S",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.open",
+      "display_name": "Shortcut open",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+O",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.render",
+      "display_name": "Shortcut render",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Ctrl+R",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "shortcut.escape",
+      "display_name": "Shortcut escape",
+      "entry_point": "keyboard",
+      "current_module": [
+        "shared/shortcuts.ts",
+        "src/ui/App.tsx"
+      ],
+      "inputs": "key chord",
+      "defaults": "Escape",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs.shortcuts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "pref.ffmpegDir",
+      "display_name": "Preference ffmpegDir",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "''",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.autoUpdate",
+      "display_name": "Preference autoUpdate",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "true",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.updateRepo",
+      "display_name": "Preference updateRepo",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "DEFAULT_UPDATE_REPO",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.skippedVersions",
+      "display_name": "Preference skippedVersions",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "{}",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.autoDownloadLuts",
+      "display_name": "Preference autoDownloadLuts",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "true",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.previewQuality",
+      "display_name": "Preference previewQuality",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "'full'",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.parityMode",
+      "display_name": "Preference parityMode",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "false",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.lastOutputDir",
+      "display_name": "Preference lastOutputDir",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "''",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.recentProjects",
+      "display_name": "Preference recentProjects",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "[]",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.recentFiles",
+      "display_name": "Preference recentFiles",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "[]",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.shortcuts",
+      "display_name": "Preference shortcuts",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "{ ...DEFAULT_SHORTCUTS }",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "pref.defaultExport",
+      "display_name": "Preference defaultExport",
+      "entry_point": "Settings view",
+      "current_module": [
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": "{ ...DEFAULT_EXPORT }",
+      "allowed_values": null,
+      "serialized_schema": "settings.json prefs (additive migration, backup of the previous version)",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest settings round trip",
+      "v1_0_1_test": "electron/store.ts migration + selftest",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "v1.0.1 adds prefs gpuEngine (auto|webgpu|webgl2) and hwDecode (auto|hardware|software); existing keys unchanged."
+    },
+    {
+      "id": "export.container",
+      "display_name": "Export container",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "'mp4'",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.videoCodec",
+      "display_name": "Export videoCodec",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "'hevc'",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.encoder",
+      "display_name": "Export encoder",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "'auto'",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "Hardware encoder families NVENC/AMF/QSV/VideoToolbox/VA-API are verified before use; \"Prefer Hardware\" now falls back to software with a warning instead of failing."
+    },
+    {
+      "id": "export.quality",
+      "display_name": "Export quality",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "20",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.preset",
+      "display_name": "Export preset",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "'medium'",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.tenBit",
+      "display_name": "Export tenBit",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "false",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.resolution",
+      "display_name": "Export resolution",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "'source'",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.audio",
+      "display_name": "Export audio",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "'copy'",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.audioBitrate",
+      "display_name": "Export audioBitrate",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "192",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.subtitles",
+      "display_name": "Export subtitles",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "'none'",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.outputDir",
+      "display_name": "Export outputDir",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "''",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.fileName",
+      "display_name": "Export fileName",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "'{name}_UVE'",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.useInOut",
+      "display_name": "Export useInOut",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "false",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.aiUpscale",
+      "display_name": "Export aiUpscale",
+      "entry_point": "Export panel / Render queue",
+      "current_module": [
+        "shared/types.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "''",
+      "allowed_values": null,
+      "serialized_schema": "UveProject.export / settings.json prefs.defaultExport",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest render jobs",
+      "v1_0_1_test": "electron/selftest.ts (all render jobs) + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "export.fps",
+      "display_name": "Export frame rate (new in v1.0.1)",
+      "entry_point": "Export panel",
+      "current_module": [
+        "shared/fps.ts",
+        "electron/render.ts",
+        "src/ui/EditorPanels.tsx"
+      ],
+      "inputs": null,
+      "defaults": "'' (source)",
+      "allowed_values": {
+        "min": 1,
+        "max": 240,
+        "presets": "23.976 24 25 29.97 30 48 50 59.94 60 120",
+        "rational": "n/d"
+      },
+      "serialized_schema": "UveProject.export.fps (optional; older projects default to the source rate)",
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": null,
+      "v1_0_1_test": "tests/hw.test.ts (parseFps/outputFps) + selftest 30 fps and 29.97 fps renders",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "new",
+      "differences": "New. Empty keeps the v1.0.0 behaviour (source frame rate)."
+    },
+    {
+      "id": "ipc.app:info",
+      "display_name": "App API app:info",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.prefs:get",
+      "display_name": "App API prefs:get",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.prefs:set",
+      "display_name": "App API prefs:set",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.caps:get",
+      "display_name": "App API caps:get",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.tools:status",
+      "display_name": "App API tools:status",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.tools:install",
+      "display_name": "App API tools:install",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.updates:check",
+      "display_name": "App API updates:check",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.rve:status",
+      "display_name": "App API rve:status",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.rve:install",
+      "display_name": "App API rve:install",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.rve:cancelInstall",
+      "display_name": "App API rve:cancelInstall",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.rve:uninstall",
+      "display_name": "App API rve:uninstall",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.rve:downloadModel",
+      "display_name": "App API rve:downloadModel",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.rve:deleteModel",
+      "display_name": "App API rve:deleteModel",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.rve:importModel",
+      "display_name": "App API rve:importModel",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.rve:openSource",
+      "display_name": "App API rve:openSource",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.updates:apply",
+      "display_name": "App API updates:apply",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.updates:skip",
+      "display_name": "App API updates:skip",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.dialog:openVideos",
+      "display_name": "App API dialog:openVideos",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.media:probe",
+      "display_name": "App API media:probe",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.media:url",
+      "display_name": "App API media:url",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.media:thumbs",
+      "display_name": "App API media:thumbs",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.media:proxy",
+      "display_name": "App API media:proxy",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.analysis:run",
+      "display_name": "App API analysis:run",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.analysis:cancel",
+      "display_name": "App API analysis:cancel",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.cache:clear",
+      "display_name": "App API cache:clear",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.luts:get",
+      "display_name": "App API luts:get",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.luts:download",
+      "display_name": "App API luts:download",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.luts:save",
+      "display_name": "App API luts:save",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.luts:delete",
+      "display_name": "App API luts:delete",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.luts:restore",
+      "display_name": "App API luts:restore",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.profiles:get",
+      "display_name": "App API profiles:get",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.profiles:save",
+      "display_name": "App API profiles:save",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.filters:get",
+      "display_name": "App API filters:get",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.filters:save",
+      "display_name": "App API filters:save",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.state:get",
+      "display_name": "App API state:get",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.state:set",
+      "display_name": "App API state:set",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.files:open",
+      "display_name": "App API files:open",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.files:save",
+      "display_name": "App API files:save",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.files:unzip",
+      "display_name": "App API files:unzip",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.dialog:pickFolder",
+      "display_name": "App API dialog:pickFolder",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.project:open",
+      "display_name": "App API project:open",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.project:save",
+      "display_name": "App API project:save",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.project:locateMedia",
+      "display_name": "App API project:locateMedia",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.render:outputPath",
+      "display_name": "App API render:outputPath",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.render:enqueue",
+      "display_name": "App API render:enqueue",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.render:list",
+      "display_name": "App API render:list",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.render:cancel",
+      "display_name": "App API render:cancel",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.render:retry",
+      "display_name": "App API render:retry",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.render:remove",
+      "display_name": "App API render:remove",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.render:clearFinished",
+      "display_name": "App API render:clearFinished",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.shell:showItem",
+      "display_name": "App API shell:showItem",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.shell:openExternal",
+      "display_name": "App API shell:openExternal",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "ipc.window:setTitle",
+      "display_name": "App API window:setTitle",
+      "entry_point": "renderer → main",
+      "current_module": [
+        "electron/preload.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": "shared/types.ts",
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest / UI",
+      "v1_0_1_test": "electron/selftest.ts",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none (channel kept)"
+    },
+    {
+      "id": "app.media.import",
+      "display_name": "Open / drag-and-drop media, recent files",
+      "entry_point": "UI",
+      "current_module": [
+        "src/ui/App.tsx",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "app.media.probe",
+      "display_name": "FFprobe codec/stream/metadata probing, rotation, HDR detection",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/media.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest probe",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "app.media.formats",
+      "display_name": "Supported containers/codecs (docs/FORMAT_SUPPORT.md)",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/media.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "app.media.proxy",
+      "display_name": "Preview proxy for non-browser codecs (hardware H.264 when verified)",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/media.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual",
+      "v1_0_1_test": "electron/selftest.ts (preview proxy check)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.media.tracks",
+      "display_name": "Audio/subtitle track selection",
+      "entry_point": "UI",
+      "current_module": [
+        "src/ui/EditorPanels.tsx",
+        "electron/render.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest audio copy",
+      "v1_0_1_test": "electron/selftest.ts + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.player.playback",
+      "display_name": "Playback, seek, frame stepping, in/out, timecode",
+      "entry_point": "UI",
+      "current_module": [
+        "src/ui/Player.tsx",
+        "src/ui/Timeline.tsx"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": "preview engine verified (__uveProbe output means vs v1.0.0)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.player.zoom",
+      "display_name": "Zoom / fit / fullscreen",
+      "entry_point": "UI",
+      "current_module": [
+        "src/ui/Player.tsx"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": "preview engine verified (__uveProbe output means vs v1.0.0)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.player.compare",
+      "display_name": "Before/After wipe and side-by-side",
+      "entry_point": "UI",
+      "current_module": [
+        "src/ui/Player.tsx"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": "preview engine verified (__uveProbe output means vs v1.0.0)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.player.scopes",
+      "display_name": "Scopes (histogram, parade, waveform, vectorscope)",
+      "entry_point": "UI",
+      "current_module": [
+        "src/ui/Scopes.tsx",
+        "src/ui/Player.tsx"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": "preview engine verified (__uveProbe output means vs v1.0.0)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.timeline.thumbs",
+      "display_name": "Timeline thumbnails and waveform",
+      "entry_point": "UI",
+      "current_module": [
+        "src/ui/Timeline.tsx"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "app.lut.library",
+      "display_name": "LUT library with live frame previews and enlarge",
+      "entry_point": "UI",
+      "current_module": [
+        "src/ui/Views.tsx",
+        "electron/luts.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": "src/ui/Player.tsx → src/engine/createEngine.ts → GpuEngine | Webgl2Engine",
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": "preview engine verified (__uveProbe output means vs v1.0.0)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.lut.download",
+      "display_name": "Automatic LUTsProfiles_v3.0.zip download",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/luts.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest LUT package",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "app.lut.import",
+      "display_name": ".cube / tiled PNG LUT import (4x5 fit)",
+      "entry_point": "UI",
+      "current_module": [
+        "shared/uve/lut.ts",
+        "electron/luts.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "tests/core.test.ts",
+      "v1_0_1_test": "tests/core.test.ts (passing)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "app.custom.studio",
+      "display_name": "Filter Studio (SVG/GLSL editor, validation, uniforms)",
+      "entry_point": "UI",
+      "current_module": [
+        "src/ui/FilterStudio.tsx",
+        "shared/uve/customFilters.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "tests/core.test.ts",
+      "v1_0_1_test": "tests/core.test.ts (passing)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    },
+    {
+      "id": "app.profiles",
+      "display_name": "User profiles create/edit/delete, ZIP/JSON import/export",
+      "entry_point": "UI",
+      "current_module": [
+        "shared/uve/profiles.ts",
+        "electron/store.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "tests/core.test.ts",
+      "v1_0_1_test": "tests/core.test.ts (passing)",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.project.io",
+      "display_name": "Project load/save (.uveproj), recent projects",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/store.ts",
+        "src/state/actions.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "app.project.undo",
+      "display_name": "Undo/redo",
+      "entry_point": "UI",
+      "current_module": [
+        "src/state/store.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual UI",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "app.session.restore",
+      "display_name": "settings.json: prefs, window position/size, editor session",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/store.ts",
+        "electron/main.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged (implementing functions identical to baseline)",
+      "differences": "none"
+    },
+    {
+      "id": "app.render.queue",
+      "display_name": "Render queue, progress, cancel, logs, atomic .uvepart output",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/render.ts",
+        "src/ui/Views.tsx"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest cancel",
+      "v1_0_1_test": "electron/selftest.ts + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.render.parity",
+      "display_name": "8-bit parity mode",
+      "entry_point": "UI",
+      "current_module": [
+        "src/engine/EffectEngine.ts",
+        "src/engine/GpuEngine.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest",
+      "v1_0_1_test": "electron/selftest.ts + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.render.tenbit",
+      "display_name": "10-bit / 16-bit pipeline (rgba64le)",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/render.ts",
+        "src/export/worker.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "none",
+      "v1_0_0_test": "selftest 10-bit",
+      "v1_0_1_test": "electron/selftest.ts + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.rve.upscale",
+      "display_name": "AI upscaling via REAL-Video-Enhancer backend (TensorRT), 3-stage pipeline",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/rve.ts",
+        "electron/render.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": "electron/render.ts → electron/exportPreload.ts (FFmpeg pipes) → src/export/worker.ts → FrameEngine",
+      "platform_assumptions": "TensorRT backend: NVIDIA GPU on Windows/Linux x64; unavailable on macOS (reported, export continues without upscaling option).",
+      "v1_0_0_test": "selftest AI upscale",
+      "v1_0_1_test": "electron/selftest.ts + migration/compare-parity.mjs (v1.0.0 vs v1.0.1 exports, PSNR ≥ 45 dB, SSIM ≥ 0.995)",
+      "supported_backends": [
+        "webgpu (D3D12/Vulkan/Metal via Chromium Dawn)",
+        "webgl2 (v1.0.0 engine)"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.tools.portable",
+      "display_name": "Portable FFmpeg/FFprobe in tools/, start-up update modal, auto-update toggle",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/tools.ts",
+        "electron/updates.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "Automatic FFmpeg download: Windows only; macOS/Linux use a system FFmpeg (PATH) or a configured folder.",
+      "v1_0_0_test": "manual",
+      "v1_0_1_test": "migration/capabilities/*.json (capability probe) + every selftest render uses the resolved tools",
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "verified",
+      "differences": "none"
+    },
+    {
+      "id": "app.app.update",
+      "display_name": "App update check (GitHub releases)",
+      "entry_point": "UI",
+      "current_module": [
+        "electron/updates.ts"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "none",
+      "v1_0_0_test": "manual",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "diff-reviewed: Windows path identical; non-Windows branches untested",
+      "differences": "v1.0.1 only adds platform guards: the portable-FFmpeg check runs on Windows only, non-Windows app updates open the release page."
+    },
+    {
+      "id": "app.app.portable",
+      "display_name": "Portable self-extractor asking for the target folder, data\\ folder",
+      "entry_point": "UI",
+      "current_module": [
+        "build/portable-extractor.nsi",
+        "scripts/build-portable.mjs"
+      ],
+      "inputs": null,
+      "defaults": null,
+      "allowed_values": null,
+      "serialized_schema": null,
+      "current_preview_path": null,
+      "current_export_path": null,
+      "platform_assumptions": "Windows NSIS self-extractor; macOS/Linux use dmg/AppImage targets (untested).",
+      "v1_0_0_test": "manual",
+      "v1_0_1_test": null,
+      "supported_backends": [
+        "all"
+      ],
+      "parity_status": "unchanged",
+      "differences": "none"
+    }
+  ]
+}

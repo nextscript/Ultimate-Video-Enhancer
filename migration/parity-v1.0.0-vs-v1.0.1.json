@@ -1,0 +1,183 @@
+{
+  "tolerances": {
+    "psnr": 45,
+    "ssim": 0.995
+  },
+  "comparedAt": "2026-10-29T13:42:58.254Z",
+  "rows": [
+    {
+      "case": "auto_scene.mkv",
+      "ok": true,
+      "psnr": 59.630264,
+      "ssim": 0.999723,
+      "metaOk": true,
+      "v100": {
+        "frames": 100,
+        "codec": "h264",
+        "pix": "yuv420p",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4.023,
+        "audio": "aac:44100:1"
+      },
+      "v101": {
+        "frames": 100,
+        "codec": "h264",
+        "pix": "yuv420p",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4.023,
+        "audio": "aac:44100:1"
+      }
+    },
+    {
+      "case": "default_look.mkv",
+      "ok": true,
+      "psnr": 59.635953,
+      "ssim": 0.999723,
+      "metaOk": true,
+      "v100": {
+        "frames": 100,
+        "codec": "h264",
+        "pix": "yuv420p",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4.023,
+        "audio": "aac:44100:1"
+      },
+      "v101": {
+        "frames": 100,
+        "codec": "h264",
+        "pix": "yuv420p",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4.023,
+        "audio": "aac:44100:1"
+      }
+    },
+    {
+      "case": "heavy_lut.mkv",
+      "ok": true,
+      "psnr": 57.751255,
+      "ssim": 0.999526,
+      "metaOk": true,
+      "v100": {
+        "frames": 100,
+        "codec": "h264",
+        "pix": "yuv420p",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4.023,
+        "audio": "aac:44100:1"
+      },
+      "v101": {
+        "frames": 100,
+        "codec": "h264",
+        "pix": "yuv420p",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4.023,
+        "audio": "aac:44100:1"
+      }
+    },
+    {
+      "case": "hevc_hw_10bit.mp4",
+      "ok": true,
+      "psnr": 53.309189,
+      "ssim": 0.999197,
+      "metaOk": true,
+      "v100": {
+        "frames": 100,
+        "codec": "hevc",
+        "pix": "yuv420p10le",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4,
+        "audio": "aac:44100:1"
+      },
+      "v101": {
+        "frames": 100,
+        "codec": "hevc",
+        "pix": "yuv420p10le",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4,
+        "audio": "aac:44100:1"
+      }
+    },
+    {
+      "case": "lut_glsl.mkv",
+      "ok": true,
+      "psnr": "inf",
+      "ssim": 1,
+      "metaOk": true,
+      "v100": {
+        "frames": 100,
+        "codec": "h264",
+        "pix": "yuv420p",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4.023,
+        "audio": "aac:44100:1"
+      },
+      "v101": {
+        "frames": 100,
+        "codec": "h264",
+        "pix": "yuv420p",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4.023,
+        "audio": "aac:44100:1"
+      }
+    },
+    {
+      "case": "neutral.mkv",
+      "ok": true,
+      "psnr": "inf",
+      "ssim": 1,
+      "metaOk": true,
+      "v100": {
+        "frames": 100,
+        "codec": "h264",
+        "pix": "yuv420p",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4.023,
+        "audio": "aac:44100:1"
+      },
+      "v101": {
+        "frames": 100,
+        "codec": "h264",
+        "pix": "yuv420p",
+        "w": 1280,
+        "h": 720,
+        "colors": "bt709/bt709/bt709/tv",
+        "fps": "25/1",
+        "duration": 4.023,
+        "audio": "aac:44100:1"
+      }
+    }
+  ]
+}

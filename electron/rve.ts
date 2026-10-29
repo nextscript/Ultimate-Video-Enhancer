@@ -10,12 +10,13 @@ import os from 'node:os';
 import path from 'node:path';
 import { toolsDir } from './store';
 import { download, fetchJson, fileExists, readJson, writeJson } from './util';
+import { IS_MAC, IS_WIN, groupSpawn, killTree, tarCommand } from './platform';
 
 export const RVE = {
     repoApi: 'https://api.github.com/repos/TNTwise/REAL-Video-Enhancer/releases',
     modelsUrl: 'https://github.com/TNTwise/real-video-enhancer-models/releases/download/models/',
     pythonVersion: '3.12.9',
-    pythonUrl: 'https://github.com/TNTwise/REAL-Video-Enhancer-models/releases/download/models/cpython-3.12.9+20250317-x86_64-pc-windows-msvc-install_only.tar.gz',
+    pythonUrl: `https://github.com/TNTwise/REAL-Video-Enhancer-models/releases/download/models/cpython-3.12.9+20250317-${process.platform === 'win32' ? 'x86_64-pc-windows-msvc' : 'x86_64-unknown-linux-gnu'}-install_only.tar.gz`,
     // RVE BuiltInTorchVersions.Torch2_9 + DownloadDeps.downloadPythonDeps("tensorrt")
     torch: '2.9.0', torchvision: '0.24.0', cuda: '+cu130', tensorrt: '10.12.0.36',
     source: 'https://github.com/TNTwise/REAL-Video-Enhancer'
@@ -59,7 +60,7 @@ interface RveInfo { backendVersion?: string; backendTag?: string; installedAt?: 
 
 // UVE_RVE_DIR / UVE_RVE_PYTHON: test overrides used by the self test (mock backend)
 export async function rveDir() { return process.env.UVE_RVE_DIR || path.join(await toolsDir(), 'rve'); }
-const pythonExe = async () => process.env.UVE_RVE_PYTHON || path.join(await rveDir(), 'python', 'python.exe');
+const pythonExe = async () => process.env.UVE_RVE_PYTHON || (IS_WIN ? path.join(await rveDir(), 'python', 'python.exe') : path.join(await rveDir(), 'python', 'bin', 'python3'));
 const backendScript = async () => path.join(await rveDir(), 'backend', 'rve-backend.py');
 const modelsDir = async () => path.join(await rveDir(), 'models');
 
@@ -143,8 +144,8 @@ export async function findModel(id: string): Promise<RveModel | null> {
 /** tar.gz extraction with the Windows built-in bsdtar (Windows 10 1803+). */
 async function extractTarGz(file: string, dest: string) {
     await fsp.mkdir(dest, { recursive: true });
-    const tar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
-    const r = await run(await fileExists(tar) ? tar : 'tar', ['-xzf', file, '-C', dest], { timeoutMs: 30 * 60000 });
+    const tar = tarCommand();
+    const r = await run(IS_WIN && !(await fileExists(tar)) ? 'tar' : tar, ['-xzf', file, '-C', dest], { timeoutMs: 30 * 60000 });
     if (r.code !== 0) throw new Error(`Extracting ${path.basename(file)} failed: ${r.err.trim().slice(0, 400)}`);
 }
 
@@ -171,7 +172,7 @@ function pip(py: string, args: string[], cwd: string, onLine: (l: string) => voi
     return new Promise((resolve, reject) => {
         const tmp = path.join(cwd, 'tmp');
         void fsp.mkdir(tmp, { recursive: true });
-        const p = spawn(py, ['-m', 'pip', ...args], { cwd, windowsHide: true, env: { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp, PYTHONNOUSERSITE: '1', PIP_DISABLE_PIP_VERSION_CHECK: '1' } });
+        const p = spawn(py, ['-m', 'pip', ...args], { cwd, windowsHide: true, ...groupSpawn, env: { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp, PYTHONNOUSERSITE: '1', PIP_DISABLE_PIP_VERSION_CHECK: '1' } });
         pipProc = p;
         const feed = (d: Buffer) => String(d).split(/\r?\n/).filter(s => s.trim()).forEach(onLine);
         p.stdout.on('data', feed);
@@ -187,6 +188,7 @@ function pip(py: string, args: string[], cwd: string, onLine: (l: string) => voi
  */
 export async function installRve(progress: (m: string, pct: number) => void, log: (l: string) => void, opts: { reinstallBackend?: boolean } = {}): Promise<RveStatus> {
     if (busy) throw new Error('An RVE installation is already running.');
+    if (IS_MAC || process.arch !== 'x64') throw new Error('The REAL-Video-Enhancer TensorRT backend needs an NVIDIA GPU on Windows or Linux (x64); it is not available on this system.');
     busy = { message: 'Installing…' };
     probeCache = null;
     const say = (m: string, p: number) => { busy = { message: m }; progress(m, p); };
@@ -267,7 +269,7 @@ export async function installRve(progress: (m: string, pct: number) => void, log
 }
 
 export function cancelInstall() {
-    if (pipProc?.pid) spawn('taskkill', ['/PID', String(pipProc.pid), '/T', '/F'], { windowsHide: true });
+    killTree(pipProc?.pid);
 }
 
 export async function uninstallRve(keepModels: boolean) {
@@ -326,7 +328,7 @@ export async function runUpscale(o: {
         '--precision', 'auto', '--tensorrt_opt_profile', '3', '--ffmpeg_path', o.ffmpeg, '--overwrite',
         '--audio_encoder_preset', 'copy_audio', '--subtitle_encoder_preset', 'copy_subtitle', '--custom_encoder', o.customEncoder];
     o.onLog(`RVE: python ${args.map(a => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}`);
-    const p = spawn(py, args, { cwd: path.dirname(script), windowsHide: true, env: { ...process.env, PYTHONNOUSERSITE: '1', PYTHONUNBUFFERED: '1' } });
+    const p = spawn(py, args, { cwd: path.dirname(script), windowsHide: true, ...groupSpawn, env: { ...process.env, PYTHONNOUSERSITE: '1', PYTHONUNBUFFERED: '1' } });
     let errTail = '';
     let lastFrames = 0;
     const feed = (d: Buffer, isErr: boolean) => {
@@ -347,7 +349,7 @@ export async function runUpscale(o: {
         p.on('exit', code => resolve(code === 0 ? { ok: true } : { ok: false, error: `REAL-Video-Enhancer exited with code ${code}: ${errTail.trim().split('\n').slice(-4).join(' ')}` }));
     });
     return {
-        kill: () => { if (p.pid) spawn('taskkill', ['/PID', String(p.pid), '/T', '/F'], { windowsHide: true }); },
+        kill: () => killTree(p.pid),
         done
     };
 }

@@ -5,8 +5,10 @@ import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
 import { type Capabilities, FFMPEG_BUILD, type ToolsStatus } from '../shared/types';
+import { type HwCodec, allHwEncoderNames, encoderTestArgs, familyOrder, hwEncoderArgs, hwEncoderName, vendorOf } from '../shared/hw';
 import { getPrefs, toolsDir } from './store';
 import { download, fetchJson, fileExists, readJson, safeUnzip, writeJson } from './util';
+import { IS_WIN, exe, whichExe } from './platform';
 
 interface ToolsVersion { build: string; version: string; publishedAt: string; installedAt: number; source: string }
 
@@ -23,7 +25,7 @@ function run(file: string, args: string[], timeoutMs = 15000): Promise<{ code: n
 
 export async function toolsStatus(): Promise<ToolsStatus> {
     const dir = await ffmpegToolsDir();
-    const ffmpeg = path.join(dir, 'ffmpeg.exe'), ffprobe = path.join(dir, 'ffprobe.exe');
+    const ffmpeg = path.join(dir, exe('ffmpeg')), ffprobe = path.join(dir, exe('ffprobe'));
     const installed = (await fileExists(ffmpeg)) && (await fileExists(ffprobe));
     const v = await readJson<ToolsVersion | null>(path.join(dir, 'version.json'), null);
     return { dir, ffmpeg, ffprobe, installed, version: v?.version || '', build: v?.build || '', installedAt: v?.installedAt };
@@ -46,6 +48,10 @@ export function installFfmpeg(onProgress: (msg: string, pct: number) => void, re
     if (installing) return installing;
     installing = (async () => {
         try {
+            // the portable FFmpeg download is a Windows build; Linux/macOS use the system FFmpeg or a custom folder
+            if (!IS_WIN) throw new Error(process.platform === 'darwin'
+                ? 'Portable FFmpeg download is available for Windows only. Install FFmpeg (e.g. "brew install ffmpeg") or choose a folder in Settings → Portable tools.'
+                : 'Portable FFmpeg download is available for Windows only. Install FFmpeg with your package manager (e.g. "sudo apt install ffmpeg") or choose a folder in Settings → Portable tools.');
             onProgress('Looking up the latest portable FFmpeg build…', 0);
             let rel = release;
             try { rel = rel ?? await latestFfmpegRelease(); } catch { rel = { build: 'latest', publishedAt: '', url: FFMPEG_BUILD.directUrl, size: 0 }; }
@@ -88,16 +94,12 @@ export function installFfmpeg(onProgress: (msg: string, pct: number) => void, re
 // ------------------------------------------------------------------ locating & capabilities
 export interface FfPaths { ffmpeg: string; ffprobe: string; source: Capabilities['source'] }
 
-async function which(name: string): Promise<string | null> {
-    const r = await run('where.exe', [name], 5000);
-    const first = r.stdout.split(/\r?\n/).map(s => s.trim()).find(Boolean);
-    return r.code === 0 && first ? first : null;
-}
+const which = (name: string) => whichExe(name.replace(/\.exe$/i, ''));
 
 export async function resolveFf(): Promise<FfPaths | null> {
     const prefs = await getPrefs();
     if (prefs.ffmpegDir) {
-        const f = path.join(prefs.ffmpegDir, 'ffmpeg.exe'), p = path.join(prefs.ffmpegDir, 'ffprobe.exe');
+        const f = path.join(prefs.ffmpegDir, exe('ffmpeg')), p = path.join(prefs.ffmpegDir, exe('ffprobe'));
         if (await fileExists(f) && await fileExists(p)) return { ffmpeg: f, ffprobe: p, source: 'custom' };
     }
     const st = await toolsStatus();
@@ -105,7 +107,7 @@ export async function resolveFf(): Promise<FfPaths | null> {
     if (app.isPackaged) {
         // tools shipped with the build (extraFiles) – relevant for the self-extracting portable exe
         const res = path.join(path.dirname(app.getPath('exe')), 'tools', 'ffmpeg');
-        const f = path.join(res, 'ffmpeg.exe'), p = path.join(res, 'ffprobe.exe');
+        const f = path.join(res, exe('ffmpeg')), p = path.join(res, exe('ffprobe'));
         if (await fileExists(f) && await fileExists(p)) return { ffmpeg: f, ffprobe: p, source: 'portable' };
     }
     const f = await which('ffmpeg.exe'), p = await which('ffprobe.exe');
@@ -117,14 +119,15 @@ let capsCache: Capabilities | null = null;
 
 export function invalidateCaps() { capsCache = null; }
 
-/** Probes a working NVENC session with a tiny synthetic encode (hardware is detected, not assumed). */
-function testEncoder(ffmpeg: string, encoder: string): Promise<boolean> {
+/** Runs a short scratch encode; hardware is detected by actually encoding, never assumed. */
+export function runEncoderTest(ffmpeg: string, args: string[], timeoutMs = 20000): Promise<{ ok: boolean; err: string }> {
     return new Promise(resolve => {
-        const p = spawn(ffmpeg, ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=256x144:d=0.2:r=10',
-            '-pix_fmt', 'yuv420p', '-c:v', encoder, '-f', 'null', '-'], { windowsHide: true });
-        const t = setTimeout(() => { p.kill(); resolve(false); }, 15000);
-        p.on('error', () => { clearTimeout(t); resolve(false); });
-        p.on('exit', code => { clearTimeout(t); resolve(code === 0); });
+        const p = spawn(ffmpeg, args, { windowsHide: true });
+        let err = '';
+        p.stderr.on('data', d => { err += d; });
+        const t = setTimeout(() => { p.kill(); resolve({ ok: false, err: 'timeout' }); }, timeoutMs);
+        p.on('error', e => { clearTimeout(t); resolve({ ok: false, err: e.message }); });
+        p.on('exit', code => { clearTimeout(t); resolve({ ok: code === 0, err: err.trim().split(/\r?\n/).slice(-2).join(' ') }); });
     });
 }
 
@@ -149,7 +152,7 @@ export async function capabilities(force = false): Promise<Capabilities> {
     if (!ff) {
         capsCache = {
             ok: false, error: 'FFmpeg was not found. Install the portable tools in Settings → Tools.', ffmpegPath: '', ffprobePath: '',
-            ffmpegVersion: '', source: 'none', encoders: {}, nvencWorking: {}, hwaccels: [], filters: {}, gpuName: gpu.name, gpuDriver: gpu.driver
+            ffmpegVersion: '', source: 'none', encoders: {}, nvencWorking: {}, hwEncoders: {}, platform: process.platform, gpuVendor: vendorOf(gpu.name), hwaccels: [], filters: {}, gpuName: gpu.name, gpuDriver: gpu.driver
         };
         return capsCache;
     }
@@ -160,17 +163,27 @@ export async function capabilities(force = false): Promise<Capabilities> {
         run(ff.ffmpeg, ['-hide_banner', '-filters'])
     ]);
     const encoders: Record<string, boolean> = {};
-    for (const e of ['libx264', 'libx265', 'libsvtav1', 'libaom-av1', 'libvpx-vp9', 'prores_ks', 'h264_nvenc', 'hevc_nvenc', 'av1_nvenc', 'aac', 'libopus', 'libfdk_aac']) {
+    for (const e of ['libx264', 'libx265', 'libsvtav1', 'libaom-av1', 'libvpx-vp9', 'prores_ks', ...allHwEncoderNames(), 'aac', 'libopus', 'libfdk_aac']) {
         encoders[e] = new RegExp(`\\s${e.replace(/[-]/g, '\\-')}\\s`).test(enc.stdout);
     }
+    // verify every hardware encoder present in the build for this platform with a scratch encode (in parallel)
+    const vendor = vendorOf(gpu.name);
+    const fams = familyOrder(process.platform, vendor);
+    const hwEncoders: Record<string, boolean> = {};
+    await Promise.all((['h264', 'hevc', 'av1'] as HwCodec[]).flatMap(c => fams.map(async f => {
+        const name = hwEncoderName(c, f);
+        if (!encoders[name]) return;
+        const choice = hwEncoderArgs(c, f, 23, 'fast', false);
+        hwEncoders[name] = !!choice && (await runEncoderTest(ff.ffmpeg, encoderTestArgs(choice))).ok;
+    })));
     const nvencWorking: Record<string, boolean> = {};
-    for (const e of ['h264_nvenc', 'hevc_nvenc', 'av1_nvenc']) nvencWorking[e] = encoders[e] ? await testEncoder(ff.ffmpeg, e) : false;
+    for (const e of ['h264_nvenc', 'hevc_nvenc', 'av1_nvenc']) nvencWorking[e] = !!hwEncoders[e];
     const filters: Record<string, boolean> = {};
     for (const f of ['zscale', 'tonemap', 'scale', 'libplacebo']) filters[f] = new RegExp(`\\s${f}\\s`).test(flt.stdout);
     capsCache = {
         ok: true, ffmpegPath: ff.ffmpeg, ffprobePath: ff.ffprobe, source: ff.source,
         ffmpegVersion: (ver.stdout.match(/ffmpeg version (\S+)/) || [])[1] || 'unknown',
-        encoders, nvencWorking,
+        encoders, nvencWorking, hwEncoders, platform: process.platform, gpuVendor: vendor,
         hwaccels: hw.stdout.split(/\r?\n/).slice(1).map(s => s.trim()).filter(Boolean),
         filters, gpuName: gpu.name, gpuDriver: gpu.driver
     };

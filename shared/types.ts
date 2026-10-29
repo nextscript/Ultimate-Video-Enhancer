@@ -5,7 +5,7 @@ import type { LutProfile } from './uve/lut';
 import type { AutoKey } from './uve/auto';
 
 export const APP_NAME = 'UVE Manager';
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.0.1';
 export const UVE_SOURCE = {
     name: 'Ultimate Video Enhancer (Sharpen, HDR, Color Boost)',
     version: '1.17.5',
@@ -111,12 +111,14 @@ export interface ExportSettings {
     useInOut: boolean;
     /** REAL-Video-Enhancer TensorRT model id for AI upscaling, '' = off */
     aiUpscale: string;
+    /** Output frame rate (e.g. "30", "29.97", "24000/1001"); '' = source. Frames are duplicated/dropped, not interpolated. */
+    fps: string;
 }
 
 export const DEFAULT_EXPORT: ExportSettings = {
     container: 'mp4', videoCodec: 'hevc', encoder: 'auto', quality: 20, preset: 'medium', tenBit: false,
     resolution: 'source', audio: 'copy', audioBitrate: 192, audioTrack: -1, subtitles: 'none',
-    outputDir: '', fileName: '{name}_UVE', useInOut: false, aiUpscale: ''
+    outputDir: '', fileName: '{name}_UVE', useInOut: false, aiUpscale: '', fps: ''
 };
 
 /** Everything that changes the processed pixels; snapshotted into every render job. */
@@ -160,7 +162,12 @@ export interface Capabilities {
     ffmpegVersion: string;
     source: 'portable' | 'custom' | 'path' | 'none';
     encoders: Record<string, boolean>;
+    /** v1.0.0 field, kept for compatibility (= hwEncoders restricted to NVENC) */
     nvencWorking: Record<string, boolean>;
+    /** v1.0.1: every hardware encoder verified by a scratch encode, e.g. { hevc_nvenc: true, hevc_amf: false } */
+    hwEncoders: Record<string, boolean>;
+    platform: string;
+    gpuVendor: string;
     hwaccels: string[];
     filters: Record<string, boolean>;
     gpuName: string;
@@ -178,6 +185,8 @@ export interface JobSpec {
     exportSettings: ExportSettings;
     range: { start: number; end: number };
     parityMode: boolean;
+    /** v1.0.1: filter engine preference for this job (defaults to the Settings value) */
+    enginePref?: 'auto' | 'webgpu' | 'webgl2';
 }
 
 export type JobStatus = 'queued' | 'analyzing' | 'rendering' | 'upscaling' | 'finalizing' | 'done' | 'failed' | 'canceled';
@@ -199,6 +208,10 @@ export interface JobState {
     error?: string;
     log: string[];
     createdAt: number;
+    /** v1.0.1: filter engine + adapter actually used */
+    engine?: string;
+    /** v1.0.1: measured stage times (ms, summed over all frames) */
+    stats?: { frames: number; totalMs: number; decodeWait: number; upload: number; gpu: number; readback: number; encodeWait: number; heapMB: number; engine: string; adapter: string };
 }
 
 export interface LutLibraryState {
@@ -235,6 +248,10 @@ export interface ToolsStatus {
 
 export interface AppPrefs {
     ffmpegDir: string;
+    /** v1.0.1: GPU filter engine – Automatic (WebGPU, validated) / WebGPU / WebGL2 (v1.0.0 engine) */
+    gpuEngine: 'auto' | 'webgpu' | 'webgl2';
+    /** v1.0.1: hardware decoding – Automatic / Prefer Hardware / Software */
+    hwDecode: 'auto' | 'hardware' | 'software';
     autoUpdate: boolean;
     /** GitHub "owner/repo" whose releases provide UVE Manager updates */
     updateRepo: string;

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { autoMatrixAt } from '../../shared/uve/auto';
-import { EffectEngine } from '../engine/EffectEngine';
+import { createEngine, wantedKind } from '../engine/createEngine';
+import { type FrameEngine, hasCustomGlsl } from '../engine/types';
 import { graphFromEffect } from '../engine/pipeline';
 import { loadVideo, requestProxy } from '../state/actions';
 import { getState, setState, useStore } from '../state/store';
@@ -12,7 +13,7 @@ export const player = {
     video: null as HTMLVideoElement | null,
     requestRender: () => { /* set by Player */ },
     /** Current decoded source frame (before effects), resampled to w×h RGBA – used for in-app LUT previews. */
-    grabFrame: (_w: number, _h: number): { data: Uint8Array; w: number; h: number } | null => null,
+    grabFrame: async (_w: number, _h: number): Promise<{ data: Uint8Array; w: number; h: number } | null> => null,
     play() { void player.video?.play(); },
     pause() { player.video?.pause(); },
     toggle() { const v = player.video; if (!v) return; if (v.paused) void v.play(); else v.pause(); },
@@ -48,7 +49,11 @@ export function Player() {
     const wrapRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
-    const engineRef = useRef<EffectEngine | null>(null);
+    const engineRef = useRef<FrameEngine | null>(null);
+    const enginePref = useStore(s => s.prefs?.gpuEngine ?? 'auto');
+    const glslActive = useStore(s => hasCustomGlsl(s.effect.customFilters));
+    // a canvas can only own one context type: the canvas element is re-created when the backend changes
+    const [canvasGen, setCanvasGen] = useState(0);
     const [glError, setGlError] = useState<string | null>(null);
     const [box, setBox] = useState({ w: 0, h: 0 });
     const [dragOver, setDragOver] = useState(false);
@@ -72,37 +77,64 @@ export function Player() {
     const live = useRef({ bypass, compare, wipe, quality, parity, autoKeys, autoOn: effect.settings.autoOn, scopesWanted, prims: 0 });
     live.current = { bypass, compare, wipe, quality, parity, autoKeys, autoOn: effect.settings.autoOn, scopesWanted, prims: graph.prims.length };
 
-    // GL setup
+    // engine setup (v1.0.1 facade): validated WebGPU, or the v1.0.0 WebGL2 engine as fallback / for custom GLSL
     useEffect(() => {
+        const want = wantedKind(enginePref, getState().effect.customFilters).kind;
+        const cur = engineRef.current;
+        if (cur && cur.kind === want && !(cur as { lost?: boolean }).lost) return;
+        if (cur && canvasRef.current?.dataset.engine) { cur.dispose(); engineRef.current = null; setCanvasGen(g => g + 1); return; }
+        let disposed = false;
         const c = canvasRef.current!;
-        const gl = c.getContext('webgl2', { antialias: false, depth: false, stencil: false, premultipliedAlpha: false, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
-        if (!gl) { setGlError('WebGL2 is not available. Update the GPU driver or enable hardware acceleration.'); return; }
-        try { engineRef.current = new EffectEngine(gl); } catch (e) { setGlError(String(e)); return; }
-        player.grabFrame = (w, h) => {
+        void createEngine(c, enginePref, getState().effect.customFilters).then(choice => {
+            if (disposed) { choice.engine.dispose(); return; }
+            engineRef.current = choice.engine;
+            c.dataset.engine = choice.engine.kind;
+            setGlError(null);
+            setState({ engineInfo: { kind: choice.engine.kind, adapter: choice.engine.adapter, reason: choice.reason, validation: choice.validation ?? null } });
+            const e = choice.engine;
+            e.setGraph(graphFromEffect(getState().effect));
+            const res = e.setCustomFilters(getState().effect.customFilters);
+            const errs: Record<string, string> = {};
+            res.forEach(r => { if (r.error && e.kind === 'webgl2') errs[r.entry.id] = r.error; });
+            setState({ customErrors: errs });
+            if (e.kind === 'webgpu') {
+                void (e as unknown as { device: GPUDevice }).device.lost.then(info => {
+                    if (disposed || engineRef.current !== e) return;
+                    setGlError(`GPU device lost (${info.message || info.reason}) – the preview restarts.`);
+                    engineRef.current = null;
+                    setCanvasGen(g => g + 1);
+                });
+            }
+            player.requestRender();
+        }).catch(err => setGlError(String(err instanceof Error ? err.message : err)));
+        const lost = (ev: Event) => { ev.preventDefault(); setGlError('GPU context lost – the preview restarts automatically.'); engineRef.current = null; setCanvasGen(g => g + 1); };
+        c.addEventListener('webglcontextlost', lost);
+        return () => { disposed = true; c.removeEventListener('webglcontextlost', lost); };
+    }, [enginePref, glslActive, canvasGen]);
+
+    useEffect(() => () => { engineRef.current?.dispose(); engineRef.current = null; }, []);
+
+    useEffect(() => {
+        player.grabFrame = async (w, h) => {
             const eng = engineRef.current;
-            if (!eng?.lastSource) return null;
-            return { data: eng.readScopeSample(eng.lastSource, w, h), w, h };
+            if (!eng?.hasFrame) return null;
+            return { data: await eng.readScope('source', w, h), w, h };
         };
         // automated UI test probe: mean RGB of the original and processed preview frame
-        (window as unknown as { __uveProbe: () => unknown }).__uveProbe = () => {
+        (window as unknown as { __uveProbe: () => unknown }).__uveProbe = async () => {
             const eng = engineRef.current;
-            if (!eng?.lastSource || !eng.lastOutput) return null;
+            if (!eng?.hasFrame) return null;
             const mean = (px: Uint8Array) => { const m = [0, 0, 0]; for (let i = 0; i < px.length; i += 4) { m[0] += px[i]; m[1] += px[i + 1]; m[2] += px[i + 2]; } return m.map(v => +(v / (px.length / 4)).toFixed(1)); };
-            return { source: mean(eng.readScopeSample(eng.lastSource, 64, 36)), output: mean(eng.readScopeSample(eng.lastOutput, 64, 36)), graph: getState().graphWarnings };
+            return { engine: eng.kind, source: mean(await eng.readScope('source', 64, 36)), output: mean(await eng.readScope('output', 64, 36)), graph: getState().graphWarnings };
         };
-        const lost = (e: Event) => { e.preventDefault(); setGlError('GPU context lost – the preview restarts automatically.'); };
-        const restored = () => { try { engineRef.current = new EffectEngine(gl); setGlError(null); player.requestRender(); } catch (e) { setGlError(String(e)); } };
-        c.addEventListener('webglcontextlost', lost);
-        c.addEventListener('webglcontextrestored', restored);
-        return () => { c.removeEventListener('webglcontextlost', lost); c.removeEventListener('webglcontextrestored', restored); engineRef.current?.dispose(); engineRef.current = null; };
     }, []);
 
     // graph + custom passes
     useEffect(() => {
         const eng = engineRef.current;
+        setState({ graphWarnings: graph.warnings });
         if (!eng) return;
         eng.setGraph(graph);
-        setState({ graphWarnings: graph.warnings });
         player.requestRender();
     }, [graph]);
 
@@ -112,7 +144,7 @@ export function Player() {
         if (!eng) return;
         const res = eng.setCustomFilters(getState().effect.customFilters);
         const errs: Record<string, string> = {};
-        res.forEach(r => { if (r.error) errs[r.entry.id] = r.error; });
+        res.forEach(r => { if (r.error && eng.kind === 'webgl2') errs[r.entry.id] = r.error; });
         setState({ customErrors: errs });
         player.requestRender();
     }, [customKey]);
@@ -121,10 +153,7 @@ export function Player() {
     useEffect(() => {
         const eng = engineRef.current;
         if (!eng) return;
-        for (const c of eng.customDiagnostics) {
-            const cur = effect.customFilters.find(f => f.id === c.entry.id);
-            if (cur) c.entry = cur;
-        }
+        eng.updateCustomUniforms(effect.customFilters);
         player.requestRender();
     }, [effect.customFilters]);
 
@@ -142,7 +171,7 @@ export function Player() {
     useEffect(() => {
         const v = videoRef.current!;
         player.video = v;
-        let raf = 0, vfc = 0, lastScope = 0, lastTime = 0, dropped = 0;
+        let raf = 0, vfc = 0, lastScope = 0, lastTime = 0, dropped = 0, scopeBusy = false;
         const render = () => {
             const eng = engineRef.current;
             const c = canvasRef.current;
@@ -153,16 +182,19 @@ export function Player() {
             const t0 = performance.now();
             try {
                 eng.uploadVideo(v);
-                const tex = eng.process(pw, ph, { autoMatrix: L.autoOn ? autoMatrixAt(L.autoKeys, v.currentTime) : null, time: v.currentTime, pxScale: sc, quantize8: L.parity });
+                eng.process(pw, ph, { autoMatrix: L.autoOn ? autoMatrixAt(L.autoKeys, v.currentTime) : null, time: v.currentTime, pxScale: sc, quantize8: L.parity });
                 const dpr = window.devicePixelRatio || 1;
                 const cw = Math.max(2, Math.round(c.clientWidth * dpr)), ch = Math.max(2, Math.round(c.clientHeight * dpr));
                 if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; }
                 eng.present(cw, ch, L.bypass ? 1 : L.compare ? 2 : 0, L.wipe);
                 const now = performance.now();
-                if (L.scopesWanted && now - lastScope > 200) {
+                if (L.scopesWanted && now - lastScope > 200 && !scopeBusy) {
                     lastScope = now;
+                    scopeBusy = true;
                     const sw = 320, sh = Math.max(2, Math.round(320 * ph / pw));
-                    setState({ scopes: { w: sw, h: sh, enhanced: eng.readScopeSample(tex, sw, sh), original: eng.readScopeSample(eng.lastSource!, sw, sh) } });
+                    void Promise.all([eng.readScope('output', sw, sh), eng.readScope('source', sw, sh)])
+                        .then(([enhanced, original]) => setState({ scopes: { w: sw, h: sh, enhanced, original } }))
+                        .finally(() => { scopeBusy = false; });
                 }
                 const ms = performance.now() - t0;
                 if (!v.paused && ms > 1000 / (getState().media?.video?.fps || 30)) dropped++;
@@ -235,7 +267,7 @@ export function Player() {
         <div className={`player${dragOver ? ' drag' : ''}`} ref={wrapRef}
             onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={onDrop}>
             <video ref={videoRef} className="decoder" playsInline preload="auto" crossOrigin="anonymous" />
-            <canvas ref={canvasRef} className="player-canvas" style={{ width: cw, height: ch, visibility: media && mediaUrl ? 'visible' : 'hidden' }}
+            <canvas key={canvasGen} ref={canvasRef} className="player-canvas" style={{ width: cw, height: ch, visibility: media && mediaUrl ? 'visible' : 'hidden' }}
                 onPointerDown={e => { if (!compare || bypass) return; draggingWipe.current = true; (e.target as Element).setPointerCapture(e.pointerId); setWipeFromEvent(e); }}
                 onPointerMove={e => { if (draggingWipe.current) setWipeFromEvent(e); }}
                 onPointerUp={() => { draggingWipe.current = false; }}

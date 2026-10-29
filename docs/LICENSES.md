@@ -15,3 +15,12 @@
   Manager: it is downloaded on request from its GitHub releases into `toolsve` and run as a separate program
   (its source is available at the link above). Upscale models belong to their authors (see the RVE README / OpenModelDB).
   PyTorch (BSD-style), NVIDIA TensorRT (NVIDIA license) and the portable CPython (PSF) are installed by the same step.
+
+
+## v1.0.1
+
+- No new runtime dependencies. `@webgpu/types` (BSD-3-Clause) is used only at build time for type definitions.
+- WebGPU is provided by Electron/Chromium (Dawn, BSD-3-Clause), which is already part of Electron's license
+  bundle.
+- The FFmpeg redistribution terms are unchanged: GPL build, downloaded by the user, not bundled in the
+  installer unless `fetch-ffmpeg` is run before packaging.

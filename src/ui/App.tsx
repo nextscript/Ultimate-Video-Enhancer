@@ -88,6 +88,8 @@ function StatusBar() {
     const jobs = useStore(s => s.jobs);
     const stats = useStore(s => s.renderStats);
     const media = useStore(s => s.media);
+    const engine = useStore(s => s.engineInfo);
+    const hwFams = [...new Set(Object.entries(caps?.hwEncoders || {}).filter(([, ok]) => ok).map(([k]) => k.split('_')[1].toUpperCase()))].join('/');
     const active = jobs.find(j => j.status === 'rendering' || j.status === 'analyzing' || j.status === 'upscaling');
     return (
         <footer className="statusbar">
@@ -95,8 +97,10 @@ function StatusBar() {
             <span>{active ? `${active.status === 'analyzing' ? 'Analysing' : active.status === 'upscaling' ? 'AI upscaling' : 'Rendering'} ${active.name} – ${Math.round(active.progress * 100)}% · ${active.fps.toFixed(1)} fps` : 'Ready'}</span>
             <span className="grow" />
             {media && <span className="dim">Preview {stats.w}×{stats.h} · {stats.ms.toFixed(1)} ms · {stats.prims} primitives</span>}
-            <span className={`status-dot ${caps?.nvencWorking.hevc_nvenc || caps?.nvencWorking.h264_nvenc ? 'ok' : 'idle'}`} />
-            <span>GPU: {caps?.gpuName || '…'}{caps?.nvencWorking.hevc_nvenc ? ' (NVENC)' : ''}</span>
+            <span className={`status-dot ${engine ? 'ok' : 'idle'}`} />
+            <span title={engine?.reason}>Engine: {engine ? engine.kind === 'webgpu' ? 'WebGPU' : 'WebGL2' : '…'}</span>
+            <span className={`status-dot ${Object.values(caps?.hwEncoders || {}).some(Boolean) ? 'ok' : 'idle'}`} />
+            <span>GPU: {caps?.gpuName || '…'}{hwFams ? ` (${hwFams})` : ''}</span>
             <span className={`status-dot ${caps?.ok ? 'ok' : 'error'}`} />
             <span>FFmpeg: {caps?.ok ? caps.ffmpegVersion.replace(/-.*$/, '').slice(0, 24) : caps ? 'missing' : '…'}</span>
         </footer>

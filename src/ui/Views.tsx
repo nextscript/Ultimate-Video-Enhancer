@@ -12,6 +12,7 @@ import { getState, setState, toast, updateEffect, useStore } from '../state/stor
 import { Button, Icon, Progress, Section, Select, Toggle, fmtBytes, fmtTime } from './controls';
 import { Scopes } from './Scopes';
 import { RveSettings } from './RveSettings';
+import { RenderingSettings } from './RenderingSettings';
 import { player } from './Player';
 
 // ------------------------------------------------------------------ Presets
@@ -211,8 +212,8 @@ export function LutView() {
         if (!media) { setThumb(null); setBig(null); return; }
         const tw = 192, th = Math.max(2, Math.round(tw * vh / vw));
         const bw = Math.min(1600, vw), bh = Math.max(2, Math.round(bw * vh / vw));
-        setThumb(player.grabFrame(tw, th));
-        setBig(player.grabFrame(bw, bh));
+        void player.grabFrame(tw, th).then(setThumb);
+        void player.grabFrame(bw, bh).then(setBig);
     };
     useEffect(grab, [media]); // eslint-disable-line react-hooks/exhaustive-deps
     const active = useStore(s => s.effect.settings.lutProfile);
@@ -325,6 +326,7 @@ export function QueueView() {
                         <b className="grow" title={j.input}>{j.name}</b>
                         <span className={`tag ${j.status}`}>{j.status}</span>
                         {j.encoder && <span className="tag">{j.encoder}</span>}
+                        {j.engine && <span className="tag" title={j.engine}>{j.engine.split(' · ')[0]}</span>}
                         {['queued', 'analyzing', 'rendering', 'upscaling'].includes(j.status) && <Button small kind="danger" onClick={() => api.cancelJob(j.id)}>Cancel</Button>}
                         {['failed', 'canceled'].includes(j.status) && <Button small onClick={() => api.retryJob(j.id)}>Retry</Button>}
                         {j.status === 'done' && <Button small icon="folder" onClick={() => api.showItem(j.output)}>Show</Button>}
@@ -411,7 +413,7 @@ export function SettingsView() {
                     <div><dt>FFmpeg in use</dt><dd>{caps?.ok ? `${caps.ffmpegVersion} (${caps.source}) – ${caps.ffmpegPath}` : caps?.error || 'checking…'}</dd></div>
                     <div><dt>Portable build</dt><dd>{info?.tools.installed ? `${info.tools.version} · build ${info.tools.build.slice(0, 10)}` : 'not installed'}</dd></div>
                     <div><dt>GPU</dt><dd>{caps ? `${caps.gpuName}${caps.gpuDriver ? ` (driver ${caps.gpuDriver})` : ''}` : '…'}</dd></div>
-                    <div><dt>Hardware encoders</dt><dd>{caps ? Object.entries(caps.nvencWorking).map(([k, v]) => `${k}: ${v ? 'working' : 'not available'}`).join(' · ') : '…'}</dd></div>
+                    <div><dt>Hardware encoders</dt><dd>{caps ? Object.entries(caps.hwEncoders || caps.nvencWorking).map(([k, v]) => `${k}: ${v ? 'working' : 'not available'}`).join(' · ') || 'none' : '…'}</dd></div>
                     <div><dt>Software encoders</dt><dd>{caps ? Object.entries(caps.encoders).filter(([k, v]) => v && !k.includes('nvenc')).map(([k]) => k).join(', ') : '…'}</dd></div>
                     <div><dt>HDR tone mapping</dt><dd>{caps?.filters.zscale && caps?.filters.tonemap ? 'zscale + tonemap available' : 'not available'}</dd></div>
                 </dl>
@@ -425,6 +427,7 @@ export function SettingsView() {
                     </label>
                 </div>
             </Section>
+            <RenderingSettings />
             <RveSettings />
             <Section title="Preview & engine" collapsible={false}>
                 <Select label="Preview quality" value={prefs.previewQuality} onChange={v => setP({ previewQuality: v })}

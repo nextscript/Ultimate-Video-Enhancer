@@ -26,3 +26,17 @@ Unit tests (`npm test`, 20 tests): curve invariants (black/white fixed, monotoni
 `nothingOn` rule, graph structure of the default combo, matrix merging, tone matrix order, user-profile gating,
 missing-LUT warning, repository profile/LUT/filter fixtures, `.cube` fitting, expert round trip,
 Auto-Scene-Match determinism and scene response, turbulence lattice.
+
+
+## v1.0.1: WebGPU engine and v1.0.0 vs v1.0.1 exports
+
+The tolerances and per-case results are in `migration/MIGRATION_NOTES.md`; the raw data is in
+`migration/parity-v1.0.0-vs-v1.0.1.json`.
+
+- **All 6 reference cases pass** (neutral, default look, heavy stack + LUT, Auto-Scene-Match, LUT + custom GLSL,
+  HEVC NVENC 10-bit). PSNR is ≥ 53.3 dB and SSIM ≥ 0.9992, with identical frame counts, codecs, pixel formats,
+  colour tags and audio.
+- **Selftest, same job on both engines:** WebGPU vs WebGL2 gives PSNR 52.8 dB, a maximum channel-mean
+  difference of 0.006 and a worst pixel difference of 12/255.
+- **Start-up validation** (85 primitives, covering every primitive type): mean difference 0.014/255, and
+  0.010 % of channel values differ by more than 3/255.

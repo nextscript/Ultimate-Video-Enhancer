@@ -19,7 +19,11 @@ import { readJson, safeUnzip, writeJson } from './util';
 // Data folder: settings.json, profiles, LUTs and caches live in <app folder>\data for the portable
 // version (marked by portable.txt) and in development (<project>\data). Installed copies use %APPDATA%,
 // because an installer update would replace the program folder.
-if (app.isPackaged) {
+const migrationCheck = process.argv.find(x => x.startsWith('--migration-check='))?.slice(18);
+if (migrationCheck) {
+    // test harness: run the settings migration on a COPY of an older data folder
+    app.setPath('userData', path.resolve(migrationCheck));
+} else if (app.isPackaged) {
     const appDir = path.dirname(app.getPath('exe'));
     if (existsSync(path.join(appDir, 'portable.txt'))) app.setPath('userData', path.join(appDir, 'data'));
 } else {
@@ -153,7 +157,7 @@ function registerIpc() {
     }));
     h('prefs:get', () => getPrefs());
     h('prefs:set', async (patch: Partial<AppPrefs>) => {
-        const allowed: (keyof AppPrefs)[] = ['ffmpegDir', 'autoUpdate', 'updateRepo', 'autoDownloadLuts', 'previewQuality', 'parityMode', 'lastOutputDir', 'shortcuts', 'defaultExport', 'skippedVersions'];
+        const allowed: (keyof AppPrefs)[] = ['gpuEngine', 'hwDecode', 'ffmpegDir', 'autoUpdate', 'updateRepo', 'autoDownloadLuts', 'previewQuality', 'parityMode', 'lastOutputDir', 'shortcuts', 'defaultExport', 'skippedVersions'];
         const clean: Partial<AppPrefs> = {};
         for (const k of allowed) if (k in patch) (clean as Record<string, unknown>)[k] = patch[k];
         if ('ffmpegDir' in clean) invalidateCaps();
@@ -319,6 +323,25 @@ app.whenReady().then(async () => {
         workerUrl: () => pageUrl('export.html'),
         workerPreload: path.join(__dirname, 'exportPreload.js')
     });
+    // v1.0.1 test harness: capability probe, parity reference exports, benchmark (headless, no capture)
+    const harnessArg = (n: string) => process.argv.find(x => x.startsWith(`--${n}=`))?.slice(n.length + 3);
+    const probeOut = harnessArg('probe-capabilities'), parityOut = harnessArg('parity-export'), benchOut = harnessArg('benchmark');
+    if (migrationCheck) {
+        const h = await import('./harness');
+        const ok = await h.migrationCheck().catch(e => { console.error(e); return false; });
+        app.exit(ok ? 0 : 1);
+        return;
+    }
+    if (probeOut || parityOut || benchOut) {
+        const h = await import('./harness');
+        try {
+            if (probeOut) await h.probeCapabilities(path.resolve(probeOut));
+            if (parityOut) await h.parityExport(path.resolve(parityOut));
+            if (benchOut) await h.benchmark(path.resolve(benchOut));
+            app.exit(0);
+        } catch (e) { console.error(e); app.exit(1); }
+        return;
+    }
     if (process.argv.includes('--selftest')) {
         const { runSelftest } = await import('./selftest');
         app.exit(await runSelftest() ? 1 : 0);
@@ -356,4 +379,4 @@ app.whenReady().then(async () => {
     }
 });
 
-app.on('window-all-closed', () => { if (!process.argv.includes('--selftest')) app.quit(); });
+app.on('window-all-closed', () => { if (!process.argv.some(a => /^--(selftest|probe-capabilities|parity-export|benchmark|migration-check)/.test(a))) app.quit(); });

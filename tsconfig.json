@@ -12,7 +12,7 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "resolveJsonModule": true,
-    "types": ["node"],
+    "types": ["node", "@webgpu/types"],
     "noEmit": true
   },
   "include": ["electron", "shared", "src", "tests"]

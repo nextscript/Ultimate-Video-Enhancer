@@ -5,11 +5,14 @@ import { spawn } from 'node:child_process';
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { BrowserWindow, ipcMain } from 'electron';
+import { outputFps, parseFps } from '../shared/fps';
 import type { Capabilities, ExportSettings, JobSpec, JobState, MediaInfo } from '../shared/types';
 import { runAutoSceneMatch, samplesFromAnalysis } from '../shared/uve/auto';
 import { analyze } from './analysis';
 import { decodeFilter } from './media';
-import { capabilities } from './tools';
+import { capabilities, runEncoderTest } from './tools';
+import { type EncoderChoice, HW_FAMILY_LABEL, type HwCodec, VAAPI_DEVICE, encoderTestArgs, familyOrder, hwEncoderArgs, hwEncoderName, hwaccelOrder } from '../shared/hw';
+import { getPrefs } from './store';
 import { fileExists } from './util';
 import { downloadModel, findModel, rveStatus, runUpscale } from './rve';
 
@@ -28,6 +31,8 @@ export interface WorkerPlan {
     effect: JobSpec['effect'];
     autoKeys: JobSpec['autoKeys'];
     parityMode: boolean;
+    /** v1.0.1: filter engine preference (auto / webgpu / webgl2) */
+    enginePref: 'auto' | 'webgpu' | 'webgl2';
 }
 
 const jobs: JobState[] = [];
@@ -69,6 +74,17 @@ export function initRenderQueue(opts: { broadcast: (j: JobState[]) => void; work
         j.log.push(String(p.line).slice(0, 2000));
         if (j.log.length > 500) j.log.splice(0, j.log.length - 500);
     });
+    ipcMain.on('worker:engine', (e, p: { jobId: string; kind: string; adapter: string }) => {
+        const j = jobs.find(x => x.id === p.jobId);
+        if (!j || !active || active.win.webContents.id !== e.sender.id) return;
+        j.engine = `${p.kind} · ${p.adapter}`;
+        emit();
+    });
+    ipcMain.on('worker:stats', (e, p: { jobId: string; stats: NonNullable<JobState['stats']> }) => {
+        const j = jobs.find(x => x.id === p.jobId);
+        if (!j || !active || active.win.webContents.id !== e.sender.id) return;
+        j.stats = p.stats;
+    });
     ipcMain.on('worker:done', (e, p: { jobId: string; ok: boolean; error?: string }) => {
         if (!active || active.win.webContents.id !== e.sender.id || active.id !== p.jobId) return;
         if (p.ok && active.stage1 && active.upscale && !active.canceled) void runStage2();
@@ -94,36 +110,68 @@ export function validateExport(s: ExportSettings, caps: Capabilities): string[] 
     const w: string[] = [];
     if (s.container === 'webm' && !['vp9', 'av1'].includes(s.videoCodec)) w.push('WebM supports only VP9 or AV1 video.');
     if (s.videoCodec === 'prores' && s.container !== 'mov') w.push('ProRes is written into a .mov container.');
-    if (s.videoCodec === 'h264' && s.tenBit && (s.encoder !== 'cpu' && caps.nvencWorking.h264_nvenc)) w.push('NVENC H.264 has no 10-bit mode; 8-bit is used (choose HEVC/AV1 for 10-bit).');
-    if (s.videoCodec === 'av1' && !caps.nvencWorking.av1_nvenc && !caps.encoders.libsvtav1 && !caps.encoders['libaom-av1']) w.push('No AV1 encoder available in this FFmpeg build.');
+    if (s.videoCodec === 'h264' && s.tenBit && s.encoder !== 'cpu') w.push('Hardware H.264 encoders have no 10-bit mode; the software encoder (x264 High 10) is used for 10-bit H.264.');
+    if (s.videoCodec === 'av1' && !Object.entries(caps.hwEncoders || {}).some(([k, v]) => v && k.startsWith('av1_')) && !caps.encoders.libsvtav1 && !caps.encoders['libaom-av1']) w.push('No AV1 encoder available in this FFmpeg build.');
     return w;
 }
 
-function pickVideoEncoder(s: ExportSettings, caps: Capabilities): { name: string; args: string[]; pix: string; tenBit: boolean } {
-    const gpuOk = (e: string) => s.encoder !== 'cpu' && caps.nvencWorking[e];
+/** Software encoders (v1.0.0 behaviour, also the final fallback). */
+function softwareEncoder(s: ExportSettings, caps: Capabilities): EncoderChoice {
     const cpuPreset = { fast: 'faster', medium: 'medium', slow: 'slow' }[s.preset];
-    const nvPreset = { fast: 'p3', medium: 'p5', slow: 'p7' }[s.preset];
     const q = String(Math.round(s.quality));
-    const forceGpu = s.encoder === 'gpu';
+    const sw = (name: string, args: string[], pix: string, tenBit: boolean): EncoderChoice => ({ name, family: 'software', args, pix, tenBit, vaapi: false });
     switch (s.videoCodec) {
         case 'h264':
-            if (gpuOk('h264_nvenc')) return { name: 'h264_nvenc', args: ['-c:v', 'h264_nvenc', '-preset', nvPreset, '-tune', 'hq', '-rc', 'vbr', '-cq', q, '-b:v', '0', '-profile:v', 'high'], pix: 'yuv420p', tenBit: false };
-            if (forceGpu) throw new Error('NVENC H.264 is not available on this system.');
-            return { name: 'libx264', args: ['-c:v', 'libx264', '-preset', cpuPreset, '-crf', q, ...(s.tenBit ? ['-profile:v', 'high10'] : ['-profile:v', 'high'])], pix: s.tenBit ? 'yuv420p10le' : 'yuv420p', tenBit: s.tenBit };
+            return sw('libx264', ['-c:v', 'libx264', '-preset', cpuPreset, '-crf', q, ...(s.tenBit ? ['-profile:v', 'high10'] : ['-profile:v', 'high'])], s.tenBit ? 'yuv420p10le' : 'yuv420p', s.tenBit);
         case 'hevc':
-            if (gpuOk('hevc_nvenc')) return { name: 'hevc_nvenc', args: ['-c:v', 'hevc_nvenc', '-preset', nvPreset, '-tune', 'hq', '-rc', 'vbr', '-cq', q, '-b:v', '0', '-profile:v', s.tenBit ? 'main10' : 'main', '-tag:v', 'hvc1'], pix: s.tenBit ? 'p010le' : 'yuv420p', tenBit: s.tenBit };
-            if (forceGpu) throw new Error('NVENC HEVC is not available on this system.');
-            return { name: 'libx265', args: ['-c:v', 'libx265', '-preset', cpuPreset, '-crf', q, '-tag:v', 'hvc1', '-x265-params', 'log-level=error'], pix: s.tenBit ? 'yuv420p10le' : 'yuv420p', tenBit: s.tenBit };
+            return sw('libx265', ['-c:v', 'libx265', '-preset', cpuPreset, '-crf', q, '-tag:v', 'hvc1', '-x265-params', 'log-level=error'], s.tenBit ? 'yuv420p10le' : 'yuv420p', s.tenBit);
         case 'av1':
-            if (gpuOk('av1_nvenc')) return { name: 'av1_nvenc', args: ['-c:v', 'av1_nvenc', '-preset', nvPreset, '-tune', 'hq', '-rc', 'vbr', '-cq', q, '-b:v', '0'], pix: s.tenBit ? 'p010le' : 'yuv420p', tenBit: s.tenBit };
-            if (forceGpu) throw new Error('NVENC AV1 is not available on this GPU.');
-            if (caps.encoders.libsvtav1) return { name: 'libsvtav1', args: ['-c:v', 'libsvtav1', '-preset', { fast: '10', medium: '8', slow: '5' }[s.preset], '-crf', q], pix: s.tenBit ? 'yuv420p10le' : 'yuv420p', tenBit: s.tenBit };
-            return { name: 'libaom-av1', args: ['-c:v', 'libaom-av1', '-cpu-used', '6', '-row-mt', '1', '-crf', q, '-b:v', '0'], pix: s.tenBit ? 'yuv420p10le' : 'yuv420p', tenBit: s.tenBit };
+            if (caps.encoders.libsvtav1) return sw('libsvtav1', ['-c:v', 'libsvtav1', '-preset', { fast: '10', medium: '8', slow: '5' }[s.preset], '-crf', q], s.tenBit ? 'yuv420p10le' : 'yuv420p', s.tenBit);
+            return sw('libaom-av1', ['-c:v', 'libaom-av1', '-cpu-used', '6', '-row-mt', '1', '-crf', q, '-b:v', '0'], s.tenBit ? 'yuv420p10le' : 'yuv420p', s.tenBit);
         case 'vp9':
-            return { name: 'libvpx-vp9', args: ['-c:v', 'libvpx-vp9', '-crf', q, '-b:v', '0', '-row-mt', '1', '-deadline', s.preset === 'slow' ? 'good' : 'realtime', '-cpu-used', s.preset === 'fast' ? '6' : '3'], pix: s.tenBit ? 'yuv420p10le' : 'yuv420p', tenBit: s.tenBit };
+            return sw('libvpx-vp9', ['-c:v', 'libvpx-vp9', '-crf', q, '-b:v', '0', '-row-mt', '1', '-deadline', s.preset === 'slow' ? 'good' : 'realtime', '-cpu-used', s.preset === 'fast' ? '6' : '3'], s.tenBit ? 'yuv420p10le' : 'yuv420p', s.tenBit);
         case 'prores':
-            return { name: 'prores_ks', args: ['-c:v', 'prores_ks', '-profile:v', '3', '-vendor', 'apl0'], pix: 'yuv422p10le', tenBit: true };
+            return sw('prores_ks', ['-c:v', 'prores_ks', '-profile:v', '3', '-vendor', 'apl0'], 'yuv422p10le', true);
     }
+}
+
+/**
+ * v1.0.1 encoder selection: Automatic / Prefer Hardware → first hardware encoder that was verified at start-up
+ * AND passes a scratch encode at the job's real size and bit depth; otherwise (or with "Software") the
+ * software encoder. The codec, resolution and frame rate are never changed by the selection.
+ */
+async function pickVideoEncoder(s: ExportSettings, caps: Capabilities, w: number, h: number, notes: string[]): Promise<EncoderChoice> {
+    const sw = softwareEncoder(s, caps);
+    if (s.encoder === 'cpu' || !['h264', 'hevc', 'av1'].includes(s.videoCodec)) return sw;
+    const codec = s.videoCodec as HwCodec;
+    const fams = familyOrder(caps.platform || process.platform, (caps.gpuVendor || 'other') as Parameters<typeof familyOrder>[1]);
+    const tried: string[] = [];
+    for (const fam of fams) {
+        const name = hwEncoderName(codec, fam);
+        if (!caps.hwEncoders?.[name]) continue;
+        const choice = hwEncoderArgs(codec, fam, s.quality, s.preset, s.tenBit);
+        if (!choice) { tried.push(`${name} (no ${s.tenBit ? '10-bit' : ''} mode)`); continue; }
+        const t = await runEncoderTest(caps.ffmpegPath, encoderTestArgs(choice, Math.max(2, Math.round(w / 2) * 2), Math.max(2, Math.round(h / 2) * 2)));
+        if (t.ok) { notes.push(`Encoder: ${HW_FAMILY_LABEL[fam]} (${name}) – verified with a ${w}x${h}${s.tenBit ? ' 10-bit' : ''} scratch encode.`); return choice; }
+        tried.push(`${name} (${t.err || 'failed'})`);
+    }
+    notes.push(`Encoder: software ${sw.name}${tried.length ? ` – hardware candidates failed: ${tried.join('; ')}` : ' – no verified hardware encoder for this codec'}.`);
+    if (s.encoder === 'gpu') notes.push(`Warning: "Prefer Hardware" was selected but no hardware ${s.videoCodec.toUpperCase()} encoder works for this job; the software encoder is used instead.`);
+    return sw;
+}
+
+/** Hardware decoding: verified on the actual input (first half second) before it is used. */
+async function pickHwaccel(caps: Capabilities, input: string, start: number, videoIndex: number, notes: string[]): Promise<string | null> {
+    const pref = (await getPrefs()).hwDecode || 'auto';
+    if (pref === 'software') { notes.push('Decoder: software (selected in Settings).'); return null; }
+    const order = hwaccelOrder(caps.platform || process.platform, (caps.gpuVendor || 'other') as Parameters<typeof hwaccelOrder>[1], caps.hwaccels);
+    for (const hw of order) {
+        const args = ['-hide_banner', '-loglevel', 'error', '-hwaccel', hw, ...(start > 0 ? ['-ss', start.toFixed(3)] : []), '-i', input, '-map', `0:${videoIndex}`, '-t', '0.5', '-f', 'null', '-'];
+        const r = await runEncoderTest(caps.ffmpegPath, args, 20000);
+        if (r.ok && !/fail|error|not supported|unsupported/i.test(r.err)) { notes.push(`Decoder: hardware ${hw} – verified on this file.`); return hw; }
+    }
+    notes.push(`Decoder: software${order.length ? ` – hardware decoders not usable for this file (${order.join(', ')})` : ''}.`);
+    return null;
 }
 
 function targetSize(s: ExportSettings, w: number, h: number): { w: number; h: number } {
@@ -162,20 +210,29 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale
     if (m.encrypted) throw new Error('Encrypted/DRM-protected sources cannot be processed.');
     const s = spec.exportSettings;
     const warnings = validateExport(s, caps);
-    const enc = pickVideoEncoder(s, caps);
     const rot = v.rotation === 90 || v.rotation === 270;
     const pw = rot ? v.height : v.width, ph = rot ? v.width : v.height;
+    const notes: string[] = [];
+    let enc = await pickVideoEncoder(s, caps, upscale ? pw * upscale.scale : pw, upscale ? ph * upscale.scale : ph, notes);
+    if (upscale && enc.vaapi) {
+        // RVE runs the final encode itself and cannot open a VA-API device
+        enc = softwareEncoder(s, caps);
+        notes.push(`Encoder: software ${enc.name} – VA-API is not available inside the REAL-Video-Enhancer encode step.`);
+    }
     const in16 = v.bitDepth > 8 || enc.tenBit;
     // with AI upscaling the worker writes an 8-bit RGB lossless intermediate (RVE reads rgb24)
     const out16 = enc.tenBit && !upscale;
-    const fpsNum = v.fpsNum || 25, fpsDen = v.fpsDen || 1;
+    const { num: fpsNum, den: fpsDen } = outputFps(s.fps, v.fpsNum, v.fpsDen);
+    if (parseFps(s.fps)) notes.push(`Frame rate: ${fpsNum}/${fpsDen} (${(fpsNum / fpsDen).toFixed(3)} fps, source ${((v.fpsNum || 25) / (v.fpsDen || 1)).toFixed(3)} fps) – frames are duplicated or dropped, not interpolated.`);
+    else if (s.fps && s.fps.trim()) notes.push(`Warning: invalid frame rate "${s.fps}" – the source frame rate is used.`);
     const fps = fpsNum / fpsDen;
     const start = Math.max(0, spec.range.start), end = Math.min(m.duration || spec.range.end, spec.range.end);
     const totalFrames = Math.max(1, Math.round((end - start) * fps));
 
     const vf = await decodeFilter(v, pw, ph, in16 ? 'rgba64le' : 'rgba');
     const decodeArgs = ['-hide_banner', '-loglevel', 'error', '-nostdin'];
-    if (caps.hwaccels.some(h => h === 'cuda' || h === 'd3d11va')) decodeArgs.push('-hwaccel', 'auto');
+    const hwaccel = await pickHwaccel(caps, m.path, start, v.index, notes);
+    if (hwaccel) decodeArgs.push('-hwaccel', hwaccel);
     if (start > 0) decodeArgs.push('-ss', start.toFixed(6));
     decodeArgs.push('-i', m.path, '-t', (end - start).toFixed(6), '-map', `0:${v.index}`, '-vf', vf, '-an', '-sn',
         '-fps_mode', 'cfr', '-r', `${fpsNum}/${fpsDen}`, '-frames:v', String(totalFrames), '-f', 'rawvideo', '-pix_fmt', in16 ? 'rgba64le' : 'rgba', 'pipe:1');
@@ -206,13 +263,14 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale
     const scaleParts = [];
     if (size.w !== baseW || size.h !== baseH) scaleParts.push(`scale=${size.w}:${size.h}:flags=lanczos`);
     scaleParts.push(`scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int`, `format=${enc.pix}`);
+    if (enc.vaapi) scaleParts.push('hwupload');
     const videoOut = ['-vf', scaleParts.join(','), ...enc.args, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'];
     const tailOut: string[] = [];
     if (ext === 'mp4' || ext === 'mov') tailOut.push('-movflags', '+faststart');
     if (v.sar && v.sar !== '1:1' && v.sar !== '0:1' && !rot) tailOut.push('-aspect', `${(v.displayWidth / v.displayHeight).toFixed(6)}`);
     const muxer = { mp4: 'mp4', mkv: 'matroska', mov: 'mov', webm: 'webm' }[ext as 'mp4'];
 
-    const encodeArgs = ['-hide_banner', '-loglevel', 'warning', '-nostdin', '-y',
+    const encodeArgs = ['-hide_banner', '-loglevel', 'warning', '-nostdin', '-y', ...(enc.vaapi && !upscale ? ['-vaapi_device', VAAPI_DEVICE] : []),
         '-f', 'rawvideo', '-pix_fmt', out16 ? 'rgba64le' : 'rgba', '-s', `${pw}x${ph}`, '-r', `${fpsNum}/${fpsDen}`, '-i', 'pipe:0'];
     const needSecond = !!audio || !!subCodec;
     if (needSecond && !upscale) {
@@ -262,10 +320,11 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale
     return {
         plan: {
             jobId: spec.id, ffmpeg: caps.ffmpegPath, decodeArgs, encodeArgs, width: pw, height: ph, in16, out16, fps, start, totalFrames,
-            effect: spec.effect, autoKeys: spec.autoKeys, parityMode: spec.parityMode
+            effect: spec.effect, autoKeys: spec.autoKeys, parityMode: spec.parityMode,
+            enginePref: spec.enginePref || (await getPrefs()).gpuEngine || 'auto'
         },
         encoder: enc.name,
-        warnings,
+        warnings: [...notes, ...warnings],
         customEncoder,
         muxArgs
     };
@@ -329,7 +388,7 @@ async function pump() {
         next.encoder = upscale ? `${encoder} + RVE TensorRT` : encoder;
         next.totalFrames = plan.totalFrames;
         next.progress = 0;
-        warnings.forEach(w => next.log.push('Warning: ' + w));
+        warnings.forEach(w => next.log.push(/^(Encoder|Decoder|Frame rate|Warning):/.test(w) ? w : 'Warning: ' + w));
         next.log.push(`Decoder: ffmpeg ${plan.decodeArgs.join(' ')}`);
         next.log.push(`Encoder: ffmpeg ${plan.encodeArgs.join(' ')}`);
         next.status = 'rendering';

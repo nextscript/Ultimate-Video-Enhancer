@@ -7,6 +7,7 @@ import path from 'node:path';
 import type { AudioStreamInfo, MediaInfo, SubtitleStreamInfo, VideoStreamInfo } from '../shared/types';
 import { cacheDir } from './store';
 import { capabilities } from './tools';
+import { type GpuVendor, type HwFamily, familyOrder, hwEncoderArgs } from '../shared/hw';
 import { fileExists } from './util';
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -172,14 +173,16 @@ export function previewProxy(media: MediaInfo, onProgress: (pct: number) => void
         if (await fileExists(file)) return file;
         const tmp = file + '.part.mp4';
         const v = media.video!;
-        const gpu = caps.nvencWorking.h264_nvenc;
+        // preview proxy: any verified hardware H.264 encoder (v1.0.1), else x264
+        const hwH264 = familyOrder(caps.platform, caps.gpuVendor as GpuVendor).map(f => `h264_${f}`).find(n => caps.hwEncoders?.[n] && !n.endsWith('vaapi'));
+        const gpu = !!hwH264;
         const args = ['-hide_banner', '-loglevel', 'error', '-progress', 'pipe:1', '-nostats', '-i', media.path, '-map', `0:${v.index}`];
         if (media.audio[0]) args.push('-map', `0:${media.audio[0].index}`);
         const { matrix, range } = sourceMatrix(v);
         const scaleH = Math.min(v.displayHeight, 2160);
         args.push('-vf', `scale=-2:${scaleH}:in_color_matrix=${matrix}:in_range=${range}:out_color_matrix=bt709:out_range=tv,format=yuv420p`,
             '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv');
-        if (gpu) args.push('-c:v', 'h264_nvenc', '-preset', 'p2', '-rc', 'vbr', '-cq', '18', '-b:v', '0');
+        if (gpu) args.push(...hwEncoderArgs('h264', hwH264!.split('_')[1] as HwFamily, 18, 'fast', false)!.args);
         else args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16');
         args.push('-g', String(Math.max(1, Math.round(v.fps || 25))), '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', '-y', tmp);
         await new Promise<void>((resolve, reject) => {

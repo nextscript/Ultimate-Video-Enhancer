@@ -1,4 +1,4 @@
-# UVE Manager 1.0.0
+# UVE Manager 1.0.1
 
 Desktop video look editor and **offline frame-by-frame renderer** built on the effect chain of
 [Ultimate Video Enhancer](https://github.com/nextscript/Ultimate-Video-Enhancer) v1.17.5 (userscript by Freak288).
@@ -19,6 +19,21 @@ npm run fetch-ffmpeg # fill tools\ffmpeg with the portable FFmpeg build
 npm run dist         # NSIS installer + portable self-extractor in release\ (ships the tools folder)
 npm run dist:portable  # only release\UVE-Manager-<version>-portable.exe
 ```
+
+## GPU engines and hardware (1.0.1)
+
+- **Preview and export filter engine:** WebGPU (WGSL; D3D12/Metal/Vulkan through Chromium) or the 1.0.0 WebGL2
+  engine.
+  - In *Automatic* mode, WebGPU is used only after a start-up validation against the 1.0.0 engine passes.
+  - Projects with enabled custom GLSL filters always use WebGL2.
+  - Choose the engine in **Settings → Rendering**; the diagnostics panel there shows the adapter, the reason for
+    the choice and the validation result.
+- **Hardware encoders** (NVENC, AMF, QSV, VideoToolbox, VA-API) and hardware decoders are verified on the actual
+  job before use. Software is always the fallback.
+- **Export → Frame rate (fps):** empty keeps the source frame rate. Values such as 30, 29.97 or 24000/1001
+  duplicate or drop frames; there is no interpolation.
+
+Build instructions per platform: `BUILD.md`. Only Windows/NVIDIA has been tested.
 
 ## Portable version
 

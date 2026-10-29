@@ -168,6 +168,8 @@ code { font-family: Consolas, 'Cascadia Mono', monospace; color: var(--accent2);
 .text { background: #0b1527; border: 1px solid var(--line2); border-radius: 6px; padding: 5px 8px; min-width: 0; user-select: text; }
 .text:focus, select:focus, .slider-value:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 .text.num { width: 64px; }
+.text.num.fps { width: 112px; }
+.text.invalid { border-color: var(--err); }
 .search { display: flex; align-items: center; gap: 6px; background: #0b1527; border: 1px solid var(--line2); border-radius: 7px; padding: 4px 8px; color: var(--dim); }
 .search input { background: none; border: 0; outline: none; flex: 1; min-width: 0; color: var(--text); }
 select { background: #0b1527; border: 1px solid var(--line2); border-radius: 6px; padding: 5px 8px; min-width: 0; }

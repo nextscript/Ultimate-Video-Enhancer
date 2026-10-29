@@ -12,7 +12,7 @@ import type { EffectState, JobSpec, JobState } from '../shared/types';
 import { DEFAULT_EXPORT } from '../shared/types';
 import { expertDefaults } from '../shared/uve/expert';
 import { DEFAULT_SETTINGS, NEUTRAL_SETTINGS } from '../shared/uve/settings';
-import { probe } from './media';
+import { previewProxy, probe } from './media';
 import { enqueue, listJobs } from './render';
 import { capabilities } from './tools';
 
@@ -113,6 +113,41 @@ export async function runSelftest(): Promise<number> {
             check(om.video?.codec === 'hevc' && Math.abs(om.duration - 3) < 0.08, `HEVC output, duration ${om.duration.toFixed(2)} s`);
         }
 
+        // 2a. v1.0.1 engine parity: identical job on the v1.0.0 WebGL2 engine and on the WebGPU engine (lossless output)
+        {
+            const heavy: EffectState = {
+                settings: { ...DEFAULT_SETTINGS, dn: -0.6, hdr: 0.5, tealOrange: true, u_contrast: 4, u_sat: 3, u_vib: 4, u_sharp: 5, u_grain: 2, u_hue: 2, cbFilter: 'protanopia' },
+                expert: expertDefaults(), customFilters: [], lut: { name: 'test', group: 'selftest', matrix4x5: [1.05, 0.02, 0, 0, -0.01, 0, 1, 0.03, 0, 0, 0.02, 0, 0.97, 0, 0.01, 0, 0, 0, 1, 0], createdAt: 0, updatedAt: 0 }
+            };
+            heavy.settings.lutProfile = 'selftest||test';
+            const outs: Record<string, string> = {};
+            const engines: Record<string, string> = {};
+            for (const pref of ['webgl2', 'webgpu'] as const) {
+                const o = path.join(dir, `engine_${pref}.mkv`);
+                const spec = { ...mkSpec(`engine_${pref}`, heavy, o, { container: 'mkv', videoCodec: 'h264', encoder: 'cpu', quality: 2 }), enginePref: pref };
+                const jj = await waitJob(enqueue(spec).id);
+                check(jj.status === 'done', `${pref} engine render${jj.error ? ' – ' + jj.error : ''} [${jj.engine || '?'}]`);
+                outs[pref] = o;
+                engines[pref] = jj.engine || '';
+                const st = jj.stats;
+                if (st) say(`INFO ${pref}: ${(st.frames / (st.totalMs / 1000)).toFixed(1)} fps · per frame: gpu-filter ${(st.gpu / st.frames).toFixed(2)} ms, readback ${(st.readback / st.frames).toFixed(2)} ms, upload ${(st.upload / st.frames).toFixed(2)} ms`);
+            }
+            check(engines.webgpu.startsWith('webgpu'), `WebGPU engine actually used when requested (${engines.webgpu})`);
+            check(engines.webgl2.startsWith('webgl2'), `WebGL2 legacy engine still selectable (${engines.webgl2})`);
+            if (outs.webgl2 && outs.webgpu) {
+                let worst = 0, sumSq = 0, n = 0, maxMean = 0;
+                for (const t of [0.2, 1.0, 1.5, 2.6]) {
+                    const a = await frameAt(caps.ffmpegPath, outs.webgl2, t, 640, 360), b = await frameAt(caps.ffmpegPath, outs.webgpu, t, 640, 360);
+                    for (let i = 0; i < a.length; i++) { const d = a[i] - b[i]; sumSq += d * d; worst = Math.max(worst, Math.abs(d)); n++; }
+                    const ma = [0, 1, 2].map(c => { let s = 0; for (let i = c; i < a.length; i += 3) s += a[i]; return s / (a.length / 3); });
+                    const mb = [0, 1, 2].map(c => { let s = 0; for (let i = c; i < b.length; i += 3) s += b[i]; return s / (b.length / 3); });
+                    maxMean = Math.max(maxMean, ...ma.map((v, i) => Math.abs(v - mb[i])));
+                }
+                const psnr = sumSq === 0 ? Infinity : 10 * Math.log10((255 * 255) / (sumSq / n));
+                check(psnr >= 45 && maxMean < 0.5, `WebGPU vs v1.0.0 engine export parity (PSNR ${psnr === Infinity ? '∞' : psnr.toFixed(1)} dB, max channel-mean diff ${maxMean.toFixed(3)}, worst pixel ${worst}/255)`);
+            }
+        }
+
         // 2b. custom GLSL pass (invert) on top of neutral settings + an SVG custom filter that is a no-op matrix
         const invert: EffectState = {
             ...neutral,
@@ -147,8 +182,32 @@ export async function runSelftest(): Promise<number> {
             }
         } else say(`SKIP rotation test (${r.err.trim().split('\n')[0]})`);
 
+        // 2b. preview proxy (v1.0.1: any verified hardware H.264 encoder, else x264)
+        try {
+            const proxy = await previewProxy(await probe(src), () => undefined);
+            const pm = await probe(proxy);
+            check(pm.video?.codec === 'h264' && Math.abs(pm.duration - 3) < 0.1, `preview proxy (${pm.video?.codec}, ${pm.video?.width}x${pm.video?.height}, ${pm.duration.toFixed(2)} s)`);
+        } catch (e) { check(false, `preview proxy – ${String(e)}`); }
+
+        // 3a. user-defined output frame rate (v1.0.1): 25 fps source → 30 fps and 29.97 fps output, same duration
+        for (const [fpsIn, num, den] of [['30', 30, 1], ['29.97', 30000, 1001]] as const) {
+            const outF = path.join(dir, `fps_${fpsIn.replace('.', '_')}.mp4`);
+            j = await waitJob(enqueue(mkSpec(`fps${fpsIn}`, look, outF, { videoCodec: 'h264', fps: fpsIn })).id);
+            check(j.status === 'done', `render with output frame rate ${fpsIn}${j.error ? ' – ' + j.error : ''}`);
+            if (j.status === 'done') {
+                const fm = await probe(outF);
+                const r = await run(caps.ffprobePath, ['-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_frames,avg_frame_rate', '-of', 'csv=p=0', outF]);
+                const [rate, nb] = r.out.toString().trim().split(',');
+                const expected = Math.round(3 * num / den);
+                check(rate === `${num}/${den}` && Math.abs(Number(nb) - expected) <= 1 && Math.abs(fm.duration - 3) < 0.1,
+                    `output frame rate ${fpsIn}: ${rate} fps, ${nb} frames (expected ${expected}), ${fm.duration.toFixed(2)} s, audio ${fm.audio.length ? 'kept' : 'missing'}`);
+            }
+        }
+
         // 3b. AI upscale pipeline (REAL-Video-Enhancer) with the mock backend from tests/rve-mock
-        const sysPython = (await run('where.exe', ['python'])).out.toString().split(/\r?\n/).map(s => s.trim()).find(s => s.toLowerCase().endsWith('python.exe') && !s.includes('WindowsApps'));
+        const sysPython = process.platform === 'win32'
+            ? (await run('where.exe', ['python'])).out.toString().split(/\r?\n/).map(s => s.trim()).find(s => s.toLowerCase().endsWith('python.exe') && !s.includes('WindowsApps'))
+            : (await run('which', ['python3'])).out.toString().trim() || undefined;
         const mockSrc = path.join(app.getAppPath(), 'tests', 'rve-mock', 'backend', 'rve-backend.py');
         if (sysPython && await fsp.stat(mockSrc).catch(() => null)) {
             const rveRoot = path.join(dir, 'rve');

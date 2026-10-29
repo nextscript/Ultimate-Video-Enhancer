@@ -18,7 +18,10 @@ let decError = '';
 let encError = '';
 let waiter: (() => void) | null = null;
 let canceled = false;
+let encClosed = false;
 const MAX_QUEUE = 4;
+/** v1.0.1 diagnostics: decoder delivery rate into the worker */
+const diag = { produced: 0, firstAt: 0, lastAt: 0 };
 
 function log(line: string) { if (plan) ipcRenderer.send('worker:log', { jobId: plan.jobId, line }); }
 
@@ -30,6 +33,7 @@ function onDecData(chunk: Buffer) {
     while (pendingLen >= frameBytes) {
         const all = pending.length === 1 ? pending[0] : Buffer.concat(pending, pendingLen);
         queue.push(Buffer.from(all.subarray(0, frameBytes)));
+        diag.produced++; diag.lastAt = performance.now(); if (!diag.firstAt) diag.firstAt = diag.lastAt;
         const rest = all.subarray(frameBytes);
         pending = rest.length ? [rest] : [];
         pendingLen = rest.length;
@@ -57,7 +61,8 @@ const api = {
         dec.on('error', e => { decError += e.message; decEnded = true; wake(); });
         enc.stderr.on('data', d => { encError += d; String(d).split(/\r?\n/).filter(Boolean).forEach(l => log('[encode] ' + l)); });
         enc.on('error', e => { encError += e.message; });
-        enc.stdin.on('error', e => { encError += 'stdin: ' + e.message; });
+        enc.stdin.on('error', e => { encError += 'stdin: ' + e.message; encClosed = true; });
+        enc.on('exit', () => { encClosed = true; });
     },
     /** Next decoded frame, or null at the end of the stream. */
     async readFrame(): Promise<Uint8Array | null> {
@@ -74,8 +79,16 @@ const api = {
     },
     async writeFrame(data: Uint8Array): Promise<void> {
         if (!enc || canceled) return;
+        // v1.0.1: a dead encoder used to leave the worker waiting for 'drain' forever
+        const fail = () => new Error(`Encoder stopped: ${encError.trim().split('\n').slice(-3).join(' ') || `exit ${enc!.exitCode}`}`);
+        if (encClosed || enc.stdin.destroyed) throw fail();
         const ok = enc.stdin.write(Buffer.from(data.buffer, data.byteOffset, data.byteLength));
-        if (!ok) await new Promise<void>(r => enc!.stdin.once('drain', () => r()));
+        if (!ok) await new Promise<void>((resolve, reject) => {
+            const e = enc!;
+            const done = () => { e.stdin.off('drain', done); e.off('exit', dead); e.stdin.off('close', dead); resolve(); };
+            const dead = () => { e.stdin.off('drain', done); e.off('exit', dead); e.stdin.off('close', dead); reject(fail()); };
+            e.stdin.once('drain', done); e.once('exit', dead); e.stdin.once('close', dead);
+        });
     },
     async finish(): Promise<{ ok: boolean; error?: string }> {
         if (!enc || !dec) return { ok: false, error: 'not started' };
@@ -98,6 +111,9 @@ const api = {
         const m = plan.encodeArgs[plan.encodeArgs.length - 1];
         try { return (await fsp.stat(m)).size; } catch { return 0; }
     },
+    engineInfo(kind: string, adapter: string) { if (plan) ipcRenderer.send('worker:engine', { jobId: plan.jobId, kind, adapter }); },
+    stats(stats: Record<string, unknown>) { if (plan) ipcRenderer.send('worker:stats', { jobId: plan.jobId, stats }); },
+    decoderFps() { const span = (diag.lastAt - diag.firstAt) / 1000; return span > 0 ? diag.produced / span : 0; },
     progress(frames: number, fps: number, outSize: number) { if (plan) ipcRenderer.send('worker:progress', { jobId: plan.jobId, frames, fps, outSize }); },
     log,
     done(ok: boolean, error?: string) { if (plan) ipcRenderer.send('worker:done', { jobId: plan.jobId, ok, error }); }
