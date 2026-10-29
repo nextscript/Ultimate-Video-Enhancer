@@ -14,6 +14,61 @@ Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-li
 <b>No setup. No config. Just install and press a hotkey.</b>
 
 <hr>
+<h2>🖥️ NEW: UVE Manager – Windows Desktop App</h2>
+<hr>
+
+<p>
+<b>Enhance your own video files and render them as a new, high-quality video.</b><br>
+UVE Manager brings the complete Ultimate Video Enhancer effect chain to Windows.
+Open a local video, tune the look with a live preview, and export a new file with the effect baked into every frame.
+</p>
+
+<ul>
+<li><b>Same effects as the script:</b> Sharpen, HDR, Color Boost, Base Tone, Dark & Moody, Teal & Orange, Vibrant, DeNoise / Grain, Edge Detection, profiles, User grading and Expert Settings</li>
+<li><b>Live preview:</b> Before / After slider, timeline with frame stepping and In / Out points, Scopes (histogram, parade, waveform, vectorscope)</li>
+<li><b>LUT Library:</b> the LUT profiles are downloaded automatically and shown with a preview of your current frame; you can import your own .cube / PNG LUTs</li>
+<li><b>Auto-Scene-Match:</b> analyses the whole video beforehand, so the export looks exactly like the preview</li>
+<li><b>Custom SVG / GLSL filters</b> and presets / profiles (import / export as JSON or ZIP)</li>
+</ul>
+
+<h3>🎬 Real rendering – not a screen recording</h3>
+
+<p>
+The original file is decoded frame by frame with FFmpeg, every frame runs through the same GPU effect graph as the preview,
+and the result is encoded into a <b>new</b> file. Your source video is never modified.
+</p>
+
+<ul>
+<li><b>Codecs:</b> H.264, H.265 / HEVC, AV1, VP9, ProRes – in MP4, MKV, MOV or WebM</li>
+<li><b>Quality control:</b> constant quality (CRF / CQ), speed presets, optional <b>10-bit</b> output with a 16-bit processing pipeline</li>
+<li><b>Resolution:</b> keep the source size or render as 720p, 1080p, 1440p or 4K (2160p)</li>
+<li><b>Frame rate:</b> keep the source frame rate or set your own (e.g. 24, 30, 60, 29.97)</li>
+<li><b>AI Upscaling (optional):</b> 2× / 4× upscaling with <a href="https://github.com/TNTwise/REAL-Video-Enhancer" target="_blank">REAL-Video-Enhancer</a> (TensorRT, NVIDIA GPU)</li>
+<li><b>GPU acceleration:</b> WebGPU or WebGL2 filter engine; hardware encoding with NVIDIA NVENC, AMD AMF or Intel Quick Sync when available (each encoder is tested automatically, otherwise the software encoder is used)</li>
+<li><b>Audio & subtitles:</b> copy the original audio losslessly or re-encode (AAC / Opus); choose the audio track; copy subtitles</li>
+<li><b>Render queue:</b> progress, ETA, cancel, logs – unfinished files are cleaned up automatically</li>
+</ul>
+
+<h3>📦 Portable – no installation</h3>
+
+<ul>
+<li>Start <b>UVE-Manager-&lt;version&gt;-portable.exe</b> and choose a folder (e.g. a USB drive) – the app is unpacked there</li>
+<li>All settings, window position, profiles and LUTs are stored in the <b>data</b> folder next to the app</li>
+<li>FFmpeg is downloaded on first start into the <b>tools</b> folder – nothing is installed system-wide</li>
+<li>At every start the app checks for updates and asks whether to update now or keep the current version (can be turned off in Settings)</li>
+</ul>
+
+<h3>🏁 Quick Start (Desktop App)</h3>
+
+<ul>
+<li>Run the portable exe and pick a folder</li>
+<li>Drag & drop a video into the window (or <b>Ctrl + O</b>)</li>
+<li>Choose a profile / LUT and adjust the sliders – compare with the Before / After slider</li>
+<li>Pick codec, quality and resolution in <b>Output Settings</b></li>
+<li>Click <b>Render Video</b> (or <b>Ctrl + R</b>) – done ✅</li>
+</ul>
+
+<hr>
 <h2>⚡ Why you need this</h2>
 <hr>
 <ul>
