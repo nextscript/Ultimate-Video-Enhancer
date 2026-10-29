@@ -80,6 +80,13 @@ jobs:
         if: runner.os == 'Windows'
         run: npm run fetch-ffmpeg
 
+      # build-portable.mjs prefers electron-builder's own makensis; this is the fallback
+      - name: Ensure NSIS (portable self-extractor)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\NSIS\makensis.exe")) { choco install nsis -y --no-progress }
+
       - name: Build Windows (setup + portable)
         if: runner.os == 'Windows'
         run: npm run dist
