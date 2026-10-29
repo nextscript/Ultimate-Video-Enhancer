@@ -58,8 +58,6 @@ function TitleBar() {
                 <button className="icon-btn" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Y)" aria-label="Redo"><Icon name="redo" /></button>
                 <span className="doc-name" title={projectPath || ''}>{name}{dirty ? ' •' : ''}</span>
                 <span className="drag-space" />
-                <button className="btn btn-primary" disabled={!media} onClick={() => enqueueCurrent()} title="Render Video (Ctrl+R)"><Icon name="render" size={16} /> Render Video</button>
-                <Button icon="settings" kind="ghost" onClick={() => setState({ view: 'settings' })}>Settings</Button>
             </div>
         </header>
     );
