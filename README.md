@@ -14,12 +14,12 @@ Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-li
 <b>No setup. No config. Just install and press a hotkey.</b>
 
 <hr>
-<h2>🖥️ NEW: UVE Manager – Windows Desktop App</h2>
+<h2>🖥️ NEW: UVE Manager –  Desktop App</h2>
 <hr>
 
 <p>
 <b>Enhance your own video files and render them as a new, high-quality video.</b><br>
-UVE Manager brings the complete Ultimate Video Enhancer effect chain to Windows.
+UVE Manager brings the complete Ultimate Video Enhancer effect chain to Desktop.
 Open a local video, tune the look with a live preview, and export a new file with the effect baked into every frame.
 </p>
 
