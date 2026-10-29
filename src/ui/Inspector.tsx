@@ -8,6 +8,7 @@ import { api } from '../api';
 import { applyProfile, persistProfiles, profileFromCurrent, recomputeAuto, runAnalysis, selectLut, setSetting, toggleHdr } from '../state/actions';
 import { type InspectorTab, getState, setState, toast, updateEffect, useStore } from '../state/store';
 import { Button, Icon, Section, Select, SliderRow, Toggle } from './controls';
+import { kbd } from './keys';
 
 const TABS: InspectorTab[] = ['Basic', 'Color', 'HDR', 'Detail', 'LUTs', 'Custom', 'Auto', 'Expert'];
 
@@ -77,15 +78,15 @@ function BasicTab() {
     return (
         <>
             <Section title="Base & Looks">
-                <Flag k="enabled" label="Base Tone (Ctrl+Alt+B)" desc="Base optimization: brightness 1.02, contrast 1.05, saturation 1.15" />
-                <Flag k="darkMoody" label="Dark & Moody (Ctrl+Alt+D)" desc="Per-channel gamma curve + saturation 0.90" />
-                <Flag k="tealOrange" label="Teal & Orange (Ctrl+Alt+O)" desc="Teal and orange matrices + saturation 1.08" />
-                <Flag k="vibrantSat" label="Vibrant (Ctrl+Alt+V)" desc="Saturation 1.35" />
-                <Toggle checked={s.hdr !== 0} label="HDR look (Ctrl+Alt+P)" title="Toggles HDR Boost with the last used strength" onChange={() => toggleHdr()} />
+                <Flag k="enabled" label={`Base Tone (${kbd('Ctrl+Alt+B')})`} desc="Base optimization: brightness 1.02, contrast 1.05, saturation 1.15" />
+                <Flag k="darkMoody" label={`Dark & Moody (${kbd('Ctrl+Alt+D')})`} desc="Per-channel gamma curve + saturation 0.90" />
+                <Flag k="tealOrange" label={`Teal & Orange (${kbd('Ctrl+Alt+O')})`} desc="Teal and orange matrices + saturation 1.08" />
+                <Flag k="vibrantSat" label={`Vibrant (${kbd('Ctrl+Alt+V')})`} desc="Saturation 1.35" />
+                <Toggle checked={s.hdr !== 0} label={`HDR look (${kbd('Ctrl+Alt+P')})`} title="Toggles HDR Boost with the last used strength" onChange={() => toggleHdr()} />
             </Section>
             <Section title="Profile">
                 <Select label="Tone profile" value={s.profile} options={(Object.keys(PROFILE_NAMES) as UveSettings['profile'][]).map(p => ({ value: p, label: PROFILE_NAMES[p] }))}
-                    onChange={v => setSetting('profile', v, false)} title="Movie / Anime / Gaming / EyeCare profile matrices and tones; User enables the grading controls (Ctrl+Alt+C cycles)" />
+                    onChange={v => setSetting('profile', v, false)} title={`Movie / Anime / Gaming / EyeCare profile matrices and tones; User enables the grading controls (${kbd('Ctrl+Alt+C')} cycles)`} />
                 <Select label="Color blindness" value={s.cbFilter} options={(Object.keys(CB_NAMES) as UveSettings['cbFilter'][]).map(p => ({ value: p, label: CB_NAMES[p] }))}
                     onChange={v => setSetting('cbFilter', v, false)} />
             </Section>
@@ -235,10 +236,10 @@ function AutoTab() {
     const media = useStore(s => s.media);
     return (
         <>
-            <Section title="Auto-Scene-Match (Ctrl+Alt+A)" collapsible={false}>
+            <Section title={`Auto-Scene-Match (${kbd('Ctrl+Alt+A')})`} collapsible={false}>
                 <Flag k="autoOn" label="Auto-Scene-Match" desc="Adapts brightness, contrast, saturation and white balance to each scene" />
                 <Num k="autoStrength" disabled={!on} />
-                <Flag k="autoLockWB" label="Auto White Balance (WB lock, Ctrl+Alt+W)" desc="Removes red/blue casts via a hue correction (±10°)" />
+                <Flag k="autoLockWB" label={`Auto White Balance (WB lock, ${kbd('Ctrl+Alt+W')})`} desc="Removes red/blue casts via a hue correction (±10°)" />
                 <div className="row gap">
                     <span className="grow small dim">
                         {!media ? 'Open a video to analyse it.' : a.status === 'running' ? `Analysing… ${Math.round(a.pct * 100)}%` : a.status === 'ready' ? `Analysis ready – ${(a.keys?.length ?? 1) - 1} correction updates` : a.status === 'error' ? `Analysis failed: ${a.error}` : 'Not analysed yet'}

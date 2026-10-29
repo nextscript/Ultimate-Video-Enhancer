@@ -14,14 +14,16 @@ import { Scopes } from './Scopes';
 import { RveSettings } from './RveSettings';
 import { RenderingSettings } from './RenderingSettings';
 import { player } from './Player';
+import { PLATFORM, kbd } from './keys';
+import { comboFromEvent, defaultShortcuts } from '../../shared/shortcuts';
 
 // ------------------------------------------------------------------ Presets
 const LOOKS: { id: string; label: string; desc: string; apply: (s: UveSettings) => Partial<UveSettings> }[] = [
-    { id: 'base', label: 'Base Tone', desc: 'Base optimization (Ctrl+Alt+B)', apply: s => ({ enabled: !s.enabled }) },
-    { id: 'moody', label: 'Dark & Moody', desc: 'Ctrl+Alt+D', apply: s => ({ darkMoody: !s.darkMoody }) },
-    { id: 'teal', label: 'Teal & Orange', desc: 'Ctrl+Alt+O', apply: s => ({ tealOrange: !s.tealOrange }) },
-    { id: 'vib', label: 'Vibrant', desc: 'Ctrl+Alt+V', apply: s => ({ vibrantSat: !s.vibrantSat }) },
-    { id: 'hdr', label: 'HDR', desc: 'Ctrl+Alt+P', apply: s => ({ hdr: s.hdr ? 0 : 0.3 }) }
+    { id: 'base', label: 'Base Tone', desc: `Base optimization (${kbd('Ctrl+Alt+B')})`, apply: s => ({ enabled: !s.enabled }) },
+    { id: 'moody', label: 'Dark & Moody', desc: kbd('Ctrl+Alt+D'), apply: s => ({ darkMoody: !s.darkMoody }) },
+    { id: 'teal', label: 'Teal & Orange', desc: kbd('Ctrl+Alt+O'), apply: s => ({ tealOrange: !s.tealOrange }) },
+    { id: 'vib', label: 'Vibrant', desc: kbd('Ctrl+Alt+V'), apply: s => ({ vibrantSat: !s.vibrantSat }) },
+    { id: 'hdr', label: 'HDR', desc: kbd('Ctrl+Alt+P'), apply: s => ({ hdr: s.hdr ? 0 : 0.3 }) }
 ];
 
 function lookActive(id: string, s: UveSettings) {
@@ -377,7 +379,7 @@ export function SettingsView() {
         const onKey = async (e: KeyboardEvent) => {
             e.preventDefault(); e.stopPropagation();
             if (['Control', 'Alt', 'Shift', 'Meta'].includes(e.key)) return;
-            const combo = `${e.ctrlKey ? 'Ctrl+' : ''}${e.altKey ? 'Alt+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.key === ' ' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key}`;
+            const combo = comboFromEvent(e);
             setState({ prefs: await api.setPrefs({ shortcuts: { ...getState().prefs!.shortcuts, [capture]: combo } }) });
             setCapture(null);
         };
@@ -445,13 +447,13 @@ export function SettingsView() {
                         {Object.entries(prefs.shortcuts).map(([k, v]) => (
                             <tr key={k} className={conflicts.includes(k) ? 'conflict' : ''}>
                                 <td>{SHORTCUT_LABELS[k] || k}</td>
-                                <td><button className={`kbd${capture === k ? ' capturing' : ''}`} onClick={() => setCapture(k)}>{capture === k ? 'press keys…' : v}</button></td>
+                                <td><button className={`kbd${capture === k ? ' capturing' : ''}`} onClick={() => setCapture(k)}>{capture === k ? 'press keys…' : kbd(v)}</button></td>
                                 <td>{conflicts.includes(k) && <span className="warn-text">conflict</span>}</td>
                             </tr>
                         ))}
                     </tbody>
                 </table>
-                <Button small onClick={async () => { const { DEFAULT_SHORTCUTS } = await import('../../shared/shortcuts'); setP({ shortcuts: { ...DEFAULT_SHORTCUTS } }); }}>Restore defaults</Button>
+                <Button small onClick={() => setP({ shortcuts: defaultShortcuts(PLATFORM) })}>Restore defaults</Button>
             </Section>
             <Section title="About & licenses" defaultOpen={false}>
                 <dl className="kv">

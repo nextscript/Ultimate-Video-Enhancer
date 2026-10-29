@@ -313,8 +313,20 @@ function registerIpc() {
     h('window:setTitle', (t: string) => mainWin?.setTitle(t));
 }
 
+/**
+ * v1.0.2 macOS: a minimal app menu so ⌘Q/⌘H/⌘M/⌘W and ⌘X/⌘C/⌘V/⌘A in text fields work. Undo/redo and
+ * ⌘R are left to the in-app shortcuts (a menu accelerator would swallow the key event).
+ */
+function macMenu(): Menu {
+    return Menu.buildFromTemplate([
+        { role: 'appMenu' },
+        { label: 'Edit', submenu: [{ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'pasteAndMatchStyle' }, { role: 'delete' }, { role: 'selectAll' }] },
+        { role: 'windowMenu' }
+    ]);
+}
+
 app.whenReady().then(async () => {
-    Menu.setApplicationMenu(null);
+    Menu.setApplicationMenu(process.platform === 'darwin' ? macMenu() : null);
     protocol.handle('uve-media', serveMedia);
     protocol.handle('uve-app', serveApp);
     registerIpc();

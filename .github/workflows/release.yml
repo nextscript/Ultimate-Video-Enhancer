@@ -1,0 +1,154 @@
+# Builds UVE Manager for Windows, macOS and Linux and attaches the packages to the GitHub release.
+#
+# Trigger:
+#   - push a tag that equals the version in package.json (e.g. "1.0.2" or "v1.0.2"), or
+#   - run it manually (Actions > Release builds > Run workflow) with the tag of an existing release.
+#
+# Output per system:
+#   Windows  UVE-Manager-<v>-setup.exe, UVE-Manager-<v>-portable.exe (with portable FFmpeg)
+#   macOS    UVE-Manager-<v>-mac-x64.dmg/.zip, UVE-Manager-<v>-mac-arm64.dmg/.zip (Intel + Apple Silicon)
+#   Linux    UVE-Manager-<v>-linux-x86_64.AppImage, UVE-Manager-<v>-linux-x64.tar.gz
+#
+# macOS signing (optional): without the secrets below the app is ad-hoc signed – users then open it with
+# right click > Open (or `xattr -cr "/Applications/UVE Manager.app"`). With the secrets it is signed with a
+# Developer ID and notarized:
+#   MAC_CERT_P12_BASE64, MAC_CERT_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID
+name: Release builds
+
+on:
+  push:
+    tags: ['*.*.*', 'v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to build and upload to (e.g. 1.0.2)'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+          - name: macOS
+            os: macos-latest
+          - name: Linux
+            os: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check tag matches package.json version
+        shell: bash
+        run: |
+          v=$(node -p "require('./package.json').version")
+          if [ "${TAG#v}" != "$v" ]; then
+            echo "::error::Tag $TAG does not match package.json version $v"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck and tests
+        run: |
+          npm run typecheck
+          npm test
+
+      # ---------------------------------------------------------------- Windows
+      - name: Fetch portable FFmpeg
+        if: runner.os == 'Windows'
+        run: npm run fetch-ffmpeg
+
+      - name: Build Windows (setup + portable)
+        if: runner.os == 'Windows'
+        run: npm run dist
+
+      # ---------------------------------------------------------------- macOS
+      - name: Build macOS (Intel + Apple Silicon)
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MAC_CERT_P12_BASE64: ${{ secrets.MAC_CERT_P12_BASE64 }}
+          MAC_CERT_PASSWORD: ${{ secrets.MAC_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          if [ -n "$MAC_CERT_P12_BASE64" ]; then
+            export CSC_LINK="$MAC_CERT_P12_BASE64" CSC_KEY_PASSWORD="$MAC_CERT_PASSWORD"
+            [ -n "$APPLE_ID" ] && notarize=true || notarize=false
+            npm run build
+            npx electron-builder --mac dmg zip --x64 --arm64 --publish never -c.mac.notarize=$notarize
+          else
+            echo "No signing certificate – building an ad-hoc signed app"
+            export CSC_IDENTITY_AUTO_DISCOVERY=false
+            npm run build
+            npx electron-builder --mac dmg zip --x64 --arm64 --publish never -c.mac.identity=- -c.mac.notarize=false
+          fi
+
+      # ---------------------------------------------------------------- Linux
+      - name: Build Linux (AppImage + tar.gz)
+        if: runner.os == 'Linux'
+        run: npm run dist:linux
+
+      - name: Collect packages
+        shell: bash
+        run: |
+          mkdir -p out
+          shopt -s nullglob
+          for f in release/*.exe release/*.dmg release/*.zip release/*.AppImage release/*.tar.gz; do
+            case "$f" in *__uninstaller*) continue ;; esac
+            cp "$f" out/
+          done
+          ls -la out
+          [ -n "$(ls out)" ] || { echo "::error::no packages were built"; exit 1; }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: uve-manager-${{ matrix.name }}
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    name: Upload to release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}
+          name: UVE Manager ${{ env.TAG }}
+          fail_on_unmatched_files: true
+          files: dist/*

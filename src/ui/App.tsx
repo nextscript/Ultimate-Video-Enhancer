@@ -6,7 +6,9 @@ import {
     cycleToneProfile, effectFromUnknown, enqueueCurrent, errMsg, loadVideo, newProject, openProject, saveProject, toggleHdr, toggleSetting
 } from '../state/actions';
 import { type View, getState, redo, setState, subscribe, toast, undo, useStore } from '../state/store';
+import { comboFromEvent, sameCombo } from '../../shared/shortcuts';
 import { Button, Icon, Modal, Progress, Toggle } from './controls';
+import { sc } from './keys';
 import { ExportPanel, MediaInfoPanel } from './EditorPanels';
 import { FilterStudio } from './FilterStudio';
 import { Inspector } from './Inspector';
@@ -39,7 +41,7 @@ function TitleBar() {
         <header className="titlebar">
             <div className="brand"><span className="logo">UVE</span><span className="appname">UVE Manager</span><span className="edition">Desktop Edition</span><span className="ver">v{APP_VERSION}</span></div>
             <div className="toolbar">
-                <Button icon="open" onClick={async () => { const p = await api.openVideos(); if (p[0]) void loadVideo(p[0]); }} title="Open video (Ctrl+O)">Open Video</Button>
+                <Button icon="open" onClick={async () => { const p = await api.openVideos(); if (p[0]) void loadVideo(p[0]); }} title={`Open video (${sc('open')})`}>Open Video</Button>
                 <div className="menu-wrap">
                     <Button icon="folder" onClick={() => setMenu(!menu)} title="Project">Project</Button>
                     {menu && (
@@ -53,9 +55,9 @@ function TitleBar() {
                         </div>
                     )}
                 </div>
-                <Button icon="save" onClick={() => saveProject(false)} title="Save project (Ctrl+S)">Save</Button>
-                <button className="icon-btn" disabled={!canUndo} onClick={undo} title="Undo (Ctrl+Z)" aria-label="Undo"><Icon name="undo" /></button>
-                <button className="icon-btn" disabled={!canRedo} onClick={redo} title="Redo (Ctrl+Y)" aria-label="Redo"><Icon name="redo" /></button>
+                <Button icon="save" onClick={() => saveProject(false)} title={`Save project (${sc('save')})`}>Save</Button>
+                <button className="icon-btn" disabled={!canUndo} onClick={undo} title={`Undo (${sc('undo')})`} aria-label="Undo"><Icon name="undo" /></button>
+                <button className="icon-btn" disabled={!canRedo} onClick={redo} title={`Redo (${sc('redo')})`} aria-label="Redo"><Icon name="redo" /></button>
                 <span className="doc-name" title={projectPath || ''}>{name}{dirty ? ' •' : ''}</span>
                 <span className="drag-space" />
             </div>
@@ -181,11 +183,6 @@ function Toasts() {
     return <div className="toasts" role="status" aria-live="polite">{toasts.map(t => <div key={t.id} className={`toast ${t.tone}`} onClick={() => setState(s => ({ toasts: s.toasts.filter(x => x.id !== t.id) }))}>{t.text}</div>)}</div>;
 }
 
-function comboOf(e: KeyboardEvent) {
-    const key = e.key === ' ' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key;
-    return `${e.ctrlKey ? 'Ctrl+' : ''}${e.altKey ? 'Alt+' : ''}${e.shiftKey && e.key.length > 1 ? 'Shift+' : ''}${key}`;
-}
-
 function useShortcuts() {
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -194,8 +191,8 @@ function useShortcuts() {
             if (document.querySelector('.modal-backdrop')) return;
             const map = getState().prefs?.shortcuts;
             if (!map) return;
-            const combo = comboOf(e);
-            const action = Object.entries(map).find(([, v]) => v.toUpperCase() === combo.toUpperCase())?.[0];
+            const combo = comboFromEvent(e);
+            const action = Object.entries(map).find(([, v]) => sameCombo(v, combo))?.[0];
             if (!action) return;
             e.preventDefault();
             const s = getState();
@@ -237,9 +234,9 @@ function useShortcuts() {
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
     }, []);
-    // Ctrl+Alt+W toggles Auto White Balance (userscript WB lock)
+    // Ctrl+Alt+W (⌃⌥W on macOS) toggles Auto White Balance (userscript WB lock)
     useEffect(() => {
-        const k = (e: KeyboardEvent) => { if (e.ctrlKey && e.altKey && e.key.toLowerCase() === 'w') { e.preventDefault(); toggleSetting('autoLockWB'); void import('../state/actions').then(a => a.recomputeAuto()); } };
+        const k = (e: KeyboardEvent) => { if (sameCombo(comboFromEvent(e), 'Ctrl+Alt+W')) { e.preventDefault(); toggleSetting('autoLockWB'); void import('../state/actions').then(a => a.recomputeAuto()); } };
         window.addEventListener('keydown', k);
         return () => window.removeEventListener('keydown', k);
     }, []);

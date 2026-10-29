@@ -96,6 +96,13 @@ function portableDir(): string | null {
 }
 
 function pickInstaller(rel: GhRelease) {
+    // v1.0.2: release assets for macOS (dmg per arch) and Linux (AppImage per arch)
+    const archRe = process.arch === 'arm64' ? /arm64|aarch64/i : /x64|x86_64|amd64/i;
+    if (process.platform === 'darwin' || process.platform === 'linux') {
+        const ext = process.platform === 'darwin' ? /\.dmg$/i : /\.AppImage$/i;
+        const list = rel.assets.filter(a => ext.test(a.name));
+        return list.find(a => archRe.test(a.name)) || list[0];
+    }
     const portable = !!portableDir();
     const exes = rel.assets.filter(a => /\.exe$/i.test(a.name));
     return (portable ? exes.find(a => /portable/i.test(a.name)) : exes.find(a => /setup|nsis|installer/i.test(a.name) && !/portable/i.test(a.name)))
@@ -135,6 +142,7 @@ export async function applyUpdate(id: UpdateItem['id'], progress: (m: string, pc
         if (!rel) return { ok: false, message: 'No update information – run the check again.' };
         const asset = pickInstaller(rel);
         if (!asset) { await shell.openExternal(rel.html_url); return { ok: true, message: 'The release page was opened in your browser.' }; }
+        if (process.platform !== 'win32') { await shell.openExternal(rel.html_url); return { ok: true, message: `The release page was opened in your browser – download ${asset.name} there.` }; }
         const data = await download(asset.browser_download_url, {
             maxBytes: 800 * 1024 * 1024,
             onProgress: (r, t) => progress(`Downloading ${asset.name}… ${(r / 1048576).toFixed(0)} MB`, t ? r / t : 0)
@@ -146,7 +154,6 @@ export async function applyUpdate(id: UpdateItem['id'], progress: (m: string, pc
             shell.showItemInFolder(target);
             return { ok: true, message: `The new portable version was saved to ${target}. Close UVE Manager, start that file and choose this folder (${pdir}) – your settings in "data" and the tools are kept.` };
         }
-        if (process.platform !== 'win32') { await shell.openExternal(rel.html_url); return { ok: true, message: 'The release page was opened in your browser – download the package for your system there.' }; }
         const file = path.join(os.tmpdir(), `uve-manager-update-${Date.now()}-${asset.name.replace(/[^\w.-]/g, '_')}`);
         await fsp.writeFile(file, data);
         spawn(file, [], { detached: true, stdio: 'ignore', windowsHide: false }).unref();

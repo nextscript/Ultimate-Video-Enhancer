@@ -7,6 +7,7 @@ import { api } from '../api';
 import { exportFilterCodes, importFilterCodes } from '../state/actions';
 import { getState, setState, toast, updateEffect, useStore } from '../state/store';
 import { Button, Icon, Section, Select, Toggle } from './controls';
+import { IS_MAC, kbd } from './keys';
 
 const TEMPLATES: Record<'svg' | 'webgl', string> = {
     webgl: `// @uniform float STRENGTH 0.5 0.0 1.0 "Strength"
@@ -134,11 +135,11 @@ export function FilterStudio() {
                                     onScroll={e => { if (lineRef.current) lineRef.current.scrollTop = (e.target as HTMLTextAreaElement).scrollTop; }}
                                     onKeyDown={e => {
                                         if (e.key === 'Tab') { e.preventDefault(); const t = e.currentTarget; const p = t.selectionStart; setDraft(draft.slice(0, p) + '    ' + draft.slice(t.selectionEnd)); requestAnimationFrame(() => { t.selectionStart = t.selectionEnd = p + 4; }); }
-                                        if (e.key === 's' && e.ctrlKey) { e.preventDefault(); apply(); }
+                                        if (e.key.toLowerCase() === 's' && (IS_MAC ? e.metaKey : e.ctrlKey)) { e.preventDefault(); apply(); }
                                     }} />
                             </div>
                             <div className="row gap">
-                                <Button kind="primary" icon="check" onClick={apply}>Apply (Ctrl+S)</Button>
+                                <Button kind="primary" icon="check" onClick={apply}>Apply ({kbd(IS_MAC ? 'Meta+S' : 'Ctrl+S')})</Button>
                                 <Button onClick={() => setDiag(check(draft, sel.type) || 'OK – no errors.')}>Validate</Button>
                                 <Button kind="ghost" onClick={() => setDraft(sel.code)} disabled={draft === sel.code}>Revert</Button>
                                 <span className="grow" />

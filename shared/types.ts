@@ -5,7 +5,7 @@ import type { LutProfile } from './uve/lut';
 import type { AutoKey } from './uve/auto';
 
 export const APP_NAME = 'UVE Manager';
-export const APP_VERSION = '1.0.1';
+export const APP_VERSION = '1.0.2';
 export const UVE_SOURCE = {
     name: 'Ultimate Video Enhancer (Sharpen, HDR, Color Boost)',
     version: '1.17.5',
@@ -26,7 +26,8 @@ export const FFMPEG_BUILD = {
     directUrl: 'https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-win64-gpl.zip'
 };
 
-export const DEFAULT_UPDATE_REPO = 'nextscript/UVE-Manager';
+/** v1.0.2: UVE Manager releases (Windows, macOS, Linux) are published in the UVE repository */
+export const DEFAULT_UPDATE_REPO = 'nextscript/Ultimate-Video-Enhancer';
 
 export interface VideoStreamInfo {
     index: number;

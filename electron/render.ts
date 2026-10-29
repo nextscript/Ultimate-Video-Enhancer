@@ -160,13 +160,17 @@ async function pickVideoEncoder(s: ExportSettings, caps: Capabilities, w: number
     return sw;
 }
 
-/** Hardware decoding: verified on the actual input (first half second) before it is used. */
-async function pickHwaccel(caps: Capabilities, input: string, start: number, videoIndex: number, notes: string[]): Promise<string | null> {
+/**
+ * Hardware decoding: verified on the actual input (first half second) before it is used.
+ * v1.0.2: the probe runs the real decode filter chain – without it a hwaccel that hands out GPU frames
+ * (e.g. qsv/d3d11va on Windows 11 laptops) passed the test and then failed in the export with EINVAL.
+ */
+async function pickHwaccel(caps: Capabilities, input: string, start: number, videoIndex: number, vf: string, notes: string[]): Promise<string | null> {
     const pref = (await getPrefs()).hwDecode || 'auto';
     if (pref === 'software') { notes.push('Decoder: software (selected in Settings).'); return null; }
     const order = hwaccelOrder(caps.platform || process.platform, (caps.gpuVendor || 'other') as Parameters<typeof hwaccelOrder>[1], caps.hwaccels);
     for (const hw of order) {
-        const args = ['-hide_banner', '-loglevel', 'error', '-hwaccel', hw, ...(start > 0 ? ['-ss', start.toFixed(3)] : []), '-i', input, '-map', `0:${videoIndex}`, '-t', '0.5', '-f', 'null', '-'];
+        const args = ['-hide_banner', '-loglevel', 'error', '-hwaccel', hw, ...(start > 0 ? ['-ss', start.toFixed(3)] : []), '-i', input, '-map', `0:${videoIndex}`, '-t', '0.5', '-vf', vf, '-f', 'null', '-'];
         const r = await runEncoderTest(caps.ffmpegPath, args, 20000);
         if (r.ok && !/fail|error|not supported|unsupported/i.test(r.err)) { notes.push(`Decoder: hardware ${hw} – verified on this file.`); return hw; }
     }
@@ -231,7 +235,7 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale
 
     const vf = await decodeFilter(v, pw, ph, in16 ? 'rgba64le' : 'rgba');
     const decodeArgs = ['-hide_banner', '-loglevel', 'error', '-nostdin'];
-    const hwaccel = await pickHwaccel(caps, m.path, start, v.index, notes);
+    const hwaccel = await pickHwaccel(caps, m.path, start, v.index, vf, notes);
     if (hwaccel) decodeArgs.push('-hwaccel', hwaccel);
     if (start > 0) decodeArgs.push('-ss', start.toFixed(6));
     decodeArgs.push('-i', m.path, '-t', (end - start).toFixed(6), '-map', `0:${v.index}`, '-vf', vf, '-an', '-sn',

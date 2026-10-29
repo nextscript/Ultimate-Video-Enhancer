@@ -112,6 +112,11 @@ export async function resolveFf(): Promise<FfPaths | null> {
     }
     const f = await which('ffmpeg.exe'), p = await which('ffprobe.exe');
     if (f && p) return { ffmpeg: f, ffprobe: p, source: 'path' };
+    // v1.0.2: apps started from Finder / a desktop launcher do not get the shell PATH (Homebrew, MacPorts, Linuxbrew)
+    if (!IS_WIN) for (const dir of ['/opt/homebrew/bin', '/usr/local/bin', '/opt/local/bin', '/home/linuxbrew/.linuxbrew/bin', '/snap/bin']) {
+        const f2 = path.join(dir, 'ffmpeg'), p2 = path.join(dir, 'ffprobe');
+        if (await fileExists(f2) && await fileExists(p2)) return { ffmpeg: f2, ffprobe: p2, source: 'path' };
+    }
     return null;
 }
 

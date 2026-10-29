@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getState, setState, useStore } from '../state/store';
 import { Icon, Select, fmtTime } from './controls';
 import { player } from './Player';
+import { sc } from './keys';
 
 export function Transport() {
     const media = useStore(s => s.media);
@@ -26,8 +27,8 @@ export function Transport() {
             <button className="icon-btn" disabled={dis} onClick={() => player.seek((media?.duration || 0) - 0.001)} title="Go to end (End)" aria-label="Go to end"><Icon name="end" /></button>
             <span className="timecode" title={`Frame ${frame}`}>{fmtTime(time, true)} <span className="dim">/ {fmtTime(media?.duration || 0, true)}</span></span>
             <span className="spacer" />
-            <button className={`icon-btn${compare && !bypass ? ' active' : ''}`} disabled={dis} onClick={() => setState({ compare: !getState().compare })} title="Before/After wipe (Ctrl+Alt+U)" aria-label="Before/After wipe"><Icon name="split" /></button>
-            <button className={`icon-btn${bypass ? ' active warn' : ''}`} disabled={dis} onClick={() => setState({ bypass: !getState().bypass })} title="Bypass all effects in the preview (Ctrl+Alt+Y)" aria-label="Bypass"><Icon name="bypass" /></button>
+            <button className={`icon-btn${compare && !bypass ? ' active' : ''}`} disabled={dis} onClick={() => setState({ compare: !getState().compare })} title={`Before/After wipe (${sc('compare')})`} aria-label="Before/After wipe"><Icon name="split" /></button>
+            <button className={`icon-btn${bypass ? ' active warn' : ''}`} disabled={dis} onClick={() => setState({ bypass: !getState().bypass })} title={`Bypass all effects in the preview (${sc('bypass')})`} aria-label="Bypass"><Icon name="bypass" /></button>
             <Select value={quality} title="Preview quality (export is always full quality)" options={[{ value: 'full', label: 'Full' }, { value: 'half', label: '1/2' }, { value: 'quarter', label: '1/4' }]}
                 onChange={async v => { const { api } = await import('../api'); setState({ prefs: await api.setPrefs({ previewQuality: v }) }); }} />
             <Select value={rate} title="Playback speed" options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: `${r}×` }))} onChange={setRate} />

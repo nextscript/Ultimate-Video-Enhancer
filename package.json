@@ -1,7 +1,7 @@
 {
   "name": "uve-manager",
   "productName": "UVE Manager",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "UVE Manager – desktop video look editor and offline renderer built on the Ultimate Video Enhancer effect chain.",
   "author": "UVE Manager",
   "license": "SEE LICENSE IN docs/LICENSES.md",
@@ -15,12 +15,12 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node scripts/build-tests.mjs && node --test dist-tests/*.test.mjs",
     "fetch-ffmpeg": "node scripts/fetch-ffmpeg.mjs",
-    "dist": "npm run build && electron-builder --win nsis dir && node scripts/build-portable.mjs",
-    "dist:dir": "npm run build && electron-builder --win dir",
+    "dist": "npm run build && electron-builder --win nsis dir --publish never && node scripts/build-portable.mjs",
+    "dist:dir": "npm run build && electron-builder --win dir --publish never",
     "selftest": "npm run build:main && npm run build:renderer && electron . --selftest",
-    "dist:portable": "npm run build && electron-builder --win dir && node scripts/build-portable.mjs",
-    "dist:mac": "npm run build && electron-builder --mac dmg zip",
-    "dist:linux": "npm run build && electron-builder --linux AppImage tar.gz"
+    "dist:portable": "npm run build && electron-builder --win dir --publish never && node scripts/build-portable.mjs",
+    "dist:mac": "npm run build && electron-builder --mac dmg zip --x64 --arm64 --publish never",
+    "dist:linux": "npm run build && electron-builder --linux AppImage tar.gz --x64 --publish never"
   },
   "dependencies": {
     "fflate": "^0.8.3",
@@ -94,6 +94,7 @@
         "zip"
       ],
       "category": "public.app-category.video",
+      "artifactName": "UVE-Manager-${version}-mac-${arch}.${ext}",
       "icon": "build/icon.png",
       "hardenedRuntime": true,
       "extraFiles": [
@@ -116,6 +117,7 @@
         "tar.gz"
       ],
       "category": "AudioVideo",
+      "artifactName": "UVE-Manager-${version}-linux-${arch}.${ext}",
       "icon": "build/icon.png",
       "extraFiles": [
         {

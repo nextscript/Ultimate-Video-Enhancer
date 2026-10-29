@@ -42,6 +42,40 @@ function onDecData(chunk: Buffer) {
     wake();
 }
 
+/** v1.0.2: decoder exit code once its process and pipes are closed */
+let decCode: number | null = null;
+let decDone: (() => void) | null = null;
+const decFinished = new Promise<void>(r => { decDone = r; });
+
+/** The same decode without -hwaccel (and its value), i.e. in software. */
+function withoutHwaccel(args: string[]): string[] {
+    const i = args.indexOf('-hwaccel');
+    return i < 0 ? args : [...args.slice(0, i), ...args.slice(i + 2)];
+}
+
+function startDecoder(args: string[]) {
+    const d = spawn(plan!.ffmpeg, args, { windowsHide: true });
+    dec = d;
+    let ended = false;
+    d.stdout.on('data', onDecData);
+    d.stderr.on('data', x => { decError += x; String(x).split(/\r?\n/).filter(Boolean).forEach(l => log('[decode] ' + l)); });
+    const end = (code: number) => {
+        if (ended || dec !== d) return;
+        ended = true;
+        // v1.0.2: a hardware decoder that dies before delivering any frame (e.g. "Invalid argument" with
+        // qsv/d3d11va on Windows 11 laptops) is retried once in software instead of failing the export
+        if (code !== 0 && !canceled && diag.produced === 0 && pendingLen === 0 && args.includes('-hwaccel')) {
+            log(`[decode] hardware decoding failed (exit ${code}) – retrying with software decoding`);
+            decError = '';
+            startDecoder(withoutHwaccel(args));
+            return;
+        }
+        decCode = code; decEnded = true; wake(); decDone?.();
+    };
+    d.on('error', e => { decError += e.message; end(1); });
+    d.on('close', c => end(c ?? 1));
+}
+
 const api = {
     onJob(cb: (p: WorkerPlan) => void) {
         ipcRenderer.on('worker:job', (_e, p: WorkerPlan) => {
@@ -53,12 +87,8 @@ const api = {
     onCancel(cb: () => void) { ipcRenderer.on('worker:cancel', () => { canceled = true; api.kill(); cb(); }); },
     start(): void {
         if (!plan) throw new Error('no job');
-        dec = spawn(plan.ffmpeg, plan.decodeArgs, { windowsHide: true });
+        startDecoder(plan.decodeArgs);
         enc = spawn(plan.ffmpeg, plan.encodeArgs, { windowsHide: true });
-        dec.stdout.on('data', onDecData);
-        dec.stdout.on('end', () => { decEnded = true; wake(); });
-        dec.stderr.on('data', d => { decError += d; String(d).split(/\r?\n/).filter(Boolean).forEach(l => log('[decode] ' + l)); });
-        dec.on('error', e => { decError += e.message; decEnded = true; wake(); });
         enc.stderr.on('data', d => { encError += d; String(d).split(/\r?\n/).filter(Boolean).forEach(l => log('[encode] ' + l)); });
         enc.on('error', e => { encError += e.message; });
         enc.stdin.on('error', e => { encError += 'stdin: ' + e.message; encClosed = true; });
@@ -92,7 +122,7 @@ const api = {
     },
     async finish(): Promise<{ ok: boolean; error?: string }> {
         if (!enc || !dec) return { ok: false, error: 'not started' };
-        const decExit = new Promise<number>(r => { if (dec!.exitCode !== null) r(dec!.exitCode); else dec!.once('exit', c => r(c ?? 1)); });
+        const decExit = decFinished.then(() => decCode ?? 1);
         const encExit = new Promise<number>(r => { if (enc!.exitCode !== null) r(enc!.exitCode); else enc!.once('exit', c => r(c ?? 1)); });
         enc.stdin.end();
         const [dc, ec] = await Promise.all([decExit, encExit]);
