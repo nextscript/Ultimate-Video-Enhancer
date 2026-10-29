@@ -1,22 +1,35 @@
-# Building UVE Manager 1.0.1
+# Building UVE Manager 1.0.2
 
 Common requirements: Node.js 22+ and npm. `npm install` once.
 
 ```text
 npm run typecheck   # TypeScript
-npm test            # unit tests (27)
+npm test            # unit tests (30)
 npm run selftest    # end-to-end renders incl. WebGPU vs WebGL2 parity (needs FFmpeg)
 npm start           # run from source (data in <project>\data)
 ```
 
+## Release workflow (GitHub Actions)
+
+`.github/workflows/release.yml` builds Windows, macOS and Linux and attaches the packages to the release:
+
+1. Set the version in `package.json` (plus `package-lock.json` and `APP_VERSION` in `shared/types.ts`).
+2. Push a tag with the same version: `git tag 1.0.2 && git push origin 1.0.2`.
+   Alternatively, start *Actions → Release builds → Run workflow* with the tag. This needs the workflow on the
+   default branch.
+
+The workflow fails when the tag does not match the version. macOS builds are ad-hoc signed unless the secrets
+`MAC_CERT_P12_BASE64`, `MAC_CERT_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD` and `APPLE_TEAM_ID` are set.
+With those secrets they are signed with a Developer ID and notarized.
+
 ## Windows (tested: Windows 10 21H2 LTSC x64, NVIDIA RTX 5060 Ti)
 
 ```text
-npm run dist:portable   # release\UVE-Manager-1.0.1-portable.exe (self-extractor, asks for the target folder)
-npm run dist            # + NSIS installer release\UVE-Manager-1.0.1-setup.exe
+npm run dist:portable   # release\UVE-Manager-1.0.2-portable.exe (self-extractor, asks for the target folder)
+npm run dist            # + NSIS installer release\UVE-Manager-1.0.2-setup.exe
 ```
 
-The NSIS compiler from electron-builder's cache is used for the self-extractor. FFmpeg is downloaded by the
+The NSIS compiler from electron-builder's cache (or a system NSIS) is used for the self-extractor. FFmpeg is downloaded by the
 app on first start into `tools\ffmpeg` (or `npm run fetch-ffmpeg` before packaging to ship it).
 
 GPU paths:
@@ -31,7 +44,7 @@ GPU paths:
 ## macOS – UNTESTED
 
 ```text
-npm run dist:mac        # dmg + zip for the host architecture
+npm run dist:mac        # dmg + zip for x64 and arm64
 ```
 
 - Requires building on macOS.

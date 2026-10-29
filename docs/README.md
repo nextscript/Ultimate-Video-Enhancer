@@ -1,4 +1,4 @@
-# UVE Manager 1.0.1
+# UVE Manager 1.0.2
 
 Desktop video look editor and **offline frame-by-frame renderer** built on the effect chain of
 [Ultimate Video Enhancer](https://github.com/nextscript/Ultimate-Video-Enhancer) v1.17.5 (userscript by Freak288).
@@ -67,6 +67,9 @@ A dialog asks **Update now** or **Later – keep current version**; nothing is d
 4×5 color matrix exactly like the userscript.
 
 ## Shortcuts (rebindable in Settings, active only inside the app)
+
+On macOS, Ctrl+Alt means Control+Option (⌃⌥). The editor commands use Command there:
+⌘Z / ⇧⌘Z (Undo / Redo) and ⌘S / ⌘O / ⌘R (Save / Open / Render).
 
 | Key | Action | Key | Action |
 |---|---|---|---|
