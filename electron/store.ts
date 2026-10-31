@@ -88,9 +88,11 @@ const ADOPTED_TOOLS = ['rve', 'ffmpeg'];
 
 /**
  * Moves each tool folder (rve, ffmpeg) that is missing in `target` from the first legacy folder that has it.
- * A folder that cannot be moved (read-only program folder, another drive) stays where it is; `target` is
- * always the folder used, so downloads never go to a read-only place. FFmpeg shipped inside the program
- * folder is still found by the tools lookup (electron/tools.ts).
+ * When REAL-Video-Enhancer cannot be moved (program folder on another drive than %LOCALAPPDATA%) and that
+ * folder is writable, the legacy folder stays the tools folder – copying several GB is not worth it, and
+ * since 1.0.5 installer updates leave the program folder's tools alone (build/installer.nsh). Otherwise
+ * `target` is used, so downloads never go to a read-only place. FFmpeg shipped inside the program folder is
+ * still found by the tools lookup (electron/tools.ts).
  */
 async function adoptLegacyTools(target: string, legacy: string[]): Promise<string> {
     for (const name of ADOPTED_TOOLS) {
@@ -102,8 +104,10 @@ async function adoptLegacyTools(target: string, legacy: string[]): Promise<strin
             try {
                 await fsp.mkdir(target, { recursive: true });
                 await fsp.rename(src, dest);
-                break;
-            } catch { /* keep it where it is */ }
+            } catch {
+                if (name === 'rve' && await isWritableDir(old)) return old;
+            }
+            break;
         }
     }
     return target;
