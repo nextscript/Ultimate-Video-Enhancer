@@ -42,7 +42,15 @@ export interface DownloadOptions {
 /** Downloads a URL into memory with a hard size limit (redirects followed by Electron net). */
 export async function download(url: string, opt: DownloadOptions): Promise<Uint8Array> {
     const res = await net.fetch(url, { headers: { 'User-Agent': 'UVE-Manager/1.0.0', Accept: opt.accept || '*/*' }, signal: opt.signal });
-    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    if (!res.ok) {
+        // GitHub API without sign-in: 60 requests per hour and IP; the 403 itself says nothing useful
+        if ((res.status === 403 || res.status === 429) && res.headers.get('x-ratelimit-remaining') === '0') {
+            const reset = Number(res.headers.get('x-ratelimit-reset')) * 1000;
+            const at = reset ? new Date(reset).toLocaleTimeString() : 'about an hour';
+            throw new Error(`GitHub request limit reached (60 requests per hour per internet connection without sign-in). Please try again after ${at}.`);
+        }
+        throw new Error(`HTTP ${res.status} for ${url}`);
+    }
     const total = Number(res.headers.get('content-length')) || 0;
     if (total > opt.maxBytes) throw new Error(`Download too large (${total} bytes)`);
     const reader = res.body?.getReader();

@@ -155,13 +155,45 @@ async function downloadTo(url: string, file: string, maxBytes: number, progress:
     await fsp.writeFile(file, data);
 }
 
-export async function latestBackendRelease(): Promise<{ tag: string; version: string; url: string; size: number } | null> {
+type BackendRelease = { tag: string; version: string; url: string; size: number };
+
+const BACKEND_ASSET = /^backend-v[\d.]+(-[\w.]+)?\.tar\.gz$/i;
+const backendVersion = (name: string) => name.replace(/^backend-v|\.tar\.gz$/gi, '');
+
+/**
+ * Newest release that carries a backend-v*.tar.gz. Uses the GitHub API; when that fails – most often its
+ * limit of 60 requests per hour and IP without sign-in (HTTP 403) – the public release pages are read
+ * instead, which that limit does not cover.
+ */
+export async function latestBackendRelease(): Promise<BackendRelease | null> {
     type Rel = { tag_name: string; draft: boolean; assets: { name: string; browser_download_url: string; size: number }[] };
-    const rels = await fetchJson<Rel[]>(`${RVE.repoApi}?per_page=15`);
-    for (const r of rels) {
-        if (r.draft) continue;
-        const a = r.assets.find(x => /^backend-v[\d.]+(-[\w.]+)?\.tar\.gz$/i.test(x.name));
-        if (a) return { tag: r.tag_name, version: a.name.replace(/^backend-v|\.tar\.gz$/gi, ''), url: a.browser_download_url, size: a.size };
+    try {
+        const rels = await fetchJson<Rel[]>(`${RVE.repoApi}?per_page=15`);
+        for (const r of rels) {
+            if (r.draft) continue;
+            const a = r.assets.find(x => BACKEND_ASSET.test(x.name));
+            if (a) return { tag: r.tag_name, version: backendVersion(a.name), url: a.browser_download_url, size: a.size };
+        }
+        return null;
+    } catch (apiError) {
+        const rel = await backendReleaseFromPages().catch(() => null);
+        if (rel) return rel;
+        throw apiError;
+    }
+}
+
+/** Same lookup through the HTML release pages: the release list, then each release's asset list. */
+async function backendReleaseFromPages(): Promise<BackendRelease | null> {
+    const text = async (url: string) => Buffer.from(await download(url, { maxBytes: 8 * 1024 * 1024, accept: 'text/html' })).toString('utf8');
+    const repoPath = new URL(RVE.source).pathname.replace(/\/$/, '');
+    const list = await text(`${RVE.source}/releases`);
+    const tags = [...new Set([...list.matchAll(new RegExp(`${repoPath}/releases/tag/([^"?#/]+)`, 'g'))].map(m => decodeURIComponent(m[1])))];
+    for (const tag of tags.slice(0, 15)) {
+        const assets = await text(`${RVE.source}/releases/expanded_assets/${encodeURIComponent(tag)}`);
+        for (const m of assets.matchAll(new RegExp(`href="(${repoPath}/releases/download/[^"]+/([^"/]+))"`, 'g'))) {
+            const name = decodeURIComponent(m[2]);
+            if (BACKEND_ASSET.test(name)) return { tag, version: backendVersion(name), url: `https://github.com${m[1]}`, size: 0 };
+        }
     }
     return null;
 }
