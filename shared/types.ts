@@ -5,7 +5,7 @@ import type { LutProfile } from './uve/lut';
 import type { AutoKey } from './uve/auto';
 
 export const APP_NAME = 'UVE Manager';
-export const APP_VERSION = '1.0.5';
+export const APP_VERSION = '1.0.6';
 export const UVE_SOURCE = {
     name: 'Ultimate Video Enhancer (Sharpen, HDR, Color Boost)',
     version: '1.17.5',
@@ -110,7 +110,7 @@ export interface ExportSettings {
     outputDir: string;
     fileName: string;
     useInOut: boolean;
-    /** REAL-Video-Enhancer TensorRT model id for AI upscaling, '' = off */
+    /** REAL-Video-Enhancer model id for AI upscaling (same id on every backend), '' = off */
     aiUpscale: string;
     /** Output frame rate (e.g. "30", "29.97", "24000/1001"); '' = source. Frames are duplicated/dropped, not interpolated. */
     fps: string;

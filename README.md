@@ -1,23 +1,37 @@
-# UVE Manager 1.0.5
+# UVE Manager 1.0.6
 
 Desktop video editor and offline renderer built on the Ultimate Video Enhancer effect chain –
 for Windows, macOS and Linux. Since 1.0.3 the editor is a multi-track timeline.
 
 ## Downloads
 
-All packages are attached to the [GitHub release](https://github.com/nextscript/Ultimate-Video-Enhancer/releases/tag/1.0.5)
+All packages are attached to the [GitHub release](https://github.com/nextscript/Ultimate-Video-Enhancer/releases/tag/1.0.6)
 and built automatically by `.github/workflows/release.yml`:
 
 | System | Package |
 |---|---|
-| Windows x64 | `UVE-Manager-1.0.5-setup.exe` (installer) or `UVE-Manager-1.0.5-portable.exe` (portable, ships FFmpeg) |
-| macOS Apple Silicon | `UVE-Manager-1.0.5-mac-arm64.dmg` / `.zip` |
-| macOS Intel | `UVE-Manager-1.0.5-mac-x64.dmg` / `.zip` |
-| Linux x64 | `UVE-Manager-1.0.5-linux-x86_64.AppImage` / `UVE-Manager-1.0.5-linux-x64.tar.gz` |
+| Windows x64 | `UVE-Manager-1.0.6-setup.exe` (installer) or `UVE-Manager-1.0.6-portable.exe` (portable, ships FFmpeg) |
+| macOS Apple Silicon | `UVE-Manager-1.0.6-mac-arm64.dmg` / `.zip` |
+| macOS Intel | `UVE-Manager-1.0.6-mac-x64.dmg` / `.zip` |
+| Linux x64 | `UVE-Manager-1.0.6-linux-x86_64.AppImage` / `UVE-Manager-1.0.6-linux-x64.tar.gz` |
 
 - **macOS:** the app is not notarized – open it the first time with right click → *Open*
   (or `xattr -cr "/Applications/UVE Manager.app"`). FFmpeg must be installed, e.g. `brew install ffmpeg`.
 - **Linux:** FFmpeg must be installed (`sudo apt install ffmpeg` or the package of your distribution).
+
+## AI Upscaling (REAL-Video-Enhancer)
+
+Settings → AI Upscaling installs [REAL-Video-Enhancer](https://github.com/TNTwise/REAL-Video-Enhancer) as a
+separate portable tool. Since 1.0.6 it works with **NVIDIA, AMD, Intel and Apple GPUs** – choose the backend there:
+
+| Backend | GPUs | Systems | Download |
+|---|---|---|---|
+| TensorRT | NVIDIA RTX 20 or newer (fastest on NVIDIA) | Windows, Linux | ~8–16 GB |
+| NCNN (Vulkan) | AMD, Intel, NVIDIA, Apple | Windows, Linux, macOS (Intel + Apple Silicon) | ~400 MB |
+| PyTorch | CUDA (NVIDIA), ROCm (AMD, Linux), XPU (Intel Arc), MPS (Apple Silicon) | depends on the build | ~3–10 GB |
+
+The recommended backend for your graphics card is preselected. Then pick a model under Output Settings →
+**AI Upscale**; models are downloaded on the first render.
 
 ## Editing
 
@@ -73,6 +87,7 @@ All shortcuts can be changed in Settings → Keyboard shortcuts.
 - `docs/BUILD.md`: build instructions per platform and the release workflow
 - `docs/PROJECT_SCHEMA.md`: the `.uveproj` project format (schema version 2, timeline)
 - `docs/TRANSITIONS.md`: transition geometry shared by preview and export
+- `CHANGELOG_1.0.6.md`: changes since 1.0.5 (AI Upscaling for AMD, Intel and macOS: NCNN / PyTorch backends)
 - `CHANGELOG_1.0.5.md`: changes since 1.0.4 (AI Upscaling installation fix)
 - `CHANGELOG_1.0.4.md`: changes since 1.0.3 (shortcuts, ruler marking, live snapping)
 - `CHANGELOG_1.0.3.md`: changes since 1.0.2 (multi-track timeline)

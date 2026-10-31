@@ -3,20 +3,25 @@
 # backend/src/FFmpegBuffers.py (rgb24 image2pipe in, rawvideo + original file -> custom encoder out).
 # Instead of a neural network the "model" is a 2x Lanczos resize so the pipeline can be verified
 # without the multi-GB TensorRT stack.
-import argparse, json, subprocess, sys, time
+import argparse, json, os, subprocess, sys, time
 
 p = argparse.ArgumentParser()
 for a in ['--input', '--output', '--backend', '--upscale_model', '--precision', '--ffmpeg_path', '--custom_encoder',
-          '--audio_encoder_preset', '--subtitle_encoder_preset']:
+          '--audio_encoder_preset', '--subtitle_encoder_preset', '--device']:
     p.add_argument(a, type=str, default=None)
 p.add_argument('--tensorrt_opt_profile', type=int, default=3)
+p.add_argument('--ncnn_gpu_id', type=int, default=0)
 p.add_argument('--overwrite', action='store_true')
 p.add_argument('--version', action='store_true')
 args = p.parse_args()
 if args.version:
     print('mock-1.0')
     sys.exit(0)
-assert args.backend == 'tensorrt', 'expected tensorrt backend'
+assert args.backend in ('tensorrt', 'ncnn', 'pytorch'), 'unknown backend ' + str(args.backend)
+if args.backend == 'ncnn':
+    # NCNN models are folders <name>/<name>.param + .bin (RVE RenderVideo.upscaleNCNNObject)
+    stem = os.path.basename(os.path.normpath(args.upscale_model))
+    assert os.path.isfile(os.path.join(args.upscale_model, stem + '.param')), 'NCNN model folder without .param'
 scale = 2
 ff = args.ffmpeg_path
 import os
@@ -27,7 +32,7 @@ st = json.loads(probe.stdout)['streams'][0]
 w, h = int(st['width']), int(st['height'])
 num, den = [int(x) for x in st['r_frame_rate'].split('/')]
 fps = num / den
-print(f'Loading TensorRT engine for {args.upscale_model}.', file=sys.stderr)
+print(f'Loading {args.backend} model {args.upscale_model}.', file=sys.stderr)
 
 read = subprocess.Popen([ff, '-i', args.input, '-vf', f'crop={w}:{h}:0:0,scale=w=iw*sar:h=ih', '-f', 'image2pipe',
                          '-pix_fmt', 'rgb24', '-vcodec', 'rawvideo', '-s', f'{w}x{h}', '-'], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
@@ -71,4 +76,8 @@ up.stdin.close()
 th.join()
 code = write.wait()
 sys.stdout.write(f'\rFPS: {round(frames / max(time.time() - t0, 1e-3))} Current Frame: {frames} ETA: 0:0:0\n')
+if args.backend == 'ncnn' and code == 0:
+    # real upscale-ncnn-py builds can crash while unloading Vulkan after the render finished; UVE must keep the output
+    print('Time to complete render: 0.1', flush=True)
+    os._exit(139)
 sys.exit(code)

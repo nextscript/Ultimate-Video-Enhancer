@@ -12,9 +12,11 @@
 * Algorithms implemented from public specifications: SVG 1.1 / Filter Effects (feTurbulence reference code,
   compositing and blending formulas). No third-party shader code is bundled.
 * **REAL-Video-Enhancer** by TNTwise – GNU AGPL-3.0, https://github.com/TNTwise/REAL-Video-Enhancer. Not part of UVE
-  Manager: it is downloaded on request from its GitHub releases into `toolsve` and run as a separate program
+  Manager: it is downloaded on request from its GitHub releases into `tools/rve` and run as a separate program
   (its source is available at the link above). Upscale models belong to their authors (see the RVE README / OpenModelDB).
-  PyTorch (BSD-style), NVIDIA TensorRT (NVIDIA license) and the portable CPython (PSF) are installed by the same step.
+  Depending on the backend chosen in Settings → AI Upscaling the same step installs PyTorch (BSD-style), NVIDIA TensorRT
+  (NVIDIA license), ncnn by Tencent (BSD-3-Clause), upscale-ncnn-py / rife-ncnn-vulkan-python (MIT) and the portable
+  CPython (PSF).
 
 
 ## v1.0.1

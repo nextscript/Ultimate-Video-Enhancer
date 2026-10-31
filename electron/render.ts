@@ -20,7 +20,7 @@ import { capabilities, runEncoderTest } from './tools';
 import { type EncoderChoice, HW_FAMILY_LABEL, type HwCodec, VAAPI_DEVICE, encoderTestArgs, familyOrder, hwEncoderArgs, hwEncoderName, hwaccelOrder } from '../shared/hw';
 import { cacheDir, getPrefs } from './store';
 import { fileExists } from './util';
-import { downloadModel, findModel, rveStatus, runUpscale } from './rve';
+import { BACKEND_LABEL, type RveBackend, downloadModel, findModel, rveStatus, runUpscale } from './rve';
 
 export interface WorkerPlan {
     jobId: string;
@@ -67,7 +67,7 @@ interface ActiveJob {
     canceled: boolean;
     /** AI upscaling: lossless intermediate written by the UVE worker, then upscaled by RVE */
     stage1?: string;
-    upscale?: { modelPath: string; customEncoder: string; totalFrames: number; ffmpeg: string; stage2: string; muxArgs?: (videoFile: string, outFile: string) => string[] };
+    upscale?: { engine: RveBackend; modelPath: string; customEncoder: string; totalFrames: number; ffmpeg: string; stage2: string; muxArgs?: (videoFile: string, outFile: string) => string[] };
     kill?: () => void;
     /** timeline jobs: pre-pass/audio/mux steps and their temp files */
     timeline?: TimelineSteps;
@@ -509,7 +509,7 @@ export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: 
         }
     }
     const audioCodec = ext === 'webm' ? ['-c:a', 'libopus', '-b:a', `${s.audioBitrate}k`] : ['-c:a', 'aac', '-b:a', `${s.audioBitrate}k`];
-    const comment = 'comment=Processed with UVE Manager 1.0.5 (timeline, Ultimate Video Enhancer effect chain)';
+    const comment = 'comment=Processed with UVE Manager 1.0.6 (timeline, Ultimate Video Enhancer effect chain)';
     const muxExtra = (): string[] => {
         const a = ['-metadata', comment];
         if (ext === 'mp4' || ext === 'mov') a.push('-movflags', '+faststart');
@@ -654,12 +654,13 @@ async function pump() {
         }
         let upscale: { scale: number } | undefined;
         if (spec.exportSettings.aiUpscale) {
-            const model = await findModel(spec.exportSettings.aiUpscale);
-            if (!model) throw new Error(`AI upscale model "${spec.exportSettings.aiUpscale}" is unknown.`);
             const st = await rveStatus(false);
-            if (!st.python || !st.backend) throw new Error('REAL-Video-Enhancer (TensorRT) is not installed - install it in Settings > AI Upscaling.');
+            if (!st.python || !st.backend) throw new Error('REAL-Video-Enhancer is not installed - install it in Settings > AI Upscaling.');
+            const engine = st.engine;
+            const model = await findModel(spec.exportSettings.aiUpscale, engine);
+            if (!model) throw new Error(`AI upscale model "${spec.exportSettings.aiUpscale}" is not available for the ${BACKEND_LABEL[engine]} backend - choose another model in Output Settings.`);
             next.status = 'upscaling';
-            next.log.push(`AI upscaling with REAL-Video-Enhancer (TensorRT): ${model.name}`);
+            next.log.push(`AI upscaling with REAL-Video-Enhancer (${BACKEND_LABEL[engine]}): ${model.name}`);
             emit();
             let dlLine = -1;
             const modelPath = await downloadModel(model.id, (msg, pct) => {
@@ -670,7 +671,7 @@ async function pump() {
             if (active?.canceled) throw new Error('canceled');
             upscale = { scale: model.scale };
             active.stage1 = spec.output.replace(/(\.[^.]+)$/, '.uvestage1.mkv');
-            active.upscale = { modelPath, customEncoder: '', totalFrames: 0, ffmpeg: '', stage2: spec.output.replace(/(\.[^.]+)$/, '.uvestage2.mkv') };
+            active.upscale = { engine, modelPath, customEncoder: '', totalFrames: 0, ffmpeg: '', stage2: spec.output.replace(/(\.[^.]+)$/, '.uvestage2.mkv') };
         }
         let payload: WorkerJob;
         if (spec.timeline) {
@@ -682,7 +683,7 @@ async function pump() {
                 next.log.push(`Stage 1/2: UVE timeline -> lossless intermediate ${active.stage1}`);
                 next.log.push(`Stage 2/2 encoder (RVE --custom_encoder): ${t.customEncoder}`);
             }
-            next.encoder = upscale ? `${t.encoder} + RVE TensorRT` : t.encoder;
+            next.encoder = upscale && active.upscale ? `${t.encoder} + RVE ${BACKEND_LABEL[active.upscale.engine]}` : t.encoder;
             next.totalFrames = t.plan.plan.totalFrames;
             next.progress = 0;
             t.warnings.forEach(w => next.log.push(/^(Encoder|Decoder|Frame rate|Timeline|Audio|Warning):/.test(w) ? w : 'Warning: ' + w));
@@ -699,7 +700,7 @@ async function pump() {
                 next.log.push(`Stage 1/2: UVE effects -> lossless intermediate ${active.stage1}`);
                 next.log.push(`Stage 2/2 encoder (RVE --custom_encoder): ${customEncoder}`);
             }
-            next.encoder = upscale ? `${encoder} + RVE TensorRT` : encoder;
+            next.encoder = upscale && active.upscale ? `${encoder} + RVE ${BACKEND_LABEL[active.upscale.engine]}` : encoder;
             next.totalFrames = plan.totalFrames;
             next.progress = 0;
             warnings.forEach(w => next.log.push(/^(Encoder|Decoder|Frame rate|Warning):/.test(w) ? w : 'Warning: ' + w));
@@ -733,12 +734,14 @@ async function runStage2() {
     if (!j) return;
     j.status = 'upscaling';
     j.progress = 0; j.frames = 0; j.fps = 0;
-    j.log.push('Stage 2/2: REAL-Video-Enhancer TensorRT upscaling (the first run per model and resolution builds a TensorRT engine, this can take several minutes)...');
+    j.log.push(up.engine === 'tensorrt'
+        ? 'Stage 2/2: REAL-Video-Enhancer TensorRT upscaling (the first run per model and resolution builds a TensorRT engine, this can take several minutes)...'
+        : `Stage 2/2: REAL-Video-Enhancer ${BACKEND_LABEL[up.engine]} upscaling...`);
     emit();
     const t0 = Date.now();
     try {
         const r = await runUpscale({
-            input: cur.stage1, output: up.stage2, modelPath: up.modelPath, ffmpeg: up.ffmpeg, customEncoder: up.customEncoder, totalFrames: up.totalFrames,
+            input: cur.stage1, output: up.stage2, modelPath: up.modelPath, ffmpeg: up.ffmpeg, customEncoder: up.customEncoder, totalFrames: up.totalFrames, engine: up.engine,
             onProgress: (frames, fps) => {
                 j.frames = frames; j.fps = fps;
                 j.progress = Math.min(1, frames / Math.max(1, up.totalFrames));

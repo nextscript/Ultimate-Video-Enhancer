@@ -99,18 +99,34 @@ tests/      unit tests + repository fixtures
 See `SOURCE_FEATURE_AUDIT.md`, `UVE_FEATURE_MATRIX.csv`, `RENDER_PIPELINE.md`, `FORMAT_SUPPORT.md`,
 `EXPORT_PARITY_REPORT.md`, `PROJECT_SCHEMA.md` and `LICENSES.md`.
 
-## AI upscaling (REAL-Video-Enhancer, TensorRT)
+## AI upscaling (REAL-Video-Enhancer)
 
 Export → **AI Upscale** selects a model of [REAL-Video-Enhancer](https://github.com/TNTwise/REAL-Video-Enhancer)
-(Nomos8k SPAN 4×, OpenProteus 2×, RealESR general 4×, AnimeJaNai V2/V3 2×, Spanimation 2×, AniSD 2×, or a custom
-`.pth`/`.safetensors`). RVE runs as a separate portable tool in `tools\rve` (portable Python 3.12.9, PyTorch 2.9 + CUDA 13,
-TensorRT 10.12, RVE backend – installed from Settings → AI Upscaling, ~8–16 GB). Rendering then has three stages:
+(Nomos8k SPAN 4×, OpenProteus 2×, RealESR general 4×, AnimeJaNai V2/V3 2×, Spanimation 2×, AniSD 2×, ESRGAN
+AnimeVideo V3 / ESRGAN Plus (NCNN), or a custom model). RVE runs as a separate portable tool in `tools/rve`
+(portable Python 3.12.9 + RVE backend + the packages of one inference backend), installed from
+Settings → AI Upscaling. Since 1.0.6 the backend can be chosen there:
+
+| Backend | GPUs | Systems | Download |
+|---|---|---|---|
+| **TensorRT** | NVIDIA RTX 20 or newer | Windows, Linux (x64) | ~8–16 GB (PyTorch 2.9 + CUDA 13, TensorRT 10.12) |
+| **NCNN (Vulkan)** | AMD, Intel, NVIDIA, Apple (MoltenVK) | Windows, Linux, macOS Intel + Apple Silicon | ~400 MB (ncnn, upscale-ncnn-py) |
+| **PyTorch** | CUDA (NVIDIA), ROCm 6.4 (AMD, Linux), XPU (Intel Arc), MPS (Apple Silicon) | per build | ~3–10 GB |
+
+The recommended backend is preselected: TensorRT on NVIDIA, NCNN everywhere else. Several backends can be
+installed side by side (only one PyTorch build at a time); **Use … for rendering** switches between installed ones.
+Model ids are the same on all backends, so the export setting keeps working after a switch. NCNN models are
+folders `models/<name>/<name>.param + .bin` (custom ones: import the `.param` with its `.bin` next to it),
+TensorRT/PyTorch use `.pth` / `.safetensors`.
+
+Rendering has three stages:
 
 1. UVE look → lossless video-only intermediate (FFV1, RGB),
-2. RVE TensorRT upscale + final video encode with the chosen codec/quality/colours (`--custom_encoder`),
+2. RVE upscale (`--backend tensorrt|ncnn|pytorch`) + final video encode with the chosen codec/quality/colours (`--custom_encoder`),
 3. audio/subtitles from the original muxed in by stream copy (exact frame count, no A/V drift).
 
-The first job per model and resolution builds a TensorRT engine (minutes), later jobs reuse it. Requires an NVIDIA GPU.
+With TensorRT the first job per model and resolution builds a TensorRT engine (minutes), later jobs reuse it.
+NCNN and PyTorch need no engine build. NCNN needs a current graphics driver with Vulkan support.
 
 ## settings.json
 

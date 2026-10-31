@@ -52,7 +52,8 @@ npm run dist:mac        # dmg + zip for x64 and arm64
   credentials of electron-builder for distribution.
 - FFmpeg must be installed (e.g. Homebrew) or set in Settings → Tools.
 - **GPU paths:** WebGPU via Metal; encoding with VideoToolbox, verified by a scratch encode.
-- **Not available:** AI upscaling (TensorRT).
+- **AI upscaling:** REAL-Video-Enhancer with the NCNN (Vulkan via MoltenVK) backend on Intel and Apple Silicon Macs,
+  or PyTorch MPS on Apple Silicon. TensorRT is not available on macOS.
 
 ## Linux – UNTESTED
 
@@ -66,6 +67,8 @@ npm run dist:linux      # AppImage + tar.gz
 - **WebGPU:** Electron/Chromium may need Vulkan (`--enable-features=Vulkan`) depending on the driver. If WebGPU
   is unavailable or fails validation, the app falls back to WebGL2 automatically.
 - **Headless/remote sessions:** only the software paths are expected to work.
+- **AI upscaling:** REAL-Video-Enhancer with TensorRT (NVIDIA), NCNN (Vulkan: AMD, Intel, NVIDIA) or PyTorch
+  (CUDA, ROCm for AMD, XPU for Intel Arc).
 
 ## Hardware evidence
 

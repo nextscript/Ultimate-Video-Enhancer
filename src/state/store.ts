@@ -43,9 +43,14 @@ export interface AppInfo {
 }
 
 export interface RveModelInfo { id: string; name: string; file: string; scale: number; arch: string; kind: string; custom?: boolean; installed: boolean; size: number; engines: number }
+export type RveBackendUi = 'tensorrt' | 'ncnn' | 'pytorch';
+export type TorchFlavorUi = 'cuda' | 'rocm' | 'xpu' | 'mps';
 export interface RveStatusUi {
     dir: string; python: boolean; backend: boolean; backendVersion: string; packages: boolean; torch: string; tensorrt: string; torchTensorrt: string;
     cuda: boolean; gpu: string; ready: boolean; models: RveModelInfo[]; message: string; busy: boolean;
+    /** v1.0.6: inference backend (TensorRT / NCNN Vulkan / PyTorch) and what this system supports */
+    engine: RveBackendUi; torchFlavor: TorchFlavorUi | ''; supported: RveBackendUi[]; flavors: TorchFlavorUi[]; unsupportedReason: string;
+    installed: Record<RveBackendUi, boolean>; ncnn: string; torchDevice: string; ncnnGpus: string[];
 }
 
 export interface AppState {

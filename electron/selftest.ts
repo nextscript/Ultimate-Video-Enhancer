@@ -238,6 +238,19 @@ export async function runSelftest(): Promise<number> {
                 check(fr === 75, `upscaled frame count ${fr} (source 75, frames delivered by the upscaler: ${j.frames})`);
                 check(!(await fsp.readdir(dir)).some(f => f.includes('uvestage')), 'intermediate files removed');
             }
+            // same pipeline with the NCNN (Vulkan) backend: AMD / Intel / Apple GPUs (v1.0.6)
+            const ncnnModel = path.join(rveRoot, 'models', 'custom-ncnn', '2x_mockncnn');
+            await fsp.mkdir(ncnnModel, { recursive: true });
+            await fsp.writeFile(path.join(ncnnModel, '2x_mockncnn.param'), 'mock');
+            await fsp.writeFile(path.join(ncnnModel, '2x_mockncnn.bin'), 'mock');
+            await fsp.writeFile(path.join(rveRoot, 'rve-manager.json'), JSON.stringify({ engine: 'ncnn' }));
+            const outN = path.join(dir, 'upscaled-ncnn.mp4');
+            j = await waitJob(enqueue(mkSpec('aiupscale-ncnn', look, outN, { videoCodec: 'hevc', aiUpscale: 'custom:2x_mockncnn' })).id);
+            check(j.status === 'done' && /NCNN/.test(j.encoder || ''), `AI upscale with the NCNN backend (${j.encoder})${j.error ? ' – ' + j.error : ''}`);
+            if (j.status === 'done') {
+                const on = await probe(outN);
+                check(on.video?.width === 1280 && on.video?.height === 720 && on.audio.length === 1, `NCNN upscaled ${on.video?.width}x${on.video?.height}, ${on.audio.length} audio`);
+            }
             delete process.env.UVE_RVE_DIR;
             delete process.env.UVE_RVE_PYTHON;
         } else say('SKIP AI upscale pipeline test (no system Python found)');

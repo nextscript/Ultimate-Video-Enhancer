@@ -13,7 +13,7 @@ import {
 import { type WindowState, getEditorState, getPrefs, getWindowState, pushRecent, setEditorState, setPrefs, setWindowState, settingsFile, userDir } from './store';
 import { capabilities, installFfmpeg, invalidateCaps, toolsStatus } from './tools';
 import { applyUpdate, checkUpdates, skipUpdate } from './updates';
-import { RVE, cancelInstall, deleteModel, downloadModel, importCustomModel, installRve, rveStatus, uninstallRve } from './rve';
+import { RVE, type RveBackend, type TorchFlavor, cancelInstall, deleteModel, downloadModel, importCustomModel, installRve, rveStatus, setRveEngine, uninstallRve } from './rve';
 import { readJson, safeUnzip, writeJson } from './util';
 
 // Data folder: settings.json, profiles, LUTs and caches live in <app folder>\data for the portable
@@ -178,16 +178,24 @@ function registerIpc() {
     h('updates:check', () => checkUpdates());
     // REAL-Video-Enhancer (AI upscaling, separate AGPL tool in tools\rve)
     h('rve:status', (deep?: boolean) => rveStatus(deep !== false));
-    h('rve:install', (reinstallBackend?: boolean) => installRve(
-        (m, p) => send('rve:progress', { message: m, pct: p }),
-        l => send('rve:log', l),
-        { reinstallBackend: !!reinstallBackend }));
+    // argument: v1.0.5 boolean (reinstall backend) or { reinstallBackend, engine, flavor }
+    h('rve:install', (o?: boolean | { reinstallBackend?: boolean; engine?: RveBackend; flavor?: TorchFlavor }) => {
+        const opts = typeof o === 'object' && o ? o : { reinstallBackend: !!o };
+        return installRve(
+            (m, p) => send('rve:progress', { message: m, pct: p }),
+            l => send('rve:log', l),
+            { reinstallBackend: !!opts.reinstallBackend, engine: opts.engine, flavor: opts.flavor });
+    });
+    h('rve:setEngine', (engine: RveBackend) => setRveEngine(engine));
     h('rve:cancelInstall', () => cancelInstall());
     h('rve:uninstall', (keepModels?: boolean) => uninstallRve(keepModels !== false));
     h('rve:downloadModel', async (id: string) => { await downloadModel(id, (m, p) => send('rve:progress', { message: m, pct: p })); return rveStatus(false); });
     h('rve:deleteModel', async (id: string) => { await deleteModel(id); return rveStatus(false); });
     h('rve:importModel', async () => {
-        const r = await dialog.showOpenDialog(mainWin!, { title: 'Import PyTorch upscale model', filters: [{ name: 'PyTorch model', extensions: ['pth', 'safetensors'] }], properties: ['openFile'] });
+        const ncnn = (await rveStatus(false)).engine === 'ncnn';
+        const r = await dialog.showOpenDialog(mainWin!, ncnn
+            ? { title: 'Import NCNN upscale model (.param with its .bin next to it)', filters: [{ name: 'NCNN model', extensions: ['param', 'bin'] }], properties: ['openFile'] }
+            : { title: 'Import PyTorch upscale model', filters: [{ name: 'PyTorch model', extensions: ['pth', 'safetensors'] }], properties: ['openFile'] });
         if (!r.canceled && r.filePaths[0]) await importCustomModel(r.filePaths[0]);
         return rveStatus(false);
     });
