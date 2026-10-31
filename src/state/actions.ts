@@ -11,7 +11,7 @@ import { applyTimeline, getState, initialEffect, resetHistory, setState, toast, 
 import { parseFps } from '../../shared/fps';
 import {
     addSource, addTrack, clipById, clipEnd, defaultTimeline, deleteClip, duplicateClip, frameRateFromMedia, insertClip,
-    migrateProjectV1toV2, moveClip, patchClip, sanitizeTimeline, snap, sourceById, splitClip, timelineDuration, trackById, validateTimeline,
+    migrateProjectV1toV2, moveClip, pairTracks, patchClip, sanitizeTimeline, snap, sourceById, splitClip, timelineDuration, trackById, validateTimeline,
     type OpResult
 } from '../../shared/timeline';
 
@@ -298,10 +298,16 @@ export function showSourceInMonitor(sourceId: string) {
     setSourceMonitor(entry);
 }
 
-/** Adds a track and selects it. */
-export function insertTrack(kind: TrackKind, atIndex?: number) {
+/** A new track of `kind` at the bottom, then the tracks reordered into V1, A1, V2, A2, … pairs. */
+function addPairedTrack(tl: Timeline, kind: TrackKind): OpResult {
+    const r = addTrack(tl, kind, tl.tracks.length);
+    return r.ok ? pairTracks(r.tl) : r;
+}
+
+/** Adds a track below the existing ones, keeps the tracks in V1, A1, V2, A2, … pairs and selects the new track. */
+export function insertTrack(kind: TrackKind) {
     const before = new Set(getState().timeline.tracks.map(t => t.id));
-    const res = applyTimeline(tl => addTrack(tl, kind, atIndex), '');
+    const res = applyTimeline(tl => addPairedTrack(tl, kind), '');
     if (!res.ok) { toast(res.error, 'warn', 6000); return; }
     setState({ selectedTrackId: res.tl.tracks.find(t => !before.has(t.id))?.id ?? getState().selectedTrackId });
 }
@@ -349,7 +355,7 @@ export function placeMedia(sourceId: string, opts: { trackId?: string; start?: n
         if (wantAudio) {
             let aId = picked?.kind === 'audio' ? picked.id : free('audio');
             if (!aId) {
-                const r = addTrack(cur, 'audio');
+                const r = addPairedTrack(cur, 'audio');
                 if (!r.ok) return r;
                 cur = r.tl;
                 aId = free('audio');

@@ -1197,3 +1197,25 @@ test('timelineDuration counts clips and markers', () => {
     assert.equal(emptyTimeline().tracks.length, 0);
     assert.equal(defaultTimeline(30, '29.97').fps, '29.97');
 });
+
+test('pairTracks keeps the tracks in V1, A1, V2, A2 … order whatever order they were added in', async () => {
+    const { addTrack, defaultTimeline, pairTracks } = await import('../shared/timeline');
+    const add = (tl: Timeline, kind: 'video' | 'audio') => { const r = addTrack(tl, kind, tl.tracks.length); assert.ok(r.ok); return r.tl; };
+    const names = (tl: Timeline) => tl.tracks.map(t => t.name).join(',');
+    let tl = defaultTimeline(25);
+    tl = add(tl, 'video');
+    let r = pairTracks(tl); assert.ok(r.ok);
+    assert.equal(names(r.tl), 'V1,A1,V2');
+    tl = add(r.tl, 'audio');
+    r = pairTracks(tl); assert.ok(r.ok);
+    assert.equal(names(r.tl), 'V1,A1,V2,A2');
+    // audio first, then video
+    tl = add(add(defaultTimeline(25), 'audio'), 'video');
+    r = pairTracks(tl); assert.ok(r.ok);
+    assert.equal(names(r.tl), 'V1,A1,V2,A2');
+    // extra tracks of one kind follow at the end; ids and settings are kept
+    tl = add(add(defaultTimeline(25), 'video'), 'video');
+    r = pairTracks(tl); assert.ok(r.ok);
+    assert.equal(names(r.tl), 'V1,A1,V2,V3');
+    assert.deepEqual(r.tl.tracks.map(t => t.id).sort(), tl.tracks.map(t => t.id).sort());
+});

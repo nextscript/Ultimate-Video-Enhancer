@@ -115,7 +115,7 @@ function TimelineMenu({ at, onClose }: { at: MenuAt; onClose: () => void }) {
         { label: 'Remove transition', disabled: !clip?.transition, run: () => { if (clip) editTimeline(t => setTransition(t, clip.id, null)); } },
         { label: 'Add marker here', key: sc('marker'), run: () => editTimeline(t => addMarker(t, at.t)) },
         'sep',
-        { label: 'Add video track', key: sc('addVideoTrack'), run: () => insertTrack('video', 0) },
+        { label: 'Add video track', key: sc('addVideoTrack'), run: () => insertTrack('video') },
         { label: 'Add audio track', key: sc('addAudioTrack'), run: () => insertTrack('audio') },
         { label: `Remove track${track ? ` “${track.name}”` : ''}`, disabled: !track || clipsOn(tl, at.trackId).length > 0, run: () => editTimeline(t => removeTrack(t, at.trackId)) }
     ];
@@ -168,6 +168,20 @@ export function Timeline() {
         const x = time * zoom;
         if (x < el.scrollLeft || x > el.scrollLeft + el.clientWidth - 20) el.scrollLeft = Math.max(0, x - el.clientWidth * 0.2);
     }, [time, zoom]);
+
+    // a newly added track (it is selected) is scrolled into view below the others
+    const trackCount = useRef(tl.tracks.length);
+    useEffect(() => {
+        const grew = tl.tracks.length > trackCount.current;
+        trackCount.current = tl.tracks.length;
+        if (!grew || !selTrack) return;
+        const lane = bodyRef.current?.querySelector<HTMLElement>(`.lane[data-track-id="${selTrack}"]`);
+        const body = bodyRef.current;
+        if (!lane || !body) return;
+        const lb = lane.getBoundingClientRect(), bb = body.getBoundingClientRect();
+        if (lb.bottom > bb.bottom) body.scrollTop += lb.bottom - bb.bottom;
+        else if (lb.top < bb.top + RULER_H) body.scrollTop -= bb.top + RULER_H - lb.top;
+    }, [tl.tracks.length, selTrack]);
 
     // mouse wheel over the tracks: zoom the time scale around the pointer (out = clips get shorter, more of the
     // timeline fits); Alt+wheel: track height; Ctrl+wheel: scroll the tracks; Shift+wheel: scroll sideways
@@ -294,8 +308,8 @@ export function Timeline() {
             <div className="nle-body" ref={bodyRef}>
                 <div className="nle-heads">
                     <div className="nle-corner" style={{ height: RULER_H }}>
-                        <button className="icon-btn tiny" onClick={() => insertTrack('video', 0)} title={`Add a video track on top (${sc('addVideoTrack')})`} aria-label="Add video track"><Icon name="plus" size={12} /> V</button>
-                        <button className="icon-btn tiny" onClick={() => insertTrack('audio')} title={`Add an audio track at the bottom (${sc('addAudioTrack')})`} aria-label="Add audio track"><Icon name="plus" size={12} /> A</button>
+                        <button className="icon-btn tiny" onClick={() => insertTrack('video')} title={`Add a video track below (tracks stay in V1, A1, V2, A2 … pairs) (${sc('addVideoTrack')})`} aria-label="Add video track"><Icon name="plus" size={12} /> V</button>
+                        <button className="icon-btn tiny" onClick={() => insertTrack('audio')} title={`Add an audio track below (tracks stay in V1, A1, V2, A2 … pairs) (${sc('addAudioTrack')})`} aria-label="Add audio track"><Icon name="plus" size={12} /> A</button>
                     </div>
                     {tl.tracks.map((t, i) => (
                         <div key={t.id} className="trk-wrap" onContextMenu={e => openMenu(e, t.id)}>

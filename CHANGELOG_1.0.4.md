@@ -36,6 +36,10 @@ PageUp / PageDown edit points, Shift+PageUp / Shift+PageDown markers, Ctrl+Shift
   Edge trims stop at the end of the available media and at the neighbouring clip instead of being rejected
   after release. The snap distance grew from 8 to 12 pixels.
 
+- **Adding tracks:** + V / + A (and Ctrl+Shift+V / Ctrl+Shift+A, right-click menu) add the new track below the
+  existing ones instead of on top, and the tracks always stay in pairs: V1, A1, V2, A2, V3, A3, … The new
+  track is selected and scrolled into view.
+
 ## Changed
 
 - Redo moved from Ctrl+Y to **Ctrl+Shift+Z** (Ctrl+Y stays as a second key). Saved settings that still had the

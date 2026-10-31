@@ -291,6 +291,22 @@ export function addTrack(tl: Timeline, kind: TrackKind, atIndex?: number): OpRes
     return good(out);
 }
 
+/**
+ * Orders the tracks in pairs: 1st video, 1st audio, 2nd video, 2nd audio, … (V1, A1, V2, A2, …); the
+ * tracks of one kind keep their order among themselves, extra tracks of one kind follow at the end.
+ * Upper tracks are drawn on top, so V1 stays the top picture layer.
+ */
+export function pairTracks(tl: Timeline): OpResult {
+    const vids = tl.tracks.filter(t => t.kind === 'video'), auds = tl.tracks.filter(t => t.kind === 'audio');
+    const out = clone(tl);
+    out.tracks = [];
+    for (let i = 0; i < Math.max(vids.length, auds.length); i++) {
+        if (vids[i]) out.tracks.push(structuredClone(vids[i]));
+        if (auds[i]) out.tracks.push(structuredClone(auds[i]));
+    }
+    return good(out);
+}
+
 export function removeTrack(tl: Timeline, trackId: string): OpResult {
     const used = tl.clips.filter(c => c.trackId === trackId).length;
     if (used) return bad(`Track still contains ${used} clip(s).`);
