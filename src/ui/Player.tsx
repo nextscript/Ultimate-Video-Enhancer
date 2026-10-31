@@ -61,6 +61,8 @@ const QUALITY_SCALE = { full: 1, half: 0.5, quarter: 0.25 } as const;
 export function Player() {
     const wrapRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    /** timeline Before/After wipe: the untouched picture of the top layer, clipped to the left of the handle */
+    const origRef = useRef<HTMLCanvasElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
     const engineRef = useRef<FrameEngine | null>(null);
     const enginePref = useStore(s => s.prefs?.gpuEngine ?? 'auto');
@@ -140,7 +142,17 @@ export function Player() {
             quality: () => QUALITY_SCALE[live.current.quality],
             parity: () => live.current.parity,
             onGap: setGap,
-            onError: setGlError
+            onError: setGlError,
+            onFrame: top => {
+                if (!live.current.compare) return;
+                const c = origRef.current;
+                if (!c || !c.clientWidth) return;
+                const dpr = window.devicePixelRatio || 1;
+                const w = Math.max(2, Math.round(c.clientWidth * dpr)), h = Math.max(2, Math.round(c.clientHeight * dpr));
+                if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+                // every layer is stretched to the frame in the composite, so the original is too
+                try { c.getContext('2d')?.drawImage(top, 0, 0, w, h); } catch { /* not decodable yet */ }
+            }
         });
         player.timeline = pb;
         return () => { pb.dispose(); if (player.timeline === pb) player.timeline = null; };
@@ -163,7 +175,7 @@ export function Player() {
     }, [monitor]);
 
     // edits, look and quality changes re-render the parked timeline frame
-    useEffect(() => { if (monitor === 'timeline' && !player.timeline?.playing) player.timeline?.requestRender(); }, [monitor, timeline, effect, quality, parity, box, scopesHud]);
+    useEffect(() => { if (monitor === 'timeline' && !player.timeline?.playing) player.timeline?.requestRender(); }, [monitor, timeline, effect, quality, parity, box, scopesHud, compare]);
 
     useEffect(() => {
         player.grabFrame = async (w, h) => {
@@ -325,18 +337,22 @@ export function Player() {
             onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={onDrop}>
             <video ref={videoRef} className="decoder" playsInline preload="auto" crossOrigin="anonymous" />
             <canvas key={canvasGen} ref={canvasRef} className="player-canvas" style={{ width: cw, height: ch, visibility: sourceShown || (isTl && hasClips && !gap) ? 'visible' : 'hidden' }}
-                onPointerDown={e => { if (isTl || !compare || bypass) return; draggingWipe.current = true; (e.target as Element).setPointerCapture(e.pointerId); setWipeFromEvent(e); }}
+                onPointerDown={e => { if (!compare || bypass) return; draggingWipe.current = true; (e.target as Element).setPointerCapture(e.pointerId); setWipeFromEvent(e); }}
                 onPointerMove={e => { if (draggingWipe.current) setWipeFromEvent(e); }}
                 onPointerUp={() => { draggingWipe.current = false; }}
                 onDoubleClick={() => player.toggle()} />
-            {sourceShown && compare && !bypass && (
+            {isTl && hasClips && !gap && compare && (
+                <canvas ref={origRef} className="orig-canvas" aria-hidden
+                    style={{ width: cw, height: ch, clipPath: `inset(0 ${(1 - wipe) * 100}% 0 0)` }} />
+            )}
+            {(sourceShown || (isTl && hasClips && !gap)) && compare && !bypass && (
                 <div className="wipe-overlay" style={{ width: cw, height: ch }}>
                     <span className="badge badge-orig">Original</span>
                     <span className="badge badge-enh">Enhanced</span>
                     <div className="wipe-handle" style={{ left: `${wipe * 100}%` }}><span><Icon name="split" size={16} /></span></div>
                 </div>
             )}
-            {isTl && hasClips && <span className="badge badge-enh solo" title="Program monitor: the whole timeline as it will be rendered">Timeline</span>}
+            {isTl && hasClips && !compare && <span className="badge badge-enh solo" title="Program monitor: the whole timeline as it will be rendered">Timeline</span>}
             {sourceShown && !compare && <span className="badge badge-enh solo">{bypass ? 'Original (bypass)' : 'Enhanced'}</span>}
             {!isTl && media?.video && (
                 <span className="res-badge" title={`Preview processing ${renderStats.w}×${renderStats.h}, ${renderStats.prims} filter primitives, ${renderStats.ms.toFixed(1)} ms/frame`}>

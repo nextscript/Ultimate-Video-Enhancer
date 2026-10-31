@@ -221,6 +221,7 @@ function useShortcuts() {
                 case 'manager': setState({ view: s.view === 'presets' ? 'luts' : s.view === 'luts' ? 'filters' : 'presets' }); break;
                 case 'scopes': setState({ scopesHud: !s.scopesHud }); break;
                 case 'auto': toggleSetting('autoOn'); if (!s.effect.settings.autoOn && s.analysis.status !== 'ready') void import('../state/actions').then(a => a.runAnalysis()); break;
+                case 'compare': setState({ compare: !s.compare, bypass: false }); break;
                 case 'playPause': player.toggle(); break;
                 case 'frameBack': player.step(-1); break;
                 case 'frameFwd': player.step(1); break;

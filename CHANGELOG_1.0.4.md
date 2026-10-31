@@ -40,9 +40,13 @@ PageUp / PageDown edit points, Shift+PageUp / Shift+PageDown markers, Ctrl+Shift
   existing ones instead of on top, and the tracks always stay in pairs: V1, A1, V2, A2, V3, A3, … The new
   track is selected and scrolled into view.
 
+- **Original / Enhanced wipe is back** for the timeline: the left side of the handle shows the untouched picture
+  of the top clip, the right side the enhanced timeline picture. Drag the handle in the picture; switch it with
+  the wipe button in the transport bar or Ctrl+Alt+U.
+
 ## Changed
 
 - Redo moved from Ctrl+Y to **Ctrl+Shift+Z** (Ctrl+Y stays as a second key). Saved settings that still had the
   old default are updated automatically; a redo key you chose yourself is kept.
-- Shortcuts of the removed source monitor (In/Out point, before/after wipe, bypass) are gone from the settings.
+- Shortcuts of the removed source monitor (In/Out point, bypass) are gone from the settings.
 - Cut / copy / paste now go through the shortcut settings instead of being fixed keys.

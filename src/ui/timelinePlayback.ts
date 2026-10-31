@@ -35,6 +35,8 @@ export interface PlaybackHost {
     /** true when no picture layer is active at the playhead (gap: the monitor shows black) */
     onGap: (gap: boolean) => void;
     onError: (msg: string | null) => void;
+    /** after each drawn frame: the video element of the top picture layer (the "Original" side of the wipe) */
+    onFrame?: (top: HTMLVideoElement) => void;
 }
 
 const PREROLL_SEC = 1;
@@ -257,7 +259,7 @@ export class TimelinePlayback {
         const sc = this.host.quality();
         const re = renderEngineOf(fe);
         try {
-            if (!re) { this.renderFallback(fe, c, comp.layers[comp.layers.length - 1].plan, els[els.length - 1]!, W, H); return; }
+            if (!re) { this.renderFallback(fe, c, comp.layers[comp.layers.length - 1].plan, els[els.length - 1]!, W, H); this.host.onFrame?.(els[els.length - 1]!); return; }
             if (this.facadeOf !== re || !this.facade) { this.facade?.destroy(); this.facade = engineFacade(re, 'preview'); this.facadeOf = re; }
             const facade = this.facade;
             if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
@@ -288,6 +290,7 @@ export class TimelinePlayback {
                     veil: comp.veil, veilColor: comp.veilColor
                 });
                 this.grabScopes(fe, els[els.length - 1]!, W, H);
+                this.host.onFrame?.(els[els.length - 1]!);
                 this.host.onError(null);
             })().catch(e => this.host.onError(String(e instanceof Error ? e.message : e))).finally(() => { this.busy = false; });
         } catch (e) {

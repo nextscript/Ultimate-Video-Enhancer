@@ -2,7 +2,7 @@
 export const DEFAULT_SHORTCUTS: Record<string, string> = {
     base: 'Ctrl+Alt+B', moody: 'Ctrl+Alt+D', teal: 'Ctrl+Alt+O', vibrant: 'Ctrl+Alt+V', hdr: 'Ctrl+Alt+P',
     cycleProfile: 'Ctrl+Alt+C', hud: 'Ctrl+Alt+H', gpu: 'Ctrl+Alt+X', expert: 'Ctrl+Alt+I', manager: 'Ctrl+Alt+G',
-    scopes: 'Ctrl+Alt+S', auto: 'Ctrl+Alt+A',
+    scopes: 'Ctrl+Alt+S', auto: 'Ctrl+Alt+A', compare: 'Ctrl+Alt+U',
     playPause: 'Space', frameBack: 'ArrowLeft', frameFwd: 'ArrowRight', jumpBack: 'Shift+ArrowLeft', jumpFwd: 'Shift+ArrowRight',
     start: 'Home', end: 'End', zoomIn: '+', zoomOut: '-', zoomFit: 'Z',
     undo: 'Ctrl+Z', redo: 'Ctrl+Shift+Z', redoAlt: 'Ctrl+Y', save: 'Ctrl+S', open: 'Ctrl+O', render: 'Ctrl+R', escape: 'Escape',

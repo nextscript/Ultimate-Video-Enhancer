@@ -19,6 +19,7 @@ export function Transport() {
     const time = useStore(s => s.time);
     const quality = useStore(s => s.prefs?.previewQuality ?? 'full');
     const tl = useStore(s => s.timeline);
+    const compare = useStore(s => s.compare);
     const [muted, setMuted] = useState(false);
     const [vol, setVol] = useState(1);
     const [rate, setRate] = useState(1);
@@ -39,6 +40,8 @@ export function Transport() {
             <button className="icon-btn" disabled={dis} onClick={() => player.seek(dur - 0.001)} title={`Go to end (${sc('end')})`} aria-label="Go to end"><Icon name="end" /></button>
             <span className="timecode" title={`Frame ${frame}`}>{fmtTime(time, true)} <span className="dim">/ {fmtTime(dur, true)}</span></span>
             <span className="spacer" />
+            <button className={`icon-btn${compare ? ' active' : ''}`} disabled={dis} onClick={() => setState({ compare: !getState().compare, bypass: false })}
+                title={`Original / Enhanced wipe (${sc('compare')}) – drag the handle in the picture`} aria-label="Original / Enhanced wipe" aria-pressed={compare}><Icon name="split" /></button>
             <Select value={quality} title="Preview quality (export is always full quality)" options={[{ value: 'full', label: 'Full' }, { value: 'half', label: '1/2' }, { value: 'quarter', label: '1/4' }]}
                 onChange={async v => { const { api } = await import('../api'); setState({ prefs: await api.setPrefs({ previewQuality: v }) }); }} />
             <Select value={rate} title="Playback speed" options={[0.25, 0.5, 1, 1.5, 2].map(r => ({ value: r, label: `${r}×` }))} onChange={setRate} />

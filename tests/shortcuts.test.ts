@@ -39,7 +39,7 @@ test('sameCombo ignores modifier order and case; formatCombo uses Mac symbols', 
 });
 
 test('mergeShortcuts: new actions get defaults, removed actions are dropped, the old redo default follows the new one', () => {
-    const saved = { redo: 'Ctrl+Y', undo: 'Ctrl+Z', razor: 'X', setIn: 'I', compare: 'Ctrl+Alt+U' };
+    const saved = { redo: 'Ctrl+Y', undo: 'Ctrl+Z', razor: 'X', setIn: 'I', bypass: 'Ctrl+Alt+Y' };
     const m = mergeShortcuts('win32', saved);
     assert.equal(m.redo, 'Ctrl+Shift+Z');
     assert.equal(m.redoAlt, 'Ctrl+Y');
@@ -47,7 +47,8 @@ test('mergeShortcuts: new actions get defaults, removed actions are dropped, the
     assert.equal(m.copy, 'Ctrl+C');
     assert.equal(m.cut, 'Ctrl+X');
     assert.equal(m.paste, 'Ctrl+V');
-    assert.ok(!('setIn' in m) && !('compare' in m));
+    assert.ok(!('setIn' in m) && !('bypass' in m));
+    assert.equal(m.compare, 'Ctrl+Alt+U');
     assert.equal(mergeShortcuts('win32', { redo: 'Ctrl+Alt+R' }).redo, 'Ctrl+Alt+R');
     assert.equal(mergeShortcuts('darwin', undefined).copy, 'Meta+C');
 });

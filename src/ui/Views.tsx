@@ -356,7 +356,7 @@ export function QueueView() {
 const SHORTCUT_LABELS: Record<string, string> = {
     base: 'Base Tone', moody: 'Dark & Moody', teal: 'Teal & Orange', vibrant: 'Vibrant', hdr: 'HDR look', cycleProfile: 'Cycle tone profile',
     hud: 'Toggle overlay badges', gpu: 'Toggle preview quality (GPU load)', expert: 'Expert Settings', manager: 'Profiles / LUT / filter manager', scopes: 'Show / hide scopes',
-    auto: 'Auto-Scene-Match', playPause: 'Play / Pause', frameBack: 'Previous frame', frameFwd: 'Next frame',
+    auto: 'Auto-Scene-Match', compare: 'Original / Enhanced wipe in the player', playPause: 'Play / Pause', frameBack: 'Previous frame', frameFwd: 'Next frame',
     jumpBack: 'Back 1 second', jumpFwd: 'Forward 1 second', start: 'Go to start', end: 'Go to end',
     zoomIn: 'Timeline zoom in', zoomOut: 'Timeline zoom out', zoomFit: 'Fit the whole timeline into view',
     undo: 'Undo one step', redo: 'Redo (restore what was undone)', redoAlt: 'Redo (alternative key)', save: 'Save project', open: 'Open video or audio',

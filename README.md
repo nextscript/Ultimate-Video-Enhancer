@@ -62,6 +62,7 @@ and built automatically by `.github/workflows/release.yml`:
 | Zoom in / out / fit | + / − / Z | + / − / Z |
 | Add video / audio track | Ctrl+Shift+V / Ctrl+Shift+A | ⇧⌘V / ⇧⌘A |
 | Save / Open / Render timeline | Ctrl+S / Ctrl+O / Ctrl+R | ⌘S / ⌘O / ⌘R |
+| Original / Enhanced wipe | Ctrl+Alt+U | ⌃⌥U |
 | Look toggles, HUD, Scopes, Auto-Scene-Match … | Ctrl+Alt+key | ⌃⌥key (Control+Option) |
 
 All shortcuts can be changed in Settings → Keyboard shortcuts.
