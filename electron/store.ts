@@ -49,50 +49,42 @@ export function appRootDir(): string {
     return path.dirname(app.getPath('exe'));
 }
 
-/** Portable copy (portable.txt next to the exe, or the self-extracting portable exe) – everything lives next to it. */
-export function isPortableCopy(): boolean {
-    if (!app.isPackaged) return false;
-    return !!process.env.PORTABLE_EXECUTABLE_DIR || existsSync(path.join(path.dirname(app.getPath('exe')), 'portable.txt'));
-}
-
 /**
- * v1.0.5: tools folder of an installed copy. It lies outside the program folder, because an installer update
- * removes that folder – FFmpeg and REAL-Video-Enhancer (several GB) would have to be downloaded again.
- * Windows: %LOCALAPPDATA%\UVE Manager\tools (local, not roaming); elsewhere <userData>/tools.
+ * 1.0.5 test builds kept the tools of an installed copy here; the app moves them back next to the exe.
+ * Windows: %LOCALAPPDATA%\UVE Manager\tools.
  */
-export function installedToolsDir(): string {
+function localAppDataToolsDir(): string | null {
     const local = process.platform === 'win32' ? process.env.LOCALAPPDATA : undefined;
-    return local ? path.join(local, 'UVE Manager', 'tools') : path.join(userDir(), 'tools');
+    return local ? path.join(local, 'UVE Manager', 'tools') : null;
 }
 
 let toolsDirCache: Promise<string> | null = null;
 /**
- * Tools folder (FFmpeg, REAL-Video-Enhancer), resolved once. Development and portable copies: tools/ next to
- * the app (userData/tools when that is not writable). Installed copies: `installedToolsDir()`; tools that an
- * older version kept in the program folder or in userData are moved there once.
+ * Tools folder (FFmpeg, REAL-Video-Enhancer), resolved once: tools/ next to the exe, for installed and portable
+ * copies alike – installer updates leave it alone (build/installer.nsh). When that folder is not writable
+ * (e.g. C:\Program Files), userData/tools. Packaged copies move tools found in the other places once.
  */
 export function toolsDir(): Promise<string> {
     if (!toolsDirCache) {
-        if (!app.isPackaged || isPortableCopy()) {
+        toolsDirCache = (async () => {
             const preferred = path.join(appRootDir(), 'tools');
-            toolsDirCache = isWritableDir(preferred).then(ok => ok ? preferred : path.join(userDir(), 'tools'));
-        } else {
-            toolsDirCache = adoptLegacyTools(installedToolsDir(), [path.join(appRootDir(), 'tools'), path.join(userDir(), 'tools')]);
-        }
+            const fallback = path.join(userDir(), 'tools');
+            const target = await isWritableDir(preferred) ? preferred : fallback;
+            if (!app.isPackaged) return target;
+            const legacy = [localAppDataToolsDir(), fallback].filter((d): d is string => !!d);
+            return adoptLegacyTools(target, legacy);
+        })();
     }
     return toolsDirCache;
 }
 
-/** Tool folders an older version may have downloaded into a legacy tools folder. */
+/** Tool folders an older version may have downloaded into another tools folder. */
 const ADOPTED_TOOLS = ['rve', 'ffmpeg'];
 
 /**
  * Moves each tool folder (rve, ffmpeg) that is missing in `target` from the first legacy folder that has it.
- * When REAL-Video-Enhancer cannot be moved (program folder on another drive than %LOCALAPPDATA%) and that
- * folder is writable, the legacy folder stays the tools folder – copying several GB is not worth it, and
- * since 1.0.5 installer updates leave the program folder's tools alone (build/installer.nsh). Otherwise
- * `target` is used, so downloads never go to a read-only place. FFmpeg shipped inside the program folder is
- * still found by the tools lookup (electron/tools.ts).
+ * When REAL-Video-Enhancer cannot be moved (legacy folder on another drive) and that folder is writable, the
+ * legacy folder stays the tools folder – copying several GB is not worth it. Otherwise `target` is used.
  */
 async function adoptLegacyTools(target: string, legacy: string[]): Promise<string> {
     for (const name of ADOPTED_TOOLS) {

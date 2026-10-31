@@ -14,9 +14,8 @@
 ; The uninstaller still closes the app itself when the user uninstalls; started by an updating installer
 ; ("--updated") it does nothing extra.
 ;
-; Tools: since 1.0.5 the installed app keeps them in %LOCALAPPDATA%\UVE Manager\tools (electron/store.ts
-; installedToolsDir). Tools that 1.0.4 kept in the program folder are moved there with a plain rename when they are
-; on the same drive; on another drive they stay where they are and the app keeps using them.
+; Tools (FFmpeg, REAL-Video-Enhancer) live in tools\ next to the exe (electron/store.ts toolsDir). Because the old
+; uninstaller is no longer run, an update keeps them; only a real uninstall removes them with the program folder.
 ; Settings live in %APPDATA%\UVE Manager and are not touched by updates.
 
 !ifndef nsProcess::FindProcess
@@ -73,11 +72,6 @@
   ReadRegStr $R8 SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" InstallLocation
   ${If} $R8 != ""
   ${AndIf} ${FileExists} "$R8\${APP_EXECUTABLE_FILENAME}"
-    ReadEnvStr $R9 LOCALAPPDATA
-    ${If} $R9 != ""
-      !insertmacro uveKeepTool "$R8" "$R9\UVE Manager\tools" "rve"
-      !insertmacro uveKeepTool "$R8" "$R9\UVE Manager\tools" "ffmpeg"
-    ${EndIf}
     ; files of the old version that the new one does not simply overwrite; tools\ stays untouched
     RMDir /r "$R8\resources"
     RMDir /r "$R8\locales"
@@ -96,21 +90,4 @@
     DeleteRegValue HKEY_CURRENT_USER "${UNINSTALL_REGISTRY_KEY_2}" QuietUninstallString
   !endif
   ClearErrors
-!macroend
-
-; Renames OLD\tools\NAME to TARGET\NAME unless TARGET already has it (same rule as adoptLegacyTools in the app).
-; Only a rename – no copying of thousands of files. On another drive the folder stays where it is.
-!macro uveKeepTool OLD TARGET NAME
-  ${If} ${FileExists} "${OLD}\tools\${NAME}\*.*"
-  ${AndIfNot} ${FileExists} "${TARGET}\${NAME}\*.*"
-    CreateDirectory "${TARGET}"
-    ClearErrors
-    Rename "${OLD}\tools\${NAME}" "${TARGET}\${NAME}"
-    ${If} ${Errors}
-      DetailPrint "Keeping ${NAME} in ${OLD}\tools"
-    ${Else}
-      DetailPrint "Moved ${NAME}: ${OLD}\tools\${NAME} -> ${TARGET}\${NAME}"
-    ${EndIf}
-    ClearErrors
-  ${EndIf}
 !macroend

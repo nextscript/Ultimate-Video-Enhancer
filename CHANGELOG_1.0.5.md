@@ -16,8 +16,7 @@ Baseline: v1.0.4.
   up. The setup now closes the app itself without PowerShell and replaces the old program files in place; the old
   uninstaller is no longer started.
 
-## Changed
-
-- Installed copies keep FFmpeg and REAL-Video-Enhancer in `%LOCALAPPDATA%\UVE Manager\tools`, so updates no
-  longer lose them. Tools that 1.0.4 kept in the program folder are moved there; when the program folder is on
-  another drive they stay where they are and are used from there.
+- **Updates no longer delete the downloaded tools:** the old uninstaller removed the whole program folder,
+  including FFmpeg and REAL-Video-Enhancer (several GB) in `tools\` next to the exe. Since the setup no longer
+  runs it, `tools\` survives updates and stays next to the exe. Only when that folder is not writable (e.g.
+  `C:\Program Files`) the app uses the tools folder in the user profile, as before.
