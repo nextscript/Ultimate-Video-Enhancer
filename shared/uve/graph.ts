@@ -28,7 +28,11 @@ export type BlendMode = 'normal' | 'multiply' | 'screen' | 'overlay' | 'darken' 
     | 'hard-light' | 'soft-light' | 'difference' | 'exclusion' | 'hue' | 'saturation' | 'color' | 'luminosity';
 
 export type Prim =
-    | { op: 'matrix'; in: string; out: string; m: Mat4x5; auto?: boolean }
+    /**
+     * `auto`: the engine substitutes the auto-levels matrix; `clip`: the engine substitutes the per-clip
+     * look matrix (`ProcessOptions.clipMatrix`, timeline mode). `m` is used only when neither is set.
+     */
+    | { op: 'matrix'; in: string; out: string; m: Mat4x5; auto?: boolean; clip?: boolean }
     | { op: 'ct'; in: string; out: string; f: [TransferFunc, TransferFunc, TransferFunc, TransferFunc] }
     | { op: 'blur'; in: string; out: string; sx: number; sy: number }
     | { op: 'arith'; in: string; in2: string; out: string; k1: number; k2: number; k3: number; k4: number }
@@ -300,7 +304,10 @@ function appendUserToneCurve(b: Builder, s: UveSettings, e: ExpertSettings, inNa
     return prefix;
 }
 
-/** mergeChainedColorMatrices(): merges directly chained matrices when the intermediate result has a single consumer. */
+/**
+ * mergeChainedColorMatrices(): merges directly chained matrices when the intermediate result has a single consumer.
+ * `auto` and `clip` prims are substituted per frame by the engine, so they break a chain (never merged).
+ */
 export function mergeChainedMatrices(prims: Prim[], output: string): Prim[] {
     const refs: Record<string, number> = {};
     const addRef = (n?: string) => { if (n) refs[n] = (refs[n] || 0) + 1; };
@@ -313,7 +320,7 @@ export function mergeChainedMatrices(prims: Prim[], output: string): Prim[] {
     const out: Prim[] = [];
     for (const p of prims) {
         const prev = out[out.length - 1];
-        if (prev && prev.op === 'matrix' && p.op === 'matrix' && !prev.auto && !p.auto && p.in === prev.out && refs[prev.out] === 1) {
+        if (prev && prev.op === 'matrix' && p.op === 'matrix' && !prev.auto && !p.auto && !prev.clip && !p.clip && p.in === prev.out && refs[prev.out] === 1) {
             out[out.length - 1] = { op: 'matrix', in: prev.in, out: p.out, m: matMul4x5(p.m, prev.m) };
             continue;
         }

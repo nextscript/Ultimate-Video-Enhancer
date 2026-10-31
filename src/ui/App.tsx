@@ -3,28 +3,35 @@ import { APP_VERSION, DEFAULT_EXPORT, type JobState, type LutLibraryState, type 
 import { type CustomFilterEntry, normalizeEntry } from '../../shared/uve/customFilters';
 import { api } from '../api';
 import {
-    cycleToneProfile, effectFromUnknown, enqueueCurrent, errMsg, loadVideo, newProject, openProject, saveProject, toggleHdr, toggleSetting
+    cycleToneProfile, effectFromUnknown, enqueueTimelineJob, errMsg, loadVideo, newProject, openProject, saveProject, toggleHdr, toggleSetting
 } from '../state/actions';
 import { type View, getState, redo, setState, subscribe, toast, undo, useStore } from '../state/store';
 import { comboFromEvent, sameCombo } from '../../shared/shortcuts';
 import { Button, Icon, Modal, Progress, Toggle } from './controls';
-import { sc } from './keys';
+import { runTimelineShortcut, sc } from './keys';
+import { MediaPool } from './MediaPool';
 import { ExportPanel, MediaInfoPanel } from './EditorPanels';
 import { FilterStudio } from './FilterStudio';
 import { Inspector } from './Inspector';
 import { Player, player } from './Player';
-import { Scopes } from './Scopes';
 import { Timeline, Transport } from './Timeline';
-import { LutView, PresetsView, QueueView, ScopesView, SettingsView, installToolsNow } from './Views';
+import { LutView, PresetsView, QueueView, SettingsView, installToolsNow } from './Views';
 
 const NO_RECENTS: string[] = [];
 
+/** Open dialog → each picked file goes into the media pool and onto the end of the timeline. */
+async function openMediaOntoTimeline() {
+    const paths = await api.openVideos(true);
+    for (const p of paths) await loadVideo(p, { place: true });
+    if (paths.length) setState({ view: 'editor' });
+}
+
+// scopes are shown inside the player (Enhancement Settings → Basic → Scopes), not as a page
 const NAV: { id: View; label: string; icon: string }[] = [
     { id: 'editor', label: 'Editor', icon: 'editor' },
     { id: 'presets', label: 'Presets', icon: 'presets' },
     { id: 'luts', label: 'LUT Library', icon: 'luts' },
     { id: 'filters', label: 'Custom Filters', icon: 'filters' },
-    { id: 'scopes', label: 'Scopes', icon: 'scopes' },
     { id: 'queue', label: 'Render Queue', icon: 'queue' }
 ];
 
@@ -41,7 +48,7 @@ function TitleBar() {
         <header className="titlebar">
             <div className="brand"><span className="logo">UVE</span><span className="appname">UVE Manager</span><span className="edition">Desktop Edition</span><span className="ver">v{APP_VERSION}</span></div>
             <div className="toolbar">
-                <Button icon="open" onClick={async () => { const p = await api.openVideos(); if (p[0]) void loadVideo(p[0]); }} title={`Open video (${sc('open')})`}>Open Video</Button>
+                <Button icon="open" onClick={() => void openMediaOntoTimeline()} title={`Open video or audio files and add them to the end of the timeline (${sc('open')})`}>Open Video</Button>
                 <div className="menu-wrap">
                     <Button icon="folder" onClick={() => setMenu(!menu)} title="Project">Project</Button>
                     {menu && (
@@ -214,21 +221,20 @@ function useShortcuts() {
                 case 'manager': setState({ view: s.view === 'presets' ? 'luts' : s.view === 'luts' ? 'filters' : 'presets' }); break;
                 case 'scopes': setState({ scopesHud: !s.scopesHud }); break;
                 case 'auto': toggleSetting('autoOn'); if (!s.effect.settings.autoOn && s.analysis.status !== 'ready') void import('../state/actions').then(a => a.runAnalysis()); break;
-                case 'compare': setState({ compare: !s.compare, bypass: false }); break;
-                case 'bypass': setState({ bypass: !s.bypass }); break;
                 case 'playPause': player.toggle(); break;
                 case 'frameBack': player.step(-1); break;
                 case 'frameFwd': player.step(1); break;
+                case 'jumpBack': player.seek(Math.max(0, s.time - 1)); break;
+                case 'jumpFwd': player.seek(Math.min(player.duration(), s.time + 1)); break;
                 case 'start': player.seek(0); break;
-                case 'end': player.seek((s.media?.duration || 0) - 0.001); break;
-                case 'setIn': if (s.media) setState({ inPoint: s.time }); break;
-                case 'setOut': if (s.media) setState({ outPoint: s.time }); break;
+                case 'end': player.seek(player.duration() - 0.001); break;
                 case 'undo': undo(); break;
-                case 'redo': redo(); break;
+                case 'redo': case 'redoAlt': redo(); break;
                 case 'save': void saveProject(false); break;
-                case 'open': void api.openVideos().then(p => { if (p[0]) void loadVideo(p[0]); }); break;
-                case 'render': void enqueueCurrent(); break;
-                case 'escape': setState({ scopesHud: false, compare: false }); break;
+                case 'open': void openMediaOntoTimeline(); break;
+                case 'render': void enqueueTimelineJob(); break;
+                case 'escape': setState({ scopesHud: false, compare: false, rangeSel: null }); break;
+                default: runTimelineShortcut(action); break;
             }
         };
         window.addEventListener('keydown', onKey);
@@ -250,7 +256,6 @@ interface EditorSnapshot {
     tab?: string;
     compare?: boolean;
     wipe?: number;
-    scopesHud?: boolean;
     showIcons?: boolean;
     mediaPath?: string | null;
     inPoint?: number | null;
@@ -259,7 +264,7 @@ interface EditorSnapshot {
     projectPath?: string | null;
 }
 
-const VIEWS: View[] = ['editor', 'presets', 'luts', 'filters', 'scopes', 'queue', 'settings'];
+const VIEWS: View[] = ['editor', 'presets', 'luts', 'filters', 'queue', 'settings'];
 const TABS = ['Basic', 'Color', 'HDR', 'Detail', 'LUTs', 'Custom', 'Auto', 'Expert'];
 let editorRestored = false;
 
@@ -267,7 +272,7 @@ function editorSnapshot(): EditorSnapshot {
     const s = getState();
     return {
         effect: s.effect, exportSettings: s.exportSettings, view: s.view, tab: s.tab, compare: s.compare, wipe: s.wipe,
-        scopesHud: s.scopesHud, showIcons: s.showIcons, mediaPath: s.media?.path ?? null, inPoint: s.inPoint, outPoint: s.outPoint,
+        showIcons: s.showIcons, mediaPath: s.media?.path ?? null, inPoint: s.inPoint, outPoint: s.outPoint,
         time: Math.round(s.time * 1000) / 1000, projectPath: s.projectPath
     };
 }
@@ -282,18 +287,10 @@ async function restoreEditor(e: EditorSnapshot | null) {
         if (e.tab && TABS.includes(e.tab)) patch.tab = e.tab as typeof patch.tab;
         if (typeof e.compare === 'boolean') patch.compare = e.compare;
         if (typeof e.wipe === 'number' && e.wipe >= 0 && e.wipe <= 1) patch.wipe = e.wipe;
-        if (typeof e.scopesHud === 'boolean') patch.scopesHud = e.scopesHud;
         if (typeof e.showIcons === 'boolean') patch.showIcons = e.showIcons;
         if (typeof e.projectPath === 'string') patch.projectPath = e.projectPath;
+        // the app starts with an empty timeline: the last video is not reopened
         setState(patch);
-        // reopen the last video (silently skipped when it no longer exists) at the last position and In/Out range
-        if (e.mediaPath) {
-            try { await api.probe(e.mediaPath); } catch { return; }
-            await loadVideo(e.mediaPath, { keepEffect: true });
-            if (getState().media?.path !== e.mediaPath) return;
-            setState({ inPoint: typeof e.inPoint === 'number' ? e.inPoint : null, outPoint: typeof e.outPoint === 'number' ? e.outPoint : null, dirty: false });
-            if (typeof e.time === 'number' && e.time > 0) player.seekWhenReady(e.time);
-        }
     } finally {
         editorRestored = true;
     }
@@ -329,7 +326,6 @@ async function init(setToolsPrompt: (b: boolean) => void) {
 export function App() {
     const view = useStore(s => s.view);
     const updateModal = useStore(s => s.updateModal);
-    const scopesHud = useStore(s => s.scopesHud);
     const [toolsPrompt, setToolsPrompt] = useState(false);
     useShortcuts();
     useEffect(() => { void init(setToolsPrompt); }, []);
@@ -363,7 +359,7 @@ export function App() {
             const p = api.pathForFile(f);
             if (!p) return;
             setState({ view: 'editor' });
-            if (/\.uveproj$/i.test(p)) void openProject(p); else void loadVideo(p);
+            if (/\.uveproj$/i.test(p)) void openProject(p); else void loadVideo(p, { place: true });
         };
         window.addEventListener('dragover', over);
         window.addEventListener('drop', drop);
@@ -382,17 +378,16 @@ export function App() {
                             <Transport />
                             <Timeline />
                             <div className="bottom-panels">
+                                <MediaPool />
                                 <MediaInfoPanel />
                                 <ExportPanel />
                             </div>
                         </div>
                         <Inspector />
-                        {scopesHud && <div className="scopes-hud"><div className="row gap"><b className="grow">Scopes HUD</b><button className="icon-btn" aria-label="Close scopes" onClick={() => setState({ scopesHud: false })}><Icon name="x" size={14} /></button></div><Scopes /></div>}
                     </div>
                     {view === 'presets' && <PresetsView />}
                     {view === 'luts' && <LutView />}
                     {view === 'filters' && <FilterStudio />}
-                    {view === 'scopes' && <ScopesView />}
                     {view === 'queue' && <QueueView />}
                     {view === 'settings' && <SettingsView />}
                 </main>

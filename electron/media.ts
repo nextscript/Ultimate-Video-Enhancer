@@ -77,7 +77,8 @@ export async function probe(file: string): Promise<MediaInfo> {
         index: Number(s.index), codec: String(s.codec_name || '?'), language: String(s.tags?.language || ''), title: String(s.tags?.title || '')
     }));
     const video = videoStreams[0] || null;
-    if (!video) warnings.push(audio.length ? 'This file contains audio only – UVE Manager needs a video stream.' : 'No video stream found.');
+    // audio-only files are valid timeline sources (audio tracks); only a file with neither stream is a problem
+    if (!video && !audio.length) warnings.push('No video or audio stream found.');
     if (video?.vfr) warnings.push('Variable frame rate detected. UVE Manager 1.0.0 exports at the average frame rate (constant).');
     if (video?.hdr) warnings.push(`HDR source (${video.colorTransfer}). It is tone-mapped to SDR BT.709 for processing; the UVE "HDR" effect is a look, not HDR10 output.`);
     if (video && video.bitDepth > 8) warnings.push(`${video.bitDepth}-bit source: processed in 16-bit; choose 10-bit output to keep the precision.`);

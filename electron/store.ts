@@ -2,7 +2,7 @@ import { constants, promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
 import { APP_VERSION, type AppPrefs, DEFAULT_EXPORT, DEFAULT_UPDATE_REPO } from '../shared/types';
-import { DEFAULT_SHORTCUTS, defaultShortcuts } from '../shared/shortcuts';
+import { DEFAULT_SHORTCUTS, defaultShortcuts, mergeShortcuts } from '../shared/shortcuts';
 import { isWritableDir, readJson, writeJson } from './util';
 
 export { DEFAULT_SHORTCUTS };
@@ -69,7 +69,7 @@ function normalizePrefs(raw: Partial<AppPrefs> | undefined): AppPrefs {
         ...DEFAULT_PREFS, ...r,
         // the pre-1.0.2 default repository never had releases
         ...(r.updateRepo === 'nextscript/UVE-Manager' ? { updateRepo: DEFAULT_UPDATE_REPO } : {}),
-        shortcuts: { ...defaultShortcuts(process.platform), ...(r.shortcuts || {}) },
+        shortcuts: mergeShortcuts(process.platform, r.shortcuts),
         defaultExport: { ...DEFAULT_EXPORT, ...(r.defaultExport || {}) },
         skippedVersions: { ...(r.skippedVersions || {}) }
     };

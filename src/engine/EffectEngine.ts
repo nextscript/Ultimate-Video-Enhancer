@@ -6,7 +6,11 @@
 import type { Prim, TransferFunc, UveGraph } from '../../shared/uve/graph';
 import type { CustomFilterEntry } from '../../shared/uve/customFilters';
 import { buildFragSrc, lintGlsl, parseUniformDefs } from '../../shared/uve/customFilters';
-import type { Mat4x5 } from '../../shared/uve/matrix';
+import {
+    type CompositeOptions, type CompositeStep, type EngineSlot, type FrameSource, type LayerRenderOptions,
+    MAX_SLOTS, compositeSteps, effectiveClipMatrix, graphHasClipPrim, layerSizeOf, STACK_UNIFORMS
+} from '../../shared/uve/engine-facade';
+import { matIdentity4x5, type Mat4x5 } from '../../shared/uve/matrix';
 import { buildTurbulenceLattice } from './turbulence';
 
 export interface Tex { tex: WebGLTexture; fb: WebGLFramebuffer; w: number; h: number; fmt: 'f16' | 'u8' | 'u16' }
@@ -301,6 +305,134 @@ out uvec4 o;
 void main() { o = uvec4(floor(clamp(texelFetch(uIn, ivec2(gl_FragCoord.xy), 0), 0.0, 1.0) * 65535.0 + 0.5)); }`
 };
 
+// ---------------------------------------------------------------- timeline (NLE) shaders
+// Uniform names are `u` + the shared parameter names of src/engine/params.ts; the WGSL twins in
+// GpuEngine.ts (WGSL_TIMELINE_SOURCES) use the same names as uniform-block fields. Offscreen passes:
+// gl_FragCoord.y counts texture rows from row 0 = top of the picture, so px/py match WGSL `fp.xy`.
+const TL_HEAD = `#version 300 es
+precision highp float;
+precision highp int;
+precision highp sampler2D;
+precision highp sampler3D;
+in vec2 v_uv;
+out vec4 o;
+`;
+
+const TL: Record<string, string> = {
+    tlLut: `${TL_HEAD}
+uniform sampler2D uIn;
+uniform sampler2D uLut;
+uniform highp sampler3D uLut3;
+uniform float uQuant;
+uniform int uHasLut;
+uniform int uLutSize;
+uniform int uHasLut3d;
+uniform int uLut3dSize;
+float lut1(int ch, float x0) {
+    int n = uLutSize;
+    float x = clamp(x0, 0.0, 1.0) * float(n - 1);
+    int i0 = min(int(floor(x)), n - 1);
+    int i1 = min(i0 + 1, n - 1);
+    float a = texelFetch(uLut, ivec2(i0, 0), 0)[ch];
+    float b = texelFetch(uLut, ivec2(i1, 0), 0)[ch];
+    return a + (b - a) * (x - float(i0));
+}
+vec3 l3(int x, int y, int z) { return texelFetch(uLut3, ivec3(x, y, z), 0).rgb; }
+vec3 lut3(vec3 c) {
+    int n = uLut3dSize;
+    vec3 f = clamp(c, 0.0, 1.0) * float(n - 1);
+    ivec3 i0 = min(ivec3(floor(f)), ivec3(n - 1));
+    ivec3 i1 = min(i0 + ivec3(1), ivec3(n - 1));
+    vec3 t = f - vec3(i0);
+    vec3 x00 = mix(l3(i0.x, i0.y, i0.z), l3(i1.x, i0.y, i0.z), t.x);
+    vec3 x10 = mix(l3(i0.x, i1.y, i0.z), l3(i1.x, i1.y, i0.z), t.x);
+    vec3 x01 = mix(l3(i0.x, i0.y, i1.z), l3(i1.x, i0.y, i1.z), t.x);
+    vec3 x11 = mix(l3(i0.x, i1.y, i1.z), l3(i1.x, i1.y, i1.z), t.x);
+    return mix(mix(x00, x10, t.y), mix(x01, x11, t.y), t.z);
+}
+void main() {
+    vec4 c = texelFetch(uIn, ivec2(gl_FragCoord.xy), 0);
+    vec3 rgb = c.rgb;
+    if (uHasLut != 0) rgb = vec3(lut1(0, rgb.r), lut1(1, rgb.g), lut1(2, rgb.b));
+    if (uHasLut3d != 0) rgb = lut3(rgb);
+    vec4 r = clamp(vec4(rgb, c.a), 0.0, 1.0);
+    o = uQuant > 0.0 ? floor(r * uQuant + 0.5) / uQuant : r;
+}`,
+    tlLook: `${TL_HEAD}
+uniform sampler2D uIn;
+uniform mat4 uClipMatrix;
+uniform vec4 uClipMatrixOff;
+uniform float uQuant;
+uniform float uLayerVeil;
+uniform float uLayerVeilColor;
+void main() {
+    vec4 c = uClipMatrix * texelFetch(uIn, ivec2(gl_FragCoord.xy), 0) + uClipMatrixOff;
+    if (uQuant > 0.0) c = floor(clamp(c, 0.0, 1.0) * uQuant + 0.5) / uQuant;
+    float a = clamp(c.a, 0.0, 1.0);
+    o = mix(vec4(c.rgb * a, a), vec4(vec3(uLayerVeilColor), 1.0), uLayerVeil);
+}`,
+    tlStep: `${TL_HEAD}
+uniform sampler2D uAcc;
+uniform sampler2D uA;
+uniform sampler2D uB;
+uniform vec2 uViewSize;
+uniform float uCx;
+uniform float uCy;
+uniform int uMode;
+uniform int uAxis;
+uniform int uHighSideIsB;
+uniform int uUseAcc;
+uniform float uEdge;
+uniform float uFeather;
+uniform float uWeightA;
+uniform float uWeightB;
+uniform float uDxA;
+uniform float uDyA;
+uniform float uDxB;
+uniform float uDyB;
+vec4 layerAt(sampler2D t, vec2 q) {
+    vec2 tc = q / uViewSize;
+    if (tc.x < 0.0 || tc.y < 0.0 || tc.x > 1.0 || tc.y > 1.0) return vec4(0.0);
+    return textureLod(t, tc, 0.0);
+}
+void main() {
+    vec2 fp = gl_FragCoord.xy;
+    float L = max(uViewSize.x, uViewSize.y);
+    vec2 uv = fp / L;
+    float cA = uWeightA;
+    float cB = uWeightB;
+    if (uMode != 0) {
+        float s = uMode == 1 ? (uAxis == 0 ? uv.x : uv.y) : distance(uv, vec2(uCx, uCy));
+        float g = smoothstep(uEdge - uFeather, uEdge + uFeather, s);
+        float geoB = uHighSideIsB != 0 ? g : 1.0 - g;
+        cA = uWeightA * (1.0 - geoB);
+        cB = uWeightB * geoB;
+    }
+    vec4 pc = cA * layerAt(uA, fp + vec2(uDxA, uDyA)) + cB * layerAt(uB, fp + vec2(uDxB, uDyB));
+    o = uUseAcc != 0 ? texelFetch(uAcc, ivec2(fp), 0) * (1.0 - pc.a) + pc : pc;
+}`,
+    tlOut: `${TL_HEAD}
+uniform sampler2D uIn;
+uniform float uVeil;
+uniform float uVeilColor;
+void main() {
+    vec4 c = texelFetch(uIn, ivec2(gl_FragCoord.xy), 0);
+    o = vec4(mix(c.rgb, vec3(uVeilColor), uVeil), 1.0);
+}`
+};
+for (const [name, code] of Object.entries(TL)) FS[name] = code;
+
+/** GLSL sources of the timeline passes (consistency tests read their uniform declarations). */
+export const GLSL_TIMELINE_SOURCES: Readonly<Record<string, string>> = Object.freeze({ ...TL });
+
+const IDENTITY: Mat4x5 = matIdentity4x5();
+
+/** Column-major mat4 of the 4x4 part of a row-major 4x5 matrix (the offsets are column 5). */
+const mat4Of = (m: Mat4x5) => new Float32Array([m[0], m[5], m[10], m[15], m[1], m[6], m[11], m[16], m[2], m[7], m[12], m[17], m[3], m[8], m[13], m[18]]);
+
+interface GlSlot { tex8: WebGLTexture | null; tex16: WebGLTexture | null; is16: boolean; w: number; h: number; layer: Tex | null }
+interface GlLut { tex: WebGLTexture; size: number; dim: '1d' | '3d' }
+
 const BLEND_IDS: Record<string, number> = {
     normal: 0, multiply: 1, screen: 2, overlay: 3, darken: 4, lighten: 5, 'color-dodge': 6, 'color-burn': 7, 'hard-light': 8,
     'soft-light': 9, difference: 10, exclusion: 11, hue: 12, saturation: 13, color: 14, luminosity: 15
@@ -325,6 +457,8 @@ export interface ProcessOptions {
     /** processing pixels per source pixel (preview quality); 1 = exact */
     pxScale: number;
     quantize8: boolean;
+    /** matrix substituted for `clip: true` matrix prims (timeline per-clip look); identity when null/absent */
+    clipMatrix?: Mat4x5 | null;
 }
 
 export interface FrameStatsU { avg_lum: number; avg_r: number; avg_g: number; avg_b: number; contrast: number }
@@ -346,6 +480,18 @@ export class EffectEngine {
     private statsTex: Tex | null = null;
     lastSource: Tex | null = null;
     lastOutput: Tex | null = null;
+    // timeline (NLE) state: layer slots, LUTs, composite output
+    private tlOn = false;
+    private tlMode: EngineSlot = 'export';
+    private slots: GlSlot[] = [];
+    private tlLast = -1;
+    private tlOutput: Tex | null = null;
+    private luts = new Map<number, GlLut>();
+    private lutSeq = 1;
+    private dummy: Tex | null = null;
+    private dummyLut: GlLut | null = null;
+    private dummyLut3: GlLut | null = null;
+    private tlClip: Mat4x5 = matIdentity4x5();
 
     constructor(gl: WebGL2RenderingContext) {
         this.gl = gl;
@@ -600,7 +746,6 @@ export class EffectEngine {
      * Returns the processed texture (owned by the engine until the next call).
      */
     process(outW: number, outH: number, opts: ProcessOptions): Tex {
-        const gl = this.gl;
         const quant = opts.quantize8 ? 255 : 0;
         const sc = opts.pxScale > 0 ? opts.pxScale : 1;
         this.release(this.lastSource);
@@ -613,8 +758,15 @@ export class EffectEngine {
         else this.draw(this.program('import'), src, quant, l => this.bindTex(0, this.srcTex8!, l.uIn));
         this.lastSource = src;
 
+        this.lastOutput = this.runChain(src, this.graph, outW, outH, quant, sc, opts);
+        return this.lastOutput;
+    }
+
+    /** Graph + enabled custom GLSL passes on `src`; returns a new texture (never `src`), `src` stays the caller's. */
+    private runChain(src: Tex, graph: UveGraph, outW: number, outH: number, quant: number, sc: number, opts: ProcessOptions): Tex {
+        const gl = this.gl;
         // 2. graph
-        const prims = this.graph.prims;
+        const prims = graph.prims;
         const results = new Map<string, Tex>();
         const lastUse = new Map<string, number>();
         prims.forEach((p, i) => {
@@ -624,7 +776,7 @@ export class EffectEngine {
             if (p.op === 'merge') ins.push(...p.ins);
             ins.forEach(n => lastUse.set(n, i));
         });
-        lastUse.set(this.graph.output, Number.MAX_SAFE_INTEGER);
+        lastUse.set(graph.output, Number.MAX_SAFE_INTEGER);
         let prev = 'SourceGraphic';
         let sourceAlpha: Tex | null = null;
         const get = (name: string): Tex => {
@@ -649,7 +801,7 @@ export class EffectEngine {
             prev = p.out;
             // release inputs that are no longer needed
             for (const [name, t] of results) {
-                if (name !== p.out && (lastUse.get(name) ?? -1) <= i && name !== this.graph.output) {
+                if (name !== p.out && (lastUse.get(name) ?? -1) <= i && name !== graph.output) {
                     this.release(t);
                     results.delete(name);
                 }
@@ -657,7 +809,7 @@ export class EffectEngine {
         });
         if (sourceAlpha) this.release(sourceAlpha);
 
-        let cur: Tex = this.graph.output === 'SourceGraphic' ? src : (results.get(this.graph.output) ?? src);
+        let cur: Tex = graph.output === 'SourceGraphic' ? src : (results.get(graph.output) ?? src);
         for (const [name, t] of results) if (t !== cur) { this.release(t); results.delete(name); }
 
         // 3. custom GLSL passes
@@ -709,7 +861,6 @@ export class EffectEngine {
             this.draw(this.program('copy'), cp, 0, l => this.bindTex(0, src.tex, l.uIn));
             cur = cp;
         }
-        this.lastOutput = cur;
         return cur;
     }
 
@@ -717,7 +868,7 @@ export class EffectEngine {
         const gl = this.gl;
         switch (p.op) {
             case 'matrix': {
-                const m = p.auto ? (opts.autoMatrix ?? [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0]) : p.m;
+                const m = p.auto ? (opts.autoMatrix ?? [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0]) : p.clip ? (opts.clipMatrix ?? IDENTITY) : p.m;
                 // column-major mat4 of the 4x4 part, offsets from column 5
                 const M = new Float32Array([m[0], m[5], m[10], m[15], m[1], m[6], m[11], m[16], m[2], m[7], m[12], m[17], m[3], m[8], m[13], m[18]]);
                 this.draw(this.program('matrix'), out, quant, l => {
@@ -937,8 +1088,265 @@ export class EffectEngine {
         gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 
+    // ------------------------------------------------------------------ timeline (NLE) rendering
+    get timelineReady() { return this.tlOn && !this.gl.isContextLost(); }
+
+    beginTimeline(mode: EngineSlot) {
+        if (!this.tlOn) {
+            this.slots = Array.from({ length: MAX_SLOTS }, () => ({ tex8: null, tex16: null, is16: false, w: 0, h: 0, layer: null }));
+            this.tlLast = -1;
+        }
+        this.tlMode = mode;
+        this.tlOn = true;
+        if (!this.dummy) this.dummy = this.createTex(1, 1, 'f16');
+        if (!this.dummyLut) this.dummyLut = this.makeLut(new Float32Array(4), 1, '1d');
+        if (!this.dummyLut3) this.dummyLut3 = this.makeLut(new Float32Array(4), 1, '3d');
+    }
+
+    endTimeline() {
+        if (!this.tlOn) return;
+        const gl = this.gl;
+        for (const s of this.slots) {
+            this.release(s.layer);
+            if (s.tex8) gl.deleteTexture(s.tex8);
+            if (s.tex16) gl.deleteTexture(s.tex16);
+        }
+        this.slots = [];
+        this.release(this.tlOutput);
+        this.tlOutput = null;
+        for (const l of this.luts.values()) gl.deleteTexture(l.tex);
+        this.luts.clear();
+        this.tlLast = -1;
+        this.tlOn = false;
+    }
+
+    private slot(i: number): GlSlot {
+        if (!this.tlOn) throw new Error('Timeline rendering is not started (call beginTimeline / init first).');
+        if (!Number.isInteger(i) || i < 0 || i >= MAX_SLOTS) throw new RangeError(`Layer slot must be an integer from 0 to ${MAX_SLOTS - 1}.`);
+        return this.slots[i];
+    }
+
+    private slotTex(nearest: boolean): WebGLTexture {
+        const gl = this.gl;
+        const t = gl.createTexture()!;
+        gl.bindTexture(gl.TEXTURE_2D, t);
+        const f = nearest ? gl.NEAREST : gl.LINEAR;
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, f);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, f);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        return t;
+    }
+
+    setSource(i: number, src: FrameSource) {
+        const s = this.slot(i);
+        const gl = this.gl;
+        gl.activeTexture(gl.TEXTURE0 + SCRATCH_UNIT);
+        if (src.kind === 'video') {
+            const w = src.video.videoWidth, h = src.video.videoHeight;
+            if (!w || !h) throw new Error('Video frame is not decoded yet (videoWidth is 0).');
+            if (!s.tex8) s.tex8 = this.slotTex(false); else gl.bindTexture(gl.TEXTURE_2D, s.tex8);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, src.video);
+            s.w = w; s.h = h; s.is16 = false;
+        } else if (src.kind === 'rgba8') {
+            if (src.data.length < src.w * src.h * 4) throw new RangeError('RGBA8 frame is smaller than w x h x 4.');
+            if (!s.tex8) s.tex8 = this.slotTex(false); else gl.bindTexture(gl.TEXTURE_2D, s.tex8);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, src.w, src.h, 0, gl.RGBA, gl.UNSIGNED_BYTE, src.data);
+            s.w = src.w; s.h = src.h; s.is16 = false;
+        } else {
+            if (src.data.length < src.w * src.h * 4) throw new RangeError('RGBA16 frame is smaller than w x h x 4.');
+            if (!s.tex16) s.tex16 = this.slotTex(true); else gl.bindTexture(gl.TEXTURE_2D, s.tex16);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16UI, src.w, src.h, 0, gl.RGBA_INTEGER, gl.UNSIGNED_SHORT, src.data);
+            s.w = src.w; s.h = src.h; s.is16 = true;
+        }
+    }
+
+    private lutOf(handle: number | null, dim: '1d' | '3d'): GlLut | null {
+        if (handle === null || handle === undefined) return null;
+        const l = this.luts.get(handle);
+        if (!l || l.dim !== dim) throw new Error(`Unknown ${dim} LUT handle ${handle}.`);
+        return l;
+    }
+
+    renderLayer(i: number, opts: LayerRenderOptions) {
+        const s = this.slot(i);
+        const gl = this.gl;
+        if (s.is16 ? !s.tex16 : !s.tex8) throw new Error(`Layer slot ${i} has no source frame (call setSource first).`);
+        // per-clip graphs each bring their own table prims: bound the cache
+        if (this.ctTables.size > 512) { for (const t of this.ctTables.values()) gl.deleteTexture(t); this.ctTables.clear(); }
+        const { w, h } = layerSizeOf(opts);
+        const quant = opts.quantize8 ? 255 : 0;
+        const sc = opts.pxScale ?? 1;
+        const lut1 = this.lutOf(opts.lutHandle, '1d');
+        const lut3 = this.lutOf(opts.hwLutHandle, '3d');
+        let src = this.acquire(w, h);
+        if (s.is16) this.draw(this.program('import16'), src, quant, l => this.bindTex(0, s.tex16!, l.uInU));
+        else this.draw(this.program('import'), src, quant, l => this.bindTex(0, s.tex8!, l.uIn));
+        if (lut1 || lut3) {
+            const lt = this.acquire(w, h);
+            const l1 = lut1 ?? this.dummyLut!, l3 = lut3 ?? this.dummyLut3!;
+            this.draw(this.program('tlLut'), lt, quant, l => {
+                this.bindTex(0, src.tex, l.uIn);
+                this.bindTex(1, l1.tex, l.uLut);
+                gl.activeTexture(gl.TEXTURE0 + 2);
+                gl.bindTexture(gl.TEXTURE_3D, l3.tex);
+                if (l.uLut3) gl.uniform1i(l.uLut3, 2);
+                if (l.uHasLut) gl.uniform1i(l.uHasLut, lut1 ? 1 : 0);
+                if (l.uLutSize) gl.uniform1i(l.uLutSize, l1.size);
+                if (l.uHasLut3d) gl.uniform1i(l.uHasLut3d, lut3 ? 1 : 0);
+                if (l.uLut3dSize) gl.uniform1i(l.uLut3dSize, l3.size);
+            });
+            this.release(src);
+            src = lt;
+        }
+        const clipM = effectiveClipMatrix(opts, this.tlClip);
+        const out = this.runChain(src, opts.effectGraph, w, h, quant, sc,
+            { autoMatrix: opts.autoMatrix, time: opts.time ?? 0, pxScale: sc, quantize8: !!opts.quantize8, clipMatrix: clipM });
+        const look = graphHasClipPrim(opts.effectGraph) ? IDENTITY : clipM;
+        const layer = this.acquire(w, h);
+        this.draw(this.program('tlLook'), layer, quant, l => {
+            this.bindTex(0, out.tex, l.uIn);
+            gl.uniformMatrix4fv(l.uClipMatrix!, false, mat4Of(look));
+            gl.uniform4f(l.uClipMatrixOff!, look[4], look[9], look[14], look[19]);
+            gl.uniform1f(l.uLayerVeil!, opts.veil);
+            gl.uniform1f(l.uLayerVeilColor!, opts.veilColor);
+        });
+        this.release(out);
+        this.release(src);
+        this.release(s.layer);
+        s.layer = layer;
+        this.tlLast = i;
+    }
+
+    private stepInput(x: CompositeStep['a'], acc: Tex | null): Tex {
+        if (x === null) return this.dummy!;
+        if (x === 'acc') {
+            if (!acc) throw new Error('Composite step reads the accumulated stack before anything was drawn.');
+            return acc;
+        }
+        const l = this.slot(x).layer;
+        if (!l) throw new Error(`Layer slot ${x} was not rendered (call renderLayer first).`);
+        return l;
+    }
+
+    composite(opts: CompositeOptions) {
+        if (!this.tlOn) throw new Error('Timeline rendering is not started (call beginTimeline / init first).');
+        const gl = this.gl;
+        const W = opts.width, H = opts.height;
+        let out: Tex | null = null;
+        let steps: CompositeStep[];
+        if (opts.entries) steps = compositeSteps(opts.entries);
+        else {
+            if (this.tlLast < 0) throw new Error('Nothing to composite: no layer was rendered.');
+            const layer = this.stepInput(this.tlLast, null);
+            steps = [{ a: null, b: this.tlLast, weightA: 0, weightB: 1, uniforms: STACK_UNIFORMS, over: false }];
+            if (this.tlMode === 'export' && opts.veil === 0 && layer.w === W && layer.h === H) {
+                // exactly what process() + readRGBA8/16() delivers for the same frame
+                out = this.acquire(W, H);
+                this.draw(this.program('copy'), out, 0, l => this.bindTex(0, layer.tex, l.uIn));
+                steps = [];
+            }
+        }
+        if (!out) {
+            let acc: Tex | null = null;
+            for (const st of steps) {
+                const a = this.stepInput(st.a, acc), b = this.stepInput(st.b, acc);
+                const under = st.over && acc ? acc : this.dummy!;
+                const next = this.acquire(W, H);
+                const un = st.uniforms;
+                const useAcc = st.over && acc ? 1 : 0;
+                this.draw(this.program('tlStep'), next, 0, l => {
+                    this.bindTex(0, under.tex, l.uAcc);
+                    this.bindTex(1, a.tex, l.uA);
+                    this.bindTex(2, b.tex, l.uB);
+                    gl.uniform2f(l.uViewSize!, W, H);
+                    gl.uniform1f(l.uCx!, un.cx); gl.uniform1f(l.uCy!, un.cy);
+                    gl.uniform1i(l.uMode!, un.mode); gl.uniform1i(l.uAxis!, un.axis);
+                    gl.uniform1i(l.uHighSideIsB!, un.highSideIsB ? 1 : 0); gl.uniform1i(l.uUseAcc!, useAcc);
+                    gl.uniform1f(l.uEdge!, un.edge); gl.uniform1f(l.uFeather!, un.feather);
+                    gl.uniform1f(l.uWeightA!, st.weightA); gl.uniform1f(l.uWeightB!, st.weightB);
+                    gl.uniform1f(l.uDxA!, un.dxA); gl.uniform1f(l.uDyA!, un.dyA);
+                    gl.uniform1f(l.uDxB!, un.dxB); gl.uniform1f(l.uDyB!, un.dyB);
+                });
+                this.release(acc);
+                acc = next;
+            }
+            if (!acc) throw new Error('Composite needs at least one layer.');
+            const top: Tex = acc;
+            out = this.acquire(W, H);
+            this.draw(this.program('tlOut'), out, 0, l => {
+                this.bindTex(0, top.tex, l.uIn);
+                gl.uniform1f(l.uVeil!, opts.veil);
+                gl.uniform1f(l.uVeilColor!, opts.veilColor);
+            });
+            this.release(top);
+        }
+        this.release(this.tlOutput);
+        this.tlOutput = out;
+        if (this.tlMode === 'preview') {
+            const c = gl.canvas;
+            if (c.width !== W || c.height !== H) { c.width = W; c.height = H; }
+            const p = this.program('present');
+            gl.useProgram(p.prog);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.viewport(0, 0, W, H);
+            this.bindTex(0, out.tex, p.loc.uOrig);
+            this.bindTex(1, out.tex, p.loc.uProc);
+            gl.uniform1f(p.loc.uSplit!, 0);
+            gl.uniform1i(p.loc.uMode!, 0);
+            gl.uniform2f(p.loc.uView!, W, H);
+            gl.bindVertexArray(this.vao);
+            gl.drawArrays(gl.TRIANGLES, 0, 3);
+        }
+    }
+
+    private makeLut(data: Float32Array, size: number, dim: '1d' | '3d'): GlLut {
+        const gl = this.gl;
+        const tex = gl.createTexture()!;
+        const target = dim === '1d' ? gl.TEXTURE_2D : gl.TEXTURE_3D;
+        gl.activeTexture(gl.TEXTURE0 + SCRATCH_UNIT);
+        gl.bindTexture(target, tex);
+        if (dim === '1d') gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA32F, size, 1, 0, gl.RGBA, gl.FLOAT, data);
+        else gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA32F, size, size, size, 0, gl.RGBA, gl.FLOAT, data);
+        gl.texParameteri(target, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(target, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(target, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(target, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        if (dim === '3d') gl.texParameteri(target, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+        return { tex, size, dim };
+    }
+
+    uploadLut(rgba: Float32Array, size: number): number | null {
+        const gl = this.gl;
+        if (!Number.isInteger(size) || size < 1 || rgba.length < size * 4) return null;
+        if (size > (gl.getParameter(gl.MAX_TEXTURE_SIZE) as number)) return null;
+        const id = this.lutSeq++;
+        this.luts.set(id, this.makeLut(rgba.subarray(0, size * 4), size, '1d'));
+        return id;
+    }
+
+    uploadLut3D(rgb: Float32Array, size: number): number | null {
+        const gl = this.gl;
+        const n = size * size * size;
+        if (!Number.isInteger(size) || size < 1 || rgb.length < n * 3) return null;
+        if (size > (gl.getParameter(gl.MAX_3D_TEXTURE_SIZE) as number)) return null;
+        const data = new Float32Array(n * 4);
+        for (let k = 0; k < n; k++) { data[k * 4] = rgb[k * 3]; data[k * 4 + 1] = rgb[k * 3 + 1]; data[k * 4 + 2] = rgb[k * 3 + 2]; data[k * 4 + 3] = 1; }
+        const id = this.lutSeq++;
+        this.luts.set(id, this.makeLut(data, size, '3d'));
+        return id;
+    }
+
+    /** Composited timeline frame (from `composite`), or null before the first composite. */
+    get timelineOutput(): Tex | null { return this.tlOutput; }
+
     dispose() {
         const gl = this.gl;
+        this.endTimeline();
+        if (this.dummy) this.destroyTex(this.dummy);
+        if (this.dummyLut) gl.deleteTexture(this.dummyLut.tex);
+        if (this.dummyLut3) gl.deleteTexture(this.dummyLut3.tex);
+        this.dummy = null; this.dummyLut = null; this.dummyLut3 = null;
         this.pool.forEach(t => this.destroyTex(t));
         this.pool = [];
         [this.lastSource, this.lastOutput, this.statsTex].forEach(t => t && this.destroyTex(t));

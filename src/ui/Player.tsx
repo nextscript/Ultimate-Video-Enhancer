@@ -7,17 +7,29 @@ import { loadVideo, requestProxy } from '../state/actions';
 import { getState, setState, useStore } from '../state/store';
 import { api } from '../api';
 import { Icon, Progress } from './controls';
+import { Scopes } from './Scopes';
+import { TimelinePlayback } from './timelinePlayback';
+
+const tlMode = () => getState().monitor === 'timeline';
 
 /** Imperative player API used by the transport, timeline and keyboard shortcuts. */
 export const player = {
     video: null as HTMLVideoElement | null,
+    /** timeline (program monitor) playback; the methods below route to it while the timeline monitor is shown */
+    timeline: null as TimelinePlayback | null,
     requestRender: () => { /* set by Player */ },
     /** Current decoded source frame (before effects), resampled to w×h RGBA – used for in-app LUT previews. */
     grabFrame: async (_w: number, _h: number): Promise<{ data: Uint8Array; w: number; h: number } | null> => null,
-    play() { void player.video?.play(); },
-    pause() { player.video?.pause(); },
-    toggle() { const v = player.video; if (!v) return; if (v.paused) void v.play(); else v.pause(); },
+    play() { if (tlMode()) { player.timeline?.play(); return; } void player.video?.play(); },
+    pause() { if (tlMode()) { player.timeline?.pause(); return; } player.video?.pause(); },
+    toggle() {
+        if (tlMode()) { player.timeline?.toggle(); return; }
+        const v = player.video; if (!v) return; if (v.paused) void v.play(); else v.pause();
+    },
+    /** Length of what the monitor shows (timeline or source file). */
+    duration(): number { return tlMode() ? player.timeline?.duration ?? 0 : getState().media?.duration ?? 0; },
     seek(t: number) {
+        if (tlMode()) { player.timeline?.seek(t); return; }
         const v = player.video, m = getState().media;
         if (!v || !m) return;
         v.currentTime = Math.max(0, Math.min(m.duration || v.duration || 0, t));
@@ -33,6 +45,7 @@ export const player = {
         v.addEventListener('loadedmetadata', on, { once: true });
     },
     step(frames: number) {
+        if (tlMode()) { player.timeline?.step(frames); return; }
         const v = player.video, m = getState().media;
         if (!v || !m?.video) return;
         v.pause();
@@ -69,7 +82,12 @@ export function Player() {
     const parity = useStore(s => !!s.prefs?.parityMode);
     const autoKeys = useStore(s => s.analysis.keys);
     const scopesWanted = useStore(s => s.view === 'scopes' || s.scopesHud);
+    const scopesHud = useStore(s => s.scopesHud);
     const renderStats = useStore(s => s.renderStats);
+    const monitor = useStore(s => s.monitor);
+    const timeline = useStore(s => s.timeline);
+    const hasClips = timeline.clips.length > 0;
+    const [gap, setGap] = useState(false);
 
     const graph = useMemo(() => graphFromEffect(effect), [effect]);
 
@@ -114,6 +132,39 @@ export function Player() {
 
     useEffect(() => () => { engineRef.current?.dispose(); engineRef.current = null; }, []);
 
+    // timeline (program monitor) playback driven by the plan of the whole timeline
+    useEffect(() => {
+        const pb = new TimelinePlayback({
+            engine: () => engineRef.current,
+            canvas: () => canvasRef.current,
+            quality: () => QUALITY_SCALE[live.current.quality],
+            parity: () => live.current.parity,
+            onGap: setGap,
+            onError: setGlError
+        });
+        player.timeline = pb;
+        return () => { pb.dispose(); if (player.timeline === pb) player.timeline = null; };
+    }, []);
+
+    // switching monitors: only one of the two pictures is driven at a time
+    useEffect(() => {
+        const pb = player.timeline, v = videoRef.current!;
+        if (monitor === 'timeline') {
+            v.pause();
+            setState({ time: pb?.t ?? 0 });
+            pb?.requestRender();
+        } else {
+            pb?.deactivate();
+            pb?.invalidateGraph();
+            engineRef.current?.setGraph(graphFromEffect(getState().effect));
+            setState({ time: v.currentTime || 0 });
+            player.requestRender();
+        }
+    }, [monitor]);
+
+    // edits, look and quality changes re-render the parked timeline frame
+    useEffect(() => { if (monitor === 'timeline' && !player.timeline?.playing) player.timeline?.requestRender(); }, [monitor, timeline, effect, quality, parity, box, scopesHud]);
+
     useEffect(() => {
         player.grabFrame = async (w, h) => {
             const eng = engineRef.current;
@@ -134,6 +185,7 @@ export function Player() {
         const eng = engineRef.current;
         setState({ graphWarnings: graph.warnings });
         if (!eng) return;
+        if (tlMode()) return;
         eng.setGraph(graph);
         player.requestRender();
     }, [graph]);
@@ -175,6 +227,7 @@ export function Player() {
         const render = () => {
             const eng = engineRef.current;
             const c = canvasRef.current;
+            if (tlMode()) return;
             if (!eng || !c || v.readyState < 2 || !v.videoWidth) return;
             const L = live.current;
             const sc = QUALITY_SCALE[L.quality];
@@ -208,9 +261,9 @@ export function Player() {
         };
         const onFrame = () => { render(); if (!v.paused) vfc = v.requestVideoFrameCallback(onFrame); };
         player.requestRender = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(render); };
-        const onPlay = () => { setState({ playing: true }); vfc = v.requestVideoFrameCallback(onFrame); };
-        const onPause = () => { setState({ playing: false, time: v.currentTime }); player.requestRender(); };
-        const onSeeked = () => { setState({ time: v.currentTime }); player.requestRender(); };
+        const onPlay = () => { if (tlMode()) { v.pause(); return; } setState({ playing: true }); vfc = v.requestVideoFrameCallback(onFrame); };
+        const onPause = () => { if (tlMode()) return; setState({ playing: false, time: v.currentTime }); player.requestRender(); };
+        const onSeeked = () => { if (tlMode()) return; setState({ time: v.currentTime }); player.requestRender(); };
         const onLoaded = () => { player.requestRender(); };
         const onError = () => {
             const err = v.error;
@@ -240,8 +293,12 @@ export function Player() {
         if (mediaUrl) { v.src = mediaUrl; v.load(); } else { v.removeAttribute('src'); v.load(); }
     }, [mediaUrl]);
 
-    // fit canvas into the box
-    const vw = media?.video?.displayWidth || 16, vh = media?.video?.displayHeight || 9;
+    // fit canvas into the box (timeline monitor: the first video source sets the output size, like the export)
+    const tlVideo = timeline.sources.find(s => s.media.video)?.media.video;
+    const shown = monitor === 'timeline' ? tlVideo : media?.video;
+    const vw = shown?.displayWidth || 16, vh = shown?.displayHeight || 9;
+    const isTl = monitor === 'timeline';
+    const sourceShown = !isTl && !!media && !!mediaUrl;
     const scale = Math.min(box.w / vw, box.h / vh) || 0;
     const cw = Math.floor(vw * scale), ch = Math.floor(vh * scale);
 
@@ -259,7 +316,7 @@ export function Player() {
         const p = api.pathForFile(f);
         if (p) {
             if (/\.uveproj$/i.test(p)) { const { openProject } = await import('../state/actions'); void openProject(p); }
-            else void loadVideo(p);
+            else void loadVideo(p, { place: true });
         }
     };
 
@@ -267,26 +324,43 @@ export function Player() {
         <div className={`player${dragOver ? ' drag' : ''}`} ref={wrapRef}
             onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onDrop={onDrop}>
             <video ref={videoRef} className="decoder" playsInline preload="auto" crossOrigin="anonymous" />
-            <canvas key={canvasGen} ref={canvasRef} className="player-canvas" style={{ width: cw, height: ch, visibility: media && mediaUrl ? 'visible' : 'hidden' }}
-                onPointerDown={e => { if (!compare || bypass) return; draggingWipe.current = true; (e.target as Element).setPointerCapture(e.pointerId); setWipeFromEvent(e); }}
+            <canvas key={canvasGen} ref={canvasRef} className="player-canvas" style={{ width: cw, height: ch, visibility: sourceShown || (isTl && hasClips && !gap) ? 'visible' : 'hidden' }}
+                onPointerDown={e => { if (isTl || !compare || bypass) return; draggingWipe.current = true; (e.target as Element).setPointerCapture(e.pointerId); setWipeFromEvent(e); }}
                 onPointerMove={e => { if (draggingWipe.current) setWipeFromEvent(e); }}
                 onPointerUp={() => { draggingWipe.current = false; }}
                 onDoubleClick={() => player.toggle()} />
-            {media && mediaUrl && compare && !bypass && (
+            {sourceShown && compare && !bypass && (
                 <div className="wipe-overlay" style={{ width: cw, height: ch }}>
                     <span className="badge badge-orig">Original</span>
                     <span className="badge badge-enh">Enhanced</span>
                     <div className="wipe-handle" style={{ left: `${wipe * 100}%` }}><span><Icon name="split" size={16} /></span></div>
                 </div>
             )}
-            {media && mediaUrl && !compare && <span className="badge badge-enh solo">{bypass ? 'Original (bypass)' : 'Enhanced'}</span>}
-            {media?.video && (
+            {isTl && hasClips && <span className="badge badge-enh solo" title="Program monitor: the whole timeline as it will be rendered">Timeline</span>}
+            {sourceShown && !compare && <span className="badge badge-enh solo">{bypass ? 'Original (bypass)' : 'Enhanced'}</span>}
+            {!isTl && media?.video && (
                 <span className="res-badge" title={`Preview processing ${renderStats.w}×${renderStats.h}, ${renderStats.prims} filter primitives, ${renderStats.ms.toFixed(1)} ms/frame`}>
                     {media.video.height >= 2160 ? '4K' : media.video.height >= 1440 ? 'QHD' : media.video.height >= 1080 ? 'FHD' : media.video.height >= 720 ? 'HD' : 'SD'}
                     {quality !== 'full' ? ` · ${quality}` : ''}
                 </span>
             )}
-            {!media && !mediaError && (
+            {isTl && !hasClips && (
+                <div className="dropzone">
+                    <Icon name="upload" size={42} />
+                    <h2>The timeline is empty</h2>
+                    <p>Drop video or audio files here, or add them from the media pool below.</p>
+                    <button className="btn btn-primary" onClick={async () => { for (const p of await api.openVideos(true)) await loadVideo(p, { place: true }); }}>Browse files</button>
+                </div>
+            )}
+            {scopesHud && (
+                <div className="scopes-modal" role="dialog" aria-label="Scopes" onPointerDown={e => e.stopPropagation()} onDoubleClick={e => e.stopPropagation()}>
+                    <div className="row gap"><b className="grow">Scopes</b>
+                        <button className="icon-btn" aria-label="Close scopes" title="Close (Esc)" onClick={() => setState({ scopesHud: false })}><Icon name="x" size={14} /></button>
+                    </div>
+                    <Scopes />
+                </div>
+            )}
+            {!isTl && !media && !mediaError && (
                 <div className="dropzone">
                     <Icon name="upload" size={42} />
                     <h2>Drop a video here</h2>
@@ -294,7 +368,7 @@ export function Player() {
                     <button className="btn btn-primary" onClick={async () => { const p = await api.openVideos(); if (p[0]) void loadVideo(p[0]); }}>Browse files</button>
                 </div>
             )}
-            {mediaError && <div className="dropzone error"><Icon name="info" size={36} /><h2>Cannot play this file</h2><p>{mediaError}</p></div>}
+            {!isTl && mediaError && <div className="dropzone error"><Icon name="info" size={36} /><h2>Cannot play this file</h2><p>{mediaError}</p></div>}
             {proxyPct !== null && <div className="proxy-note"><span>Creating preview proxy…</span><Progress value={proxyPct} /></div>}
             {glError && <div className="gl-error">{glError}</div>}
         </div>

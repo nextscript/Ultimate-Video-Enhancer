@@ -1,5 +1,6 @@
 // Engine selection (v1.0.1): probe → validate against the v1.0.0 engine → choose the verified backend.
 import type { CustomFilterEntry } from '../../shared/uve/customFilters';
+import { engineFacade, type EngineSlot, type RenderEngine, type TimelineRenderEngine } from '../../shared/uve/engine-facade';
 import { expertDefaults } from '../../shared/uve/expert';
 import { type Prim, type UveGraph, buildUveGraph } from '../../shared/uve/graph';
 import { DEFAULT_SETTINGS } from '../../shared/uve/settings';
@@ -148,4 +149,23 @@ export async function validationDetail(quantize8 = false, auto = false): Promise
     }
     gpu.dispose(); gl.dispose();
     return out;
+}
+
+/**
+ * The timeline render surface (layer slots + composite) of an engine made by `createEngine`.
+ * Both backends provide it; the object is stable per engine.
+ */
+export function asRenderEngine(engine: FrameEngine): RenderEngine {
+    return engine.asRenderEngine();
+}
+
+/**
+ * Validated async timeline renderer for an engine from `createEngine`:
+ * - preview: `createEngine(canvas, ...)` then `timelineEngineOf(engine, 'preview')` — composite draws to that canvas;
+ * - export worker: `createEngine(null, ...)` then `timelineEngineOf(engine, 'export')` — composite renders offscreen,
+ *   read it with `readOutput8` / `readOutput16`.
+ * Call `init()` once before the first frame and `destroy()` when done (the engine itself stays alive).
+ */
+export function timelineEngineOf(engine: FrameEngine, mode: EngineSlot): TimelineRenderEngine {
+    return engineFacade(engine.asRenderEngine(), mode);
 }

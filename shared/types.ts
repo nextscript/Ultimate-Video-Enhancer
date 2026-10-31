@@ -5,7 +5,7 @@ import type { LutProfile } from './uve/lut';
 import type { AutoKey } from './uve/auto';
 
 export const APP_NAME = 'UVE Manager';
-export const APP_VERSION = '1.0.2';
+export const APP_VERSION = '1.0.4';
 export const UVE_SOURCE = {
     name: 'Ultimate Video Enhancer (Sharpen, HDR, Color Boost)',
     version: '1.17.5',
@@ -131,7 +131,104 @@ export interface EffectState {
     lut: LutProfile | null;
 }
 
-export interface UveProject {
+/* ------------------------------------------------------------------ timeline (schema v2) */
+
+export type TrackKind = 'video' | 'audio';
+
+/**
+ * Transition kinds. Every kind is rendered by the compositor itself (preview and export share the
+ * same formulas) — see docs/TRANSITIONS.md for the exact per-kind definition and `shared/transitions.ts`.
+ */
+export type TransitionKind =
+    | 'dissolve' | 'fadeBlack' | 'fadeWhite'
+    | 'wipeLeft' | 'wipeRight' | 'wipeUp' | 'wipeDown'
+    | 'slideLeft' | 'slideRight' | 'smoothLeft' | 'smoothRight'
+    | 'circleOpen' | 'circleClose';
+
+export const TRANSITION_KINDS: TransitionKind[] = [
+    'dissolve', 'fadeBlack', 'fadeWhite',
+    'wipeLeft', 'wipeRight', 'wipeUp', 'wipeDown',
+    'slideLeft', 'slideRight', 'smoothLeft', 'smoothRight',
+    'circleOpen', 'circleClose'
+];
+
+/** Automation point; `t` is seconds relative to the clip's start. */
+export interface AutoPoint { t: number; v: number }
+
+export interface TimelineTrack {
+    id: string;
+    name: string;
+    kind: TrackKind;
+    /** video tracks composite video; audio tracks only contribute to the mix */
+    locked: boolean;
+    muted: boolean;
+    hidden: boolean;
+    solo: boolean;
+    /** mixer */
+    gainDb: number;
+    /** -1..1 (left..right) */
+    pan: number;
+}
+
+export interface TimelineClip {
+    id: string;
+    trackId: string;
+    sourceId: string;
+    /** seconds, always a multiple of 1/frameRate */
+    start: number;
+    /** seconds, always a multiple of 1/frameRate */
+    dur: number;
+    /** in point in source seconds (frame-aligned to the project grid) */
+    srcIn: number;
+    /** 1 = normal; >1 faster; <1 slower. Timeline duration is `dur`, source duration is `dur * speed`. */
+    speed: number;
+    reverse: boolean;
+    /** video */
+    opacity: number;
+    level: number;
+    fadeIn: number;
+    fadeOut: number;
+    hidden: boolean;
+    /** audio */
+    audioMuted: boolean;
+    gainDb: number;
+    pan: number;
+    audioFadeIn: number;
+    audioFadeOut: number;
+    /** automation curves (relative to clip start); empty = use the constant above */
+    opacityCurve: AutoPoint[];
+    levelCurve: AutoPoint[];
+    gainCurve: AutoPoint[];
+    panCurve: AutoPoint[];
+    /** transition centred on this clip's LEFT boundary (needs media handles on both sides) */
+    transition: { kind: TransitionKind; dur: number } | null;
+    /** null = use the project look */
+    effect: EffectState | null;
+}
+
+export interface TimelineSource {
+    id: string;
+    path: string;
+    media: MediaInfo;
+}
+
+export interface TimelineMarker { id: number; t: number; name: string }
+
+export interface Timeline {
+    schema: 'uve-timeline';
+    version: 1;
+    /** editing frame rate: every timeline position is quantized to 1/frameRate */
+    frameRate: number;
+    fps: string;
+    sources: TimelineSource[];
+    /** order = top to bottom in the UI; compositing draws the last track first */
+    tracks: TimelineTrack[];
+    clips: TimelineClip[];
+    markers: TimelineMarker[];
+    masterGainDb: number;
+}
+
+export interface UveProjectV1 {
     schema: 'uve-project';
     version: 1;
     app: string;
@@ -144,6 +241,20 @@ export interface UveProject {
     export: ExportSettings;
     ui: { wipe: number; compare: boolean };
 }
+
+export interface UveProjectV2 {
+    schema: 'uve-project';
+    version: 2;
+    app: string;
+    uveSource: typeof UVE_SOURCE;
+    savedAt: string;
+    effect: EffectState;
+    timeline: Timeline;
+    export: ExportSettings;
+    ui: { wipe: number; compare: boolean; timelineZoom: number };
+}
+
+export type UveProject = UveProjectV1 | UveProjectV2;
 
 export interface UserProfile {
     id: string;
@@ -188,6 +299,8 @@ export interface JobSpec {
     parityMode: boolean;
     /** v1.0.1: filter engine preference for this job (defaults to the Settings value) */
     enginePref?: 'auto' | 'webgpu' | 'webgl2';
+    /** v1.0.3 timeline mode: set when this job renders a project timeline (multi-clip) instead of a single clip */
+    timeline?: Timeline;
 }
 
 export type JobStatus = 'queued' | 'analyzing' | 'rendering' | 'upscaling' | 'finalizing' | 'done' | 'failed' | 'canceled';

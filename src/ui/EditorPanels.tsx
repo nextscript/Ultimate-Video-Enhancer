@@ -2,7 +2,7 @@ import type { Container, ExportSettings, VideoCodec } from '../../shared/types';
 import { FPS_MAX, FPS_MIN, FPS_PRESETS, parseFps } from '../../shared/fps';
 import { HW_FAMILY_LABEL, type HwFamily } from '../../shared/hw';
 import { api } from '../api';
-import { enqueueCurrent } from '../state/actions';
+import { enqueueTimelineJob } from '../state/actions';
 import { getState, setState, useStore } from '../state/store';
 import { refreshRve } from './RveSettings';
 import { useEffect } from 'react';
@@ -43,7 +43,7 @@ export function ExportPanel() {
     const ex = useStore(s => s.exportSettings);
     const media = useStore(s => s.media);
     const caps = useStore(s => s.caps);
-    const inOut = useStore(s => s.inPoint !== null || s.outPoint !== null);
+    const hasClips = useStore(s => s.timeline.clips.length > 0);
     const rve = useStore(s => s.rve);
     useEffect(() => { if (!rve) void refreshRve(false); }, [rve]);
     const rveInstalled = !!rve?.python && !!rve?.backend;
@@ -103,13 +103,11 @@ export function ExportPanel() {
                 </label>
             </div>
             <div className="row gap wrap">
-                <Toggle checked={ex.tenBit} label="10-bit output" onChange={t => set({ tenBit: t })} disabled={ex.videoCodec === 'prores'} title="Reads the processed frames with 16-bit precision and encodes 10-bit (HEVC/AV1/VP9; H.264 only on CPU)" />
-                <Toggle checked={ex.useInOut} label="Only In/Out range" onChange={t => set({ useInOut: t })} disabled={!inOut} />
-            </div>
+                <Toggle checked={ex.tenBit} label="10-bit output" onChange={t => set({ tenBit: t })} disabled={ex.videoCodec === 'prores'} title="Reads the processed frames with 16-bit precision and encodes 10-bit (HEVC/AV1/VP9; H.264 only on CPU)" />            </div>
             {ex.aiUpscale && !rveInstalled && <p className="warn-text">AI upscaling needs REAL-Video-Enhancer – install it in Settings → AI Upscaling.</p>}
             {ex.aiUpscale && rveInstalled && <p className="hint">Two-stage render: UVE look → lossless intermediate → REAL-Video-Enhancer TensorRT {aiModel?.scale}× upscale → final encode. The first job per model/resolution builds a TensorRT engine.</p>}
             <div className="row gap">
-                <button className="btn btn-primary btn-render" disabled={!media || !caps?.ok} onClick={() => enqueueCurrent()}><Icon name="render" /> Render Video</button>
+                <button className="btn btn-primary btn-render" disabled={!hasClips || !caps?.ok} onClick={() => enqueueTimelineJob()} title="Render the whole timeline (all tracks, transitions and audio) as one file"><Icon name="render" /> Render Video</button>
                 <Button onClick={() => setState({ view: 'queue' })}>Render Queue</Button>
             </div>
             {!caps?.ok && <p className="warn-text">{caps?.error || 'Checking FFmpeg…'}</p>}

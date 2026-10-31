@@ -5,7 +5,12 @@
 // per-primitive clamping, W3C turbulence lattice and optional 8-bit quantisation), so both backends
 // produce the same image within float tolerance (verified by the parity tests).
 import type { CustomFilterEntry } from '../../shared/uve/customFilters';
+import {
+    type CompositeOptions, type CompositeStep, type EngineSlot, type FrameSource, type LayerRenderOptions, type RenderEngine,
+    MAX_SLOTS, compositeSteps, effectiveClipMatrix, graphHasClipPrim, layerSizeOf, STACK_UNIFORMS
+} from '../../shared/uve/engine-facade';
 import type { Prim, TransferFunc, UveGraph } from '../../shared/uve/graph';
+import { matIdentity4x5, type Mat4x5 } from '../../shared/uve/matrix';
 import { buildTurbulenceLattice } from './turbulence';
 import type { CustomDiagnostic, FrameEngine, ProcessOptions, StageTimes } from './types';
 
@@ -296,6 +301,108 @@ fn turb(ch: i32, pt: vec2f) -> f32 {
     }
 };
 
+// ---------------------------------------------------------------- timeline (NLE) shaders
+// Field names of these uniform blocks are the shared parameter names of src/engine/params.ts; the
+// WebGL2 twins in EffectEngine.ts (GLSL_TIMELINE_SOURCES) declare the same names as `u<Name>` uniforms.
+const TL: Record<string, { code: string; target: 'f16' }> = {
+    // slot source -> per-channel 1D LUT -> trilinear 3D LUT (texel x = r, y = g, z = b, like .cube data)
+    tlLut: {
+        target: 'f16',
+        code: shader('quant: f32, hasLut: i32, lutSize: i32, hasLut3d: i32, lut3dSize: i32, pad0: f32, pad1: f32, pad2: f32',
+            IN1 + '\n@group(0) @binding(2) var tLut: texture_2d<f32>;\n@group(0) @binding(3) var tLut3: texture_3d<f32>;',
+            `let c = fetchC(tIn, P);
+            var rgb = c.rgb;
+            if (u.hasLut != 0) { rgb = vec3f(lut1(0, rgb.r), lut1(1, rgb.g), lut1(2, rgb.b)); }
+            if (u.hasLut3d != 0) { rgb = lut3(rgb); }
+            return Q(vec4f(rgb, c.a), u.quant);`).replace('@fragment', `
+fn lut1(ch: i32, x0: f32) -> f32 {
+    let n = u.lutSize;
+    let x = clamp(x0, 0.0, 1.0) * f32(n - 1);
+    let i0 = min(i32(floor(x)), n - 1);
+    let i1 = min(i0 + 1, n - 1);
+    let a = textureLoad(tLut, vec2i(i0, 0), 0)[ch];
+    let b = textureLoad(tLut, vec2i(i1, 0), 0)[ch];
+    return a + (b - a) * (x - f32(i0));
+}
+fn l3(x: i32, y: i32, z: i32) -> vec3f { return textureLoad(tLut3, vec3i(x, y, z), 0).rgb; }
+fn lut3(c: vec3f) -> vec3f {
+    let n = u.lut3dSize;
+    let f = clamp(c, vec3f(0.0), vec3f(1.0)) * f32(n - 1);
+    let i0 = min(vec3i(floor(f)), vec3i(n - 1));
+    let i1 = min(i0 + vec3i(1), vec3i(n - 1));
+    let t = f - vec3f(i0);
+    let x00 = mix(l3(i0.x, i0.y, i0.z), l3(i1.x, i0.y, i0.z), t.x);
+    let x10 = mix(l3(i0.x, i1.y, i0.z), l3(i1.x, i1.y, i0.z), t.x);
+    let x01 = mix(l3(i0.x, i0.y, i1.z), l3(i1.x, i0.y, i1.z), t.x);
+    let x11 = mix(l3(i0.x, i1.y, i1.z), l3(i1.x, i1.y, i1.z), t.x);
+    return mix(mix(x00, x10, t.y), mix(x01, x11, t.y), t.z);
+}
+@fragment`)
+    },
+    // clip look matrix (clipLookMatrix: RGB gain, alpha = fade ramps), premultiply, layer veil fill
+    tlLook: {
+        target: 'f16',
+        code: shader('clipMatrix: mat4x4f, clipMatrixOff: vec4f, quant: f32, layerVeil: f32, layerVeilColor: f32, pad0: f32', IN1,
+            `var c = u.clipMatrix * fetchC(tIn, P) + u.clipMatrixOff;
+            if (u.quant > 0.0) { c = floor(clamp(c, vec4f(0.0), vec4f(1.0)) * u.quant + 0.5) / u.quant; }
+            let a = clamp(c.a, 0.0, 1.0);
+            return mix(vec4f(c.rgb * a, a), vec4f(vec3f(u.layerVeilColor), 1.0), u.layerVeil);`)
+    },
+    // one composite step: the contract expression of .verify/nle-contract.md, additive premultiplied
+    tlStep: {
+        target: 'f16',
+        code: shader('viewSize: vec2f, cx: f32, cy: f32, mode: i32, axis: i32, highSideIsB: i32, useAcc: i32, edge: f32, feather: f32, weightA: f32, weightB: f32, dxA: f32, dyA: f32, dxB: f32, dyB: f32',
+            '@group(0) @binding(1) var tAcc: texture_2d<f32>;\n@group(0) @binding(2) var tA: texture_2d<f32>;\n@group(0) @binding(3) var tB: texture_2d<f32>;\n@group(0) @binding(4) var smp: sampler;',
+            `let L = max(u.viewSize.x, u.viewSize.y);
+            let uv = fp.xy / L;
+            var cA = u.weightA;
+            var cB = u.weightB;
+            if (u.mode != 0) {
+                var s = distance(uv, vec2f(u.cx, u.cy));
+                if (u.mode == 1) { s = select(uv.y, uv.x, u.axis == 0); }
+                let g = smoothstep(u.edge - u.feather, u.edge + u.feather, s);
+                var geoB = 1.0 - g;
+                if (u.highSideIsB != 0) { geoB = g; }
+                cA = u.weightA * (1.0 - geoB);
+                cB = u.weightB * geoB;
+            }
+            let pc = cA * layerAt(tA, fp.xy + vec2f(u.dxA, u.dyA)) + cB * layerAt(tB, fp.xy + vec2f(u.dxB, u.dyB));
+            if (u.useAcc != 0) { return textureLoad(tAcc, P, 0) * (1.0 - pc.a) + pc; }
+            return pc;`).replace('@fragment', `
+fn layerAt(t: texture_2d<f32>, q: vec2f) -> vec4f {
+    let tc = q / u.viewSize;
+    if (tc.x < 0.0 || tc.y < 0.0 || tc.x > 1.0 || tc.y > 1.0) { return vec4f(0.0); }
+    return textureSampleLevel(t, smp, tc, 0.0);
+}
+@fragment`)
+    },
+    // composite veil (applied once to the whole stack), alpha dropped: premultiplied stack over black
+    tlOut: {
+        target: 'f16',
+        code: shader('veil: f32, veilColor: f32, pad0: f32, pad1: f32', IN1,
+            'let c = fetchC(tIn, P); return vec4f(mix(c.rgb, vec3f(u.veilColor), u.veil), 1.0);')
+    }
+};
+for (const [name, def] of Object.entries(TL)) FS[name] = def;
+
+/** WGSL sources of the timeline passes (consistency tests read their uniform blocks). */
+export const WGSL_TIMELINE_SOURCES: Readonly<Record<string, string>> = Object.freeze(
+    Object.fromEntries(Object.entries(TL).map(([name, def]) => [name, def.code])));
+
+const IDENTITY: Mat4x5 = matIdentity4x5();
+
+/** Row-major 4x5 -> column-major mat4x4f at f[at..at+15] and the offset column at f[at+16..at+19]. */
+function fillMat4x5(f: Float32Array, m: Mat4x5, at: number) {
+    f[at] = m[0]; f[at + 1] = m[5]; f[at + 2] = m[10]; f[at + 3] = m[15];
+    f[at + 4] = m[1]; f[at + 5] = m[6]; f[at + 6] = m[11]; f[at + 7] = m[16];
+    f[at + 8] = m[2]; f[at + 9] = m[7]; f[at + 10] = m[12]; f[at + 11] = m[17];
+    f[at + 12] = m[3]; f[at + 13] = m[8]; f[at + 14] = m[13]; f[at + 15] = m[18];
+    f[at + 16] = m[4]; f[at + 17] = m[9]; f[at + 18] = m[14]; f[at + 19] = m[19];
+}
+
+interface GSlot { src8: GTex | null; src16: GTex | null; is16: boolean; layer: GTex | null }
+interface GLut { tex: GPUTexture; view: GPUTextureView; size: number; dim: '1d' | '3d' }
+
 const BLEND_IDS: Record<string, number> = {
     normal: 0, multiply: 1, screen: 2, overlay: 3, darken: 4, lighten: 5, 'color-dodge': 6, 'color-burn': 7, 'hard-light': 8,
     'soft-light': 9, difference: 10, exclusion: 11, hue: 12, saturation: 13, color: 14, luminosity: 15
@@ -348,6 +455,19 @@ export class GpuEngine implements FrameEngine {
     private ub = new UBuilder();
     lastSource: GTex | null = null;
     lastOutput: GTex | null = null;
+    // timeline (NLE) state: layer slots, LUTs, composite output
+    private tlOn = false;
+    private tlMode: EngineSlot = 'export';
+    private slots: GSlot[] = [];
+    private tlLast = -1;
+    private tlOutput: GTex | null = null;
+    private luts = new Map<number, GLut>();
+    private lutSeq = 1;
+    private dummy: GTex | null = null;
+    private dummyLut: GLut | null = null;
+    private dummyLut3: GLut | null = null;
+    private tlClip: Mat4x5 = matIdentity4x5();
+    private renderSurface: RenderEngine | null = null;
 
     constructor(init: GpuEngineInit) {
         this.device = init.device;
@@ -512,11 +632,22 @@ export class GpuEngine implements FrameEngine {
         this.lastOutput = null;
 
         const src = this.acquire(outW, outH);
-        if (this.srcIs16) this.draw('import16', src, u => { u.f[0] = quant; u.f[1] = outW; u.f[2] = outH; }, [this.src16!]);
-        else this.draw('import', src, u => { u.f[0] = quant; u.f[1] = outW; u.f[2] = outH; }, [this.src8!, this.linear]);
+        this.importInto(src, this.srcIs16, this.src8, this.src16, outW, outH, quant);
         this.lastSource = src;
+        this.lastOutput = this.runGraph(src, this.graph, outW, outH, quant, sc, opts);
+        this.submit();
+        this.times.process += performance.now() - t0;
+        this.times.frames++;
+    }
 
-        const prims = this.graph.prims;
+    private importInto(dst: GTex, is16: boolean, src8: GTex | null, src16: GTex | null, outW: number, outH: number, quant: number) {
+        if (is16) this.draw('import16', dst, u => { u.f[0] = quant; u.f[1] = outW; u.f[2] = outH; }, [src16!]);
+        else this.draw('import', dst, u => { u.f[0] = quant; u.f[1] = outW; u.f[2] = outH; }, [src8!, this.linear]);
+    }
+
+    /** Runs `graph` on `src`; returns a new texture (never `src` itself), `src` stays owned by the caller. */
+    private runGraph(src: GTex, graph: UveGraph, outW: number, outH: number, quant: number, sc: number, opts: ProcessOptions): GTex {
+        const prims = graph.prims;
         const results = new Map<string, GTex>();
         const lastUse = new Map<string, number>();
         prims.forEach((p, i) => {
@@ -526,7 +657,7 @@ export class GpuEngine implements FrameEngine {
             if (p.op === 'merge') ins.push(...p.ins);
             ins.forEach(n => lastUse.set(n, i));
         });
-        lastUse.set(this.graph.output, Number.MAX_SAFE_INTEGER);
+        lastUse.set(graph.output, Number.MAX_SAFE_INTEGER);
         let prev = 'SourceGraphic';
         let sourceAlpha: GTex | null = null;
         const get = (name: string): GTex => {
@@ -548,27 +679,24 @@ export class GpuEngine implements FrameEngine {
             if (old) this.release(old);
             prev = p.out;
             for (const [name, t] of results) {
-                if (name !== p.out && (lastUse.get(name) ?? -1) <= i && name !== this.graph.output) { this.release(t); results.delete(name); }
+                if (name !== p.out && (lastUse.get(name) ?? -1) <= i && name !== graph.output) { this.release(t); results.delete(name); }
             }
         });
         if (sourceAlpha) this.release(sourceAlpha);
-        let cur: GTex = this.graph.output === 'SourceGraphic' ? src : (results.get(this.graph.output) ?? src);
+        let cur: GTex = graph.output === 'SourceGraphic' ? src : (results.get(graph.output) ?? src);
         for (const [name, t] of results) if (t !== cur) { this.release(t); results.delete(name); }
         if (cur === src) {
             const cp = this.acquire(outW, outH);
             this.draw('copy', cp, () => undefined, [src]);
             cur = cp;
         }
-        this.lastOutput = cur;
-        this.submit();
-        this.times.process += performance.now() - t0;
-        this.times.frames++;
+        return cur;
     }
 
     private runPrim(p: Prim, out: GTex, get: (n: string) => GTex, quant: number, sc: number, opts: ProcessOptions) {
         switch (p.op) {
             case 'matrix': {
-                const m = p.auto ? (opts.autoMatrix ?? [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0]) : p.m;
+                const m = p.auto ? (opts.autoMatrix ?? [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0]) : p.clip ? (opts.clipMatrix ?? IDENTITY) : p.m;
                 this.draw('matrix', out, u => {
                     // column-major mat4x4f of the 4x4 part; offsets from column 5
                     u.f.set([m[0], m[5], m[10], m[15], m[1], m[6], m[11], m[16], m[2], m[7], m[12], m[17], m[3], m[8], m[13], m[18]], 0);
@@ -686,8 +814,15 @@ export class GpuEngine implements FrameEngine {
     }
 
     async readOutput8(into?: Uint8Array): Promise<Uint8Array> {
+        return this.read8(this.lastOutput!, into);
+    }
+
+    async readOutput16(into?: Uint16Array): Promise<Uint16Array> {
+        return this.read16(this.lastOutput!, into);
+    }
+
+    private async read8(o: GTex, into?: Uint8Array): Promise<Uint8Array> {
         const t = performance.now();
-        const o = this.lastOutput!;
         const t8 = this.acquire(o.w, o.h, 'rgba8unorm');
         this.draw('out8', t8, () => undefined, [o]);
         const pending = this.readback(t8, 4, into);
@@ -697,9 +832,8 @@ export class GpuEngine implements FrameEngine {
         return r;
     }
 
-    async readOutput16(into?: Uint16Array): Promise<Uint16Array> {
+    private async read16(o: GTex, into?: Uint16Array): Promise<Uint16Array> {
         const t = performance.now();
-        const o = this.lastOutput!;
         const t16 = this.acquire(o.w, o.h, 'rgba16uint');
         this.draw('out16', t16, () => undefined, [o]);
         const bytes = into ? new Uint8Array(into.buffer, into.byteOffset, into.byteLength) : undefined;
@@ -710,8 +844,8 @@ export class GpuEngine implements FrameEngine {
         return into && r.buffer === into.buffer ? into : new Uint16Array(r.buffer, r.byteOffset, r.byteLength / 2);
     }
 
-    async readScope(which: 'output' | 'source', w: number, h: number): Promise<Uint8Array> {
-        const tex = which === 'output' ? this.lastOutput : this.lastSource;
+    async readScope(which: 'output' | 'source' | 'timeline', w: number, h: number): Promise<Uint8Array> {
+        const tex = which === 'output' ? this.lastOutput : which === 'timeline' ? this.tlOutput : this.lastSource;
         if (!tex) return new Uint8Array(w * h * 4);
         const t8 = this.acquire(w, h, 'rgba8unorm');
         this.draw('scope', t8, u => { u.f[0] = w; u.f[1] = h; }, [tex, this.linear]);
@@ -729,7 +863,241 @@ export class GpuEngine implements FrameEngine {
         this.submit();
     }
 
+    // ------------------------------------------------------------------ timeline (NLE) rendering
+    get timelineReady() { return this.tlOn && !this.lost; }
+
+    beginTimeline(mode: EngineSlot) {
+        if (mode === 'preview' && !this.ctx) throw new Error('Timeline preview needs an engine created with a canvas.');
+        if (!this.tlOn) {
+            this.slots = Array.from({ length: MAX_SLOTS }, () => ({ src8: null, src16: null, is16: false, layer: null }));
+            this.tlLast = -1;
+        }
+        this.tlMode = mode;
+        this.tlOn = true;
+        if (!this.dummy) this.dummy = this.createTex(1, 1, 'rgba16float');
+        if (!this.dummyLut) this.dummyLut = this.makeLut(new Float32Array(4), 1, '1d');
+        if (!this.dummyLut3) this.dummyLut3 = this.makeLut(new Float32Array(4), 1, '3d');
+    }
+
+    endTimeline() {
+        if (!this.tlOn) return;
+        this.submit();
+        for (const s of this.slots) {
+            this.release(s.layer);
+            s.src8?.tex.destroy();
+            s.src16?.tex.destroy();
+        }
+        this.slots = [];
+        this.release(this.tlOutput);
+        this.tlOutput = null;
+        for (const l of this.luts.values()) l.tex.destroy();
+        this.luts.clear();
+        this.tlLast = -1;
+        this.tlOn = false;
+    }
+
+    private slot(i: number): GSlot {
+        if (!this.tlOn) throw new Error('Timeline rendering is not started (call beginTimeline / init first).');
+        if (!Number.isInteger(i) || i < 0 || i >= MAX_SLOTS) throw new RangeError(`Layer slot must be an integer from 0 to ${MAX_SLOTS - 1}.`);
+        return this.slots[i];
+    }
+
+    setSource(i: number, src: FrameSource) {
+        const s = this.slot(i);
+        const t = performance.now();
+        if (src.kind === 'video') {
+            const w = src.video.videoWidth, h = src.video.videoHeight;
+            if (!w || !h) throw new Error('Video frame is not decoded yet (videoWidth is 0).');
+            if (!s.src8 || s.src8.w !== w || s.src8.h !== h) { s.src8?.tex.destroy(); s.src8 = this.createTex(w, h, 'rgba8unorm'); }
+            this.device.queue.copyExternalImageToTexture({ source: src.video }, { texture: s.src8.tex }, { width: w, height: h });
+            s.is16 = false;
+        } else if (src.kind === 'rgba8') {
+            if (src.data.length < src.w * src.h * 4) throw new RangeError('RGBA8 frame is smaller than w x h x 4.');
+            if (!s.src8 || s.src8.w !== src.w || s.src8.h !== src.h) { s.src8?.tex.destroy(); s.src8 = this.createTex(src.w, src.h, 'rgba8unorm'); }
+            this.device.queue.writeTexture({ texture: s.src8.tex }, src.data as Uint8Array<ArrayBuffer>, { bytesPerRow: src.w * 4, rowsPerImage: src.h }, { width: src.w, height: src.h });
+            s.is16 = false;
+        } else {
+            if (src.data.length < src.w * src.h * 4) throw new RangeError('RGBA16 frame is smaller than w x h x 4.');
+            if (!s.src16 || s.src16.w !== src.w || s.src16.h !== src.h) { s.src16?.tex.destroy(); s.src16 = this.createTex(src.w, src.h, 'rgba16uint'); }
+            this.device.queue.writeTexture({ texture: s.src16.tex }, src.data as Uint16Array<ArrayBuffer>, { bytesPerRow: src.w * 8, rowsPerImage: src.h }, { width: src.w, height: src.h });
+            s.is16 = true;
+        }
+        this.times.upload += performance.now() - t;
+    }
+
+    private lutOf(handle: number | null, dim: '1d' | '3d'): GLut | null {
+        if (handle === null || handle === undefined) return null;
+        const l = this.luts.get(handle);
+        if (!l || l.dim !== dim) throw new Error(`Unknown ${dim} LUT handle ${handle}.`);
+        return l;
+    }
+
+    renderLayer(i: number, opts: LayerRenderOptions) {
+        const s = this.slot(i);
+        if (s.is16 ? !s.src16 : !s.src8) throw new Error(`Layer slot ${i} has no source frame (call setSource first).`);
+        const t0 = performance.now();
+        // per-clip graphs each bring their own table prims: bound the cache (the queue is idle after submit)
+        if (this.ctBuffers.size > 512) { this.submit(); for (const b of this.ctBuffers.values()) b.buf.destroy(); this.ctBuffers.clear(); }
+        const { w, h } = layerSizeOf(opts);
+        const quant = opts.quantize8 ? 255 : 0;
+        const sc = opts.pxScale ?? 1;
+        const lut1 = this.lutOf(opts.lutHandle, '1d');
+        const lut3 = this.lutOf(opts.hwLutHandle, '3d');
+        let src = this.acquire(w, h);
+        this.importInto(src, s.is16, s.src8, s.src16, w, h, quant);
+        if (lut1 || lut3) {
+            const lt = this.acquire(w, h);
+            this.draw('tlLut', lt, u => {
+                u.f[0] = quant; u.i[1] = lut1 ? 1 : 0; u.i[2] = lut1?.size ?? 1; u.i[3] = lut3 ? 1 : 0; u.i[4] = lut3?.size ?? 1;
+            }, [src, (lut1 ?? this.dummyLut!).view, (lut3 ?? this.dummyLut3!).view]);
+            this.release(src);
+            src = lt;
+        }
+        const clipM = effectiveClipMatrix(opts, this.tlClip);
+        const out = this.runGraph(src, opts.effectGraph, w, h, quant, sc,
+            { autoMatrix: opts.autoMatrix, time: opts.time ?? 0, pxScale: sc, quantize8: !!opts.quantize8, clipMatrix: clipM });
+        const look = graphHasClipPrim(opts.effectGraph) ? IDENTITY : clipM;
+        const layer = this.acquire(w, h);
+        this.draw('tlLook', layer, u => {
+            fillMat4x5(u.f, look, 0);
+            u.f[20] = quant; u.f[21] = opts.veil; u.f[22] = opts.veilColor;
+        }, [out]);
+        this.release(out);
+        this.release(src);
+        this.release(s.layer);
+        s.layer = layer;
+        this.tlLast = i;
+        this.submit();
+        this.times.process += performance.now() - t0;
+    }
+
+    private stepInput(x: CompositeStep['a'], acc: GTex | null): GTex {
+        if (x === null) return this.dummy!;
+        if (x === 'acc') {
+            if (!acc) throw new Error('Composite step reads the accumulated stack before anything was drawn.');
+            return acc;
+        }
+        const l = this.slot(x).layer;
+        if (!l) throw new Error(`Layer slot ${x} was not rendered (call renderLayer first).`);
+        return l;
+    }
+
+    composite(opts: CompositeOptions) {
+        if (!this.tlOn) throw new Error('Timeline rendering is not started (call beginTimeline / init first).');
+        const t0 = performance.now();
+        const W = opts.width, H = opts.height;
+        let out: GTex | null = null;
+        let steps: CompositeStep[];
+        if (opts.entries) steps = compositeSteps(opts.entries);
+        else {
+            if (this.tlLast < 0) throw new Error('Nothing to composite: no layer was rendered.');
+            const layer = this.stepInput(this.tlLast, null);
+            steps = [{ a: null, b: this.tlLast, weightA: 0, weightB: 1, uniforms: STACK_UNIFORMS, over: false }];
+            if (this.tlMode === 'export' && opts.veil === 0 && layer.w === W && layer.h === H) {
+                // exactly what process() + readOutput*() delivers for the same frame
+                out = this.acquire(W, H);
+                this.draw('copy', out, () => undefined, [layer]);
+                steps = [];
+            }
+        }
+        if (!out) {
+            let acc: GTex | null = null;
+            for (const st of steps) {
+                const a = this.stepInput(st.a, acc), b = this.stepInput(st.b, acc);
+                const under = st.over && acc ? acc : this.dummy!;
+                const next = this.acquire(W, H);
+                const un = st.uniforms;
+                this.draw('tlStep', next, u => {
+                    u.f[0] = W; u.f[1] = H; u.f[2] = un.cx; u.f[3] = un.cy;
+                    u.i[4] = un.mode; u.i[5] = un.axis; u.i[6] = un.highSideIsB ? 1 : 0; u.i[7] = st.over && acc ? 1 : 0;
+                    u.f[8] = un.edge; u.f[9] = un.feather; u.f[10] = st.weightA; u.f[11] = st.weightB;
+                    u.f[12] = un.dxA; u.f[13] = un.dyA; u.f[14] = un.dxB; u.f[15] = un.dyB;
+                }, [under, a, b, this.linear]);
+                this.release(acc);
+                acc = next;
+            }
+            if (!acc) throw new Error('Composite needs at least one layer.');
+            out = this.acquire(W, H);
+            this.draw('tlOut', out, u => { u.f[0] = opts.veil; u.f[1] = opts.veilColor; }, [acc]);
+            this.release(acc);
+        }
+        this.release(this.tlOutput);
+        this.tlOutput = out;
+        if (this.tlMode === 'preview' && this.ctx) {
+            const canvas = this.ctx.canvas as HTMLCanvasElement;
+            if (canvas.width !== W || canvas.height !== H) { canvas.width = W; canvas.height = H; }
+            const view = this.ctx.getCurrentTexture().createView();
+            this.draw('present', view, u => { u.f[0] = 0; u.i[1] = 0; u.f[2] = W; u.f[3] = H; }, [out, out, this.linear]);
+        }
+        this.submit();
+        this.times.process += performance.now() - t0;
+        this.times.frames++;
+    }
+
+    private makeLut(data: Float32Array, size: number, dim: '1d' | '3d'): GLut {
+        const tex = this.device.createTexture({
+            size: dim === '1d' ? { width: size, height: 1 } : { width: size, height: size, depthOrArrayLayers: size },
+            dimension: dim === '1d' ? '2d' : '3d', format: 'rgba32float',
+            usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
+        });
+        this.device.queue.writeTexture({ texture: tex }, data as Float32Array<ArrayBuffer>, { bytesPerRow: size * 16, rowsPerImage: dim === '1d' ? 1 : size },
+            dim === '1d' ? { width: size, height: 1 } : { width: size, height: size, depthOrArrayLayers: size });
+        return { tex, view: tex.createView(), size, dim };
+    }
+
+    uploadLut(rgba: Float32Array, size: number): number | null {
+        if (!Number.isInteger(size) || size < 1 || rgba.length < size * 4) return null;
+        if (size > this.device.limits.maxTextureDimension2D) return null;
+        const id = this.lutSeq++;
+        this.luts.set(id, this.makeLut(rgba.subarray(0, size * 4), size, '1d'));
+        return id;
+    }
+
+    uploadLut3D(rgb: Float32Array, size: number): number | null {
+        const n = size * size * size;
+        if (!Number.isInteger(size) || size < 1 || rgb.length < n * 3) return null;
+        if (size > this.device.limits.maxTextureDimension3D) return null;
+        const data = new Float32Array(n * 4);
+        for (let k = 0; k < n; k++) { data[k * 4] = rgb[k * 3]; data[k * 4 + 1] = rgb[k * 3 + 1]; data[k * 4 + 2] = rgb[k * 3 + 2]; data[k * 4 + 3] = 1; }
+        const id = this.lutSeq++;
+        this.luts.set(id, this.makeLut(data, size, '3d'));
+        return id;
+    }
+
+    readTimeline8(into?: Uint8Array): Promise<Uint8Array> {
+        if (!this.tlOutput) return Promise.reject(new Error('No composited frame to read (call composite first).'));
+        return this.read8(this.tlOutput, into);
+    }
+
+    readTimeline16(into?: Uint16Array): Promise<Uint16Array> {
+        if (!this.tlOutput) return Promise.reject(new Error('No composited frame to read (call composite first).'));
+        return this.read16(this.tlOutput, into);
+    }
+
+    asRenderEngine(): RenderEngine {
+        if (!this.renderSurface) {
+            const self = this;
+            this.renderSurface = {
+                beginTimeline: mode => self.beginTimeline(mode),
+                endTimeline: () => self.endTimeline(),
+                get timelineReady() { return self.timelineReady; },
+                setSource: (slot, src) => self.setSource(slot, src),
+                renderLayer: (slot, o) => self.renderLayer(slot, o),
+                composite: o => self.composite(o),
+                uploadLut: (rgba, size) => self.uploadLut(rgba, size),
+                uploadLut3D: (rgb, size) => self.uploadLut3D(rgb, size),
+                readOutput8: into => self.readTimeline8(into),
+                readOutput16: into => self.readTimeline16(into)
+            };
+        }
+        return this.renderSurface;
+    }
+
     dispose() {
+        this.endTimeline();
+        [this.dummy].forEach(t => t?.tex.destroy());
+        [this.dummyLut, this.dummyLut3].forEach(l => l?.tex.destroy());
+        this.dummy = null; this.dummyLut = null; this.dummyLut3 = null;
         this.submit();
         for (const t of this.pool) t.tex.destroy();
         this.pool = [];

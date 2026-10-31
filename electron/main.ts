@@ -49,7 +49,12 @@ function allowMedia(p: string): string {
     return id;
 }
 
-const MIME: Record<string, string> = { '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.mkv': 'video/x-matroska', '.ogv': 'video/ogg' };
+const MIME: Record<string, string> = {
+    '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.mov': 'video/quicktime', '.webm': 'video/webm', '.mkv': 'video/x-matroska', '.ogv': 'video/ogg',
+    '.mp3': 'audio/mpeg', '.wav': 'audio/wav', '.m4a': 'audio/mp4', '.aac': 'audio/aac', '.flac': 'audio/flac', '.ogg': 'audio/ogg', '.opus': 'audio/ogg'
+};
+const VIDEO_EXTS = ['mp4', 'm4v', 'mkv', 'mov', 'webm', 'avi', 'mpg', 'mpeg', 'ts', 'mts', 'm2ts', 'flv', 'wmv', '3gp', 'ogv', 'mxf', 'vob'];
+const AUDIO_EXTS = ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma', 'aiff', 'aif', 'ac3', 'eac3', 'mka'];
 
 async function serveMedia(req: Request): Promise<Response> {
     const url = new URL(req.url);
@@ -193,8 +198,13 @@ function registerIpc() {
     // media
     h('dialog:openVideos', async (multi?: boolean) => {
         const r = await dialog.showOpenDialog(mainWin!, {
-            title: 'Open video', properties: multi ? ['openFile', 'multiSelections'] : ['openFile'],
-            filters: [{ name: 'Video', extensions: ['mp4', 'm4v', 'mkv', 'mov', 'webm', 'avi', 'mpg', 'mpeg', 'ts', 'mts', 'm2ts', 'flv', 'wmv', '3gp', 'ogv', 'mxf', 'vob'] }, { name: 'All files', extensions: ['*'] }]
+            title: 'Open video or audio', properties: multi ? ['openFile', 'multiSelections'] : ['openFile'],
+            filters: [
+                { name: 'Video and audio', extensions: [...VIDEO_EXTS, ...AUDIO_EXTS] },
+                { name: 'Video', extensions: VIDEO_EXTS },
+                { name: 'Audio', extensions: AUDIO_EXTS },
+                { name: 'All files', extensions: ['*'] }
+            ]
         });
         return r.canceled ? [] : r.filePaths;
     });
@@ -267,10 +277,17 @@ function registerIpc() {
         if (st.size > 50 * 1024 * 1024) throw new Error('Project file is too large.');
         const proj = JSON.parse(await fsp.readFile(file, 'utf8')) as UveProject;
         if (!proj || proj.schema !== 'uve-project') throw new Error('Not a UVE Manager project file.');
+        const version = 'version' in proj ? proj.version : undefined;
+        if (version !== 1 && version !== 2) throw new Error(`Unsupported project version ${String(version)}.`);
         await pushRecent('recentProjects', file);
-        let mediaOk = false;
-        if (proj.media?.path) mediaOk = !!(await fsp.stat(proj.media.path).catch(() => null));
-        return { path: file, project: proj, mediaOk };
+        const missing: string[] = [];
+        const paths = proj.version === 1
+            ? [proj.media?.path].filter((x): x is string => !!x)
+            : proj.timeline.sources.map(s => s.path);
+        for (const mp of paths) {
+            if (!(await fsp.stat(mp).catch(() => null))) missing.push(mp);
+        }
+        return { path: file, project: proj, mediaOk: missing.length === 0, missing };
     });
     h('project:save', async (o: { path: string | null; project: UveProject; saveAs?: boolean }) => {
         let file = o.path;

@@ -8,7 +8,7 @@ import { api } from '../api';
 import { applyProfile, persistProfiles, profileFromCurrent, recomputeAuto, runAnalysis, selectLut, setSetting, toggleHdr } from '../state/actions';
 import { type InspectorTab, getState, setState, toast, updateEffect, useStore } from '../state/store';
 import { Button, Icon, Section, Select, SliderRow, Toggle } from './controls';
-import { kbd } from './keys';
+import { kbd, sc } from './keys';
 
 const TABS: InspectorTab[] = ['Basic', 'Color', 'HDR', 'Detail', 'LUTs', 'Custom', 'Auto', 'Expert'];
 
@@ -75,8 +75,13 @@ function BasicTab() {
     const s = useStore(st => st.effect.settings);
     const lutName = useStore(st => st.effect.lut?.name ?? null);
     const warnings = useStore(st => st.graphWarnings);
+    const scopesHud = useStore(st => st.scopesHud);
     return (
         <>
+            <Section title="Scopes">
+                <Toggle checked={scopesHud} label={`Show scopes in the video frame (${sc('scopes')})`}
+                    title="Histogram, RGB parade, waveform and vectorscope of the timeline picture, shown over the player" onChange={v => setState({ scopesHud: v })} />
+            </Section>
             <Section title="Base & Looks">
                 <Flag k="enabled" label={`Base Tone (${kbd('Ctrl+Alt+B')})`} desc="Base optimization: brightness 1.02, contrast 1.05, saturation 1.15" />
                 <Flag k="darkMoody" label={`Dark & Moody (${kbd('Ctrl+Alt+D')})`} desc="Per-channel gamma curve + saturation 0.90" />

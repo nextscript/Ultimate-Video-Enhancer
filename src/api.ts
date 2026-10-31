@@ -44,7 +44,7 @@ export const api = {
     saveFile: (title: string, defaultName: string, filters: FileFilter[], data: Uint8Array | string) => i<string | null>('files:save', { title, defaultName, filters, data }),
     unzip: (data: Uint8Array) => i<{ name: string; data: Uint8Array }[]>('files:unzip', data),
     pickFolder: (title: string) => i<string | null>('dialog:pickFolder', title),
-    openProject: (p?: string) => i<{ path: string; project: UveProject; mediaOk: boolean } | null>('project:open', p),
+    openProject: (p?: string) => i<{ path: string; project: UveProject; mediaOk: boolean; missing: string[] } | null>('project:open', p),
     saveProject: (path: string | null, project: UveProject, saveAs = false) => i<string | null>('project:save', { path, project, saveAs }),
     locateMedia: () => i<string | null>('project:locateMedia'),
     outputPath: (media: MediaInfo, exportSettings: JobSpec['exportSettings'], profileName: string) => i<string>('render:outputPath', { media, exportSettings, profileName }),

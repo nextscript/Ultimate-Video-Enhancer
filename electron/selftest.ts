@@ -3,12 +3,16 @@
 //  1. neutral settings  → output must match the source (catches flips, channel swaps, color shifts)
 //  2. UVE default look  → output must differ visibly, keep duration, frame count and audio
 //  3. 10-bit HEVC + odd-size + rotated source paths
+//  4. timeline jobs: cut, opacity overlay, dissolve and reversed clip on both engines
 import { spawn } from 'node:child_process';
 import { promises as fsp } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { app } from 'electron';
-import type { EffectState, JobSpec, JobState } from '../shared/types';
+import {
+    addSource, addTrack, buildPlan, defaultTimeline, insertClip, patchClip, setTransition, srcTimeAt, timelineDuration, type OpResult
+} from '../shared/timeline';
+import type { EffectState, JobSpec, JobState, Timeline } from '../shared/types';
 import { DEFAULT_EXPORT } from '../shared/types';
 import { expertDefaults } from '../shared/uve/expert';
 import { DEFAULT_SETTINGS, NEUTRAL_SETTINGS } from '../shared/uve/settings';
@@ -237,6 +241,81 @@ export async function runSelftest(): Promise<number> {
             delete process.env.UVE_RVE_DIR;
             delete process.env.UVE_RVE_PYTHON;
         } else say('SKIP AI upscale pipeline test (no system Python found)');
+
+        // 3c. timeline jobs (v1.0.3 NLE) on both engines: the timeline compositor shaders, per-clip streams,
+        //     the reverse pre-pass and the synthesized audio pass
+        {
+            const step = (r: OpResult): Timeline => { if (!r.ok) throw new Error(r.error); return r.tl; };
+            const base = step(addSource(defaultTimeline(25), src, media));
+            const sId = base.sources[0].id;
+            const vTrack = (t: Timeline, i: number) => t.tracks.filter(x => x.kind === 'video')[i].id;
+            const put = (t: Timeline, track: number, start: number, dur: number, srcIn: number) =>
+                step(insertClip(t, { trackId: vTrack(t, track), sourceId: sId, start, dur, srcIn, mode: 'replace' }));
+            const mkTl = (name: string, tl: Timeline, out: string, pref: 'webgl2' | 'webgpu'): JobSpec => ({
+                ...mkSpec(name, neutral, out, { container: 'mkv', videoCodec: 'h264', encoder: 'cpu', quality: 2, useInOut: false, audio: 'aac' }),
+                range: { start: 0, end: timelineDuration(tl) }, timeline: structuredClone(tl), enginePref: pref
+            });
+            const cut = put(put(base, 0, 0, 1.6, 0), 0, 1.6, 1.4, 1.6);
+            const stacked = put(step(addTrack(cut, 'video')), 1, 0, 3, 0);
+            const overlay = step(patchClip(stacked, stacked.clips.find(c => c.trackId === vTrack(stacked, 1))!.id, { opacity: 0.5 }));
+            const dissolve = step(setTransition(cut, cut.clips.find(c => c.start > 1)!.id, 'dissolve', 0.4));
+            const whole = put(base, 0, 0, 3, 0);
+            const reversed = step(patchClip(whole, whole.clips[0].id, { reverse: true }));
+
+            // frames are compared by index: in mkv the AAC priming gives the container a negative start time, which shifts -ss seeks by a frame
+            const nth = async (file: string, n: number) => {
+                const r = await run(caps.ffmpegPath, ['-v', 'error', '-i', file, '-vf', `select=eq(n\\,${n}),scale=320:180:out_range=pc,format=rgb24`, '-frames:v', '1', '-f', 'rawvideo', 'pipe:1']);
+                if (r.code !== 0 || r.out.length !== 320 * 180 * 3) throw new Error(`frame ${n} extraction failed: ${r.err}`);
+                return r.out;
+            };
+            const worstOf = async (out: string, pairs: [number, number][]) => {
+                let worst = 0;
+                for (const [o, sN] of pairs) worst = Math.max(worst, meanAbsDiff(await nth(src, sN), await nth(out, o)));
+                return worst;
+            };
+            const same = (ns: number[]) => ns.map(n => [n, n] as [number, number]);
+            const cases: { name: string; tl: Timeline; verify?: (out: string) => Promise<void> }[] = [
+                { name: 'cut', tl: cut, verify: async out => {
+                    const d = await worstOf(out, same([12, 39, 40, 62]));
+                    check(d < 2.5, `timeline cut equals the source across the edit (worst mean abs diff ${d.toFixed(2)} / 255)`);
+                } },
+                { name: 'overlay', tl: overlay, verify: async out => {
+                    const d = await worstOf(out, same([25, 50]));
+                    check(d < 2.5, `upper track at opacity 0.5 over the same picture equals the source (worst mean abs diff ${d.toFixed(2)} / 255)`);
+                } },
+                { name: 'dissolve', tl: dissolve, verify: async out => {
+                    // both sides of the dissolve show the same continuous footage, so the blend must equal the source
+                    const d = await worstOf(out, same([36, 40, 44]));
+                    check(d < 2.5, `dissolve of continuous footage equals the source (worst mean abs diff ${d.toFixed(2)} / 255)`);
+                } },
+                { name: 'reverse', tl: reversed, verify: async out => {
+                    const pc = buildPlan(reversed).clips[0];
+                    const pairs = [5, 25, 60].map(f => [f, Math.floor(srcTimeAt(pc, f, 25) * 25 + 1e-6)] as [number, number]);
+                    const d = await worstOf(out, pairs);
+                    check(d < 3, `reversed clip shows the source frame at srcTimeAt (${pairs.map(([a, b]) => `${a}→${b}`).join(', ')}, worst mean abs diff ${d.toFixed(2)} / 255)`);
+                } }
+            ];
+            for (const c of cases) {
+                const outs: Partial<Record<'webgl2' | 'webgpu', string>> = {};
+                for (const pref of ['webgpu', 'webgl2'] as const) {
+                    const o = path.join(dir, `tl_${c.name}_${pref}.mkv`);
+                    const jj = await waitJob(enqueue(mkTl(`tl_${c.name}_${pref}`, c.tl, o, pref)).id);
+                    check(jj.status === 'done', `timeline ${c.name} render on ${pref}${jj.error ? ' – ' + jj.error : ''} [${jj.engine || '?'}]`);
+                    if (jj.status !== 'done') continue;
+                    outs[pref] = o;
+                    const om = await probe(o);
+                    const fr = await run(caps.ffprobePath, ['-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', o]);
+                    const nb = Number(fr.out.toString().trim());
+                    check(nb === 75 && om.audio.length === 1 && Math.abs(om.duration - 3) < 0.08, `timeline ${c.name} on ${pref}: ${nb} frames (expected 75), ${om.audio.length} audio, ${om.duration.toFixed(2)} s`);
+                    if (pref === 'webgpu' && c.verify) await c.verify(o);
+                }
+                if (outs.webgl2 && outs.webgpu) {
+                    let worst = 0;
+                    for (const t of [0.3, 1.4, 1.5, 1.6, 2.7]) worst = Math.max(worst, meanAbsDiff(await frameAt(caps.ffmpegPath, outs.webgl2, t, 320, 180), await frameAt(caps.ffmpegPath, outs.webgpu, t, 320, 180)));
+                    check(worst < 1.5, `timeline ${c.name}: WebGPU and WebGL2 agree (worst mean abs diff ${worst.toFixed(2)} / 255)`);
+                }
+            }
+        }
 
         // 4. cancel cleans up
         const outC = path.join(dir, 'cancel.mp4');

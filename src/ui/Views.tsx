@@ -355,10 +355,22 @@ export function QueueView() {
 // ------------------------------------------------------------------ Settings
 const SHORTCUT_LABELS: Record<string, string> = {
     base: 'Base Tone', moody: 'Dark & Moody', teal: 'Teal & Orange', vibrant: 'Vibrant', hdr: 'HDR look', cycleProfile: 'Cycle tone profile',
-    hud: 'Toggle overlay badges', gpu: 'Toggle preview quality (GPU load)', expert: 'Expert Settings', manager: 'Profiles / LUT / filter manager', scopes: 'Scopes HUD',
-    auto: 'Auto-Scene-Match', compare: 'Before/After wipe', bypass: 'Bypass effects (preview)', playPause: 'Play / Pause', frameBack: 'Previous frame',
-    frameFwd: 'Next frame', start: 'Go to start', end: 'Go to end', setIn: 'Set In point', setOut: 'Set Out point', zoomIn: 'Timeline zoom in',
-    zoomOut: 'Timeline zoom out', undo: 'Undo', redo: 'Redo', save: 'Save project', open: 'Open video', render: 'Render video', escape: 'Close overlay / exit compare'
+    hud: 'Toggle overlay badges', gpu: 'Toggle preview quality (GPU load)', expert: 'Expert Settings', manager: 'Profiles / LUT / filter manager', scopes: 'Show / hide scopes',
+    auto: 'Auto-Scene-Match', playPause: 'Play / Pause', frameBack: 'Previous frame', frameFwd: 'Next frame',
+    jumpBack: 'Back 1 second', jumpFwd: 'Forward 1 second', start: 'Go to start', end: 'Go to end',
+    zoomIn: 'Timeline zoom in', zoomOut: 'Timeline zoom out', zoomFit: 'Fit the whole timeline into view',
+    undo: 'Undo one step', redo: 'Redo (restore what was undone)', redoAlt: 'Redo (alternative key)', save: 'Save project', open: 'Open video or audio',
+    render: 'Render the timeline', escape: 'Close scopes / clear the marking',
+    cut: 'Cut (selected clip or marked range)', copy: 'Copy (selected clip or marked range)', paste: 'Paste at the playhead',
+    selectAll: 'Mark the whole timeline (all tracks)', markIn: 'Marking start at the playhead (all tracks)', markOut: 'Marking end at the playhead (all tracks)',
+    razor: 'Razor: split at the playhead', rippleTrimEnd: 'Ripple trim clip end to the playhead', lift: 'Delete clip / marked range (lift, keep the gap)',
+    ripple: 'Delete clip / marked range (ripple, close the gap)', duplicate: 'Duplicate clip',
+    nudgeLeft: 'Move selected clip 1 frame left', nudgeRight: 'Move selected clip 1 frame right',
+    nudgeLeft10: 'Move selected clip 10 frames left', nudgeRight10: 'Move selected clip 10 frames right',
+    transition: 'Add dissolve transition',
+    addVideoTrack: 'Add video track', addAudioTrack: 'Add audio track', marker: 'Add marker at the playhead',
+    nextEdit: 'Next edit point', prevEdit: 'Previous edit point', nextMarker: 'Next marker', prevMarker: 'Previous marker',
+    snapping: 'Toggle snapping'
 };
 
 export function SettingsView() {

@@ -2,17 +2,23 @@
 // file with FFmpeg, applies the UVE effect graph frame by frame on the GPU and pipes the frames
 // into the encoder. No screen/player capture is involved anywhere.
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { BrowserWindow, ipcMain } from 'electron';
 import { outputFps, parseFps } from '../shared/fps';
-import type { Capabilities, ExportSettings, JobSpec, JobState, MediaInfo } from '../shared/types';
+import { buildAudioGraph, buildPlan as buildTimelinePlan, type PlanClip } from '../shared/timeline';
+import type { Capabilities, EffectState, ExportSettings, JobSpec, JobState, MediaInfo, VideoStreamInfo } from '../shared/types';
 import { runAutoSceneMatch, samplesFromAnalysis } from '../shared/uve/auto';
+import {
+    type TimelineStream, type TimelineWorkerPlan, argNum, audioPassArgs, decodeStreamArgs, referencedVideoClips, reversePrepassArgs,
+    samplerFilter, samplerStart, timelineMuxArgs
+} from '../shared/uve/export-clip-graph';
 import { analyze } from './analysis';
 import { decodeFilter } from './media';
 import { capabilities, runEncoderTest } from './tools';
 import { type EncoderChoice, HW_FAMILY_LABEL, type HwCodec, VAAPI_DEVICE, encoderTestArgs, familyOrder, hwEncoderArgs, hwEncoderName, hwaccelOrder } from '../shared/hw';
-import { getPrefs } from './store';
+import { cacheDir, getPrefs } from './store';
 import { fileExists } from './util';
 import { downloadModel, findModel, rveStatus, runUpscale } from './rve';
 
@@ -35,6 +41,23 @@ export interface WorkerPlan {
     enginePref: 'auto' | 'webgpu' | 'webgl2';
 }
 
+export type { TimelineWorkerPlan } from '../shared/uve/export-clip-graph';
+/** `worker:job` payload: the single-media plan, or a timeline plan (`mode: 'timeline'`). */
+export type WorkerJob = WorkerPlan | TimelineWorkerPlan;
+
+/** Main-process steps of a timeline job that run outside the worker (FFmpeg only). */
+interface TimelineSteps {
+    /** reverse pre-pass temps (lossless), created before the worker starts */
+    prepasses: { clipId: string; out: string; part: string; args: string[] }[];
+    /** audio pass into a PCM wav; null = video only */
+    audio: { args: string[]; wav: string } | null;
+    /** final mux of the encoded video + wav into the job's temp output; null = the worker writes it directly */
+    mux: string[] | null;
+    /** files deleted at job end */
+    temps: string[];
+    ffmpeg: string;
+}
+
 const jobs: JobState[] = [];
 const specs = new Map<string, JobSpec>();
 interface ActiveJob {
@@ -46,6 +69,8 @@ interface ActiveJob {
     stage1?: string;
     upscale?: { modelPath: string; customEncoder: string; totalFrames: number; ffmpeg: string; stage2: string; muxArgs?: (videoFile: string, outFile: string) => string[] };
     kill?: () => void;
+    /** timeline jobs: pre-pass/audio/mux steps and their temp files */
+    timeline?: TimelineSteps;
 }
 let active: ActiveJob | null = null;
 let broadcast: (jobs: JobState[]) => void = () => undefined;
@@ -88,6 +113,7 @@ export function initRenderQueue(opts: { broadcast: (j: JobState[]) => void; work
     ipcMain.on('worker:done', (e, p: { jobId: string; ok: boolean; error?: string }) => {
         if (!active || active.win.webContents.id !== e.sender.id || active.id !== p.jobId) return;
         if (p.ok && active.stage1 && active.upscale && !active.canceled) void runStage2();
+        else if (p.ok && active.timeline?.mux && !active.canceled) void runTimelineMux();
         else void finishJob(p.ok, p.error);
     });
 }
@@ -334,6 +360,269 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale
     };
 }
 
+/** Display size of a video stream after rotation (what the decoder delivers). */
+function displaySize(v: VideoStreamInfo): { w: number; h: number } {
+    const rot = v.rotation === 90 || v.rotation === 270;
+    return { w: rot ? v.height : v.width, h: rot ? v.width : v.height };
+}
+
+/** The timeline's frame grid as an ffmpeg rational: `tl.fps` when it names the same rate, else the plan rate. */
+function gridRate(fps: string, F: number): { num: number; den: number } {
+    const p = parseFps(fps);
+    if (p && Math.abs(p.num / p.den - F) < 1e-6) return p;
+    if (Number.isInteger(F)) return { num: F, den: 1 };
+    for (const den of [1001, 1000, 100]) { const n = Math.round(F * den); if (Math.abs(n / den - F) < 1e-9) return { num: n, den }; }
+    return { num: Math.round(F * 1000000), den: 1000000 };
+}
+
+/**
+ * Timeline job (JobSpec.timeline set): plan the range with `buildPlan`, one decoder per distinct clip stream,
+ * lossless reverse pre-pass temps, per-clip effect states, the audio pass rendered verbatim from
+ * `buildAudioGraph`, then a `-c:v copy` mux. Encoder/decoder selection, sizes and the output naming are the
+ * same as the single-media path.
+ */
+export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: { scale: number }): Promise<{
+    plan: TimelineWorkerPlan; encoder: string; warnings: string[]; outFrames: number; steps: TimelineSteps;
+    customEncoder?: string; muxArgs?: (videoFile: string, outFile: string) => string[];
+}> {
+    const caps = await capabilities();
+    if (!caps.ok) throw new Error(caps.error || 'FFmpeg not available');
+    const tl = spec.timeline;
+    if (!tl) throw new Error('Internal error: not a timeline job.');
+    const out = path.resolve(spec.output).toLowerCase();
+    if (tl.sources.some(x => path.resolve(x.path).toLowerCase() === out)) throw new Error('The output must not overwrite a timeline source file.');
+    const s = spec.exportSettings;
+    const warnings = validateExport(s, caps);
+    const notes: string[] = [];
+    const plan = buildTimelinePlan(tl, Math.max(0, spec.range.start), spec.range.end);
+    if (plan.issues.length) throw new Error(`The timeline cannot be rendered: ${plan.issues[0].message}`);
+    if (plan.totalFrames < 1) throw new Error('The timeline range to render is empty.');
+    const used = referencedVideoClips(plan);
+    for (const u of used) if (u.clip.source.media.encrypted) throw new Error(`Encrypted/DRM-protected sources cannot be processed (${u.clip.source.path}).`);
+    // composite size: the job's primary media (first source with a picture), else the first drawn clip
+    const pv = spec.media.video ?? used[0]?.clip.source.media.video ?? tl.sources.find(x => x.media.video)?.media.video ?? null;
+    if (!pv) throw new Error('The timeline has no picture to render: no source has a video stream.');
+    const { w: pw, h: ph } = displaySize(pv);
+    let enc = await pickVideoEncoder(s, caps, upscale ? pw * upscale.scale : pw, upscale ? ph * upscale.scale : ph, notes);
+    if (upscale && enc.vaapi) {
+        enc = softwareEncoder(s, caps);
+        notes.push(`Encoder: software ${enc.name} – VA-API is not available inside the REAL-Video-Enhancer encode step.`);
+    }
+    const in16 = enc.tenBit || used.some(u => (u.clip.source.media.video?.bitDepth ?? 8) > 8);
+    const out16 = enc.tenBit && !upscale;
+    const fmt: 'rgba' | 'rgba64le' = in16 ? 'rgba64le' : 'rgba';
+    const grid = gridRate(tl.fps, plan.frameRate);
+    const fpsArg = `${grid.num}/${grid.den}`;
+    const outRate = parseFps(s.fps);
+    const retime = !!outRate && Math.abs(outRate.num / outRate.den - grid.num / grid.den) > 1e-9;
+    if (outRate && retime) notes.push(`Frame rate: ${outRate.num}/${outRate.den} (${(outRate.num / outRate.den).toFixed(3)} fps, timeline ${(grid.num / grid.den).toFixed(3)} fps) – frames are duplicated or dropped, not interpolated.`);
+    else if (s.fps && s.fps.trim() && !outRate) notes.push(`Warning: invalid frame rate "${s.fps}" – the timeline frame rate is used.`);
+    const outFrames = outRate && retime ? Math.max(1, Math.round(plan.totalFrames / (grid.num / grid.den) * (outRate.num / outRate.den))) : plan.totalFrames;
+    notes.push(`Timeline: ${plan.totalFrames} frames at ${fpsArg} from frame ${plan.rangeStartF}, ${used.length} picture clip(s), ${plan.windows.length} window(s).`);
+
+    const ext = outputExtension(s);
+    const muxer = { mp4: 'mp4', mkv: 'matroska', mov: 'mov', webm: 'webm' }[ext as 'mp4'];
+    const temps: string[] = [];
+    const prepasses: TimelineSteps['prepasses'] = [];
+    const pathOverride = new Map<string, string>();
+    const preDir = path.join(cacheDir(), 'timeline');
+    await fsp.mkdir(preDir, { recursive: true });
+
+    // decoders: one per distinct stream; hardware decoding verified once per source file
+    const hwBySource = new Map<string, Promise<string | null>>();
+    const streams = new Map<string, TimelineStream>();
+    const streamOfClip: Record<string, string> = {};
+    for (const u of used) {
+        const p: PlanClip = u.clip;
+        const media = p.source.media;
+        const v = media.video;
+        if (!v) continue;
+        const { w, h } = displaySize(v);
+        const span = p.decodeEnd - p.decodeStart;
+        if (!(span > 0)) throw new Error(`Clip "${p.clip.id}" has no media left to decode (${argNum(p.decodeStart)}..${argNum(p.decodeEnd)} s).`);
+        const srcFrameSec = v.fpsNum > 0 && v.fpsDen > 0 ? v.fpsDen / v.fpsNum : 1 / plan.frameRate;
+        let input: string, ss: number, readT: number, map: string, vf: string, hw: string | null = null;
+        if (p.reversePrepass) {
+            const preVf = await decodeFilter(v, w, h, 'rgba64le');
+            const digest = createHash('sha256').update(JSON.stringify([
+                path.resolve(p.source.path), media, p.clip.id,
+                { srcIn: p.clip.srcIn, dur: p.clip.dur, speed: p.clip.speed, reverse: p.clip.reverse, decodeStart: p.decodeStart, decodeEnd: p.decodeEnd, frames: p.streamFrames, fps: fpsArg, vf: preVf }
+            ])).digest('hex').slice(0, 32);
+            const out = path.join(preDir, `rev_${digest}.mkv`);
+            const part = path.join(preDir, `rev_${digest}.part.mkv`);
+            const audioStream = media.audio[0];
+            if (!prepasses.some(x => x.out === out)) {
+                prepasses.push({
+                    clipId: p.clip.id, out, part,
+                    args: reversePrepassArgs({
+                        input: p.source.path, decodeStart: p.decodeStart, decodeEnd: p.decodeEnd,
+                        speed: p.clip.speed, frames: p.streamFrames, fps: fpsArg, F: grid.num / grid.den,
+                        srcFrameSec,
+                        videoMap: `0:${v.index}`, vf: preVf, audioMap: audioStream ? `0:${audioStream.index}` : null, out: part
+                    })
+                });
+                temps.push(out, part);
+            }
+            if (audioStream) pathOverride.set(p.clip.id, out);
+            // the temp already is the clip's stream at the timeline rate (speed applied, reversed)
+            input = out; ss = 0; map = '0:v:0';
+            readT = p.streamFrames * grid.den / grid.num;
+            vf = `format=${fmt}`;
+        } else {
+            const base = await decodeFilter(v, w, h, fmt);
+            // frame-exact sampler: stream frame k = the media frame displayed at srcTimeAt (speed included)
+            const st = samplerStart(p.decodeStart, srcFrameSec);
+            input = p.source.path; ss = st.ss; map = `0:${v.index}`;
+            readT = p.decodeEnd - st.ss;
+            vf = `${samplerFilter(p.clip.speed, fpsArg, st.off)},${base}`;
+            let hwp = hwBySource.get(p.source.path);
+            if (!hwp) { hwp = pickHwaccel(caps, p.source.path, p.decodeStart, v.index, base, notes); hwBySource.set(p.source.path, hwp); }
+            hw = await hwp;
+        }
+        const streamStartF = p.startF - p.headF;
+        const key = JSON.stringify([input, ss, readT, map, vf, p.streamFrames, streamStartF]);
+        const existing = streams.get(key);
+        if (existing) {
+            existing.clipIds.push(p.clip.id);
+            existing.firstF = Math.min(existing.firstF, u.firstF);
+            existing.lastF = Math.max(existing.lastF, u.lastF);
+        } else {
+            streams.set(key, {
+                key, clipIds: [p.clip.id], input, viaTemp: p.reversePrepass, streamStartF, streamFrames: p.streamFrames,
+                firstF: u.firstF, lastF: u.lastF, width: w, height: h, in16,
+                args: decodeStreamArgs({ input, ss, t: readT, map, vf, fps: fpsArg, frames: p.streamFrames, pixFmt: fmt, hwaccel: hw })
+            });
+        }
+        streamOfClip[p.clip.id] = key;
+    }
+
+    // audio: the graph rendered verbatim into a wav, muxed after the picture
+    let audio: TimelineSteps['audio'] = null;
+    if (s.audio !== 'none') {
+        const g = buildAudioGraph(tl, plan, { pathOverride });
+        if ('error' in g) notes.push(`Audio: ${g.error} The output has no audio track.`);
+        else {
+            const wav = spec.output.replace(/(\.[^.]+)$/, '.uveaudio.wav');
+            audio = { args: audioPassArgs(g, wav), wav };
+            temps.push(wav);
+            if (s.audio === 'copy' || (s.audio === 'opus' && ext !== 'webm')) notes.push(`Audio: the timeline mix is encoded as ${ext === 'webm' ? 'Opus' : 'AAC'} (a mix cannot be stream-copied).`);
+        }
+    }
+    const audioCodec = ext === 'webm' ? ['-c:a', 'libopus', '-b:a', `${s.audioBitrate}k`] : ['-c:a', 'aac', '-b:a', `${s.audioBitrate}k`];
+    const comment = 'comment=Processed with UVE Manager 1.0.4 (timeline, Ultimate Video Enhancer effect chain)';
+    const muxExtra = (): string[] => {
+        const a = ['-metadata', comment];
+        if (ext === 'mp4' || ext === 'mov') a.push('-movflags', '+faststart');
+        if ((ext === 'mp4' || ext === 'mov') && /hevc|x265/.test(enc.name)) a.push('-tag:v', 'hvc1');
+        return a;
+    };
+
+    const baseW = upscale ? pw * upscale.scale : pw, baseH = upscale ? ph * upscale.scale : ph;
+    const size = targetSize(upscale && s.resolution === 'x2' ? { ...s, resolution: 'source' } : s, baseW, baseH);
+    const scaleParts: string[] = [];
+    if (outRate && retime) scaleParts.push(`fps=${outRate.num}/${outRate.den}`);
+    if (size.w !== baseW || size.h !== baseH) scaleParts.push(`scale=${size.w}:${size.h}:flags=lanczos`);
+    scaleParts.push(`scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int`, `format=${enc.pix}`);
+    if (enc.vaapi) scaleParts.push('hwupload');
+    const videoOut = ['-vf', scaleParts.join(','), ...enc.args, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'];
+    const encodeArgs = ['-hide_banner', '-loglevel', 'warning', '-nostdin', '-y', ...(enc.vaapi && !upscale ? ['-vaapi_device', VAAPI_DEVICE] : []),
+        '-f', 'rawvideo', '-pix_fmt', out16 ? 'rgba64le' : 'rgba', '-s', `${pw}x${ph}`, '-r', fpsArg, '-i', 'pipe:0', '-map', '0:v:0'];
+    let customEncoder: string | undefined;
+    let muxArgs: ((videoFile: string, outFile: string) => string[]) | undefined;
+    let mux: string[] | null = null;
+    if (upscale) {
+        encodeArgs.push('-c:v', 'ffv1', '-level', '3', '-g', '1', '-slices', '16', '-slicecrc', '1', '-pix_fmt', 'gbrp', '-an', '-sn', '-f', 'matroska', tmpOut);
+        const parts = ['-fps_mode', 'passthrough', ...videoOut, '-an', '-sn', '-f', 'matroska'];
+        if (parts.some(x => /\s/.test(x))) throw new Error('Internal error: encoder option contains whitespace.');
+        customEncoder = parts.join(' ');
+        const a = audio;
+        muxArgs = (videoFile, outFile) => a
+            ? timelineMuxArgs({ video: videoFile, wav: a.wav, out: outFile, muxer, audioCodec, extra: muxExtra() })
+            : ['-hide_banner', '-loglevel', 'warning', '-nostdin', '-y', '-i', videoFile, '-map', '0:v:0', '-c:v', 'copy', '-an', ...muxExtra(), '-f', muxer, outFile];
+    } else {
+        // with audio the worker writes a video-only intermediate that is muxed with the wav afterwards
+        const videoTarget = audio ? spec.output.replace(/(\.[^.]+)$/, '.uvevideo$1') : tmpOut;
+        if (audio) {
+            temps.push(videoTarget);
+            mux = timelineMuxArgs({ video: videoTarget, wav: audio.wav, out: tmpOut, muxer, audioCodec, extra: muxExtra() });
+        }
+        encodeArgs.push(...videoOut, '-an', '-sn', '-metadata', comment);
+        if (ext === 'mp4' || ext === 'mov') encodeArgs.push('-movflags', '+faststart');
+        encodeArgs.push('-f', muxer, videoTarget);
+    }
+
+    const effects: Record<string, EffectState> = {};
+    for (const p of plan.clips) effects[p.clip.id] = p.clip.effect ?? spec.effect;
+    return {
+        plan: {
+            mode: 'timeline', jobId: spec.id, ffmpeg: caps.ffmpegPath, encodeArgs, width: pw, height: ph, out16,
+            fpsNum: grid.num, fpsDen: grid.den, plan, masterGainDb: tl.masterGainDb,
+            streams: [...streams.values()], streamOfClip, effects,
+            autoKeys: spec.autoKeys, autoSource: spec.autoKeys ? spec.media.path : null, parityMode: spec.parityMode,
+            enginePref: spec.enginePref || (await getPrefs()).gpuEngine || 'auto'
+        },
+        encoder: enc.name,
+        warnings: [...notes, ...warnings],
+        outFrames,
+        steps: { prepasses, audio, mux, temps, ffmpeg: caps.ffmpegPath },
+        customEncoder,
+        muxArgs
+    };
+}
+
+/** One FFmpeg step of a timeline job in the main process; cancellable through the active job. */
+function runFfmpegStep(ffmpeg: string, args: string[], cur: ActiveJob): Promise<{ code: number; err: string }> {
+    return new Promise(resolve => {
+        const p = spawn(ffmpeg, args, { windowsHide: true });
+        let err = '';
+        cur.kill = () => p.kill();
+        p.stderr.on('data', d => { err += d; });
+        p.on('error', e => resolve({ code: 1, err: e.message }));
+        p.on('exit', code => { cur.kill = undefined; resolve({ code: code ?? 1, err }); });
+    });
+}
+
+/** Reverse pre-pass temps and the audio pass, before the worker starts. Throws on failure. */
+async function runTimelinePrep(cur: ActiveJob, j: JobState): Promise<void> {
+    const st = cur.timeline;
+    if (!st) return;
+    const tail = (e: string) => e.trim().split(/\r?\n/).slice(-3).join(' ');
+    for (const pre of st.prepasses) {
+        if (cur.canceled) throw new Error('canceled');
+        if (await fileExists(pre.out)) { j.log.push(`Reverse pre-pass (clip ${pre.clipId}): reusing ${pre.out}`); continue; }
+        j.log.push(`Reverse pre-pass (clip ${pre.clipId}): ffmpeg ${pre.args.join(' ')}`);
+        emit();
+        const r = await runFfmpegStep(st.ffmpeg, pre.args, cur);
+        if (cur.canceled) throw new Error('canceled');
+        if (r.code !== 0) throw new Error(`Reverse pre-pass failed for clip ${pre.clipId} (${r.code}): ${tail(r.err)}`);
+        await fsp.rename(pre.part, pre.out);
+    }
+    if (st.audio) {
+        if (cur.canceled) throw new Error('canceled');
+        j.log.push(`Audio pass: ffmpeg ${st.audio.args.join(' ')}`);
+        emit();
+        const r = await runFfmpegStep(st.ffmpeg, st.audio.args, cur);
+        if (cur.canceled) throw new Error('canceled');
+        if (r.code !== 0) throw new Error(`Audio pass failed (${r.code}): ${tail(r.err)}`);
+    }
+}
+
+/** After the worker: mux the encoded picture with the timeline audio into the job's temp output. */
+async function runTimelineMux() {
+    const cur = active;
+    const st = cur?.timeline;
+    if (!cur || !st?.mux) return;
+    const j = jobs.find(x => x.id === cur.id);
+    try { if (cur.win && !cur.win.isDestroyed()) cur.win.destroy(); } catch { /* ignore */ }
+    if (!j) return;
+    j.status = 'finalizing';
+    j.log.push(`Mux: ffmpeg ${st.mux.join(' ')}`);
+    emit();
+    const r = await runFfmpegStep(st.ffmpeg, st.mux, cur);
+    if (r.err.trim()) r.err.trim().split(/\r?\n/).slice(-20).forEach(l => j.log.push('[mux] ' + l));
+    await finishJob(r.code === 0 && !cur.canceled, r.code === 0 ? undefined : `Muxing the timeline audio failed (${r.code}): ${r.err.trim().split('\n').slice(-2).join(' ')}`, cur.canceled);
+}
+
 export function enqueue(spec: JobSpec): JobState {
     const j: JobState = {
         id: spec.id, name: spec.name, input: spec.input, output: spec.output, status: 'queued', progress: 0, frames: 0,
@@ -383,20 +672,42 @@ async function pump() {
             active.stage1 = spec.output.replace(/(\.[^.]+)$/, '.uvestage1.mkv');
             active.upscale = { modelPath, customEncoder: '', totalFrames: 0, ffmpeg: '', stage2: spec.output.replace(/(\.[^.]+)$/, '.uvestage2.mkv') };
         }
-        const { plan, encoder, warnings, customEncoder, muxArgs } = await buildPlan(spec, active.stage1 || tmp, upscale);
-        if (active.upscale && customEncoder) {
-            active.upscale = { ...active.upscale, customEncoder, muxArgs, totalFrames: plan.totalFrames, ffmpeg: plan.ffmpeg };
-            next.log.push(`Stage 1/2: UVE effects -> lossless intermediate ${active.stage1}`);
-            next.log.push(`Stage 2/2 encoder (RVE --custom_encoder): ${customEncoder}`);
+        let payload: WorkerJob;
+        if (spec.timeline) {
+            const t = await buildTimelineJob(spec, active.stage1 || tmp, upscale);
+            payload = t.plan;
+            active.timeline = t.steps;
+            if (active.upscale && t.customEncoder) {
+                active.upscale = { ...active.upscale, customEncoder: t.customEncoder, muxArgs: t.muxArgs, totalFrames: t.outFrames, ffmpeg: t.plan.ffmpeg };
+                next.log.push(`Stage 1/2: UVE timeline -> lossless intermediate ${active.stage1}`);
+                next.log.push(`Stage 2/2 encoder (RVE --custom_encoder): ${t.customEncoder}`);
+            }
+            next.encoder = upscale ? `${t.encoder} + RVE TensorRT` : t.encoder;
+            next.totalFrames = t.plan.plan.totalFrames;
+            next.progress = 0;
+            t.warnings.forEach(w => next.log.push(/^(Encoder|Decoder|Frame rate|Timeline|Audio|Warning):/.test(w) ? w : 'Warning: ' + w));
+            t.plan.streams.forEach(st => next.log.push(`Decoder [${st.clipIds.join(', ')}]: ffmpeg ${st.args.join(' ')}`));
+            next.log.push(`Encoder: ffmpeg ${t.plan.encodeArgs.join(' ')}`);
+            next.status = 'rendering';
+            emit();
+            await runTimelinePrep(active, next);
+        } else {
+            const { plan, encoder, warnings, customEncoder, muxArgs } = await buildPlan(spec, active.stage1 || tmp, upscale);
+            payload = plan;
+            if (active.upscale && customEncoder) {
+                active.upscale = { ...active.upscale, customEncoder, muxArgs, totalFrames: plan.totalFrames, ffmpeg: plan.ffmpeg };
+                next.log.push(`Stage 1/2: UVE effects -> lossless intermediate ${active.stage1}`);
+                next.log.push(`Stage 2/2 encoder (RVE --custom_encoder): ${customEncoder}`);
+            }
+            next.encoder = upscale ? `${encoder} + RVE TensorRT` : encoder;
+            next.totalFrames = plan.totalFrames;
+            next.progress = 0;
+            warnings.forEach(w => next.log.push(/^(Encoder|Decoder|Frame rate|Warning):/.test(w) ? w : 'Warning: ' + w));
+            next.log.push(`Decoder: ffmpeg ${plan.decodeArgs.join(' ')}`);
+            next.log.push(`Encoder: ffmpeg ${plan.encodeArgs.join(' ')}`);
+            next.status = 'rendering';
+            emit();
         }
-        next.encoder = upscale ? `${encoder} + RVE TensorRT` : encoder;
-        next.totalFrames = plan.totalFrames;
-        next.progress = 0;
-        warnings.forEach(w => next.log.push(/^(Encoder|Decoder|Frame rate|Warning):/.test(w) ? w : 'Warning: ' + w));
-        next.log.push(`Decoder: ffmpeg ${plan.decodeArgs.join(' ')}`);
-        next.log.push(`Encoder: ffmpeg ${plan.encodeArgs.join(' ')}`);
-        next.status = 'rendering';
-        emit();
         if (active?.canceled) throw new Error('canceled');
         const win = new BrowserWindow({
             show: false, width: 320, height: 240, title: 'UVE Export Worker',
@@ -405,7 +716,7 @@ async function pump() {
         active.win = win;
         win.webContents.on('render-process-gone', (_e, d) => { if (active?.id === next.id) void finishJob(false, `Export worker crashed (${d.reason}).`); });
         await win.loadURL(workerUrl());
-        win.webContents.send('worker:job', plan);
+        win.webContents.send('worker:job', payload);
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         await finishJob(false, msg === 'canceled' ? undefined : msg, msg === 'canceled');
@@ -473,6 +784,7 @@ async function finishJob(ok: boolean, error?: string, canceled = false) {
     try { if (cur.win && !cur.win.isDestroyed()) cur.win.destroy(); } catch { /* ignore */ }
     if (cur.stage1) await fsp.rm(cur.stage1, { force: true }).catch(() => undefined);
     if (cur.upscale?.stage2) await fsp.rm(cur.upscale.stage2, { force: true }).catch(() => undefined);
+    for (const f of cur.timeline?.temps ?? []) await fsp.rm(f, { force: true }).catch(() => undefined);
     if (j) {
         j.elapsed = (Date.now() - startedAt) / 1000;
         if (ok && !cur.canceled) {

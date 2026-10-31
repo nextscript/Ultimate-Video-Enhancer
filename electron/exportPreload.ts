@@ -1,12 +1,15 @@
-// Preload of the hidden export worker window. Owns the two FFmpeg processes of one job
-// (decoder → raw frames, raw frames → encoder) whose arguments were built by the main process.
+// Preload of the hidden export worker window. Owns the FFmpeg processes of one job
+// (decoder(s) → raw frames, raw frames → encoder) whose arguments were built by the main process.
 // The worker page only receives frames and returns processed frames; it cannot choose commands.
+// Timeline jobs (v1.0.3): one decoder per clip stream of the plan, addressed by its stream key.
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
 import { promises as fsp } from 'node:fs';
 import { contextBridge, ipcRenderer } from 'electron';
-import type { WorkerPlan } from './render';
+import type { TimelineWorkerPlan, WorkerJob, WorkerPlan } from './render';
 
 let plan: WorkerPlan | null = null;
+let tplan: TimelineWorkerPlan | null = null;
+let jobId = '';
 let dec: ChildProcessWithoutNullStreams | null = null;
 let enc: ChildProcessWithoutNullStreams | null = null;
 let frameBytes = 0;
@@ -23,7 +26,7 @@ const MAX_QUEUE = 4;
 /** v1.0.1 diagnostics: decoder delivery rate into the worker */
 const diag = { produced: 0, firstAt: 0, lastAt: 0 };
 
-function log(line: string) { if (plan) ipcRenderer.send('worker:log', { jobId: plan.jobId, line }); }
+function log(line: string) { if (jobId) ipcRenderer.send('worker:log', { jobId, line }); }
 
 function wake() { const w = waiter; waiter = null; w?.(); }
 
@@ -76,11 +79,102 @@ function startDecoder(args: string[]) {
     d.on('close', c => end(c ?? 1));
 }
 
+/* ------------------------------------------------------------------ timeline streams */
+
+/** One decoder of a timeline job: raw frames of one clip stream, with the same back-pressure as the single path. */
+interface ClipStream {
+    key: string;
+    label: string;
+    frameBytes: number;
+    proc: ChildProcessWithoutNullStreams | null;
+    queue: Buffer[];
+    pending: Buffer[];
+    pendingLen: number;
+    produced: number;
+    ended: boolean;
+    /** closed by the worker (or the job end): its exit code no longer matters */
+    closed: boolean;
+    error: string;
+    stderr: string;
+    waiter: (() => void) | null;
+}
+const streams = new Map<string, ClipStream>();
+const streamErrors: string[] = [];
+
+function wakeStream(st: ClipStream) { const w = st.waiter; st.waiter = null; w?.(); }
+
+function startStream(st: ClipStream, args: string[]) {
+    const d = spawn(tplan!.ffmpeg, args, { windowsHide: true });
+    st.proc = d;
+    let ended = false;
+    d.stdout.on('data', (chunk: Buffer) => {
+        if (st.closed) return;
+        st.pending.push(chunk);
+        st.pendingLen += chunk.length;
+        while (st.pendingLen >= st.frameBytes) {
+            const all = st.pending.length === 1 ? st.pending[0] : Buffer.concat(st.pending, st.pendingLen);
+            st.queue.push(Buffer.from(all.subarray(0, st.frameBytes)));
+            st.produced++;
+            diag.produced++; diag.lastAt = performance.now(); if (!diag.firstAt) diag.firstAt = diag.lastAt;
+            const rest = all.subarray(st.frameBytes);
+            st.pending = rest.length ? [rest] : [];
+            st.pendingLen = rest.length;
+        }
+        if (st.queue.length >= MAX_QUEUE) d.stdout.pause();
+        wakeStream(st);
+    });
+    d.stderr.on('data', x => { st.stderr += x; String(x).split(/\r?\n/).filter(Boolean).forEach(l => log(`[decode ${st.label}] ` + l)); });
+    const end = (code: number) => {
+        if (ended || st.proc !== d) return;
+        ended = true;
+        // same rule as the single path: a hardware decoder that dies before its first frame is retried in software
+        if (code !== 0 && !canceled && !st.closed && st.produced === 0 && st.pendingLen === 0 && args.includes('-hwaccel')) {
+            log(`[decode ${st.label}] hardware decoding failed (exit ${code}) – retrying with software decoding`);
+            st.stderr = '';
+            startStream(st, withoutHwaccel(args));
+            return;
+        }
+        if (code !== 0 && !canceled && !st.closed) {
+            st.error = `Decoder failed for clip ${st.label} (${code}): ${st.stderr.trim().split('\n').slice(-3).join(' ')}`;
+            streamErrors.push(st.error);
+        }
+        st.ended = true;
+        wakeStream(st);
+    };
+    d.on('error', e => { st.stderr += e.message; end(1); });
+    d.on('close', c => end(c ?? 1));
+}
+
+function closeStream(key: string) {
+    const st = streams.get(key);
+    if (!st || st.closed) return;
+    st.closed = true;
+    st.queue.length = 0;
+    st.pending = [];
+    st.pendingLen = 0;
+    try { if (st.proc && st.proc.exitCode === null) st.proc.kill(); } catch { /* ignore */ }
+    wakeStream(st);
+}
+
+function startEncoder(args: string[], ffmpeg: string) {
+    enc = spawn(ffmpeg, args, { windowsHide: true });
+    enc.stderr.on('data', d => { encError += d; String(d).split(/\r?\n/).filter(Boolean).forEach(l => log('[encode] ' + l)); });
+    enc.on('error', e => { encError += e.message; });
+    enc.stdin.on('error', e => { encError += 'stdin: ' + e.message; encClosed = true; });
+    enc.on('exit', () => { encClosed = true; });
+}
+
 const api = {
-    onJob(cb: (p: WorkerPlan) => void) {
-        ipcRenderer.on('worker:job', (_e, p: WorkerPlan) => {
-            plan = p;
-            frameBytes = p.width * p.height * 4 * (p.in16 ? 2 : 1);
+    /** `worker:job` delivers either the single-media plan or a timeline plan (`mode: 'timeline'`). */
+    onJob(cb: (p: WorkerJob) => void) {
+        ipcRenderer.on('worker:job', (_e, p: WorkerJob) => {
+            jobId = p.jobId;
+            if ('mode' in p && p.mode === 'timeline') {
+                tplan = p;
+            } else {
+                plan = p as WorkerPlan;
+                frameBytes = plan.width * plan.height * 4 * (plan.in16 ? 2 : 1);
+            }
             cb(p);
         });
     },
@@ -88,11 +182,57 @@ const api = {
     start(): void {
         if (!plan) throw new Error('no job');
         startDecoder(plan.decodeArgs);
-        enc = spawn(plan.ffmpeg, plan.encodeArgs, { windowsHide: true });
-        enc.stderr.on('data', d => { encError += d; String(d).split(/\r?\n/).filter(Boolean).forEach(l => log('[encode] ' + l)); });
-        enc.on('error', e => { encError += e.message; });
-        enc.stdin.on('error', e => { encError += 'stdin: ' + e.message; encClosed = true; });
-        enc.on('exit', () => { encClosed = true; });
+        startEncoder(plan.encodeArgs, plan.ffmpeg);
+    },
+    /** Timeline job: starts the encoder only; decoders start per stream with `openStream`. */
+    startTimeline(): void {
+        if (!tplan) throw new Error('no timeline job');
+        startEncoder(tplan.encodeArgs, tplan.ffmpeg);
+    },
+    /** Starts the decoder of one plan stream (idempotent). Its arguments come from the main process. */
+    openStream(key: string): void {
+        if (!tplan) throw new Error('no timeline job');
+        if (streams.has(key) || canceled) return;
+        const spec = tplan.streams.find(x => x.key === key);
+        if (!spec) throw new Error('Unknown timeline stream.');
+        const st: ClipStream = {
+            key, label: spec.clipIds.join('+'), frameBytes: spec.width * spec.height * 4 * (spec.in16 ? 2 : 1),
+            proc: null, queue: [], pending: [], pendingLen: 0, produced: 0, ended: false, closed: false, error: '', stderr: '', waiter: null
+        };
+        streams.set(key, st);
+        startStream(st, spec.args);
+    },
+    /** Next frame of a stream, or null at its end (the worker then holds the last frame). */
+    async readStreamFrame(key: string): Promise<Uint8Array | null> {
+        const st = streams.get(key);
+        if (!st) throw new Error('Timeline stream was not opened.');
+        for (;;) {
+            if (canceled || st.closed) return null;
+            const f = st.queue.shift();
+            if (f) {
+                if (st.queue.length < MAX_QUEUE / 2) st.proc?.stdout.resume();
+                return new Uint8Array(f.buffer, f.byteOffset, f.byteLength);
+            }
+            if (st.ended) {
+                if (st.error) throw new Error(st.error);
+                return null;
+            }
+            await new Promise<void>(r => { st.waiter = r; });
+        }
+    },
+    /** The worker is done with a stream: stop its decoder and free its frames. */
+    closeStream(key: string): void { closeStream(key); },
+    async finishTimeline(): Promise<{ ok: boolean; error?: string }> {
+        if (!enc) return { ok: false, error: 'not started' };
+        const e = enc;
+        const encExit = new Promise<number>(r => { if (e.exitCode !== null) r(e.exitCode); else e.once('exit', c => r(c ?? 1)); });
+        e.stdin.end();
+        for (const key of streams.keys()) closeStream(key);
+        const ec = await encExit;
+        if (canceled) return { ok: false, error: 'canceled' };
+        if (streamErrors.length) return { ok: false, error: streamErrors[0] };
+        if (ec !== 0) return { ok: false, error: `Encoder failed (${ec}): ${encError.trim().split('\n').slice(-3).join(' ')}` };
+        return { ok: true };
     },
     /** Next decoded frame, or null at the end of the stream. */
     async readFrame(): Promise<Uint8Array | null> {
@@ -133,20 +273,22 @@ const api = {
     },
     kill() {
         try { dec?.kill(); } catch { /* ignore */ }
+        for (const key of streams.keys()) closeStream(key);
         try { enc?.stdin.destroy(); enc?.kill(); } catch { /* ignore */ }
         wake();
     },
     async outSize(): Promise<number> {
-        if (!plan) return 0;
-        const m = plan.encodeArgs[plan.encodeArgs.length - 1];
+        const args = plan?.encodeArgs ?? tplan?.encodeArgs;
+        if (!args) return 0;
+        const m = args[args.length - 1];
         try { return (await fsp.stat(m)).size; } catch { return 0; }
     },
-    engineInfo(kind: string, adapter: string) { if (plan) ipcRenderer.send('worker:engine', { jobId: plan.jobId, kind, adapter }); },
-    stats(stats: Record<string, unknown>) { if (plan) ipcRenderer.send('worker:stats', { jobId: plan.jobId, stats }); },
+    engineInfo(kind: string, adapter: string) { if (jobId) ipcRenderer.send('worker:engine', { jobId, kind, adapter }); },
+    stats(stats: Record<string, unknown>) { if (jobId) ipcRenderer.send('worker:stats', { jobId, stats }); },
     decoderFps() { const span = (diag.lastAt - diag.firstAt) / 1000; return span > 0 ? diag.produced / span : 0; },
-    progress(frames: number, fps: number, outSize: number) { if (plan) ipcRenderer.send('worker:progress', { jobId: plan.jobId, frames, fps, outSize }); },
+    progress(frames: number, fps: number, outSize: number) { if (jobId) ipcRenderer.send('worker:progress', { jobId, frames, fps, outSize }); },
     log,
-    done(ok: boolean, error?: string) { if (plan) ipcRenderer.send('worker:done', { jobId: plan.jobId, ok, error }); }
+    done(ok: boolean, error?: string) { if (jobId) ipcRenderer.send('worker:done', { jobId, ok, error }); }
 };
 
 contextBridge.exposeInMainWorld('uveWorker', api);

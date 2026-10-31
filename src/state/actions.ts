@@ -1,13 +1,19 @@
 import { zipSync, strToU8 } from 'fflate';
 import { api } from '../api';
-import { APP_VERSION, DEFAULT_EXPORT, UVE_SOURCE, type EffectState, type JobSpec, type UserProfile, type UveProject } from '../../shared/types';
+import { APP_VERSION, DEFAULT_EXPORT, UVE_SOURCE, type EffectState, type JobSpec, type MediaInfo, type Timeline, type TimelineClip, type TrackKind, type UserProfile, type UveProject } from '../../shared/types';
 import { runAutoSceneMatch, samplesFromAnalysis, type AnalysisSample } from '../../shared/uve/auto';
 import { type CustomFilterEntry, exportFilterCodesJson, normalizeEntry, parseFilterCodesJson } from '../../shared/uve/customFilters';
 import { expertDiff, expertFromDiff } from '../../shared/uve/expert';
 import { type LutProfile, cubeTextToMatrix4x5, lutKeyOf, lutProfileToJson, parseLutProfileObject, tiledRgbaToMatrix4x5 } from '../../shared/uve/lut';
 import { mergeProfiles, newProfileId, parseUserProfileObject, sanitizeProfileFilename } from '../../shared/uve/profiles';
 import { DEFAULT_SETTINGS, type ToneProfile, type UveSettings, sanitizeSettings, settingsToGvfSettings } from '../../shared/uve/settings';
-import { getState, initialEffect, resetHistory, setState, toast, updateEffect } from './store';
+import { applyTimeline, getState, initialEffect, resetHistory, setState, toast, updateEffect, type PoolSource, type RangeSel } from './store';
+import { parseFps } from '../../shared/fps';
+import {
+    addSource, addTrack, clipById, clipEnd, defaultTimeline, deleteClip, duplicateClip, frameRateFromMedia, insertClip,
+    migrateProjectV1toV2, moveClip, patchClip, sanitizeTimeline, snap, sourceById, splitClip, timelineDuration, trackById, validateTimeline,
+    type OpResult
+} from '../../shared/timeline';
 
 const errMsg = (e: unknown) => (e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(e));
 export { errMsg };
@@ -40,25 +46,81 @@ export function cycleToneProfile() {
     toast(`Profile: ${next}`, 'info', 1500);
 }
 
-// ------------------------------------------------------------------ media
-export async function loadVideo(path: string, opts: { keepEffect?: boolean } = {}) {
+// ------------------------------------------------------------------ media pool
+/**
+ * Makes one pool file the "current" file: the one Auto-Scene-Match analyses and the media info panel shows.
+ * The editor always plays the timeline, so the playhead is left where it is.
+ */
+function setSourceMonitor(entry: PoolSource) {
+    if (!entry.media.video) return;
+    setState({
+        media: entry.media, mediaUrl: entry.url, thumbs: entry.thumbs,
+        mediaError: entry.missing ? `Media not found: ${entry.path}` : null,
+        inPoint: null, outPoint: null, proxyPct: null,
+        analysis: { status: 'none', pct: 0, keys: null }
+    });
+}
+
+/** Adds or refreshes one pool entry; a preview proxy made for the same file is kept. */
+async function ensurePoolEntry(sourceId: string, media: MediaInfo): Promise<PoolSource> {
+    const old = getState().pool.find(p => p.sourceId === sourceId || p.path === media.path);
+    const keepProxy = !!old && old.proxied && old.path === media.path;
+    const entry: PoolSource = {
+        sourceId, path: media.path, media, thumbs: old?.thumbs ?? [],
+        url: keepProxy ? old.url : await api.mediaUrl(media.path), proxied: keepProxy, missing: false
+    };
+    setState(st => ({ pool: [...st.pool.filter(p => p.sourceId !== sourceId && p.path !== media.path), entry] }));
+    if (!entry.thumbs.length && entry.url) {
+        void api.thumbs(media, 24)
+            .then(thumbs => setState(st => ({ pool: st.pool.map(p => p.sourceId === sourceId ? { ...p, thumbs } : p) })))
+            .catch(() => undefined);
+    }
+    return entry;
+}
+
+/** Re-probes every timeline source and rebuilds the pool; stale entries are dropped. */
+export async function rebuildPool(tl: Timeline) {
+    for (const s of tl.sources) {
+        try {
+            await ensurePoolEntry(s.id, await api.probe(s.path));
+        } catch {
+            setState(st => ({
+                pool: [...st.pool.filter(p => p.sourceId !== s.id),
+                    { sourceId: s.id, path: s.path, media: s.media, url: '', proxied: false, missing: true, thumbs: [] }]
+            }));
+        }
+    }
+    setState(st => ({ pool: st.pool.filter(p => tl.sources.some(s => s.id === p.sourceId || s.path === p.path)) }));
+    const primary = getState().pool.find(e => !e.missing && e.media.video);
+    if (primary) setSourceMonitor(primary);
+}
+
+/**
+ * Imports a video or audio file into the media pool. With `place`, it is also appended to the end of the
+ * timeline (picture on a video track, sound on an audio track). Returns the pool source id.
+ */
+export async function loadVideo(path: string, opts: { place?: boolean } = {}): Promise<string | null> {
     try {
         setState({ mediaError: null, proxyPct: null });
         const media = await api.probe(path);
-        if (!media.video) throw new Error(media.warnings[0] || 'No video stream found.');
+        if (!media.video && !media.audio.length) throw new Error(media.warnings[0] || 'No video or audio stream found.');
         if (media.encrypted) throw new Error('This file appears to be DRM-protected. UVE Manager does not process protected content.');
-        const url = await api.mediaUrl(path);
-        setState({
-            media, mediaUrl: url, thumbs: [], time: 0, playing: false, inPoint: null, outPoint: null,
-            analysis: { status: 'none', pct: 0, keys: null }, dirty: opts.keepEffect ? getState().dirty : getState().dirty
-        });
+        applyTimeline(tl => addSource(tl, path, media), '');
+        const source = getState().timeline.sources.find(s => s.path === path);
+        if (!source) return null;
+        const entry = await ensurePoolEntry(source.id, media);
+        if (media.video) setSourceMonitor(entry);
         media.warnings.forEach(w => toast(w, 'warn', 7000));
-        void api.thumbs(media, 24).then(thumbs => { if (getState().media?.path === path) setState({ thumbs }); }).catch(() => undefined);
-        void api.setTitle(`UVE Manager ${APP_VERSION} – ${media.name}`);
-        if (getState().effect.settings.autoOn) void runAnalysis();
+        if (media.video) {
+            void api.setTitle(`UVE Manager ${APP_VERSION} – ${media.name}`);
+            if (getState().effect.settings.autoOn) void runAnalysis();
+        }
+        if (opts.place) placeMedia(source.id, { start: timelineDuration(getState().timeline) });
+        return source.id;
     } catch (e) {
         setState({ mediaError: errMsg(e) });
-        toast(`Cannot open video: ${errMsg(e)}`, 'error', 8000);
+        toast(`Cannot open media: ${errMsg(e)}`, 'error', 8000);
+        return null;
     }
 }
 
@@ -70,7 +132,8 @@ export async function requestProxy() {
     toast('This format cannot be previewed directly – creating a preview proxy (export always uses the original file).', 'info', 7000);
     try {
         const url = await api.proxy(m);
-        if (getState().media?.path === m.path) setState({ mediaUrl: url, proxyPct: null });
+        if (getState().media?.path !== m.path) return;
+        setState(st => ({ mediaUrl: url, proxyPct: null, pool: st.pool.map(p => p.path === m.path ? { ...p, url, proxied: true } : p) }));
     } catch (e) {
         setState({ proxyPct: null, mediaError: `Preview not possible: ${errMsg(e)}` });
     }
@@ -102,12 +165,13 @@ export function recomputeAuto() {
 }
 
 // ------------------------------------------------------------------ project
+/** Projects are saved as schema v2 (timeline). v1 files stay readable and are migrated on open. */
 export function buildProject(): UveProject {
     const s = getState();
     return {
-        schema: 'uve-project', version: 1, app: `UVE Manager ${APP_VERSION}`, uveSource: UVE_SOURCE, savedAt: new Date().toISOString(),
-        media: s.media ? { path: s.media.path, size: s.media.size, mtimeMs: s.media.mtimeMs, videoStream: s.media.video?.index ?? 0, audioStream: s.exportSettings.audioTrack } : null,
-        effect: s.effect, inPoint: s.inPoint, outPoint: s.outPoint, export: s.exportSettings, ui: { wipe: s.wipe, compare: s.compare }
+        schema: 'uve-project', version: 2, app: `UVE Manager ${APP_VERSION}`, uveSource: UVE_SOURCE, savedAt: new Date().toISOString(),
+        effect: s.effect, timeline: s.timeline, export: s.exportSettings,
+        ui: { wipe: s.wipe, compare: s.compare, timelineZoom: s.timelineZoom }
     };
 }
 
@@ -129,37 +193,389 @@ export async function saveProject(saveAs = false) {
     } catch (e) { toast(`Save failed: ${errMsg(e)}`, 'error'); }
 }
 
+const baseName = (p: string) => (p.replace(/\.[^.]+$/, '').match(/[\\/][^\\/]*$/) ?? ['/'])[0].slice(1) || 'Timeline';
+
+/** Frame rate requested in the export settings, '' or missing = none. */
+function frameRateFromSetting(fps: string | undefined): number | null {
+    const p = parseFps(fps);
+    return p ? p.num / p.den : null;
+}
+
+async function probeOrToast(path: string): Promise<MediaInfo | null> {
+    try {
+        return await api.probe(path);
+    } catch (e) {
+        toast(`Cannot read media: ${path} (${errMsg(e)})`, 'error', 8000);
+        return null;
+    }
+}
+
+/** Timeline of an opened project; media that moved is located with the user. v1 projects are migrated. */
+async function timelineOfProject(pr: UveProject, missing: string[]): Promise<Timeline> {
+    const settingRate = frameRateFromSetting(pr.export?.fps);
+    if (pr.version === 1) {
+        const declared = pr.media?.path ?? '';
+        if (!declared) return defaultTimeline();
+        let path = declared;
+        if (missing.includes(declared)) {
+            toast(`The project video was not found: ${declared}. Please locate it.`, 'warn', 9000);
+            path = (await api.locateMedia()) ?? '';
+        }
+        const media = path ? await probeOrToast(path) : null;
+        if (!media) {
+            toast('The project stays empty until its video file is available.', 'warn', 9000);
+            return defaultTimeline();
+        }
+        return migrateProjectV1toV2(pr, media, settingRate ?? frameRateFromMedia(media)).timeline;
+    }
+    const tl = sanitizeTimeline(pr.timeline, { frameRate: settingRate ?? undefined, parseEffect: effectFromUnknown });
+    for (const src of tl.sources) {
+        let path = src.path;
+        if (missing.includes(path)) {
+            toast(`Media not found: ${path}. Please locate it.`, 'warn', 9000);
+            path = (await api.locateMedia()) ?? '';
+        }
+        const media = path ? await probeOrToast(path) : null;
+        if (!media) continue;
+        tl.sources = tl.sources.map(s => s.id === src.id ? { ...s, path, media } : s);
+    }
+    return tl;
+}
+
 export async function openProject(path?: string) {
     try {
         const r = await api.openProject(path);
         if (!r) return;
         const pr = r.project;
         const effect = effectFromUnknown(pr.effect);
+        const timeline = await timelineOfProject(pr, r.missing);
+        const zoom = pr.version === 2 ? pr.ui?.timelineZoom : undefined;
         setState({
-            effect, projectPath: r.path, dirty: false, exportSettings: { ...DEFAULT_EXPORT, ...(pr.export || {}) },
-            inPoint: pr.inPoint ?? null, outPoint: pr.outPoint ?? null, wipe: pr.ui?.wipe ?? 0.5, compare: pr.ui?.compare ?? true
+            effect, exportSettings: { ...DEFAULT_EXPORT, ...(pr.export ?? {}) }, timeline,
+            projectPath: r.path, dirty: r.missing.length > 0,
+            wipe: pr.ui?.wipe ?? 0.5, compare: pr.ui?.compare ?? true,
+            timelineZoom: typeof zoom === 'number' && zoom >= 0.5 ? zoom : 90,
+            selectedClipId: null, selectedTrackId: timeline.tracks[0]?.id ?? null,
+            pool: [], time: 0, playing: false
         });
         resetHistory();
         checkLutAvailability(effect);
-        if (pr.media?.path) {
-            let mediaPath: string | null = pr.media.path;
-            if (!r.mediaOk) {
-                toast(`The project video was not found: ${pr.media.path}. Please locate it.`, 'warn', 9000);
-                mediaPath = await api.locateMedia();
-            }
-            if (mediaPath) {
-                const keepIn = pr.inPoint ?? null, keepOut = pr.outPoint ?? null;
-                await loadVideo(mediaPath, { keepEffect: true });
-                setState({ inPoint: keepIn, outPoint: keepOut, dirty: !r.mediaOk });
-            }
-        }
-        toast(`Project opened: ${r.path}`, 'ok');
+        await rebuildPool(timeline);
+        const issues = validateTimeline(timeline);
+        if (issues.length) toast(`This project has ${issues.length} problem(s): ${issues[0].message}`, 'warn', 9000);
+        toast(pr.version === 1 ? `Project opened and converted to a timeline project: ${r.path}` : `Project opened: ${r.path}`, 'ok');
     } catch (e) { toast(`Cannot open project: ${errMsg(e)}`, 'error'); }
 }
 
 export function newProject() {
-    setState({ effect: initialEffect(), projectPath: null, dirty: false, media: null, mediaUrl: null, thumbs: [], inPoint: null, outPoint: null, analysis: { status: 'none', pct: 0, keys: null } });
+    setState({
+        effect: initialEffect(), projectPath: null, dirty: false, media: null, mediaUrl: null, thumbs: [], mediaError: null,
+        inPoint: null, outPoint: null, timeline: defaultTimeline(), pool: [], selectedClipId: null, selectedTrackId: null,
+        analysis: { status: 'none', pct: 0, keys: null }
+    });
     resetHistory();
+}
+
+// ------------------------------------------------------------------ timeline editing
+/** Runs a timeline op with undo history; a rejected op is reported and changes nothing. */
+export function editTimeline(op: (tl: Timeline) => OpResult, key = ''): boolean {
+    const res = applyTimeline(op, key);
+    if (!res.ok) toast(res.error, 'warn', 6000);
+    return res.ok;
+}
+
+export const selectClip = (id: string | null) => setState(id ? { selectedClipId: id, rangeSel: null } : { selectedClipId: null });
+export const selectTrack = (id: string | null) => setState({ selectedTrackId: id });
+export const setTimelineZoom = (pxPerSecond: number) => setState({ timelineZoom: Math.max(0.5, Math.min(600, pxPerSecond)) });
+export const setSnapping = (on: boolean) => setState({ snapping: on });
+/** Switches the player between the source monitor and the timeline program monitor. */
+export const setMonitor = (monitor: 'source' | 'timeline') => setState({ monitor, playing: false });
+
+/** Makes one pool source the current file (analysis, media info). The player keeps showing the timeline. */
+export function showSourceInMonitor(sourceId: string) {
+    const entry = getState().pool.find(p => p.sourceId === sourceId);
+    if (!entry) return;
+    setSourceMonitor(entry);
+}
+
+/** Adds a track and selects it. */
+export function insertTrack(kind: TrackKind, atIndex?: number) {
+    const before = new Set(getState().timeline.tracks.map(t => t.id));
+    const res = applyTimeline(tl => addTrack(tl, kind, atIndex), '');
+    if (!res.ok) { toast(res.error, 'warn', 6000); return; }
+    setState({ selectedTrackId: res.tl.tracks.find(t => !before.has(t.id))?.id ?? getState().selectedTrackId });
+}
+
+
+/**
+ * Places a pool source on the timeline. A video with sound puts its picture on a video track (with the clip's
+ * own audio muted) and its sound as a separate clip on an audio track at the same position, so the two can be
+ * edited and synced independently. Audio-only files go to an audio track. One undo step.
+ */
+export function placeMedia(sourceId: string, opts: { trackId?: string; start?: number; mode?: 'ripple' | 'replace' } = {}): boolean {
+    const st = getState();
+    const source = sourceById(st.timeline, sourceId);
+    if (!source) { toast('Unknown media source.', 'warn', 4000); return false; }
+    const F = st.timeline.frameRate;
+    const media = source.media;
+    // whole frames only: rounding the media length up would run past the end of the media
+    const dur = Math.floor(media.duration * F + 1e-6) / F;
+    if (dur <= 0) { toast('This file is shorter than one frame.', 'warn', 4000); return false; }
+    const start = snap(Math.max(0, opts.start ?? st.time), F);
+    const picked = opts.trackId ? trackById(st.timeline, opts.trackId) : undefined;
+    const wantVideo = !!media.video && (!picked || picked.kind === 'video');
+    const wantAudio = media.audio.length > 0;
+    let placedId: string | null = null;
+    const res = applyTimeline(tl => {
+        let cur = tl;
+        const free = (kind: TrackKind) => cur.tracks.find(t => t.kind === kind && !t.locked)?.id;
+        const put = (trackId: string): OpResult => {
+            const before = new Set(cur.clips.map(c => c.id));
+            const r = insertClip(cur, { trackId, sourceId, start, dur, srcIn: 0, mode: opts.mode });
+            if (r.ok) { cur = r.tl; placedId ??= cur.clips.find(c => !before.has(c.id))?.id ?? null; }
+            return r;
+        };
+        if (wantVideo) {
+            const vId = picked?.kind === 'video' ? picked.id : free('video');
+            if (!vId) return { ok: false, error: 'There is no unlocked video track.' };
+            const r = put(vId);
+            if (!r.ok) return r;
+            if (wantAudio) {
+                const p = patchClip(cur, placedId!, { audioMuted: true });
+                if (!p.ok) return p;
+                cur = p.tl;
+            }
+        }
+        if (wantAudio) {
+            let aId = picked?.kind === 'audio' ? picked.id : free('audio');
+            if (!aId) {
+                const r = addTrack(cur, 'audio');
+                if (!r.ok) return r;
+                cur = r.tl;
+                aId = free('audio');
+            }
+            const r = put(aId!);
+            if (!r.ok) return r;
+        }
+        return { ok: true, tl: cur };
+    }, '');
+    if (!res.ok) { toast(res.error, 'warn', 6000); return false; }
+    setState({ selectedClipId: placedId });
+    return true;
+}
+
+/** Splits one clip at a timeline time (snapped to the frame grid). */
+export function razorAt(clipId: string, t: number): boolean {
+    const st = getState();
+    const at = snap(t, st.timeline.frameRate);
+    const before = new Set(st.timeline.clips.map(c => c.id));
+    const res = applyTimeline(tl => splitClip(tl, clipId, at), '');
+    if (!res.ok) { toast(res.error, 'warn', 6000); return false; }
+    setState({ selectedClipId: res.tl.clips.find(c => !before.has(c.id))?.id ?? null });
+    return true;
+}
+
+/**
+ * Razor at the playhead: splits the selected clip, or else every clip under the playhead on all unlocked
+ * tracks (so a picture and its separate sound stay cut at the same frame). One undo step.
+ */
+export function razorAtPlayhead(): boolean {
+    const st = getState();
+    const t = snap(st.time, st.timeline.frameRate);
+    const selected = st.selectedClipId ? clipById(st.timeline, st.selectedClipId) : undefined;
+    if (selected && t > selected.start && t < clipEnd(selected)) return razorAt(selected.id, t);
+    const targets = st.timeline.clips.filter(c => c.start < t && clipEnd(c) > t && !trackById(st.timeline, c.trackId)?.locked).map(c => c.id);
+    if (!targets.length) { toast('Razor: no clip under the playhead.', 'info', 2500); return false; }
+    const res = applyTimeline(tl => {
+        let cur = tl;
+        for (const id of targets) {
+            const r = splitClip(cur, id, t);
+            if (!r.ok) return r;
+            cur = r.tl;
+        }
+        return { ok: true, tl: cur };
+    }, '');
+    if (!res.ok) { toast(res.error, 'warn', 6000); return false; }
+    setState({ selectedClipId: null });
+    return true;
+}
+
+// ------------------------------------------------------------------ range selection (drag over the tracks)
+/** Sets the marked range (frame-aligned, t0 < t1, at least one frame) or clears it; a range replaces the clip selection. */
+export function setRangeSel(r: RangeSel | null) {
+    if (!r) { setState({ rangeSel: null }); return; }
+    const F = getState().timeline.frameRate;
+    const t0 = snap(Math.max(0, Math.min(r.t0, r.t1)), F), t1 = snap(Math.max(r.t0, r.t1), F);
+    setState({ rangeSel: t1 - t0 >= 1 / F - 1e-9 && r.trackIds.length ? { t0, t1, trackIds: r.trackIds } : null, selectedClipId: null });
+}
+
+/**
+ * Splits every clip on the range's tracks that crosses its start or end. Returns the split timeline and the
+ * ids of the clips lying inside the range (these are exactly the marked pieces).
+ */
+function cutAtRange(tl: Timeline, r: RangeSel): { ok: true; tl: Timeline; inside: string[] } | { ok: false; error: string } {
+    let cur = tl;
+    for (const at of [r.t0, r.t1]) {
+        const crossing = cur.clips.filter(c => r.trackIds.includes(c.trackId) && c.start < at - 1e-9 && clipEnd(c) > at + 1e-9).map(c => c.id);
+        for (const id of crossing) {
+            const res = splitClip(cur, id, at);
+            if (!res.ok) return res;
+            cur = res.tl;
+        }
+    }
+    const inside = cur.clips.filter(c => r.trackIds.includes(c.trackId) && c.start >= r.t0 - 1e-9 && clipEnd(c) <= r.t1 + 1e-9).map(c => c.id);
+    return { ok: true, tl: cur, inside };
+}
+
+/** Moves every clip on `trackIds` that starts at or after `from` by `delta` seconds (in an order that never collides). */
+function shiftClips(tl: Timeline, trackIds: string[], from: number, delta: number): OpResult {
+    let cur = tl;
+    const later = cur.clips.filter(c => trackIds.includes(c.trackId) && c.start >= from - 1e-9)
+        .sort((a, b) => delta > 0 ? b.start - a.start : a.start - b.start);
+    for (const c of later) {
+        const r = moveClip(cur, c.id, { start: c.start + delta });
+        if (!r.ok) return r;
+        cur = r.tl;
+    }
+    return { ok: true, tl: cur };
+}
+
+/** Cuts the clips at the edges of the marked range (all marked tracks). */
+export function splitAtRange(): boolean {
+    const r = getState().rangeSel;
+    if (!r) return false;
+    return editTimeline(tl => cutAtRange(tl, r), '');
+}
+
+/**
+ * Deletes the marked range on the marked tracks: clips crossing its edges are cut there, the pieces inside are
+ * removed. `ripple` also moves everything after the range left by its length (on the marked tracks only).
+ */
+export function deleteRange(mode: 'ripple' | 'lift'): boolean {
+    const r = getState().rangeSel;
+    if (!r) return false;
+    const ok = editTimeline(tl => {
+        const cut = cutAtRange(tl, r);
+        if (!cut.ok) return cut;
+        let cur = cut.tl;
+        for (const id of cut.inside) {
+            const d = deleteClip(cur, id, 'lift');
+            if (!d.ok) return d;
+            cur = d.tl;
+        }
+        return mode === 'ripple' ? shiftClips(cur, r.trackIds, r.t1, -(r.t1 - r.t0)) : { ok: true, tl: cur };
+    }, '');
+    if (ok) setState({ rangeSel: mode === 'ripple' ? null : r, selectedClipId: null });
+    return ok;
+}
+
+/**
+ * Copies to the timeline clipboard: the marked range (the parts of the clips inside it, on every marked track),
+ * else the given / selected clip. `cut` also lifts what was copied.
+ */
+export function copyClip(cut = false, clipId = getState().selectedClipId): boolean {
+    const st = getState();
+    const r = st.rangeSel;
+    if (r && !(clipId && clipId !== st.selectedClipId)) {
+        const res = cutAtRange(st.timeline, r);
+        if (!res.ok) { toast(res.error, 'warn', 6000); return false; }
+        const clips = res.inside.map(id => structuredClone(clipById(res.tl, id)!));
+        if (!clips.length) { toast('The marked range contains no clips.', 'info', 2500); return false; }
+        setState({ clipboard: { t0: r.t0, clips } });
+        if (cut) return deleteRange('lift');
+        toast(`${clips.length} clip part${clips.length > 1 ? 's' : ''} copied.`, 'info', 1500);
+        return true;
+    }
+    if (!clipId) return false;
+    const clip = clipById(st.timeline, clipId);
+    if (!clip) return false;
+    setState({ clipboard: { t0: clip.start, clips: [structuredClone(clip)] } });
+    if (!cut) { toast('Clip copied.', 'info', 1500); return true; }
+    const ok = editTimeline(tl => deleteClip(tl, clipId, 'lift'), '');
+    if (ok) setState({ selectedClipId: null });
+    return ok;
+}
+
+/**
+ * Pastes the clipboard at `start` (default: playhead), keeping the clips' offsets to each other. A copy from one
+ * track goes to `trackId` (default: the selected track when its kind fits, else its own track, else the first
+ * track of its kind); a copy from several tracks goes back to its own tracks. Into free space it is placed as
+ * it is; over existing clips room is made first (clips there are cut at `start` and the rest moves right).
+ * Keeps each clip's look, levels, fades, speed and automation; transitions are not pasted. One undo step.
+ */
+export function pasteClip(opts: { trackId?: string; start?: number } = {}): boolean {
+    const st = getState();
+    const board = st.clipboard;
+    if (!board?.clips.length) { toast('Nothing to paste – copy a clip or mark a range first.', 'info', 2500); return false; }
+    const tl = st.timeline;
+    const kindOf = (c: TimelineClip): TrackKind => trackById(tl, c.trackId)?.kind ?? (sourceById(tl, c.sourceId)?.media.video ? 'video' : 'audio');
+    const fits = (id: string | null | undefined, kind: TrackKind) => { const t = id ? trackById(tl, id) : undefined; return t && t.kind === kind && !t.locked ? t.id : undefined; };
+    const single = new Set(board.clips.map(c => c.trackId)).size === 1;
+    const dest = new Map<string, string>();
+    for (const c of board.clips) {
+        if (!sourceById(tl, c.sourceId)) { toast('The media of a copied clip is no longer in the project.', 'warn', 5000); return false; }
+        if (dest.has(c.trackId)) continue;
+        const kind = kindOf(c);
+        const id = (single ? fits(opts.trackId, kind) ?? fits(st.selectedTrackId, kind) : undefined) ?? fits(c.trackId, kind) ?? tl.tracks.find(t => t.kind === kind && !t.locked)?.id;
+        if (!id) { toast(`There is no unlocked ${kind} track to paste into.`, 'warn', 4000); return false; }
+        dest.set(c.trackId, id);
+    }
+    const start = snap(Math.max(0, opts.start ?? st.time), tl.frameRate);
+    const span = Math.max(...board.clips.map(c => c.start - board.t0 + c.dur));
+    const targets = [...new Set(dest.values())];
+    const occupied = tl.clips.some(c => targets.includes(c.trackId) && c.start < start + span - 1e-9 && clipEnd(c) > start + 1e-9);
+    const added: string[] = [];
+    const res = applyTimeline(t0 => {
+        let cur = t0;
+        if (occupied) {
+            const cut = cutAtRange(cur, { t0: start, t1: start, trackIds: targets });
+            if (!cut.ok) return cut;
+            const moved = shiftClips(cut.tl, targets, start, span);
+            if (!moved.ok) return moved;
+            cur = moved.tl;
+        }
+        for (const clip of board.clips) {
+            const before = new Set(cur.clips.map(c => c.id));
+            const r = insertClip(cur, { trackId: dest.get(clip.trackId)!, sourceId: clip.sourceId, start: start + clip.start - board.t0, dur: clip.dur, srcIn: clip.srcIn, mode: 'replace' });
+            if (!r.ok) return r;
+            const newId = r.tl.clips.find(c => !before.has(c.id))?.id;
+            if (!newId) return r;
+            const { id: _id, trackId: _t, sourceId: _s, start: _st, dur: _d, srcIn: _i, transition: _tr, ...look } = clip;
+            const p = patchClip(r.tl, newId, structuredClone(look));
+            if (!p.ok) return p;
+            cur = p.tl;
+            added.push(newId);
+        }
+        return { ok: true, tl: cur };
+    }, '');
+    if (!res.ok) { toast(res.error, 'warn', 6000); return false; }
+    if (added.length === 1) setState({ selectedClipId: added[0], selectedTrackId: targets[0], rangeSel: null });
+    else setState({ selectedClipId: null, rangeSel: { t0: start, t1: start + span, trackIds: targets } });
+    return true;
+}
+
+/** Ripple delete (later clips close the gap) or lift/extract (the gap stays): the marked range, else the selected clip. */
+export function removeSelectedClip(mode: 'ripple' | 'lift'): boolean {
+    if (getState().rangeSel) return deleteRange(mode);
+    const id = getState().selectedClipId;
+    if (!id) return false;
+    const ok = editTimeline(tl => deleteClip(tl, id, mode), '');
+    if (ok) setState({ selectedClipId: null });
+    return ok;
+}
+
+/** Copy of the selected clip directly behind it. */
+export function duplicateSelectedClip(): boolean {
+    const st = getState();
+    const id = st.selectedClipId;
+    if (!id) return false;
+    const clip = clipById(st.timeline, id);
+    if (!clip) return false;
+    const before = new Set(st.timeline.clips.map(c => c.id));
+    const res = applyTimeline(tl => duplicateClip(tl, id, clipEnd(clip)), '');
+    if (!res.ok) { toast(res.error, 'warn', 6000); return false; }
+    setState({ selectedClipId: res.tl.clips.find(c => !before.has(c.id))?.id ?? null });
+    return true;
 }
 
 // ------------------------------------------------------------------ LUTs
@@ -351,6 +767,33 @@ export async function enqueueCurrent() {
         };
         await api.enqueue(spec);
         toast(`Added to render queue → ${output}`, 'ok', 6000);
+    } catch (e) { toast(`Cannot start rendering: ${errMsg(e)}`, 'error', 8000); }
+}
+
+/** Renders the whole project timeline as one job (the single-file quick path stays `enqueueCurrent`). */
+export async function enqueueTimelineJob() {
+    const s = getState();
+    const tl = s.timeline;
+    if (!tl.clips.length) { toast('The timeline is empty.', 'warn', 4000); return; }
+    if (!s.caps?.ok) { toast(s.caps?.error || 'FFmpeg is not available.', 'error'); return; }
+    const issues = validateTimeline(tl);
+    if (issues.length) { toast(`Cannot render the timeline: ${issues[0].message}`, 'error', 9000); return; }
+    try {
+        const primary = tl.sources.find(src => src.media.video)?.media;
+        if (!primary) throw new Error('The timeline has no picture to render: no source has a video stream.');
+        const output = await api.outputPath(primary, s.exportSettings, profileLabel());
+        // global bypass is a preview-only comparison aid; the job always renders the edited look
+        const effect: EffectState = JSON.parse(JSON.stringify(s.effect));
+        await api.enqueue({
+            id: 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+            name: baseName(s.projectPath ?? primary.path),
+            input: primary.path, output, media: primary, effect,
+            autoKeys: effect.settings.autoOn && s.analysis.status === 'ready' ? s.analysis.keys : null,
+            // timeline audio is synthesized from clip/track levels, so it is always re-encoded
+            exportSettings: { ...s.exportSettings, useInOut: false, audio: s.exportSettings.audio === 'copy' ? 'aac' : s.exportSettings.audio },
+            range: { start: 0, end: timelineDuration(tl) }, parityMode: !!s.prefs?.parityMode, timeline: structuredClone(tl)
+        });
+        toast(`Timeline added to the render queue → ${output}`, 'ok', 6000);
     } catch (e) { toast(`Cannot start rendering: ${errMsg(e)}`, 'error', 8000); }
 }
 
