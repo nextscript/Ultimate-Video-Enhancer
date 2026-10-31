@@ -1,4 +1,4 @@
-import { constants, promises as fsp } from 'node:fs';
+import { constants, existsSync, promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { app } from 'electron';
 import { APP_VERSION, type AppPrefs, DEFAULT_EXPORT, DEFAULT_UPDATE_REPO } from '../shared/types';
@@ -49,14 +49,64 @@ export function appRootDir(): string {
     return path.dirname(app.getPath('exe'));
 }
 
+/** Portable copy (portable.txt next to the exe, or the self-extracting portable exe) – everything lives next to it. */
+export function isPortableCopy(): boolean {
+    if (!app.isPackaged) return false;
+    return !!process.env.PORTABLE_EXECUTABLE_DIR || existsSync(path.join(path.dirname(app.getPath('exe')), 'portable.txt'));
+}
+
+/**
+ * v1.0.5: tools folder of an installed copy. It lies outside the program folder, because an installer update
+ * removes that folder – FFmpeg and REAL-Video-Enhancer (several GB) would have to be downloaded again.
+ * Windows: %LOCALAPPDATA%\UVE Manager\tools (local, not roaming); elsewhere <userData>/tools.
+ */
+export function installedToolsDir(): string {
+    const local = process.platform === 'win32' ? process.env.LOCALAPPDATA : undefined;
+    return local ? path.join(local, 'UVE Manager', 'tools') : path.join(userDir(), 'tools');
+}
+
 let toolsDirCache: Promise<string> | null = null;
-/** Portable tools folder (tools/ next to the app); falls back to userData/tools when not writable. Resolved once. */
+/**
+ * Tools folder (FFmpeg, REAL-Video-Enhancer), resolved once. Development and portable copies: tools/ next to
+ * the app (userData/tools when that is not writable). Installed copies: `installedToolsDir()`; tools that an
+ * older version kept in the program folder or in userData are moved there once.
+ */
 export function toolsDir(): Promise<string> {
     if (!toolsDirCache) {
-        const preferred = path.join(appRootDir(), 'tools');
-        toolsDirCache = isWritableDir(preferred).then(ok => ok ? preferred : path.join(userDir(), 'tools'));
+        if (!app.isPackaged || isPortableCopy()) {
+            const preferred = path.join(appRootDir(), 'tools');
+            toolsDirCache = isWritableDir(preferred).then(ok => ok ? preferred : path.join(userDir(), 'tools'));
+        } else {
+            toolsDirCache = adoptLegacyTools(installedToolsDir(), [path.join(appRootDir(), 'tools'), path.join(userDir(), 'tools')]);
+        }
     }
     return toolsDirCache;
+}
+
+/** Tool folders an older version may have downloaded into a legacy tools folder. */
+const ADOPTED_TOOLS = ['rve', 'ffmpeg'];
+
+/**
+ * Moves each tool folder (rve, ffmpeg) that is missing in `target` from the first legacy folder that has it.
+ * A folder that cannot be moved (read-only program folder, another drive) stays where it is; `target` is
+ * always the folder used, so downloads never go to a read-only place. FFmpeg shipped inside the program
+ * folder is still found by the tools lookup (electron/tools.ts).
+ */
+async function adoptLegacyTools(target: string, legacy: string[]): Promise<string> {
+    for (const name of ADOPTED_TOOLS) {
+        const dest = path.join(target, name);
+        if (existsSync(dest)) continue;
+        for (const old of legacy) {
+            const src = path.join(old, name);
+            if (path.resolve(old) === path.resolve(target) || !existsSync(src)) continue;
+            try {
+                await fsp.mkdir(target, { recursive: true });
+                await fsp.rename(src, dest);
+                break;
+            } catch { /* keep it where it is */ }
+        }
+    }
+    return target;
 }
 
 const DEFAULT_WINDOW: WindowState = { width: 1600, height: 1000, maximized: false, fullscreen: false };

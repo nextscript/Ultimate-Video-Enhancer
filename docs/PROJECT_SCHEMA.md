@@ -8,7 +8,7 @@ project keeps the original look, in/out points and export settings.
 {
   "schema": "uve-project",
   "version": 2,
-  "app": "UVE Manager 1.0.4",
+  "app": "UVE Manager 1.0.5",
   "uveSource": { "name": "...", "version": "1.17.5", "repo": "...", "commit": "38b2ed1…", "sha256": "28b37df…" },
   "savedAt": "2026-10-31T12:00:00.000Z",
 

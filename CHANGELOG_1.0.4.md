@@ -44,12 +44,6 @@ PageUp / PageDown edit points, Shift+PageUp / Shift+PageDown markers, Ctrl+Shift
   of the top clip, the right side the enhanced timeline picture. Drag the handle in the picture; switch it with
   the wipe button in the transport bar or Ctrl+Alt+U.
 
-- **AI Upscaling install failed with "RVE installation failed HTTP 403":** the installer looked up the
-  REAL-Video-Enhancer backend through the GitHub API, which allows only 60 requests per hour per internet
-  connection without sign-in. When that limit is reached it now reads the public release pages instead, so the
-  installation continues. Where a GitHub API limit still stops a download (update check, LUT downloads), the
-  message says so and names the time it is lifted instead of a bare "HTTP 403".
-
 ## Changed
 
 - Redo moved from Ctrl+Y to **Ctrl+Shift+Z** (Ctrl+Y stays as a second key). Saved settings that still had the

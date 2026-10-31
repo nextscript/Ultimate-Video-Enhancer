@@ -509,7 +509,7 @@ export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: 
         }
     }
     const audioCodec = ext === 'webm' ? ['-c:a', 'libopus', '-b:a', `${s.audioBitrate}k`] : ['-c:a', 'aac', '-b:a', `${s.audioBitrate}k`];
-    const comment = 'comment=Processed with UVE Manager 1.0.4 (timeline, Ultimate Video Enhancer effect chain)';
+    const comment = 'comment=Processed with UVE Manager 1.0.5 (timeline, Ultimate Video Enhancer effect chain)';
     const muxExtra = (): string[] => {
         const a = ['-metadata', comment];
         if (ext === 'mp4' || ext === 'mov') a.push('-movflags', '+faststart');

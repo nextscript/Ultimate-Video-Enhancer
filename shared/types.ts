@@ -5,7 +5,7 @@ import type { LutProfile } from './uve/lut';
 import type { AutoKey } from './uve/auto';
 
 export const APP_NAME = 'UVE Manager';
-export const APP_VERSION = '1.0.4';
+export const APP_VERSION = '1.0.5';
 export const UVE_SOURCE = {
     name: 'Ultimate Video Enhancer (Sharpen, HDR, Color Boost)',
     version: '1.17.5',

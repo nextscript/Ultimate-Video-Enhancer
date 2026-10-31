@@ -290,7 +290,11 @@ export async function installRve(progress: (m: string, pct: number) => void, log
             probeCache = null;
         }
         say('Verifying CUDA / TensorRT…', 1);
-        const st = await rveStatus(true);
+        // rveStatus() skips the import probe while `busy` is set (a probe during pip would see half-installed
+        // packages), so the final check runs the probe itself; rveStatus then reports its fresh result
+        probeCache = null;
+        await probePackages();
+        const st = await rveStatus(false);
         if (!st.packages) throw new Error('torch / tensorrt / torch_tensorrt could not be imported after the installation.');
         if (!st.cuda) throw new Error('PyTorch was installed but CUDA is not available (NVIDIA GPU and current driver required).');
         return st;
