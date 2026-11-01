@@ -6,7 +6,8 @@ import { APP_VERSION, LUT_PACKAGE, UVE_SOURCE, type AppPrefs, type JobSpec, type
 import type { LutProfile } from '../shared/uve/lut';
 import { analyze, cancelAnalysis } from './analysis';
 import { deleteLuts, downloadRepoLuts, initLuts, lutLibrary, onLutChange, restoreHiddenLuts, saveUserLuts } from './luts';
-import { audioProxy, clearCache, previewProxy, probe, thumbnails } from './media';
+import { clearCache, previewProxy, probe, thumbnails } from './media';
+import { serveVirtualAudio, virtualAudioOf, type VirtualAudio } from './audio-stream';
 import {
     cancelJob, clearFinished, enqueue, fileNameFromTemplate, initRenderQueue, isRendering, listJobs, outputExtension, removeJob, retryJob, uniqueOutput
 } from './render';
@@ -63,8 +64,18 @@ const MIME: Record<string, string> = {
 const VIDEO_EXTS = ['mp4', 'm4v', 'mkv', 'mov', 'webm', 'avi', 'mpg', 'mpeg', 'ts', 'mts', 'm2ts', 'flv', 'wmv', '3gp', 'ogv', 'mxf', 'vob'];
 const AUDIO_EXTS = ['mp3', 'wav', 'm4a', 'aac', 'flac', 'ogg', 'opus', 'wma', 'aiff', 'aif', 'ac3', 'eac3', 'mka'];
 
+// v1.1.2: virtual PCM WAV streams of audio the renderer cannot decode (only for allowed files)
+const virtualAudio = new Map<string, VirtualAudio>();
+function allowAudio(v: VirtualAudio): string {
+    const key = `a${v.stream}-${allowMedia(v.file)}`;
+    virtualAudio.set(key, v);
+    return key;
+}
+
 async function serveMedia(req: Request): Promise<Response> {
     const url = new URL(req.url);
+    const va = virtualAudio.get(url.hostname);
+    if (va) return serveVirtualAudio(req, va, (await capabilities()).ffmpegPath);
     const file = allowedMedia.get(url.hostname || url.pathname.replace(/^\/+/, ''));
     if (!file) return new Response('Not found', { status: 404 });
     const st = await fsp.stat(file).catch(() => null);
@@ -279,9 +290,11 @@ function registerIpc() {
         const file = await previewProxy(m, pct => send('media:proxyProgress', { path: m.path, pct }));
         return `uve-media://${allowMedia(file)}/proxy.mp4`;
     });
-    h('media:audioProxy', async (m: MediaInfo) => {
-        const file = await audioProxy(m, pct => send('media:proxyProgress', { path: m.path, pct }));
-        return `uve-media://${allowMedia(file)}/proxy${path.extname(file)}`;
+    // v1.1.2: instant preview sound for AC3 / DTS / … (live-decoded PCM WAV, see audio-stream.ts)
+    h('media:audioUrl', (m: MediaInfo, stream?: number) => {
+        allowMedia(m.path);
+        const v = virtualAudioOf(m, stream);
+        return v ? `uve-media://${allowAudio(v)}/audio.wav` : null;
     });
     h('analysis:run', (m: MediaInfo) => analyze(m, pct => send('analysis:progress', { path: m.path, pct })));
     h('analysis:cancel', (key: string) => cancelAnalysis(key));

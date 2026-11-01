@@ -1,22 +1,37 @@
 # UVE Manager 1.1.2 – Changelog
 
-Baseline: v1.1.1. Fixes missing sound in the preview for MKV files.
+Baseline: v1.1.1. Instant sound for MKV files in the preview, crackle-free 5.1 down-mix, and a new
+one-click **Sofort-Render** (Raw + Filter).
+
+## New
+
+- **Sofort-Render (Raw + Filter)** – button next to *Render Video*. Renders the whole original file of the
+  current source 1:1 with the look you set in the app (filters, profile, LUT, Auto-Scene-Match) and nothing else:
+  - same resolution, frame rate, video codec (HEVC stays HEVC, H.264 stays H.264, …) and bit depth (10-bit stays
+    10-bit), container like the source (MKV stays MKV), very high quality (CRF/CQ 16, GPU encoder when available);
+  - **every audio track and every subtitle track is copied unchanged** (e.g. AC3 5.1 German + English and both
+    German subtitle tracks), with their language and title tags;
+  - no AI upscaling, timeline cuts and transitions are ignored. Output folder and file-name pattern come from the
+    Output Settings.
 
 ## Fixed
 
 - **MKV files played without sound in the preview.** Chromium (the player inside UVE Manager) cannot decode
-  AC3, E-AC3, DTS, TrueHD and similar audio codecs that are typical for MKV releases. The picture still plays,
-  so no error was raised – the sound was just skipped silently.
-  - When the first audio stream uses such a codec, UVE Manager now builds an **audio proxy** for the preview in the
-    background: the video stream is copied unchanged (no re-encode, no quality loss, ~25× real time), only the sound
-    is converted to AAC with the same channel layout (5.1 stays 5.1, so the timeline mixer down-mix is unchanged).
-    Progress is shown in the player; the preview switches to the proxy automatically once it is ready.
-  - If the picture codec cannot be stream-copied (e.g. MPEG-2), the full H.264 preview proxy is used instead.
-  - Proxies are cached (Settings → Clear cache removes them). **Export always reads the original file** – the
-    original audio is copied or encoded as configured, exactly as before.
+  AC3, E-AC3, DTS, TrueHD and similar codecs that are typical for MKV releases; the picture still played, so no
+  error was shown. The sound of such files is now streamed live next to the picture: the main process decodes
+  it on demand with FFmpeg into a PCM stream that the player can seek in. Sound starts **immediately** (no
+  conversion step, no proxy file) and follows play, pause, seeks and speed changes in the timeline and the
+  source monitor. Export always reads the original file.
+- **Crackling sound with 5.1 / 7.1 sources** (preview and export). The stereo fold mixed both surround channels
+  into both sides and was not normalized, so loud scenes summed far above full scale and clipped. Each surround now
+  feeds only its own side and every fold is normalized like FFmpeg's own stereo down-mix – no more clipping.
+- The preview sound no longer adjusts its speed in tiny steps to stay in sync (that is audible as crackling); it is
+  corrected only by a single jump when picture and sound really drift apart (e.g. a seek while playing).
 
 ## Tests
 
-- New unit tests for the codec decision (`shared/browser-codecs.ts`). All unit tests pass.
-- Checked in Electron with a German DL 1080p HEVC MKV (2× AC3 5.1): the original file decodes 0 audio bytes in
-  Chromium, the audio proxy decodes sound with the HEVC picture copied 1:1.
+- New unit tests for the codec decision, the Sofort-Render settings and the normalized 5.1 / 7.1 folds.
+  All 153 unit tests pass.
+- Checked in the app with a German DL 1080p HEVC MKV (2× AC3 5.1, 2× SRT): sound plays at once, stays in sync
+  after a seek to 50:00 while playing; a Sofort-Render keeps HEVC 10-bit 1920×804 25 fps, both AC3 tracks and
+  both subtitle tracks, with the look applied.

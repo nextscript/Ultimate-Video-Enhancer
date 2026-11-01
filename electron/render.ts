@@ -333,6 +333,9 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: Upscale
     const ext = outputExtension(s);
     const audioIdx = s.audioTrack >= 0 ? m.audio.findIndex(a => a.index === s.audioTrack) : 0;
     const audio = s.audio !== 'none' ? m.audio[audioIdx >= 0 ? audioIdx : 0] : undefined;
+    // v1.1.2: every audio stream (Sofort-Render), otherwise only the chosen one
+    const audioStreams = !audio ? [] : s.allAudio ? m.audio : [audio];
+    const mapAudio = (input: number): string[] => audioStreams.flatMap(a => ['-map', `${input}:${a.index}`]);
     // subtitle handling for the final container
     let subCodec: string | null = null;
     if (s.subtitles === 'copy' && m.subtitles.length) {
@@ -344,8 +347,8 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: Upscale
     const audioArgs = (): string[] => {
         if (!audio) return ['-an'];
         const allowed = COPY_OK[ext] || [];
-        const canCopy = s.audio === 'copy' && (allowed.includes('*') || allowed.includes(audio.codec));
-        if (s.audio === 'copy' && !canCopy) warnings.push(`Audio "${audio.codec}" cannot be stream-copied into .${ext}; it is re-encoded.`);
+        const canCopy = s.audio === 'copy' && audioStreams.every(a => allowed.includes('*') || allowed.includes(a.codec));
+        if (s.audio === 'copy' && !canCopy) warnings.push(`Audio "${audioStreams.map(a => a.codec).join(', ')}" cannot be stream-copied into .${ext}; it is re-encoded.`);
         if (canCopy) return ['-c:a', 'copy'];
         if (s.audio === 'opus' || ext === 'webm') return ['-c:a', 'libopus', '-b:a', `${s.audioBitrate}k`];
         return ['-c:a', 'aac', '-b:a', `${s.audioBitrate}k`];
@@ -394,8 +397,7 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: Upscale
                 a.push('-t', (end - start).toFixed(6), '-i', m.path);
             }
             a.push('-map', '0:v:0', '-c:v', 'copy');
-            if (audio) a.push('-map', `1:${audio.index}`);
-            a.push(...audioArgs());
+            a.push(...mapAudio(1), ...audioArgs());
             if (subCodec) a.push('-map', '1:s?', '-c:s', subCodec);
             if (needSecond) a.push('-map_metadata', '1');
             a.push('-metadata', `comment=Processed with UVE Manager ${APP_VERSION} (Ultimate Video Enhancer effect chain, ${direct ? 'Video2X' : 'REAL-Video-Enhancer'} upscaling)`);
@@ -406,8 +408,7 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: Upscale
         };
     } else {
         encodeArgs.push(...videoOut);
-        if (audio) encodeArgs.push('-map', `1:${audio.index}`);
-        encodeArgs.push(...audioArgs());
+        encodeArgs.push(...mapAudio(1), ...audioArgs());
         if (subCodec) encodeArgs.push('-map', '1:s?', '-c:s', subCodec);
         if (needSecond) encodeArgs.push('-map_metadata', '1');
         encodeArgs.push('-metadata', 'comment=Processed with UVE Manager 1.0.0 (Ultimate Video Enhancer effect chain)');

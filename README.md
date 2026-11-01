@@ -117,7 +117,7 @@ All shortcuts can be changed in Settings → Keyboard shortcuts.
 - `docs/BUILD.md`: build instructions per platform and the release workflow
 - `docs/PROJECT_SCHEMA.md`: the `.uveproj` project format (schema version 2, timeline)
 - `docs/TRANSITIONS.md`: transition geometry shared by preview and export
-- `CHANGELOG_1.1.2.md`: changes since 1.1.1 (MKV files with AC3 / E-AC3 / DTS sound play with sound in the preview)
+- `CHANGELOG_1.1.2.md`: changes since 1.1.1 (instant MKV sound in the preview, crackle-free 5.1 down-mix, Sofort-Render)
 - `CHANGELOG_1.1.1.md`: changes since 1.1.0 (Real-ESRGAN / Real-CUGAN fixes for the real Video2X build)
 - `CHANGELOG_1.1.0.md`: changes since 1.0.9 (Real-CUGAN noise-level fix; summary of the Video2X releases)
 - `CHANGELOG_1.0.9.md`: changes since 1.0.8 (Video2X: Install as the first step)

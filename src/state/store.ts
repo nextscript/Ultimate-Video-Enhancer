@@ -35,6 +35,11 @@ export interface PoolSource {
     /** file is currently unavailable */
     missing: boolean;
     thumbs: { t: number; url: string }[];
+    /**
+     * v1.1.2: live-decoded PCM stream of the sound when Chromium cannot decode the file's audio (AC3, DTS, …);
+     * the preview then plays the picture from `url` and the sound from this url in sync
+     */
+    audioUrl?: string | null;
 }
 
 export interface AppInfo {

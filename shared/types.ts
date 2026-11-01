@@ -122,6 +122,11 @@ export interface ExportSettings {
     upscaleProvider?: UpscaleProvider;
     /** v1.0.7: Video2X (Anime4K) options, used when upscaleProvider = 'video2x' */
     video2x?: Video2xExportOptions;
+    /**
+     * v1.1.2 (Sofort-Render): keep every audio stream of the source instead of the one `audioTrack` names
+     * (single-file jobs only; language/title tags are kept). Not part of DEFAULT_EXPORT.
+     */
+    allAudio?: boolean;
 }
 
 export const DEFAULT_EXPORT: ExportSettings = {

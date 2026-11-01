@@ -969,8 +969,21 @@ test('the stereo fold maps mono, surround and exotic layouts the same way the pr
     // panLaw clamps at unity: panning attenuates the other side, it never boosts
     assert.ok(chainFor(1, 'mono', 0.5).includes('pan=stereo|c0=0.5*c0|c1=1*c0'), chainFor(1, 'mono', 0.5));
     assert.ok(chainFor(1, 'mono', -0.5).includes('pan=stereo|c0=1*c0|c1=0.5*c0'), chainFor(1, 'mono', -0.5));
-    assert.ok(chainFor(6, '5.1').includes('pan=stereo|c0=1*c0+0.707107*c2+0.707107*c4+0.707107*c5|c1=1*c1+0.707107*c2+0.707107*c4+0.707107*c5'),
+    // v1.1.2: each surround feeds only its own side, and the fold is normalized (no clipping / crackling)
+    assert.ok(chainFor(6, '5.1').includes('pan=stereo|c0=0.414214*c0+0.292893*c2+0.292893*c4|c1=0.414214*c1+0.292893*c2+0.292893*c5'),
         chainFor(6, '5.1'));
+    for (const layout of ['quad', '5.0(side)', '5.1', '5.1(side)', '7.1']) {
+        const n = { quad: 4, '5.0(side)': 5, '5.1': 6, '5.1(side)': 6, '7.1': 8 }[layout]!;
+        const f = channelFold({ ...astream(), channels: n, layout })!;
+        const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+        assert.ok(Math.abs(sum(f.l) - 1) < 1e-9 && Math.abs(sum(f.r) - 1) < 1e-9, `${layout} fold sums to 1`);
+        assert.equal(f.l[1], 0, `${layout}: FR not in left`);
+        assert.equal(f.r[0], 0, `${layout}: FL not in right`);
+    }
+    const f51 = channelFold({ ...astream(), channels: 6, layout: '5.1(side)' })!;
+    assert.equal(f51.l[5], 0, 'right surround not in left');
+    assert.equal(f51.r[4], 0, 'left surround not in right');
+    assert.equal(f51.l[3] + f51.r[3], 0, 'LFE dropped');
     const exotic = chainFor(8, 'octual');
     assert.ok(exotic.includes('aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo'), exotic);
     assert.deepEqual(channelFold({ ...astream(), channels: 1, layout: 'mono' }), { l: [1], r: [1] });

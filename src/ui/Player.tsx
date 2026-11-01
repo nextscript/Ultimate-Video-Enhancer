@@ -9,6 +9,7 @@ import { api } from '../api';
 import { Icon, Progress } from './controls';
 import { Scopes } from './Scopes';
 import { TimelinePlayback } from './timelinePlayback';
+import { AudioSidecar } from './audioSidecar';
 
 const tlMode = () => getState().monitor === 'timeline';
 
@@ -304,6 +305,32 @@ export function Player() {
         const v = videoRef.current!;
         if (mediaUrl) { v.src = mediaUrl; v.load(); } else { v.removeAttribute('src'); v.load(); }
     }, [mediaUrl]);
+
+    // v1.1.2: source monitor sound of AC3 / DTS / … files: a live PCM stream follows the picture
+    const sourceAudioUrl = useStore(s => s.pool.find(p => p.path === s.media?.path && p.url === s.mediaUrl)?.audioUrl ?? null);
+    useEffect(() => {
+        const v = videoRef.current!;
+        if (!sourceAudioUrl) return;
+        const aux = new AudioSidecar();
+        aux.setUrl(sourceAudioUrl);
+        let timer = 0;
+        const follow = () => {
+            const run = !v.paused && !tlMode();
+            aux.el.volume = v.volume;
+            aux.el.muted = v.muted;
+            aux.follow(v.currentTime, run, v.playbackRate);
+        };
+        const loop = () => { follow(); if (!v.paused) timer = window.setTimeout(loop, 100); };
+        const onPlay = () => { clearTimeout(timer); loop(); };
+        const evs = ['play', 'pause', 'seeked', 'seeking', 'ratechange', 'volumechange', 'loadedmetadata'] as const;
+        evs.forEach(e => v.addEventListener(e, e === 'play' ? onPlay : follow));
+        follow();
+        return () => {
+            clearTimeout(timer);
+            evs.forEach(e => v.removeEventListener(e, e === 'play' ? onPlay : follow));
+            aux.dispose();
+        };
+    }, [sourceAudioUrl]);
 
     // fit canvas into the box (timeline monitor: the first video source sets the output size, like the export)
     const tlVideo = timeline.sources.find(s => s.media.video)?.media.video;

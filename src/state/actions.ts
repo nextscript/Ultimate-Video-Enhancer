@@ -9,7 +9,8 @@ import { mergeProfiles, newProfileId, parseUserProfileObject, sanitizeProfileFil
 import { DEFAULT_SETTINGS, type ToneProfile, type UveSettings, sanitizeSettings, settingsToGvfSettings } from '../../shared/uve/settings';
 import { applyTimeline, getState, initialEffect, resetHistory, setState, toast, updateEffect, type PoolSource, type RangeSel } from './store';
 import { parseFps } from '../../shared/fps';
-import { needsAudioProxy, videoCopyable } from '../../shared/browser-codecs';
+import { needsAudioSidecar } from '../../shared/browser-codecs';
+import { quickRenderSettings } from '../../shared/quick-render';
 import {
     addSource, addTrack, clipById, clipEnd, defaultTimeline, deleteClip, duplicateClip, frameRateFromMedia, insertClip,
     migrateProjectV1toV2, moveClip, pairTracks, patchClip, sanitizeTimeline, snap, sourceById, splitClip, timelineDuration, trackById, validateTimeline,
@@ -68,10 +69,11 @@ async function ensurePoolEntry(sourceId: string, media: MediaInfo): Promise<Pool
     const keepProxy = !!old && old.proxied && old.path === media.path;
     const entry: PoolSource = {
         sourceId, path: media.path, media, thumbs: old?.thumbs ?? [],
-        url: keepProxy ? old.url : await api.mediaUrl(media.path), proxied: keepProxy, missing: false
+        url: keepProxy ? old.url : await api.mediaUrl(media.path), proxied: keepProxy, missing: false,
+        // AC3 / DTS / … sound: played live from a separate stream next to the picture (a proxy has AAC already)
+        audioUrl: !keepProxy && needsAudioSidecar(media) ? await api.audioUrl(media).catch(() => null) : null
     };
     setState(st => ({ pool: [...st.pool.filter(p => p.sourceId !== sourceId && p.path !== media.path), entry] }));
-    if (!keepProxy && needsAudioProxy(media)) void requestAudioProxy(media);
     if (!entry.thumbs.length && entry.url) {
         void api.thumbs(media, 24)
             .then(thumbs => setState(st => ({ pool: st.pool.map(p => p.sourceId === sourceId ? { ...p, thumbs } : p) })))
@@ -135,41 +137,9 @@ export async function requestProxy() {
     try {
         const url = await api.proxy(m);
         if (getState().media?.path !== m.path) return;
-        setState(st => ({ mediaUrl: url, proxyPct: null, pool: st.pool.map(p => p.path === m.path ? { ...p, url, proxied: true } : p) }));
+        setState(st => ({ mediaUrl: url, proxyPct: null, pool: st.pool.map(p => p.path === m.path ? { ...p, url, proxied: true, audioUrl: null } : p) }));
     } catch (e) {
         setState({ proxyPct: null, mediaError: `Preview not possible: ${errMsg(e)}` });
-    }
-}
-
-const audioProxyJobs = new Set<string>();
-
-/**
- * The picture of the file plays, but Chromium cannot decode its sound (AC3 / E-AC3 / DTS / TrueHD – typical
- * for MKV): builds an audio proxy (video stream copied, sound as AAC) in the background and swaps the
- * preview url once it is ready. Until then the preview plays without sound; export uses the original.
- */
-async function requestAudioProxy(media: MediaInfo) {
-    if (audioProxyJobs.has(media.path)) return;
-    audioProxyJobs.add(media.path);
-    const codec = media.audio[0]?.codec.toUpperCase() ?? '';
-    const cur = () => getState().media?.path === media.path;
-    if (cur()) setState({ proxyPct: 0 });
-    toast(`${codec} audio cannot be played by the preview directly – converting the sound for the preview (the picture is copied unchanged; export always uses the original file).`, 'info', 8000);
-    try {
-        if (!videoCopyable(media)) {
-            // picture needs a re-encode anyway: the full proxy converts the sound as well
-            const url = await api.proxy(media);
-            setState(st => ({ ...(cur() ? { mediaUrl: url, proxyPct: null } : {}), pool: st.pool.map(p => p.path === media.path ? { ...p, url, proxied: true } : p) }));
-            return;
-        }
-        const url = await api.audioProxy(media);
-        setState(st => ({ ...(cur() ? { mediaUrl: url, proxyPct: null } : {}), pool: st.pool.map(p => p.path === media.path ? { ...p, url, proxied: true } : p) }));
-        toast('Preview sound ready.', 'ok', 3000);
-    } catch (e) {
-        if (cur()) setState({ proxyPct: null });
-        toast(`Preview sound not available: ${errMsg(e)}`, 'warn', 8000);
-    } finally {
-        audioProxyJobs.delete(media.path);
     }
 }
 
@@ -807,6 +777,26 @@ export async function enqueueCurrent() {
         };
         await api.enqueue(spec);
         toast(`Added to render queue → ${output}`, 'ok', 6000);
+    } catch (e) { toast(`Cannot start rendering: ${errMsg(e)}`, 'error', 8000); }
+}
+
+/** Sofort-Render: the whole original file of the source monitor, 1:1, with the current look applied. */
+export async function quickRender() {
+    const s = getState();
+    if (!s.media?.video) { toast('Open a video first.', 'warn'); return; }
+    if (!s.caps?.ok) { toast(s.caps?.error || 'FFmpeg is not available.', 'error'); return; }
+    try {
+        const m = s.media;
+        const exportSettings = quickRenderSettings(m, s.exportSettings);
+        const output = await api.outputPath(m, exportSettings, profileLabel());
+        // global bypass is a preview-only comparison aid; the job always renders the edited look
+        const effect: EffectState = JSON.parse(JSON.stringify(s.effect));
+        await api.enqueue({
+            id: 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6), name: `${m.name} (Sofort-Render)`, input: m.path, output,
+            media: m, effect, autoKeys: effect.settings.autoOn && s.analysis.status === 'ready' ? s.analysis.keys : null,
+            exportSettings, range: { start: 0, end: m.duration }, parityMode: !!s.prefs?.parityMode
+        });
+        toast(`Sofort-Render added to the render queue → ${output}`, 'ok', 6000);
     } catch (e) { toast(`Cannot start rendering: ${errMsg(e)}`, 'error', 8000); }
 }
 

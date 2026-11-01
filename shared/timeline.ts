@@ -943,19 +943,30 @@ export function panLaw(pan: number): { left: number; right: number } {
 
 /**
  * Stereo fold of a source layout: coefficient per ffmpeg channel index (FL FR FC LFE BL BR SLs SRs).
- * Surrounds fold at 1/sqrt(2), the LFE is dropped. Export runs it through ffmpeg's `pan`, the preview
- * mixer through a ChannelSplitter with the same numbers, so both land on the same stereo field.
+ * Centre and surrounds fold at 1/sqrt(2), the LFE is dropped; a left surround only feeds the left side,
+ * a right surround only the right side. v1.1.2: every fold is normalized so one output side sums to 1
+ * (like ffmpeg's own `-ac 2` downmix) – a full-scale 5.1 mix can no longer clip, which crackled before.
+ * Export runs it through ffmpeg's `pan`, the preview mixer through a ChannelSplitter with the same
+ * numbers, so both land on the same stereo field.
  */
 const SURROUND = 0.7071067811865476;
+const S = SURROUND;
+function normalized(l: number[], r: number[]): { l: number[]; r: number[] } {
+    const k = Math.max(1, l.reduce((a, b) => a + b, 0), r.reduce((a, b) => a + b, 0));
+    return { l: l.map(x => x / k), r: r.map(x => x / k) };
+}
 const CHANNEL_FOLD: Record<string, { l: number[]; r: number[] }> = {
     mono: { l: [1], r: [1] },
     stereo: { l: [1, 0], r: [0, 1] },
     '2.1': { l: [1, 0, 0], r: [0, 1, 0] },
-    quad: { l: [1, 0, SURROUND, 0], r: [0, 1, 0, SURROUND] },
-    '5.0(side)': { l: [1, 0, SURROUND, SURROUND, 0], r: [0, 1, SURROUND, 0, SURROUND] },
-    '5.1': { l: [1, 0, SURROUND, 0, SURROUND, SURROUND], r: [0, 1, SURROUND, 0, SURROUND, SURROUND] },
-    '5.1(side)': { l: [1, 0, SURROUND, 0, SURROUND, SURROUND], r: [0, 1, SURROUND, 0, SURROUND, SURROUND] },
-    '7.1': { l: [1, 0, SURROUND, 0, SURROUND, SURROUND, SURROUND, SURROUND], r: [0, 1, SURROUND, 0, SURROUND, SURROUND, SURROUND, SURROUND] }
+    quad: normalized([1, 0, S, 0], [0, 1, 0, S]),
+    // FL FR FC SL SR
+    '5.0(side)': normalized([1, 0, S, S, 0], [0, 1, S, 0, S]),
+    // FL FR FC LFE BL BR / FL FR FC LFE SL SR
+    '5.1': normalized([1, 0, S, 0, S, 0], [0, 1, S, 0, 0, S]),
+    '5.1(side)': normalized([1, 0, S, 0, S, 0], [0, 1, S, 0, 0, S]),
+    // FL FR FC LFE BL BR SL SR
+    '7.1': normalized([1, 0, S, 0, S, 0, S, 0], [0, 1, S, 0, 0, S, 0, S])
 };
 
 /** `null` for layouts we do not fold ourselves; ffmpeg's own rematrix takes those. */

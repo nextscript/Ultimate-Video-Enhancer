@@ -2,7 +2,7 @@ import type { Container, ExportSettings, VideoCodec } from '../../shared/types';
 import { FPS_MAX, FPS_MIN, FPS_PRESETS, parseFps } from '../../shared/fps';
 import { HW_FAMILY_LABEL, type HwFamily } from '../../shared/hw';
 import { api } from '../api';
-import { enqueueTimelineJob } from '../state/actions';
+import { enqueueTimelineJob, quickRender } from '../state/actions';
 import { getState, setState, useStore } from '../state/store';
 import { RVE_BACKEND_LABEL, refreshRve } from './RveSettings';
 import { useEffect } from 'react';
@@ -119,6 +119,7 @@ export function ExportPanel() {
             {provider === 'rve' && rveInstalled && <p className="hint">Two-stage render: UVE look → lossless intermediate → REAL-Video-Enhancer {rve ? RVE_BACKEND_LABEL[rve.engine] : ''} {aiModel?.scale}× upscale → final encode.{rve?.engine === 'tensorrt' ? ' The first job per model/resolution builds a TensorRT engine.' : ''}</p>}
             <div className="row gap">
                 <button className="btn btn-primary btn-render" disabled={!hasClips || !caps?.ok} onClick={() => enqueueTimelineJob()} title="Render the whole timeline (all tracks, transitions and audio) as one file"><Icon name="render" /> Render Video</button>
+                <Button disabled={!media?.video || !caps?.ok} onClick={() => void quickRender()} title={'Sofort-Render: the original file 1:1 with your current look (filters, profile, LUT, Auto-Scene-Match) - same resolution, frame rate, codec and bit depth, every audio and subtitle track copied. No AI upscaling, timeline edits are ignored.'}>Sofort-Render (Raw + Filter)</Button>
                 <Button onClick={() => setState({ view: 'queue' })}>Render Queue</Button>
             </div>
             {!caps?.ok && <p className="warn-text">{caps?.error || 'Checking FFmpeg…'}</p>}

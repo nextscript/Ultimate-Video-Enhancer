@@ -16,6 +16,7 @@ import type { FrameEngine } from '../engine/types';
 import { graphFromEffect } from '../engine/pipeline';
 import { getState, setState } from '../state/store';
 import { AudioMixer } from './audioMixer';
+import { AudioSidecar } from './audioSidecar';
 import { frameComposite, heldSourceTime } from './timelineMath';
 
 /**
@@ -50,6 +51,8 @@ const graphOf = (e: EffectState): UveGraph => {
 export class TimelinePlayback {
     private host: PlaybackHost;
     private els = new Map<string, HTMLVideoElement>();
+    /** v1.1.2: live sound streams of clips whose source audio Chromium cannot decode (AC3, DTS, …) */
+    private auxs = new Map<string, AudioSidecar>();
     private holder: HTMLDivElement;
     private mixer = new AudioMixer();
     private planFor: Timeline | null = null;
@@ -115,6 +118,7 @@ export class TimelinePlayback {
         this.playing = false;
         cancelAnimationFrame(this.raf);
         for (const el of this.els.values()) { el.pause(); this.mixer.silence(el); }
+        for (const a of this.auxs.values()) { a.pause(); this.mixer.silence(a.el); }
         setState({ playing: false, time: this.t });
         this.sync(false);
         this.requestRender();
@@ -167,6 +171,20 @@ export class TimelinePlayback {
         return el;
     }
 
+    /** Sound element of a clip whose source needs the live PCM stream, else null (the picture element plays it). */
+    private auxFor(pc: PlanClip): AudioSidecar | null {
+        // only clips that can be heard stream sound (a video's picture clip whose sound lives on an audio track does not)
+        const url = pc.audible ? getState().pool.find(p => p.sourceId === pc.source.id)?.audioUrl : null;
+        let a = this.auxs.get(pc.clip.id) ?? null;
+        if (!url) {
+            if (a) { this.mixer.forget(a.el); a.dispose(); this.auxs.delete(pc.clip.id); }
+            return null;
+        }
+        if (!a) { a = new AudioSidecar(); a.el.muted = true; this.auxs.set(pc.clip.id, a); }
+        a.setUrl(url);
+        return a;
+    }
+
     /** Drops elements of clips that no longer exist. */
     private cleanup() {
         const ids = new Set(getState().timeline.clips.map(c => c.id));
@@ -178,6 +196,12 @@ export class TimelinePlayback {
             el.load();
             el.remove();
             this.els.delete(id);
+        }
+        for (const [id, a] of this.auxs) {
+            if (ids.has(id)) continue;
+            this.mixer.forget(a.el);
+            a.dispose();
+            this.auxs.delete(id);
         }
     }
 
@@ -195,7 +219,8 @@ export class TimelinePlayback {
             const preroll = !active && s0 > f && s0 <= preF && (pc.visible || pc.audible);
             const el = active || preroll ? this.elFor(pc) : this.els.get(pc.clip.id) ?? null;
             if (!el) continue;
-            if (!active && !preroll) { if (!el.paused) el.pause(); this.mixer.silence(el); continue; }
+            const aux = active || preroll ? this.auxFor(pc) : this.auxs.get(pc.clip.id) ?? null;
+            if (!active && !preroll) { if (!el.paused) el.pause(); this.mixer.silence(el); if (aux) { aux.pause(); this.mixer.silence(aux.el); } continue; }
             const srcFps = pc.source.media.video?.fps || F;
             const at = active ? f : s0;
             const target = heldSourceTime(pc, at, F, 1 / srcFps);
@@ -214,6 +239,15 @@ export class TimelinePlayback {
             // audio: reversed clips are silent in the preview (export plays them through the reverse pre-pass);
             // only clips that are heard reach the speakers, and only through their mixer strip
             const heard = run && pc.audible && pc.source.media.audio.length > 0;
+            if (aux) {
+                // picture element stays silent; the live sound stream follows it (pre-positioned while parked)
+                el.muted = true;
+                aux.el.muted = !heard;
+                aux.follow(heard && !el.paused ? el.currentTime : target, heard, pc.clip.speed * this.rate);
+                if (heard) this.mixer.update(aux.el, tl, pc, f);
+                else this.mixer.silence(aux.el);
+                continue;
+            }
             el.muted = !heard;
             if (heard) this.mixer.update(el, tl, pc, f);
             else this.mixer.silence(el);
@@ -358,6 +392,7 @@ export class TimelinePlayback {
     deactivate() {
         if (this.playing) this.pause();
         for (const el of this.els.values()) { el.pause(); this.mixer.silence(el); }
+        for (const a of this.auxs.values()) { a.pause(); this.mixer.silence(a.el); }
         this.facade?.destroy();
         this.facade = null;
         this.facadeOf = null;
@@ -371,6 +406,8 @@ export class TimelinePlayback {
         this.deactivate();
         for (const el of this.els.values()) { this.mixer.forget(el); el.removeAttribute('src'); el.load(); }
         this.els.clear();
+        for (const a of this.auxs.values()) { this.mixer.forget(a.el); a.dispose(); }
+        this.auxs.clear();
         this.mixer.dispose();
         this.holder.remove();
     }
