@@ -1,19 +1,19 @@
-# UVE Manager 1.0.8
+# UVE Manager 1.0.9
 
 Desktop video editor and offline renderer built on the Ultimate Video Enhancer effect chain –
 for Windows, macOS and Linux. Since 1.0.3 the editor is a multi-track timeline.
 
 ## Downloads
 
-All packages are attached to the [GitHub release](https://github.com/nextscript/Ultimate-Video-Enhancer/releases/tag/1.0.8)
+All packages are attached to the [GitHub release](https://github.com/nextscript/Ultimate-Video-Enhancer/releases/tag/1.0.9)
 and built automatically by `.github/workflows/release.yml`:
 
 | System | Package |
 |---|---|
-| Windows x64 | `UVE-Manager-1.0.8-setup.exe` (installer) or `UVE-Manager-1.0.8-portable.exe` (portable, ships FFmpeg) |
-| macOS Apple Silicon | `UVE-Manager-1.0.8-mac-arm64.dmg` / `.zip` |
-| macOS Intel | `UVE-Manager-1.0.8-mac-x64.dmg` / `.zip` |
-| Linux x64 | `UVE-Manager-1.0.8-linux-x86_64.AppImage` / `UVE-Manager-1.0.8-linux-x64.tar.gz` |
+| Windows x64 | `UVE-Manager-1.0.9-setup.exe` (installer) or `UVE-Manager-1.0.9-portable.exe` (portable, ships FFmpeg) |
+| macOS Apple Silicon | `UVE-Manager-1.0.9-mac-arm64.dmg` / `.zip` |
+| macOS Intel | `UVE-Manager-1.0.9-mac-x64.dmg` / `.zip` |
+| Linux x64 | `UVE-Manager-1.0.9-linux-x86_64.AppImage` / `UVE-Manager-1.0.9-linux-x64.tar.gz` |
 
 - **macOS:** the app is not notarized – open it the first time with right click → *Open*
   (or `xattr -cr "/Applications/UVE Manager.app"`). FFmpeg must be installed, e.g. `brew install ffmpeg`.
@@ -117,6 +117,7 @@ All shortcuts can be changed in Settings → Keyboard shortcuts.
 - `docs/BUILD.md`: build instructions per platform and the release workflow
 - `docs/PROJECT_SCHEMA.md`: the `.uveproj` project format (schema version 2, timeline)
 - `docs/TRANSITIONS.md`: transition geometry shared by preview and export
+- `CHANGELOG_1.0.9.md`: changes since 1.0.8 (Video2X: Install as the first step)
 - `CHANGELOG_1.0.8.md`: changes since 1.0.7 (Real-ESRGAN and Real-CUGAN through Video2X)
 - `CHANGELOG_1.0.7.md`: changes since 1.0.6 (Video2X / Anime4K fast upscale provider, custom GLSL shader library)
 - `CHANGELOG_1.0.6.md`: changes since 1.0.5 (AI Upscaling for AMD, Intel and macOS: NCNN / PyTorch backends)

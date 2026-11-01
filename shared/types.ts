@@ -6,7 +6,7 @@ import type { AutoKey } from './uve/auto';
 import type { UpscaleProvider, Video2xExportOptions } from './upscale-provider';
 
 export const APP_NAME = 'UVE Manager';
-export const APP_VERSION = '1.0.8';
+export const APP_VERSION = '1.0.9';
 export const UVE_SOURCE = {
     name: 'Ultimate Video Enhancer (Sharpen, HDR, Color Boost)',
     version: '1.17.5',
