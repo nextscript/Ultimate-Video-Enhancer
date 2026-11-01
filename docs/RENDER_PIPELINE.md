@@ -47,7 +47,7 @@ timeline (tracks, transitions, per-clip looks, audio mix)
    ├─ provider rve ───────▶ FFV1 RGB intermediate → RVE upscale + final encode (--custom_encoder) → mux (unchanged)
    └─ provider video2x ──▶ FFV1 RGB intermediate                                                         (stage 1)
                              → Video2X -p libplacebo --libplacebo-shader <Anime4K | custom chain> -w W -h H
-                               -c ffv1 --pix-fmt gbrp (lossless, final size; fallback libx264rgb qp 0)    (stage 2)
+                               -c ffv1 --pix-fmt bgr0 (lossless, final size; fallback libx264rgb qp 0)    (stage 2)
                              → ffprobe: exact size and frame count
                              → FFmpeg final encode with the job's encoder (one lossy encode)              (stage 3)
                              → audio/subtitle mux (single file: from the source; timeline: the mixed wav)  (stage 4)

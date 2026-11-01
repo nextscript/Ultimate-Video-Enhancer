@@ -331,7 +331,11 @@ export async function runSelftest(): Promise<number> {
             const nn = (name: string, out: string, v2: Record<string, unknown>, ex: Partial<typeof DEFAULT_EXPORT> = {}) =>
                 mkSpec(name, look, out, { videoCodec: 'hevc', upscaleProvider: 'video2x', video2x: { presetId: 'builtin:anime4k-v4-a+a', scale: 2, device: -1, ...v2 }, ...ex });
             const outE = path.join(dir, 'v2x_esrgan.mp4');
+            // like Video2X 6.4.0 + ncnn on Windows: non-zero exit after "Video processed successfully"
+            process.env.VIDEO2X_MOCK_TEARDOWN = '1';
             j = await waitJob(enqueue(nn('v2x_esrgan', outE, { processor: 'realesrgan', modelId: 'realesr-animevideov3' })).id);
+            delete process.env.VIDEO2X_MOCK_TEARDOWN;
+            check(j.log.some(l => /crash while shutting down/.test(l)) && j.log.some(l => /-c ffv1 --pix-fmt bgr0/.test(l)), 'Video2X shutdown crash after success is tolerated; FFV1 uses bgr0');
             check(j.status === 'done' && j.log.some(l => / -p realesrgan -s 2 --realesrgan-model realesr-animevideov3 /.test(l)), `Video2X Real-ESRGAN render${j.error ? ' – ' + j.error : ''}`);
             if (j.status === 'done') {
                 const om = await probe(outE);

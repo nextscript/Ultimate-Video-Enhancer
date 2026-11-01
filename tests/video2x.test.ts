@@ -108,7 +108,7 @@ const run = (o: Partial<Parameters<typeof buildArgs>[1]> = {}) => buildArgs(caps
 
 test('argv for a built-in preset', () => {
     assert.deepEqual(run(), ['-i', 'C:\\Videos\\in.uvestage1.mkv', '-o', 'C:\\Videos\\out.uvestage2.mkv', '-p', 'libplacebo', '--libplacebo-shader', 'anime4k-v4-a',
-        '-w', '3840', '-h', '2160', '-c', 'ffv1', '--pix-fmt', 'gbrp', '--no-copy-streams', '--log-level', 'info']);
+        '-w', '3840', '-h', '2160', '-c', 'ffv1', '--pix-fmt', 'bgr0', '--no-copy-streams', '--log-level', 'info']);
     assert.deepEqual(run({ device: 1, lossless: 'x264rgb' }).slice(12), ['-c', 'libx264rgb', '-e', 'qp=0', '-e', 'preset=ultrafast', '--no-copy-streams', '-d', '1', '--log-level', 'info']);
 });
 

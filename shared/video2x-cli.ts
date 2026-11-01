@@ -123,7 +123,8 @@ export function parseDevices(out: string): Video2xDevice[] {
 
 /** Lossless intermediate formats for the Video2X output, in order of preference. */
 export const LOSSLESS_CANDIDATES: { id: string; codec: string; pixFmt?: string; extra: string[]; label: string }[] = [
-    { id: 'ffv1', codec: 'ffv1', pixFmt: 'gbrp', extra: [], label: 'FFV1 RGB (lossless)' },
+    // bgr0: the FFV1 encoder in the Video2X 6.4.0 build rejects gbrp ("Specified pixel format gbrp is not supported")
+    { id: 'ffv1', codec: 'ffv1', pixFmt: 'bgr0', extra: [], label: 'FFV1 RGB (lossless)' },
     { id: 'x264rgb', codec: 'libx264rgb', extra: ['qp=0', 'preset=ultrafast'], label: 'H.264 RGB QP 0 (lossless)' }
 ];
 
@@ -204,8 +205,12 @@ export type Video2xErrorKind = 'vulkan' | 'shader' | 'encoder' | 'input' | 'outp
 
 /** Classifies a failed run from its exit code and the tail of its log, with guidance for the user. */
 export function classifyError(code: number | null, signal: string | null, log: string): { kind: Video2xErrorKind; message: string } {
-    const t = log.toLowerCase();
-    const last = log.trim().split(/\r?\n/).filter(l => /error|critical|fail|invalid/i.test(l)).slice(-3).join(' | ').slice(0, 600);
+    // v1.1.1: only error lines are classified – info lines such as "Using Vulkan device: …" or ncnn's GPU dump
+    // must not turn an encoder problem into a "Vulkan" diagnosis
+    const lines = log.trim().split(/\r?\n/);
+    const errs = lines.filter(l => /\[(error|critical|warning)\]|error|fail|invalid|cannot|not supported|not found|out of|abort/i.test(l) && !/\[info\]/i.test(l));
+    const t = (errs.length ? errs.join('\n') : log).toLowerCase();
+    const last = lines.filter(l => /critical|cannot|failed|not supported|invalid|not found|out of/i.test(l) && !/\[info\]/i.test(l)).slice(-3).join(' | ').slice(0, 600);
     const detail = last ? ` Video2X: ${last}` : '';
     if (code === 2 || /processing aborted/.test(t)) return { kind: 'canceled', message: 'Video2X processing was aborted.' };
     // v1.0.10: the CLI rejected an argument (exit -1, shown by Windows as 4294967295) – not a crash
@@ -219,7 +224,10 @@ export function classifyError(code: number | null, signal: string | null, log: s
     if (/model (param|bin) file not found|failed to load (the )?model|model file .* not found/.test(t)) {
         return { kind: 'model', message: `The selected Real-ESRGAN / Real-CUGAN model files are missing in this Video2X installation. Reinstall Video2X or choose another model / scale.${detail}` };
     }
-    if (/vulkan|vk_error|vkcreate|no (suitable )?(vulkan )?(gpu|device)|failed to (create|initialize) (the )?(vulkan|libplacebo)|vk_icd|loader/.test(t)) {
+    if (/cannot open video encoder|failed to initialize encoder|not supported by the \w+ encoder|invalid encoder/.test(t)) {
+        return { kind: 'encoder', message: `Video2X could not open the lossless intermediate encoder.${detail}` };
+    }
+    if (/vulkan|vk_error|vkcreate|no (suitable )?(vulkan )?(gpu|device)|failed to (create|initialize) (the )?(vulkan|libplacebo)|vk_icd/.test(t)) {
         return { kind: 'vulkan', message: `Vulkan is not usable for Video2X (no compatible GPU/driver, or the selected device index does not exist). Install the current graphics driver and check Settings → AI Upscaling → Video2X → Verify installation.${detail}` };
     }
     if (/shader|glsl|custom_shader|hook|pl_mpv|libplacebo.*(parse|compile)|failed to (load|parse)/.test(t)) {

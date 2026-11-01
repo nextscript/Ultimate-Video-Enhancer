@@ -81,7 +81,7 @@ test('model / scale / noise combinations follow the 6.4.0 model files', () => {
 
 test('argv snapshots for Real-ESRGAN and Real-CUGAN', () => {
     assert.deepEqual(run(), ['-i', 'C:\\Videos\\a.uvestage1.mkv', '-o', 'C:\\Videos\\a.uvestage2.mkv', '-p', 'realesrgan', '-s', '2', '--realesrgan-model', 'realesr-animevideov3',
-        '-c', 'ffv1', '--pix-fmt', 'gbrp', '--no-copy-streams', '--log-level', 'info']);
+        '-c', 'ffv1', '--pix-fmt', 'bgr0', '--no-copy-streams', '--log-level', 'info']);
     assert.deepEqual(run({ processor: 'realcugan', modelId: 'models-se', scale: 3, noiseLevel: 0, device: 1, lossless: 'x264rgb' }),
         ['-i', 'C:\\Videos\\a.uvestage1.mkv', '-o', 'C:\\Videos\\a.uvestage2.mkv', '-p', 'realcugan', '-s', '3', '-n', '0', '--realcugan-model', 'models-se',
             '-c', 'libx264rgb', '-e', 'qp=0', '-e', 'preset=ultrafast', '--no-copy-streams', '-d', '1', '--log-level', 'info']);
@@ -110,7 +110,7 @@ test('invalid scale, noise, model and paths are rejected before rendering', () =
 
 test('Anime4K argv is unchanged by the extension', () => {
     assert.deepEqual(buildArgs(caps, { input: '/a.mkv', output: '/b.mkv', shader: 'anime4k-v4-a', width: 3840, height: 2160, device: -1, lossless: 'ffv1' }),
-        ['-i', '/a.mkv', '-o', '/b.mkv', '-p', 'libplacebo', '--libplacebo-shader', 'anime4k-v4-a', '-w', '3840', '-h', '2160', '-c', 'ffv1', '--pix-fmt', 'gbrp', '--no-copy-streams', '--log-level', 'info']);
+        ['-i', '/a.mkv', '-o', '/b.mkv', '-p', 'libplacebo', '--libplacebo-shader', 'anime4k-v4-a', '-w', '3840', '-h', '2160', '-c', 'ffv1', '--pix-fmt', 'bgr0', '--no-copy-streams', '--log-level', 'info']);
 });
 
 /* ------------------------------------------------------------------ persistence */
@@ -195,4 +195,42 @@ test('mock: cancel and timeout leave no process behind', async () => {
     const q = await runQuick(L({ VIDEO2X_MOCK_HANG: '1' }), ['--version'], 1500);
     assert.equal(q.timedOut, true);
     assert.ok(Date.now() - t0 < 10000);
+});
+
+/* ------------------------------------------------------------------ v1.1.1: real 6.4.0 failures (user log) */
+
+test('encoder failure with "Using Vulkan device" info lines is an encoder error, not Vulkan', () => {
+    const log = [
+        '[2026-11-01 15:38:31] [info] Using Vulkan device: NVIDIA GeForce RTX 5060 Ti (0x2d04)',
+        '[0 NVIDIA GeForce RTX 5060 Ti]  queueC=2[8]  queueG=0[16]  queueT=1[2]',
+        '[2026-11-01 15:38:31] [error] [FFmpeg] [ffv1 @ 0000000000a852c0] Specified pixel format gbrp is not supported by the ffv1 encoder.',
+        '[2026-11-01 15:38:31] [error] Cannot open video encoder',
+        '[2026-11-01 15:38:31] [critical] Failed to initialize encoder: Invalid argument',
+        '[2026-11-01 15:38:31] [critical] Video processing failed with error code -22'
+    ].join('\n');
+    const c = classifyError(1, null, log);
+    assert.equal(c.kind, 'encoder');
+    assert.doesNotMatch(c.message, /Vulkan is not usable/);
+    assert.match(c.message, /Cannot open video encoder/);
+});
+
+test('the lossless intermediate uses bgr0 for FFV1 (the 6.4.0 FFV1 encoder rejects gbrp)', async () => {
+    const a = run();
+    assert.equal(a[a.indexOf('--pix-fmt') + 1], 'bgr0');
+    const g = [...a]; g[g.indexOf('--pix-fmt') + 1] = 'gbrp';
+    const r = await execute(L(), g.map((x, i) => (i === 3 ? join(dir, 'gbrp.mkv') : i === 1 ? join(dir, 'in.mkv') : x)), {}).done;
+    assert.equal(r.ok, false);
+    assert.equal(r.kind, 'encoder', 'the mock rejects gbrp like the real build');
+});
+
+test('a crash while shutting down after "Video processed successfully" counts as success (output is verified later)', async () => {
+    const out = neuralRun();
+    const notes: string[] = [];
+    const r = await execute(L({ VIDEO2X_MOCK_TEARDOWN: '1' }), out, { onLog: l => notes.push(l) }).done;
+    assert.equal(r.ok, true, r.error);
+    assert.notEqual(r.code, 0);
+    assert.ok(notes.some(l => /crash while shutting down/.test(l)));
+    // without the success line a non-zero exit is still a failure
+    const f = await execute(L({ VIDEO2X_MOCK_FAIL: 'crash' }), neuralRun(), {}).done;
+    assert.equal(f.ok, false);
 });

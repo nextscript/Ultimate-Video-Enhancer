@@ -44,6 +44,9 @@ export function execute(l: Video2xLauncher, args: string[], o: { onProgress?: (p
     const p = spawn(l.exe, [...l.prefix, ...args], { shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: childEnv(l), ...groupSpawn });
     let tail = '';
     let killed = false;
+    // Video2X prints this right before returning 0; a non-zero exit after it is ncnn / the Vulkan driver crashing
+    // while the process shuts down (seen with Real-ESRGAN / Real-CUGAN on Windows). The caller verifies the output.
+    let completed = false;
     const remember = (line: string) => { tail = (tail + '\n' + line).slice(-8000); };
     const feeder = () => {
         let buf = '';
@@ -62,6 +65,7 @@ export function execute(l: Video2xLauncher, args: string[], o: { onProgress?: (p
         if (!line) return;
         const pr = parseProgress(line);
         if (pr) { o.onProgress?.(pr); return; }
+        if (/Video processed successfully/i.test(line)) completed = true;
         remember(line);
         o.onLog?.(line);
     };
@@ -72,6 +76,11 @@ export function execute(l: Video2xLauncher, args: string[], o: { onProgress?: (p
         p.on('close', (code, signal) => {
             if (code === 0 && !killed) { resolve({ ok: true, code, signal, log: tail }); return; }
             if (killed) { resolve({ ok: false, code, signal, error: 'canceled', kind: 'canceled', log: tail }); return; }
+            if (completed) {
+                o.onLog?.(`Video2X exited with ${code ?? signal} after "Video processed successfully" (crash while shutting down) – the output is kept and verified.`);
+                resolve({ ok: true, code, signal, log: tail });
+                return;
+            }
             const c = classifyError(code, signal, tail);
             resolve({ ok: false, code, signal, error: c.message, kind: c.kind, log: tail });
         });

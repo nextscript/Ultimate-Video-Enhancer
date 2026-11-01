@@ -10,6 +10,8 @@
 //   VIDEO2X_MOCK_NODEVICES 1 = --list-devices finds no Vulkan device
 //   VIDEO2X_MOCK_FAIL=oom   GPU out of memory (VK_ERROR_OUT_OF_DEVICE_MEMORY)
 //   VIDEO2X_MOCK_HANG      1 = --version never answers (timeout tests)
+//   VIDEO2X_MOCK_TEARDOWN  1 = non-zero exit AFTER "Video processed successfully" (ncnn / Vulkan teardown crash)
+// Like the real 6.4.0 build, -c ffv1 --pix-fmt gbrp fails to open the encoder (that build's FFV1 takes bgr0).
 //   VIDEO2X_MOCK_NOMODELS  comma list of model files to treat as missing, e.g. "realesrgan/realesr-animevideov3-x2"
 // v1.0.8: -p realesrgan / realcugan behave like 6.4.0 (scale 2-4, noise -1..3, model files per release table)
 import { spawnSync } from 'node:child_process';
@@ -130,6 +132,14 @@ log('info', `Processing file: ${input}`);
 if (env.VIDEO2X_MOCK_FAIL === 'vulkan') { log('error', 'Failed to create Vulkan instance: VK_ERROR_INCOMPATIBLE_DRIVER'); log('critical', 'Video processing failed with error code -1'); process.exit(1); }
 if (env.VIDEO2X_MOCK_FAIL === 'shader') { log('error', 'libplacebo: Failed to parse custom shader: unexpected token'); log('critical', 'Video processing failed with error code -22'); process.exit(1); }
 if (env.VIDEO2X_MOCK_FAIL === 'crash') process.exit(3);
+if (codec === 'ffv1' && pixFmt === 'gbrp') {
+    log('info', 'Using Vulkan device: Mock Vulkan GPU (0x2206)');
+    log('error', '[FFmpeg] [ffv1 @ 0000000000a852c0] Specified pixel format gbrp is not supported by the ffv1 encoder.');
+    log('error', 'Cannot open video encoder');
+    log('critical', 'Failed to initialize encoder: Invalid argument');
+    log('critical', 'Video processing failed with error code -22');
+    process.exit(1);
+}
 if (env.VIDEO2X_MOCK_FAIL === 'oom') { log('error', 'vkAllocateMemory failed: VK_ERROR_OUT_OF_DEVICE_MEMORY'); log('critical', 'Video processing failed with error code -12'); process.exit(1); }
 if (modelFile && !MODEL_FILES.has(modelFile)) {
     log('error', `${proc === 'realesrgan' ? 'Real-ESRGAN' : 'Real-CUGAN'} model param file not found: models/${modelFile}.param`);
@@ -155,4 +165,4 @@ if (env.VIDEO2X_MOCK_FFMPEG) {
 } else writeFileSync(output, proc === 'libplacebo' ? `mock ${w}x${h} ${codec} ${shader}` : `mock ${proc} ${modelFile} ${codec}`);
 log('info', 'Video processed successfully');
 process.stdout.write(`====== Video2X Processing summary ======\nVideo file processed: ${input}\nTotal frames processed: ${total}\nOutput written to: ${output}\n`);
-process.exit(0);
+process.exit(env.VIDEO2X_MOCK_TEARDOWN === '1' ? 3 : 0);
