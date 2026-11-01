@@ -6,7 +6,7 @@ import { APP_VERSION, LUT_PACKAGE, UVE_SOURCE, type AppPrefs, type JobSpec, type
 import type { LutProfile } from '../shared/uve/lut';
 import { analyze, cancelAnalysis } from './analysis';
 import { deleteLuts, downloadRepoLuts, initLuts, lutLibrary, onLutChange, restoreHiddenLuts, saveUserLuts } from './luts';
-import { clearCache, previewProxy, probe, thumbnails } from './media';
+import { audioProxy, clearCache, previewProxy, probe, thumbnails } from './media';
 import {
     cancelJob, clearFinished, enqueue, fileNameFromTemplate, initRenderQueue, isRendering, listJobs, outputExtension, removeJob, retryJob, uniqueOutput
 } from './render';
@@ -278,6 +278,10 @@ function registerIpc() {
     h('media:proxy', async (m: MediaInfo) => {
         const file = await previewProxy(m, pct => send('media:proxyProgress', { path: m.path, pct }));
         return `uve-media://${allowMedia(file)}/proxy.mp4`;
+    });
+    h('media:audioProxy', async (m: MediaInfo) => {
+        const file = await audioProxy(m, pct => send('media:proxyProgress', { path: m.path, pct }));
+        return `uve-media://${allowMedia(file)}/proxy${path.extname(file)}`;
     });
     h('analysis:run', (m: MediaInfo) => analyze(m, pct => send('analysis:progress', { path: m.path, pct })));
     h('analysis:cancel', (key: string) => cancelAnalysis(key));

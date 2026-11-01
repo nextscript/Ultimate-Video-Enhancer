@@ -1,19 +1,19 @@
-# UVE Manager 1.1.1
+# UVE Manager 1.1.2
 
 Desktop video editor and offline renderer built on the Ultimate Video Enhancer effect chain –
 for Windows, macOS and Linux. Since 1.0.3 the editor is a multi-track timeline.
 
 ## Downloads
 
-All packages are attached to the [GitHub release](https://github.com/nextscript/Ultimate-Video-Enhancer/releases/tag/1.1.1)
+All packages are attached to the [GitHub release](https://github.com/nextscript/Ultimate-Video-Enhancer/releases/tag/1.1.2)
 and built automatically by `.github/workflows/release.yml`:
 
 | System | Package |
 |---|---|
-| Windows x64 | `UVE-Manager-1.1.1-setup.exe` (installer) or `UVE-Manager-1.1.1-portable.exe` (portable, ships FFmpeg) |
-| macOS Apple Silicon | `UVE-Manager-1.1.1-mac-arm64.dmg` / `.zip` |
-| macOS Intel | `UVE-Manager-1.1.1-mac-x64.dmg` / `.zip` |
-| Linux x64 | `UVE-Manager-1.1.1-linux-x86_64.AppImage` / `UVE-Manager-1.1.1-linux-x64.tar.gz` |
+| Windows x64 | `UVE-Manager-1.1.2-setup.exe` (installer) or `UVE-Manager-1.1.2-portable.exe` (portable, ships FFmpeg) |
+| macOS Apple Silicon | `UVE-Manager-1.1.2-mac-arm64.dmg` / `.zip` |
+| macOS Intel | `UVE-Manager-1.1.2-mac-x64.dmg` / `.zip` |
+| Linux x64 | `UVE-Manager-1.1.2-linux-x86_64.AppImage` / `UVE-Manager-1.1.2-linux-x64.tar.gz` |
 
 - **macOS:** the app is not notarized – open it the first time with right click → *Open*
   (or `xattr -cr "/Applications/UVE Manager.app"`). FFmpeg must be installed, e.g. `brew install ffmpeg`.
@@ -117,6 +117,7 @@ All shortcuts can be changed in Settings → Keyboard shortcuts.
 - `docs/BUILD.md`: build instructions per platform and the release workflow
 - `docs/PROJECT_SCHEMA.md`: the `.uveproj` project format (schema version 2, timeline)
 - `docs/TRANSITIONS.md`: transition geometry shared by preview and export
+- `CHANGELOG_1.1.2.md`: changes since 1.1.1 (MKV files with AC3 / E-AC3 / DTS sound play with sound in the preview)
 - `CHANGELOG_1.1.1.md`: changes since 1.1.0 (Real-ESRGAN / Real-CUGAN fixes for the real Video2X build)
 - `CHANGELOG_1.1.0.md`: changes since 1.0.9 (Real-CUGAN noise-level fix; summary of the Video2X releases)
 - `CHANGELOG_1.0.9.md`: changes since 1.0.8 (Video2X: Install as the first step)

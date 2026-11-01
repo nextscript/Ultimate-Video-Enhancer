@@ -27,6 +27,7 @@ export const api = {
     mediaUrl: (p: string) => i<string>('media:url', p),
     thumbs: (m: MediaInfo, count: number) => i<{ t: number; url: string }[]>('media:thumbs', m, count),
     proxy: (m: MediaInfo) => i<string>('media:proxy', m),
+    audioProxy: (m: MediaInfo) => i<string>('media:audioProxy', m),
     analyze: (m: MediaInfo) => i<AnalysisResult>('analysis:run', m),
     clearCache: () => i<number>('cache:clear'),
     luts: () => i<LutLibraryState>('luts:get'),

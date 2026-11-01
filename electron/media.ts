@@ -163,16 +163,7 @@ const proxies = new Map<string, Promise<string>>();
  * live preview only, a cached H.264 proxy is created. Export always reads the original file.
  */
 export function previewProxy(media: MediaInfo, onProgress: (pct: number) => void): Promise<string> {
-    const key = createHash('sha1').update(`${media.path}|${media.size}|${media.mtimeMs}`).digest('hex').slice(0, 20);
-    const existing = proxies.get(key);
-    if (existing) return existing;
-    const job = (async () => {
-        const caps = await capabilities();
-        const dir = path.join(cacheDir(), 'proxies');
-        await fsp.mkdir(dir, { recursive: true });
-        const file = path.join(dir, `${key}.mp4`);
-        if (await fileExists(file)) return file;
-        const tmp = file + '.part.mp4';
+    return proxyJob(media, '', 'mp4', onProgress, async caps => {
         const v = media.video!;
         // preview proxy: any verified hardware H.264 encoder (v1.0.1), else x264
         const hwH264 = familyOrder(caps.platform, caps.gpuVendor as GpuVendor).map(f => `h264_${f}`).find(n => caps.hwEncoders?.[n] && !n.endsWith('vaapi'));
@@ -185,7 +176,51 @@ export function previewProxy(media: MediaInfo, onProgress: (pct: number) => void
             '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv');
         if (gpu) args.push(...hwEncoderArgs('h264', hwH264!.split('_')[1] as HwFamily, 18, 'fast', false)!.args);
         else args.push('-c:v', 'libx264', '-preset', 'veryfast', '-crf', '16');
-        args.push('-g', String(Math.max(1, Math.round(v.fps || 25))), '-c:a', 'aac', '-b:a', '192k', '-movflags', '+faststart', '-y', tmp);
+        args.push('-g', String(Math.max(1, Math.round(v.fps || 25))), ...aacArgs(media));
+        return args;
+    });
+}
+
+/** AAC audio of a proxy: same channel count as the source, so the mixer's channel fold still applies. */
+function aacArgs(media: MediaInfo): string[] {
+    const ch = media.audio[0]?.channels || 2;
+    return ['-c:a', 'aac', '-b:a', ch > 2 ? '384k' : '192k', '-ac', String(Math.min(8, ch)), '-movflags', '+faststart'];
+}
+
+/**
+ * Audio proxy for files whose picture Chromium plays but whose sound it cannot decode (AC3 / E-AC3 /
+ * DTS / TrueHD in MKV, …): the video stream is copied unchanged (fast, no quality loss), only the
+ * first audio stream is converted to AAC. Audio-only files become an .m4a.
+ */
+export function audioProxy(media: MediaInfo, onProgress: (pct: number) => void): Promise<string> {
+    const v = media.video;
+    return proxyJob(media, 'audio', v ? 'mp4' : 'm4a', onProgress, async () => {
+        const args = ['-hide_banner', '-loglevel', 'error', '-progress', 'pipe:1', '-nostats', '-i', media.path];
+        if (v) {
+            args.push('-map', `0:${v.index}`, '-c:v', 'copy');
+            if (v.codec === 'hevc') args.push('-tag:v', 'hvc1');
+        }
+        args.push('-map', `0:${media.audio[0].index}`, ...aacArgs(media));
+        return args;
+    });
+}
+
+type ProxyCaps = Awaited<ReturnType<typeof capabilities>>;
+
+/** Runs one cached proxy job (deduplicated per file + kind); the args builder gets ffmpeg capabilities. */
+function proxyJob(media: MediaInfo, kind: string, ext: string, onProgress: (pct: number) => void,
+    build: (caps: ProxyCaps) => Promise<string[]>): Promise<string> {
+    const key = createHash('sha1').update(`${media.path}|${media.size}|${media.mtimeMs}${kind ? '|' + kind : ''}`).digest('hex').slice(0, 20);
+    const existing = proxies.get(key);
+    if (existing) return existing;
+    const job = (async () => {
+        const caps = await capabilities();
+        const dir = path.join(cacheDir(), 'proxies');
+        await fsp.mkdir(dir, { recursive: true });
+        const file = path.join(dir, `${key}.${ext}`);
+        if (await fileExists(file)) return file;
+        const tmp = `${file}.part.${ext}`;
+        const args = [...await build(caps), '-y', tmp];
         await new Promise<void>((resolve, reject) => {
             const p = spawn(caps.ffmpegPath, args, { windowsHide: true });
             let err = '';
