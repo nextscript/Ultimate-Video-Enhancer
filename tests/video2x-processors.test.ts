@@ -11,7 +11,8 @@ import { NEURAL_MODELS, buildNeuralArgs, comboKey, modelFiles, neuralComboProble
 import { type Video2xLauncher, execute, runQuick } from '../electron/video2x-process';
 
 const mock = join(process.cwd(), 'tests', 'fixtures', 'video2x-mock', 'video2x-mock.mjs');
-const src = readFileSync(mock, 'utf8');
+// git on Windows runners checks the fixture out with CRLF line endings
+const src = readFileSync(mock, 'utf8').replace(/\r\n/g, '\n');
 const HELP = src.slice(src.indexOf('const HELP = `') + 14, src.indexOf('`;', src.indexOf('const HELP = `')));
 const caps = parseHelp(HELP, 'Video2X version 6.4.0');
 const neural = parseNeuralCaps(HELP, caps);
