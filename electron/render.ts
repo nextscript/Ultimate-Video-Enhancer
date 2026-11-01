@@ -21,6 +21,30 @@ import { type EncoderChoice, HW_FAMILY_LABEL, type HwCodec, VAAPI_DEVICE, encode
 import { cacheDir, getPrefs } from './store';
 import { fileExists } from './util';
 import { BACKEND_LABEL, type RveBackend, downloadModel, findModel, rveStatus, runUpscale } from './rve';
+import { resolveUpscaleProvider, video2xOptions } from '../shared/upscale-provider';
+import { buildArgs as video2xArgs, estimateTempBytes } from '../shared/video2x-cli';
+import { type PreparedVideo2x, prepareJob as prepareVideo2x, probeFile, v2xLog } from './video2x';
+import { execute as executeVideo2x } from './video2x-process';
+
+/** AI upscaling options for the plan builders. `provider` video2x: the upscaler renders straight to the final size. */
+export interface UpscalePlan { scale: number; provider?: 'rve' | 'video2x' }
+
+/** What buildPlan / buildTimelineJob return for the upscale stages besides the worker plan. */
+interface UpscaleOutputs {
+    customEncoder?: string;
+    muxArgs?: (videoFile: string, outFile: string) => string[];
+    /** video2x: final encoder options (argv parts) applied to the upscaled lossless file */
+    finalVideoArgs?: string[];
+    /** size the upscaler renders (video2x: = final output size) */
+    stage2Size?: { w: number; h: number };
+    /** frames in the upscaled stream (before an output frame-rate change) / in the final file */
+    stage2Frames?: number;
+    finalFrames?: number;
+    vaapi?: boolean;
+    /** the final file gets an audio track */
+    hasAudio?: boolean;
+    outFps?: number;
+}
 
 export interface WorkerPlan {
     jobId: string;
@@ -71,6 +95,14 @@ interface ActiveJob {
     kill?: () => void;
     /** timeline jobs: pre-pass/audio/mux steps and their temp files */
     timeline?: TimelineSteps;
+    /** v1.0.7 Video2X provider: stage 2 (Video2X) → 3 (final encode) → 4 (mux) → verify */
+    video2x?: {
+        prep: PreparedVideo2x; stage2: string; stage3: string; ffmpeg: string; ffprobe: string;
+        finalVideoArgs: string[]; muxArgs: (videoFile: string, outFile: string) => string[];
+        size: { w: number; h: number }; stage2Frames: number; finalFrames: number; vaapi: boolean; audio: boolean; fps: number;
+    };
+    /** v1.0.7: maps the current phase's 0..1 progress into the job's overall progress (monotonic across phases) */
+    span?: { base: number; size: number };
 }
 let active: ActiveJob | null = null;
 let broadcast: (jobs: JobState[]) => void = () => undefined;
@@ -86,7 +118,8 @@ export function initRenderQueue(opts: { broadcast: (j: JobState[]) => void; work
         const j = jobs.find(x => x.id === p.jobId);
         if (!j || !active || active.win.webContents.id !== e.sender.id) return;
         j.frames = p.frames;
-        j.progress = j.totalFrames ? Math.min(1, p.frames / j.totalFrames) : 0;
+        const phase = j.totalFrames ? Math.min(1, p.frames / j.totalFrames) : 0;
+        j.progress = active.span ? Math.max(j.progress, active.span.base + active.span.size * phase) : phase;
         j.fps = p.fps;
         j.elapsed = (Date.now() - startedAt) / 1000;
         j.eta = p.fps > 0 ? Math.max(0, (j.totalFrames - p.frames) / p.fps) : 0;
@@ -112,7 +145,8 @@ export function initRenderQueue(opts: { broadcast: (j: JobState[]) => void; work
     });
     ipcMain.on('worker:done', (e, p: { jobId: string; ok: boolean; error?: string }) => {
         if (!active || active.win.webContents.id !== e.sender.id || active.id !== p.jobId) return;
-        if (p.ok && active.stage1 && active.upscale && !active.canceled) void runStage2();
+        if (p.ok && active.stage1 && active.video2x && !active.canceled) void runVideo2xStages();
+        else if (p.ok && active.stage1 && active.upscale && !active.canceled) void runStage2();
         else if (p.ok && active.timeline?.mux && !active.canceled) void runTimelineMux();
         else void finishJob(p.ok, p.error);
     });
@@ -232,7 +266,7 @@ export function fileNameFromTemplate(template: string, media: MediaInfo, profile
         .replace(/\{time\}/g, `${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`);
 }
 
-export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale: number }): Promise<{ plan: WorkerPlan; encoder: string; warnings: string[]; customEncoder?: string; muxArgs?: (videoFile: string, outFile: string) => string[] }> {
+export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: UpscalePlan): Promise<{ plan: WorkerPlan; encoder: string; warnings: string[] } & UpscaleOutputs> {
     const caps = await capabilities();
     if (!caps.ok) throw new Error(caps.error || 'FFmpeg not available');
     const m = spec.media, v = m.video;
@@ -243,8 +277,10 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale
     const rot = v.rotation === 90 || v.rotation === 270;
     const pw = rot ? v.height : v.width, ph = rot ? v.width : v.height;
     const notes: string[] = [];
-    let enc = await pickVideoEncoder(s, caps, upscale ? pw * upscale.scale : pw, upscale ? ph * upscale.scale : ph, notes);
-    if (upscale && enc.vaapi) {
+    const direct = upscale?.provider === 'video2x';
+    const finalGuess = upscale ? targetSize(s.resolution === 'x2' ? { ...s, resolution: 'source' } : s, pw * upscale.scale, ph * upscale.scale) : { w: pw, h: ph };
+    let enc = await pickVideoEncoder(s, caps, finalGuess.w, finalGuess.h, notes);
+    if (upscale && !direct && enc.vaapi) {
         // RVE runs the final encode itself and cannot open a VA-API device
         enc = softwareEncoder(s, caps);
         notes.push(`Encoder: software ${enc.name} – VA-API is not available inside the REAL-Video-Enhancer encode step.`);
@@ -291,11 +327,13 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale
     const baseW = upscale ? pw * upscale.scale : pw, baseH = upscale ? ph * upscale.scale : ph;
     const size = targetSize(upscale && s.resolution === 'x2' ? { ...s, resolution: 'source' } : s, baseW, baseH);
     const scaleParts = [];
-    if (size.w !== baseW || size.h !== baseH) scaleParts.push(`scale=${size.w}:${size.h}:flags=lanczos`);
+    // Video2X renders straight to the final size (no second resampling after Anime4K)
+    if (!direct && (size.w !== baseW || size.h !== baseH)) scaleParts.push(`scale=${size.w}:${size.h}:flags=lanczos`);
     scaleParts.push(`scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int`, `format=${enc.pix}`);
     if (enc.vaapi) scaleParts.push('hwupload');
     const videoOut = ['-vf', scaleParts.join(','), ...enc.args, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'];
     const tailOut: string[] = [];
+    let finalVideoArgs: string[] | undefined;
     if (ext === 'mp4' || ext === 'mov') tailOut.push('-movflags', '+faststart');
     if (v.sar && v.sar !== '1:1' && v.sar !== '0:1' && !rot) tailOut.push('-aspect', `${(v.displayWidth / v.displayHeight).toFixed(6)}`);
     const muxer = { mp4: 'mp4', mkv: 'matroska', mov: 'mov', webm: 'webm' }[ext as 'mp4'];
@@ -319,6 +357,7 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale
         const parts = ['-fps_mode', 'passthrough', ...videoOut, '-an', '-sn', ...tailOut.filter((_x, i, a) => a[i] !== '-movflags' && a[i - 1] !== '-movflags'), '-f', 'matroska'];
         if (parts.some(x => /\s/.test(x))) throw new Error('Internal error: encoder option contains whitespace.');
         customEncoder = parts.join(' ');
+        finalVideoArgs = parts;
         // stage 3: stream-copy the upscaled video and add audio/subtitles from the original file
         muxArgs = (videoFile, outFile) => {
             const a = ['-hide_banner', '-loglevel', 'warning', '-nostdin', '-y', '-i', videoFile];
@@ -331,7 +370,7 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale
             a.push(...audioArgs());
             if (subCodec) a.push('-map', '1:s?', '-c:s', subCodec);
             if (needSecond) a.push('-map_metadata', '1');
-            a.push('-metadata', 'comment=Processed with UVE Manager 1.0.0 (Ultimate Video Enhancer effect chain, REAL-Video-Enhancer upscaling)');
+            a.push('-metadata', `comment=Processed with UVE Manager 1.0.7 (Ultimate Video Enhancer effect chain, ${direct ? 'Video2X Anime4K' : 'REAL-Video-Enhancer'} upscaling)`);
             if (ext === 'mp4' || ext === 'mov') a.push('-movflags', '+faststart');
             if ((ext === 'mp4' || ext === 'mov') && /hevc|x265/.test(enc.name)) a.push('-tag:v', 'hvc1');
             a.push('-f', muxer, outFile);
@@ -356,7 +395,14 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: { scale
         encoder: enc.name,
         warnings: [...notes, ...warnings],
         customEncoder,
-        muxArgs
+        muxArgs,
+        finalVideoArgs,
+        stage2Size: upscale ? size : undefined,
+        stage2Frames: totalFrames,
+        finalFrames: totalFrames,
+        vaapi: enc.vaapi,
+        hasAudio: !!audio,
+        outFps: fps
     };
 }
 
@@ -381,10 +427,9 @@ function gridRate(fps: string, F: number): { num: number; den: number } {
  * `buildAudioGraph`, then a `-c:v copy` mux. Encoder/decoder selection, sizes and the output naming are the
  * same as the single-media path.
  */
-export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: { scale: number }): Promise<{
+export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: UpscalePlan): Promise<{
     plan: TimelineWorkerPlan; encoder: string; warnings: string[]; outFrames: number; steps: TimelineSteps;
-    customEncoder?: string; muxArgs?: (videoFile: string, outFile: string) => string[];
-}> {
+} & UpscaleOutputs> {
     const caps = await capabilities();
     if (!caps.ok) throw new Error(caps.error || 'FFmpeg not available');
     const tl = spec.timeline;
@@ -403,8 +448,10 @@ export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: 
     const pv = spec.media.video ?? used[0]?.clip.source.media.video ?? tl.sources.find(x => x.media.video)?.media.video ?? null;
     if (!pv) throw new Error('The timeline has no picture to render: no source has a video stream.');
     const { w: pw, h: ph } = displaySize(pv);
-    let enc = await pickVideoEncoder(s, caps, upscale ? pw * upscale.scale : pw, upscale ? ph * upscale.scale : ph, notes);
-    if (upscale && enc.vaapi) {
+    const direct = upscale?.provider === 'video2x';
+    const finalGuess = upscale ? targetSize(s.resolution === 'x2' ? { ...s, resolution: 'source' } : s, pw * upscale.scale, ph * upscale.scale) : { w: pw, h: ph };
+    let enc = await pickVideoEncoder(s, caps, finalGuess.w, finalGuess.h, notes);
+    if (upscale && !direct && enc.vaapi) {
         enc = softwareEncoder(s, caps);
         notes.push(`Encoder: software ${enc.name} – VA-API is not available inside the REAL-Video-Enhancer encode step.`);
     }
@@ -509,7 +556,7 @@ export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: 
         }
     }
     const audioCodec = ext === 'webm' ? ['-c:a', 'libopus', '-b:a', `${s.audioBitrate}k`] : ['-c:a', 'aac', '-b:a', `${s.audioBitrate}k`];
-    const comment = 'comment=Processed with UVE Manager 1.0.6 (timeline, Ultimate Video Enhancer effect chain)';
+    const comment = `comment=Processed with UVE Manager 1.0.7 (timeline, Ultimate Video Enhancer effect chain${upscale ? `, ${direct ? 'Video2X Anime4K' : 'REAL-Video-Enhancer'} upscaling` : ''})`;
     const muxExtra = (): string[] => {
         const a = ['-metadata', comment];
         if (ext === 'mp4' || ext === 'mov') a.push('-movflags', '+faststart');
@@ -521,7 +568,7 @@ export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: 
     const size = targetSize(upscale && s.resolution === 'x2' ? { ...s, resolution: 'source' } : s, baseW, baseH);
     const scaleParts: string[] = [];
     if (outRate && retime) scaleParts.push(`fps=${outRate.num}/${outRate.den}`);
-    if (size.w !== baseW || size.h !== baseH) scaleParts.push(`scale=${size.w}:${size.h}:flags=lanczos`);
+    if (!direct && (size.w !== baseW || size.h !== baseH)) scaleParts.push(`scale=${size.w}:${size.h}:flags=lanczos`);
     scaleParts.push(`scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int`, `format=${enc.pix}`);
     if (enc.vaapi) scaleParts.push('hwupload');
     const videoOut = ['-vf', scaleParts.join(','), ...enc.args, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'];
@@ -530,11 +577,13 @@ export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: 
     let customEncoder: string | undefined;
     let muxArgs: ((videoFile: string, outFile: string) => string[]) | undefined;
     let mux: string[] | null = null;
+    let finalVideoArgs: string[] | undefined;
     if (upscale) {
         encodeArgs.push('-c:v', 'ffv1', '-level', '3', '-g', '1', '-slices', '16', '-slicecrc', '1', '-pix_fmt', 'gbrp', '-an', '-sn', '-f', 'matroska', tmpOut);
         const parts = ['-fps_mode', 'passthrough', ...videoOut, '-an', '-sn', '-f', 'matroska'];
         if (parts.some(x => /\s/.test(x))) throw new Error('Internal error: encoder option contains whitespace.');
         customEncoder = parts.join(' ');
+        finalVideoArgs = parts;
         const a = audio;
         muxArgs = (videoFile, outFile) => a
             ? timelineMuxArgs({ video: videoFile, wav: a.wav, out: outFile, muxer, audioCodec, extra: muxExtra() })
@@ -566,7 +615,14 @@ export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: 
         outFrames,
         steps: { prepasses, audio, mux, temps, ffmpeg: caps.ffmpegPath },
         customEncoder,
-        muxArgs
+        muxArgs,
+        finalVideoArgs,
+        stage2Size: upscale ? size : undefined,
+        stage2Frames: plan.totalFrames,
+        finalFrames: outFrames,
+        vaapi: enc.vaapi,
+        hasAudio: !!audio,
+        outFps: outRate && retime ? outRate.num / outRate.den : grid.num / grid.den
     };
 }
 
@@ -643,7 +699,9 @@ async function pump() {
     const tmp = spec.output.replace(/(\.[^.]+)$/, '.uvepart$1');
     active = { id: next.id, win: null as unknown as BrowserWindow, tmp, canceled: false };
     startedAt = Date.now();
+    next.phase = undefined;
     try {
+        capsCache = await capabilities();
         if (spec.effect.settings.autoOn && !spec.autoKeys) {
             next.status = 'analyzing';
             next.log.push('Auto-Scene-Match: analysing the clip…');
@@ -652,8 +710,24 @@ async function pump() {
             if (active?.canceled) throw new Error('canceled');
             spec.autoKeys = runAutoSceneMatch(samplesFromAnalysis(r), { strength: spec.effect.settings.autoStrength, lockWB: spec.effect.settings.autoLockWB });
         }
-        let upscale: { scale: number } | undefined;
-        if (spec.exportSettings.aiUpscale) {
+        let upscale: UpscalePlan | undefined;
+        const provider = resolveUpscaleProvider(spec.exportSettings);
+        next.provider = provider;
+        let v2x: PreparedVideo2x | undefined;
+        if (provider === 'video2x') {
+            // explicit provider: a Video2X problem fails the job, it never falls back to RVE
+            const o = video2xOptions(spec.exportSettings);
+            next.status = 'upscaling';
+            next.phase = 'Preparing Video2X';
+            next.log.push(`AI upscaling with Video2X (Anime4K, libplacebo): preset ${o.presetId}, ${o.scale}x, GPU ${o.device < 0 ? 'automatic' : '#' + o.device}`);
+            emit();
+            v2x = await prepareVideo2x(o);
+            if (active?.canceled) throw new Error('canceled');
+            v2x.notes.forEach(n => next.log.push(n));
+            next.log.push(`Video2X ${v2x.version}: ${v2x.launcher.exe} · shader ${v2x.shaderLabel} · intermediate ${v2x.lossless}`);
+            upscale = { scale: o.scale, provider: 'video2x' };
+            active.stage1 = spec.output.replace(/(\.[^.]+)$/, '.uvestage1.mkv');
+        } else if (provider === 'rve') {
             const st = await rveStatus(false);
             if (!st.python || !st.backend) throw new Error('REAL-Video-Enhancer is not installed - install it in Settings > AI Upscaling.');
             const engine = st.engine;
@@ -669,7 +743,7 @@ async function pump() {
                 emit();
             });
             if (active?.canceled) throw new Error('canceled');
-            upscale = { scale: model.scale };
+            upscale = { scale: model.scale, provider: 'rve' };
             active.stage1 = spec.output.replace(/(\.[^.]+)$/, '.uvestage1.mkv');
             active.upscale = { engine, modelPath, customEncoder: '', totalFrames: 0, ffmpeg: '', stage2: spec.output.replace(/(\.[^.]+)$/, '.uvestage2.mkv') };
         }
@@ -678,35 +752,40 @@ async function pump() {
             const t = await buildTimelineJob(spec, active.stage1 || tmp, upscale);
             payload = t.plan;
             active.timeline = t.steps;
+            if (v2x) setupVideo2x(active, spec, v2x, t, next);
             if (active.upscale && t.customEncoder) {
                 active.upscale = { ...active.upscale, customEncoder: t.customEncoder, muxArgs: t.muxArgs, totalFrames: t.outFrames, ffmpeg: t.plan.ffmpeg };
                 next.log.push(`Stage 1/2: UVE timeline -> lossless intermediate ${active.stage1}`);
                 next.log.push(`Stage 2/2 encoder (RVE --custom_encoder): ${t.customEncoder}`);
             }
-            next.encoder = upscale && active.upscale ? `${t.encoder} + RVE ${BACKEND_LABEL[active.upscale.engine]}` : t.encoder;
+            next.encoder = upscale && active.upscale ? `${t.encoder} + RVE ${BACKEND_LABEL[active.upscale.engine]}` : v2x ? `${t.encoder} + Video2X ${v2x.version} (Anime4K)` : t.encoder;
             next.totalFrames = t.plan.plan.totalFrames;
             next.progress = 0;
             t.warnings.forEach(w => next.log.push(/^(Encoder|Decoder|Frame rate|Timeline|Audio|Warning):/.test(w) ? w : 'Warning: ' + w));
             t.plan.streams.forEach(st => next.log.push(`Decoder [${st.clipIds.join(', ')}]: ffmpeg ${st.args.join(' ')}`));
             next.log.push(`Encoder: ffmpeg ${t.plan.encodeArgs.join(' ')}`);
             next.status = 'rendering';
+            if (active.video2x) next.phase = 'Rendering UVE timeline (1/4)';
             emit();
             await runTimelinePrep(active, next);
         } else {
-            const { plan, encoder, warnings, customEncoder, muxArgs } = await buildPlan(spec, active.stage1 || tmp, upscale);
+            const built = await buildPlan(spec, active.stage1 || tmp, upscale);
+            const { plan, encoder, warnings, customEncoder, muxArgs } = built;
             payload = plan;
+            if (v2x) setupVideo2x(active, spec, v2x, built, next);
             if (active.upscale && customEncoder) {
                 active.upscale = { ...active.upscale, customEncoder, muxArgs, totalFrames: plan.totalFrames, ffmpeg: plan.ffmpeg };
                 next.log.push(`Stage 1/2: UVE effects -> lossless intermediate ${active.stage1}`);
                 next.log.push(`Stage 2/2 encoder (RVE --custom_encoder): ${customEncoder}`);
             }
-            next.encoder = upscale && active.upscale ? `${encoder} + RVE ${BACKEND_LABEL[active.upscale.engine]}` : encoder;
+            next.encoder = upscale && active.upscale ? `${encoder} + RVE ${BACKEND_LABEL[active.upscale.engine]}` : v2x ? `${encoder} + Video2X ${v2x.version} (Anime4K)` : encoder;
             next.totalFrames = plan.totalFrames;
             next.progress = 0;
             warnings.forEach(w => next.log.push(/^(Encoder|Decoder|Frame rate|Warning):/.test(w) ? w : 'Warning: ' + w));
             next.log.push(`Decoder: ffmpeg ${plan.decodeArgs.join(' ')}`);
             next.log.push(`Encoder: ffmpeg ${plan.encodeArgs.join(' ')}`);
             next.status = 'rendering';
+            if (active.video2x) next.phase = 'Rendering UVE effects (1/4)';
             emit();
         }
         if (active?.canceled) throw new Error('canceled');
@@ -721,6 +800,147 @@ async function pump() {
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         await finishJob(false, msg === 'canceled' ? undefined : msg, msg === 'canceled');
+    }
+}
+
+/** Progress weights of the Video2X pipeline phases (UVE render, Video2X, final encode, mux + verify). */
+const V2X_SPANS = { uve: { base: 0, size: 0.35 }, video2x: { base: 0.35, size: 0.5 }, encode: { base: 0.85, size: 0.12 }, mux: { base: 0.97, size: 0.03 } };
+
+/** Stores the Video2X stage plan on the active job (called once the UVE stage plan is known). */
+function setupVideo2x(cur: ActiveJob, spec: JobSpec, prep: PreparedVideo2x, b: UpscaleOutputs & { warnings: string[] }, j: JobState) {
+    if (!b.finalVideoArgs || !b.muxArgs || !b.stage2Size || !b.stage2Frames) throw new Error('Internal error: the Video2X stage plan is incomplete.');
+    const caps = capsCache;
+    cur.video2x = {
+        prep, stage2: spec.output.replace(/(\.[^.]+)$/, '.uvestage2.mkv'), stage3: spec.output.replace(/(\.[^.]+)$/, '.uvestage3.mkv'),
+        ffmpeg: caps?.ffmpegPath || '', ffprobe: caps?.ffprobePath || '',
+        finalVideoArgs: b.finalVideoArgs, muxArgs: b.muxArgs, size: b.stage2Size, stage2Frames: b.stage2Frames, finalFrames: b.finalFrames ?? b.stage2Frames,
+        vaapi: !!b.vaapi, audio: !!b.hasAudio, fps: b.outFps || 0
+    };
+    cur.span = V2X_SPANS.uve;
+    j.log.push(`Stage 1/4: UVE render -> lossless intermediate ${cur.stage1}`);
+    j.log.push(`Stage 2/4: Video2X ${prep.presetName} -> ${b.stage2Size.w}x${b.stage2Size.h} (${prep.lossless} lossless)`);
+    j.log.push(`Stage 3/4: final encode ffmpeg ${b.finalVideoArgs.join(' ')}`);
+    j.log.push('Stage 4/4: mux audio/subtitles, verify, rename');
+    const v = spec.timeline ? null : spec.media.video;
+    const srcW = v ? (v.rotation % 180 ? v.height : v.width) : Math.round(b.stage2Size.w / 2), srcH = v ? (v.rotation % 180 ? v.width : v.height) : Math.round(b.stage2Size.h / 2);
+    j.log.push(`Temporary disk space: about ${(estimateTempBytes(b.stage2Frames, srcW, srcH, b.stage2Size.w, b.stage2Size.h) / 1073741824).toFixed(1)} GB (intermediates are deleted afterwards).`);
+}
+let capsCache: Awaited<ReturnType<typeof capabilities>> | null = null;
+
+/** FFmpeg step with `-progress pipe:1` frame reporting. */
+function runFfmpegProgress(ffmpeg: string, args: string[], cur: ActiveJob, onFrame: (n: number) => void): Promise<{ code: number; err: string }> {
+    return new Promise(resolve => {
+        const p = spawn(ffmpeg, ['-progress', 'pipe:1', '-nostats', ...args], { windowsHide: true, shell: false });
+        let err = '', buf = '';
+        cur.kill = () => p.kill();
+        p.stdout.on('data', d => {
+            buf += d;
+            const lines = buf.split(/\r?\n/);
+            buf = lines.pop() ?? '';
+            for (const l of lines) { const m = l.match(/^frame=(\d+)/); if (m) onFrame(Number(m[1])); }
+        });
+        p.stderr.on('data', d => { err = (err + d).slice(-20000); });
+        p.on('error', e => resolve({ code: 1, err: e.message }));
+        p.on('exit', code => { cur.kill = undefined; resolve({ code: code ?? 1, err }); });
+    });
+}
+
+/**
+ * Stages 2–4 of a Video2X job: Video2X upscales the lossless UVE render (Anime4K in libplacebo) into a lossless
+ * file at the final size, FFmpeg encodes it with the job's encoder settings (one lossy encode), the audio and
+ * subtitles are muxed, and the result is verified before finishJob renames it atomically.
+ */
+async function runVideo2xStages() {
+    const cur = active;
+    if (!cur || !cur.stage1 || !cur.video2x) return;
+    const vx = cur.video2x;
+    const j = jobs.find(x => x.id === cur.id);
+    try { if (cur.win && !cur.win.isDestroyed()) cur.win.destroy(); } catch { /* ignore */ }
+    if (!j) return;
+    const setPhase = (status: JobState['status'], phase: string, span: { base: number; size: number }) => {
+        j.status = status; j.phase = phase; cur.span = span;
+        j.progress = Math.max(j.progress, span.base); j.frames = 0; j.fps = 0; j.eta = 0;
+        emit();
+    };
+    const pushLog = (l: string) => { j.log.push(l.slice(0, 2000)); if (j.log.length > 500) j.log.splice(0, j.log.length - 500); };
+    // the cancel fallback timer may already have finished this job (and started the next one)
+    const finish = (ok: boolean, error?: string, canceled = false) => (active === cur ? finishJob(ok, error, canceled) : Promise.resolve());
+    const fail = (msg: string) => finish(false, msg, cur.canceled);
+    try {
+        // ---- stage 2: Video2X
+        setPhase('upscaling', `Upscaling – Video2X ${vx.prep.presetName} (2/4)`, V2X_SPANS.video2x);
+        j.totalFrames = vx.stage2Frames;
+        const args = video2xArgs(vx.prep.caps, { input: cur.stage1, output: vx.stage2, shader: vx.prep.shader, width: vx.size.w, height: vx.size.h, device: vx.prep.device, lossless: vx.prep.lossless });
+        pushLog(`Video2X: ${[vx.prep.launcher.exe, ...vx.prep.launcher.prefix, ...args].map(a => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}`);
+        void v2xLog(`job ${cur.id}: ${vx.prep.launcher.exe} ${args.join(' ')}`);
+        const t0 = Date.now();
+        const run = executeVideo2x(vx.prep.launcher, args, {
+            onProgress: pr => {
+                j.frames = pr.frames; j.fps = pr.fps;
+                const total = pr.total > 0 ? pr.total : vx.stage2Frames;
+                j.progress = Math.max(j.progress, V2X_SPANS.video2x.base + V2X_SPANS.video2x.size * Math.min(1, pr.frames / Math.max(1, total)));
+                j.elapsed = (Date.now() - startedAt) / 1000;
+                // remaining time only when measurable (Video2X reports it once frames were processed)
+                j.eta = pr.remaining >= 0 && pr.frames > 0 ? pr.remaining : pr.fps > 0 ? Math.max(0, (total - pr.frames) / pr.fps) : 0;
+                emit();
+            },
+            onLog: l => { pushLog(`[video2x] ${l}`); void v2xLog(`[job ${cur.id}] ${l}`); }
+        });
+        cur.kill = run.kill;
+        if (cur.canceled) run.kill();
+        const res = await run.done;
+        cur.kill = undefined;
+        pushLog(`Stage 2 finished in ${((Date.now() - t0) / 1000).toFixed(1)} s (exit ${res.code ?? res.signal})`);
+        if (cur.canceled) { await finish(false, undefined, true); return; }
+        if (!res.ok) { await fail(res.error || 'Video2X failed.'); return; }
+        if (!(await fileExists(vx.stage2))) { await fail('Video2X finished but wrote no output file.'); return; }
+        const p2 = await probeFile(vx.ffprobe, vx.stage2);
+        pushLog(`Video2X output: ${p2.width}x${p2.height}, ${p2.frames} frames, ${p2.fps.toFixed(3)} fps`);
+        if (p2.width !== vx.size.w || p2.height !== vx.size.h) { await fail(`Video2X output is ${p2.width}x${p2.height}, expected ${vx.size.w}x${vx.size.h}.`); return; }
+        // lossless stage: the frame count must match exactly
+        if (p2.frames !== vx.stage2Frames) { await fail(`Video2X output has ${p2.frames} frames, expected ${vx.stage2Frames} – frames were dropped or duplicated.`); return; }
+
+        // ---- stage 3: final encode with the job's encoder settings
+        setPhase('finalizing', 'Encoding (3/4)', V2X_SPANS.encode);
+        j.totalFrames = vx.finalFrames;
+        const enc = ['-hide_banner', '-loglevel', 'warning', '-nostdin', '-y', ...(vx.vaapi ? ['-vaapi_device', VAAPI_DEVICE] : []), '-i', vx.stage2, '-map', '0:v:0', ...vx.finalVideoArgs, vx.stage3];
+        pushLog(`Encode: ffmpeg ${enc.join(' ')}`);
+        const e = await runFfmpegProgress(vx.ffmpeg, enc, cur, n => {
+            j.frames = n;
+            j.progress = Math.max(j.progress, V2X_SPANS.encode.base + V2X_SPANS.encode.size * Math.min(1, n / Math.max(1, vx.finalFrames)));
+            j.elapsed = (Date.now() - startedAt) / 1000;
+            emit();
+        });
+        if (e.err.trim()) e.err.trim().split(/\r?\n/).slice(-10).forEach(l => pushLog('[encode] ' + l));
+        if (cur.canceled) { await finish(false, undefined, true); return; }
+        if (e.code !== 0) { await fail(`Final encode failed (${e.code}): ${e.err.trim().split('\n').slice(-2).join(' ')}`); return; }
+        await fsp.rm(vx.stage2, { force: true }).catch(() => undefined);
+
+        // ---- stage 4: audio / subtitles, then verification
+        setPhase('finalizing', 'Muxing (4/4)', V2X_SPANS.mux);
+        const mux = vx.muxArgs(vx.stage3, cur.tmp);
+        pushLog(`Mux: ffmpeg ${mux.join(' ')}`);
+        const m = await runFfmpegStep(vx.ffmpeg, mux, cur);
+        if (m.err.trim()) m.err.trim().split(/\r?\n/).slice(-10).forEach(l => pushLog('[mux] ' + l));
+        if (cur.canceled) { await finish(false, undefined, true); return; }
+        if (m.code !== 0) { await fail(`Muxing audio failed (${m.code}): ${m.err.trim().split('\n').slice(-2).join(' ')}`); return; }
+        j.phase = 'Verifying output';
+        emit();
+        const f = await probeFile(vx.ffprobe, cur.tmp);
+        const problems: string[] = [];
+        if (f.width !== vx.size.w || f.height !== vx.size.h) problems.push(`size ${f.width}x${f.height} (expected ${vx.size.w}x${vx.size.h})`);
+        if (!(f.duration > 0)) problems.push('zero duration');
+        if (!f.frames) problems.push('no video frames');
+        else if (Math.abs(f.frames - vx.finalFrames) > 1) problems.push(`${f.frames} frames (expected ${vx.finalFrames})`);
+        if (vx.fps > 0 && f.fps > 0 && Math.abs(f.fps - vx.fps) > 0.01) problems.push(`${f.fps.toFixed(3)} fps (expected ${vx.fps.toFixed(3)})`);
+        if (vx.audio && !f.audio) problems.push('audio track missing');
+        // A/V sync tolerance: both streams must end within 0.25 s of each other (AAC padding is a few ms)
+        if (vx.audio && f.audio && f.audioDuration > 0 && f.videoDuration > 0 && Math.abs(f.audioDuration - f.videoDuration) > 0.25) problems.push(`audio/video length differ by ${Math.abs(f.audioDuration - f.videoDuration).toFixed(2)} s`);
+        pushLog(`Verify: ${f.width}x${f.height}, ${f.frames} frames, ${f.fps.toFixed(3)} fps, ${f.duration.toFixed(2)} s, ${f.audio} audio track(s)${problems.length ? ' – ' + problems.join('; ') : ' – OK'}`);
+        if (problems.length) { await fail(`The finished file failed verification: ${problems.join('; ')}.`); return; }
+        await finish(true);
+    } catch (err) {
+        await finish(false, err instanceof Error ? err.message : String(err), cur.canceled);
     }
 }
 
@@ -787,6 +1007,8 @@ async function finishJob(ok: boolean, error?: string, canceled = false) {
     try { if (cur.win && !cur.win.isDestroyed()) cur.win.destroy(); } catch { /* ignore */ }
     if (cur.stage1) await fsp.rm(cur.stage1, { force: true }).catch(() => undefined);
     if (cur.upscale?.stage2) await fsp.rm(cur.upscale.stage2, { force: true }).catch(() => undefined);
+    // Video2X intermediates (app-owned temp files only – never the source or shader files)
+    for (const f of [cur.video2x?.stage2, cur.video2x?.stage3]) if (f) await fsp.rm(f, { force: true }).catch(() => undefined);
     for (const f of cur.timeline?.temps ?? []) await fsp.rm(f, { force: true }).catch(() => undefined);
     if (j) {
         j.elapsed = (Date.now() - startedAt) / 1000;
@@ -794,6 +1016,7 @@ async function finishJob(ok: boolean, error?: string, canceled = false) {
             try {
                 await fsp.rename(cur.tmp, j.output);
                 j.status = 'done';
+                j.phase = undefined;
                 j.progress = 1;
                 j.eta = 0;
                 j.outSize = (await fsp.stat(j.output)).size;
@@ -805,6 +1028,7 @@ async function finishJob(ok: boolean, error?: string, canceled = false) {
         } else {
             await fsp.rm(cur.tmp, { force: true }).catch(() => undefined);
             j.status = (cur.canceled || canceled) ? 'canceled' : 'failed';
+            if (j.provider === 'video2x') j.phase = j.status === 'canceled' ? 'Canceled' : `Failed${j.phase ? ` during: ${j.phase}` : ''}`;
             if (j.status === 'failed') j.error = error || 'Unknown error';
             if (error) j.log.push('Error: ' + error);
             j.log.push(j.status === 'canceled' ? 'Canceled – the incomplete output was deleted.' : 'Failed – no output file was written.');
@@ -831,7 +1055,7 @@ export function cancelJob(id: string) {
 export function retryJob(id: string) {
     const j = jobs.find(x => x.id === id);
     if (!j || !['failed', 'canceled'].includes(j.status)) return;
-    Object.assign(j, { status: 'queued', progress: 0, frames: 0, fps: 0, eta: 0, error: undefined });
+    Object.assign(j, { status: 'queued', progress: 0, frames: 0, fps: 0, eta: 0, error: undefined, phase: undefined });
     j.log.push('--- retry ---');
     emit();
     void pump();

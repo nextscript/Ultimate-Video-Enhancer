@@ -1,19 +1,19 @@
-# UVE Manager 1.0.6
+# UVE Manager 1.0.7
 
 Desktop video editor and offline renderer built on the Ultimate Video Enhancer effect chain –
 for Windows, macOS and Linux. Since 1.0.3 the editor is a multi-track timeline.
 
 ## Downloads
 
-All packages are attached to the [GitHub release](https://github.com/nextscript/Ultimate-Video-Enhancer/releases/tag/1.0.6)
+All packages are attached to the [GitHub release](https://github.com/nextscript/Ultimate-Video-Enhancer/releases/tag/1.0.7)
 and built automatically by `.github/workflows/release.yml`:
 
 | System | Package |
 |---|---|
-| Windows x64 | `UVE-Manager-1.0.6-setup.exe` (installer) or `UVE-Manager-1.0.6-portable.exe` (portable, ships FFmpeg) |
-| macOS Apple Silicon | `UVE-Manager-1.0.6-mac-arm64.dmg` / `.zip` |
-| macOS Intel | `UVE-Manager-1.0.6-mac-x64.dmg` / `.zip` |
-| Linux x64 | `UVE-Manager-1.0.6-linux-x86_64.AppImage` / `UVE-Manager-1.0.6-linux-x64.tar.gz` |
+| Windows x64 | `UVE-Manager-1.0.7-setup.exe` (installer) or `UVE-Manager-1.0.7-portable.exe` (portable, ships FFmpeg) |
+| macOS Apple Silicon | `UVE-Manager-1.0.7-mac-arm64.dmg` / `.zip` |
+| macOS Intel | `UVE-Manager-1.0.7-mac-x64.dmg` / `.zip` |
+| Linux x64 | `UVE-Manager-1.0.7-linux-x86_64.AppImage` / `UVE-Manager-1.0.7-linux-x64.tar.gz` |
 
 - **macOS:** the app is not notarized – open it the first time with right click → *Open*
   (or `xattr -cr "/Applications/UVE Manager.app"`). FFmpeg must be installed, e.g. `brew install ffmpeg`.
@@ -30,8 +30,32 @@ separate portable tool. Since 1.0.6 it works with **NVIDIA, AMD, Intel and Apple
 | NCNN (Vulkan) | AMD, Intel, NVIDIA, Apple | Windows, Linux, macOS (Intel + Apple Silicon) | ~400 MB |
 | PyTorch | CUDA (NVIDIA), ROCm (AMD, Linux), XPU (Intel Arc), MPS (Apple Silicon) | depends on the build | ~3–10 GB |
 
-The recommended backend for your graphics card is preselected. Then pick a model under Output Settings →
-**AI Upscale**; models are downloaded on the first render.
+The recommended backend for your graphics card is preselected. Then choose **REAL-Video-Enhancer** under Output
+Settings → **AI Upscale** and pick a model; models are downloaded on the first render.
+
+## Fast Upscale with Video2X + Anime4K (1.0.7)
+
+Output Settings → **AI Upscale** has a second provider: **Video2X (Anime4K)**. [Video2X](https://github.com/k4yt3x/video2x)
+runs the [Anime4K v4](https://github.com/bloc97/Anime4K) GLSL shaders in libplacebo on any Vulkan GPU – much faster
+than the neural-network models of RVE and well suited to animation, but Anime4K is a set of real-time shaders and
+restores less detail than a large model. No speed figures are claimed until they are measured.
+
+| System | Video2X provider |
+|---|---|
+| Windows x64 | supported (Vulkan GPU + current driver) |
+| Linux x64 | supported (AppImage, Vulkan) |
+| macOS | **not available** in 1.0.7 (no tested build) – REAL-Video-Enhancer stays available |
+
+- **Settings → AI Upscaling → Video2X**: *Install Video2X 6.4.0* downloads the official release (SHA-256 checked) into
+  `tools/video2x`, or *Select existing executable…* uses your own build. *Verify installation* runs a short test job –
+  only that proves Vulkan, libplacebo and the shaders work.
+- **Presets:** *Fast – Anime4K v4 (Mode A)* (default), *Balanced – Anime4K v4 (Mode A+A)* and the other Anime4K modes
+  the installed Video2X offers, plus **custom GLSL**: import mpv-compatible `.glsl` shaders (one file, a multi-file chain or
+  a folder), order and enable passes, test them with Video2X.
+- **Render 5-second preview** renders from the playhead through the exact pipeline (the live player does not show Anime4K).
+- Render time = UVE render + Video2X + final encode (not zero-copy). The intermediates are lossless; the free disk space
+  needed is shown. Your encoder, codec, quality and frame rate settings are kept; Video2X renders straight to the chosen
+  resolution.
 
 ## Editing
 
@@ -87,6 +111,7 @@ All shortcuts can be changed in Settings → Keyboard shortcuts.
 - `docs/BUILD.md`: build instructions per platform and the release workflow
 - `docs/PROJECT_SCHEMA.md`: the `.uveproj` project format (schema version 2, timeline)
 - `docs/TRANSITIONS.md`: transition geometry shared by preview and export
+- `CHANGELOG_1.0.7.md`: changes since 1.0.6 (Video2X / Anime4K fast upscale provider, custom GLSL shader library)
 - `CHANGELOG_1.0.6.md`: changes since 1.0.5 (AI Upscaling for AMD, Intel and macOS: NCNN / PyTorch backends)
 - `CHANGELOG_1.0.5.md`: changes since 1.0.4 (AI Upscaling installation fix)
 - `CHANGELOG_1.0.4.md`: changes since 1.0.3 (shortcuts, ruler marking, live snapping)

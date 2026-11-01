@@ -17,6 +17,16 @@
   Depending on the backend chosen in Settings → AI Upscaling the same step installs PyTorch (BSD-style), NVIDIA TensorRT
   (NVIDIA license), ncnn by Tencent (BSD-3-Clause), upscale-ncnn-py / rife-ncnn-vulkan-python (MIT) and the portable
   CPython (PSF).
+* **Video2X** by K4YT3X and contributors – GNU AGPL-3.0, https://github.com/k4yt3x/video2x (1.0.7). Not part of UVE
+  Manager and not bundled in its packages (`tools/video2x` is excluded from the builds): it is downloaded on request from
+  the official GitHub release 6.4.0 into `tools/video2x/<version>` (a `UVE-SOURCE.txt` there records the source, release
+  and asset ids and the SHA-256) or the user selects an existing executable. It runs as a separate program; its source is
+  available at the link above (tag 6.4.0). Its release contains FFmpeg libraries (LGPL/GPL), libplacebo (LGPL-2.1), ncnn
+  (BSD-3-Clause) and Real-ESRGAN / Real-CUGAN / RIFE models under their own licenses. Bundling Video2X with UVE Manager
+  would need a separate review of the AGPL obligations – a process boundary alone does not decide them.
+* **Anime4K** by bloc97 – MIT, https://github.com/bloc97/Anime4K. The Anime4K v4 shaders ship with Video2X; UVE Manager
+  does not copy them. Custom GLSL shaders imported by users keep their own licenses: record source, author and license in
+  the shader library and keep the original license texts when redistributing shader packs.
 
 
 ## v1.0.1

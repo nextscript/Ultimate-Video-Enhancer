@@ -7,11 +7,11 @@ const on = (ch: string, cb: (...a: any[]) => void) => { // eslint-disable-line @
     return () => { ipcRenderer.removeListener(ch, l); };
 };
 
-const EVENTS = new Set(['rve:progress', 'rve:log', 'tools:progress', 'updates:progress', 'media:proxyProgress', 'analysis:progress', 'luts:changed', 'render:jobs']);
+const EVENTS = new Set(['rve:progress', 'rve:log', 'video2x:progress', 'tools:progress', 'updates:progress', 'media:proxyProgress', 'analysis:progress', 'luts:changed', 'render:jobs']);
 
 const api = {
     invoke(ch: string, ...a: unknown[]) {
-        if (!/^(app|prefs|caps|tools|rve|updates|dialog|media|analysis|cache|luts|profiles|filters|state|files|project|render|shell|window):[\w]+$/.test(ch)) throw new Error('channel not allowed');
+        if (!/^(app|prefs|caps|tools|rve|video2x|updates|dialog|media|analysis|cache|luts|profiles|filters|state|files|project|render|shell|window):[\w]+$/.test(ch)) throw new Error('channel not allowed');
         return invoke(ch, ...a);
     },
     on(ch: string, cb: (...a: any[]) => void) { // eslint-disable-line @typescript-eslint/no-explicit-any

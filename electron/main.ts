@@ -15,6 +15,13 @@ import { capabilities, installFfmpeg, invalidateCaps, toolsStatus } from './tool
 import { applyUpdate, checkUpdates, skipUpdate } from './updates';
 import { RVE, type RveBackend, type TorchFlavor, cancelInstall, deleteModel, downloadModel, importCustomModel, installRve, rveStatus, setRveEngine, uninstallRve } from './rve';
 import { readJson, safeUnzip, writeJson } from './util';
+import {
+    cancelVideo2xInstall, installVideo2x, logFile as video2xLogFile, removeManaged, resetVideo2x, setCustomExe, testPreset, verifyInstallation, video2xStatus
+} from './video2x';
+import { type PresetEdit, editPreset, importShaderFiles, presetHash, shaderFilesInFolder, shaderRoot } from './video2x-shaders';
+import { VIDEO2X_COMPAT } from '../shared/video2x-cli';
+import { createHash } from 'node:crypto';
+import { cacheDir } from './store';
 
 // Data folder: settings.json, profiles, LUTs and caches live in <app folder>\data for the portable
 // version (marked by portable.txt) and in development (<project>\data). Installed copies use %APPDATA%,
@@ -200,6 +207,48 @@ function registerIpc() {
         return rveStatus(false);
     });
     h('rve:openSource', () => shell.openExternal(RVE.source));
+    // v1.0.7 Video2X (Anime4K) provider: separate AGPL tool in tools/video2x, shader library in the data folder
+    h('video2x:status', (deep?: boolean) => video2xStatus(deep !== false));
+    h('video2x:install', () => installVideo2x((m, p) => send('video2x:progress', { message: m, pct: p })));
+    h('video2x:cancelInstall', () => cancelVideo2xInstall());
+    h('video2x:remove', () => removeManaged());
+    h('video2x:verify', (device?: number) => verifyInstallation(Number.isInteger(device) ? device! : -1));
+    h('video2x:reset', () => resetVideo2x());
+    h('video2x:selectExe', async () => {
+        const r = await dialog.showOpenDialog(mainWin!, {
+            title: 'Select the Video2X executable', properties: ['openFile'],
+            filters: process.platform === 'win32' ? [{ name: 'Video2X (video2x.exe)', extensions: ['exe'] }] : [{ name: 'All files', extensions: ['*'] }]
+        });
+        return r.canceled || !r.filePaths[0] ? video2xStatus(true) : setCustomExe(r.filePaths[0]);
+    });
+    h('video2x:clearExe', () => setCustomExe(null));
+    h('video2x:openLogs', async () => { await fsp.mkdir(path.dirname(video2xLogFile()), { recursive: true }); return shell.openPath(path.dirname(video2xLogFile())); });
+    h('video2x:openSource', () => shell.openExternal(VIDEO2X_COMPAT.repo));
+    h('video2x:openShaderFolder', async () => { await fsp.mkdir(shaderRoot(), { recursive: true }); return shell.openPath(shaderRoot()); });
+    h('video2x:importShaders', async (o?: { presetId?: string; mode?: 'copy' | 'reference' }) => {
+        const r = await dialog.showOpenDialog(mainWin!, { title: 'Import mpv / libplacebo GLSL shaders (in chain order)', properties: ['openFile', 'multiSelections'], filters: [{ name: 'GLSL shader', extensions: ['glsl', 'hook'] }] });
+        if (r.canceled || !r.filePaths.length) return null;
+        return importShaderFiles(r.filePaths, { presetId: o?.presetId, mode: o?.mode === 'reference' ? 'reference' : 'copy' });
+    });
+    h('video2x:importFolder', async (o?: { mode?: 'copy' | 'reference' }) => {
+        const r = await dialog.showOpenDialog(mainWin!, { title: 'Import a folder of GLSL shaders (one preset, files in name order)', properties: ['openDirectory'] });
+        if (r.canceled || !r.filePaths[0]) return null;
+        const files = await shaderFilesInFolder(r.filePaths[0]);
+        return importShaderFiles(files, { mode: o?.mode === 'reference' ? 'reference' : 'copy', name: path.basename(r.filePaths[0]) });
+    });
+    h('video2x:editPreset', (e: PresetEdit) => editPreset(e));
+    h('video2x:testPreset', (presetId: string, device?: number) => testPreset(String(presetId), Number.isInteger(device) ? device! : -1));
+    // "Render 5-second preview": a cache path keyed by everything that changes the result
+    h('video2x:previewPath', async (o: { key: unknown; presetId: string; ext: string }) => {
+        const ext = ['mp4', 'mkv', 'mov', 'webm'].includes(o.ext) ? o.ext : 'mp4';
+        const shaders = String(o.presetId).startsWith('custom:') ? await presetHash(String(o.presetId).slice(7)) : String(o.presetId);
+        const hash = createHash('sha256').update(JSON.stringify([o.key, shaders])).digest('hex').slice(0, 24);
+        const dir = path.join(cacheDir(), 'video2x-preview');
+        await fsp.mkdir(dir, { recursive: true });
+        const file = path.join(dir, `preview_${hash}.${ext}`);
+        const queued = listJobs().some(j => j.output === file && !['failed', 'canceled', 'done'].includes(j.status));
+        return { path: file, exists: !!(await fsp.stat(file).catch(() => null)), queued };
+    });
     h('updates:apply', (id: 'app' | 'ffmpeg' | 'luts' | 'rve') => applyUpdate(id, (m, p) => send('updates:progress', { id, message: m, pct: p })));
     h('updates:skip', (id: 'app' | 'ffmpeg' | 'luts' | 'rve') => skipUpdate(id));
 

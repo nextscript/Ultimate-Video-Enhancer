@@ -6,6 +6,8 @@ import { enqueueTimelineJob } from '../state/actions';
 import { getState, setState, useStore } from '../state/store';
 import { RVE_BACKEND_LABEL, refreshRve } from './RveSettings';
 import { useEffect } from 'react';
+import { PROVIDER_LABEL, type UpscaleProvider, providerPatch, resolveUpscaleProvider } from '../../shared/upscale-provider';
+import { Video2xExportSection, video2xTargetSize } from './Video2xPreview';
 import { Button, Icon, Select, Toggle, fmtBytes, fmtTime } from './controls';
 
 export function MediaInfoPanel() {
@@ -47,7 +49,9 @@ export function ExportPanel() {
     const rve = useStore(s => s.rve);
     useEffect(() => { if (!rve) void refreshRve(false); }, [rve]);
     const rveInstalled = !!rve?.python && !!rve?.backend;
-    const aiModel = rve?.models.find(m => m.id === ex.aiUpscale);
+    const provider = resolveUpscaleProvider(ex);
+    const aiModel = provider === 'rve' ? rve?.models.find(m => m.id === ex.aiUpscale) : undefined;
+    const v2xPlatform = useStore(s => s.video2x?.platformSupported ?? true);
     const set = (p: Partial<ExportSettings>) => setState({ exportSettings: { ...getState().exportSettings, ...p }, dirty: true });
     // v1.0.1: any verified hardware encoder family (NVENC / AMF / QSV / VideoToolbox / VA-API) for the codec
     const hwFor = Object.entries(caps?.hwEncoders || {}).find(([k, ok]) => ok && k.startsWith(`${ex.videoCodec}_`))?.[0] || '';
@@ -60,13 +64,19 @@ export function ExportPanel() {
         <div className="panel export-panel">
             <h3><Icon name="render" /> Output Settings</h3>
             <div className="export-grid">
-                <Select label="AI Upscale" value={ex.aiUpscale} title={`AI upscaling with REAL-Video-Enhancer${rve?.python ? ` (${RVE_BACKEND_LABEL[rve.engine]})` : '' } – TensorRT (NVIDIA), NCNN/Vulkan (AMD, Intel, NVIDIA, Apple) or PyTorch. Install it in Settings → AI Upscaling.`}
-                    onChange={id => set({ aiUpscale: id, ...(id && ex.resolution === 'x2' ? { resolution: 'source' as const } : {}) })}
-                    options={[{ value: '', label: rveInstalled ? 'Off' : 'Off (REAL-Video-Enhancer not installed)' },
-                        ...(rveInstalled ? (rve?.models || []).map(m => ({ value: m.id, label: `${m.name}${m.installed ? '' : ' – downloads on render'}` })) : [])]} />
+                <Select<UpscaleProvider> label="AI Upscale" value={provider}
+                    title={'AI upscale provider: REAL-Video-Enhancer (neural network models; TensorRT, NCNN/Vulkan or PyTorch) or Video2X (Anime4K v4 shaders in libplacebo, fast, Vulkan). Install them in Settings → AI Upscaling.'}
+                    onChange={p => set(providerPatch(ex, p))}
+                    options={[{ value: 'off', label: PROVIDER_LABEL.off }, { value: 'rve', label: `${PROVIDER_LABEL.rve}${rveInstalled ? '' : ' (not installed)'}` },
+                        { value: 'video2x', label: `${PROVIDER_LABEL.video2x}${v2xPlatform ? '' : ' (not available on this system)'}` }]} />
+                {provider !== 'video2x' && <Select label="RVE model" value={ex.aiUpscale} disabled={provider === 'off' && !rveInstalled} title={`AI upscaling with REAL-Video-Enhancer${rve?.python ? ` (${RVE_BACKEND_LABEL[rve.engine]})` : '' } – TensorRT (NVIDIA), NCNN/Vulkan (AMD, Intel, NVIDIA, Apple) or PyTorch. Install it in Settings → AI Upscaling.`}
+                    onChange={id => set({ aiUpscale: id, upscaleProvider: id ? 'rve' : 'off', ...(id && ex.resolution === 'x2' ? { resolution: 'source' as const } : {}) })}
+                    options={[{ value: '', label: rveInstalled ? 'None' : 'None (REAL-Video-Enhancer not installed)' },
+                        ...(rveInstalled ? (rve?.models || []).map(m => ({ value: m.id, label: `${m.name}${m.installed ? '' : ' – downloads on render'}` })) : [])]} />}
                 <Select label="Resolution" value={ex.resolution} onChange={r => set({ resolution: r })} options={[
-                    { value: 'source', label: aiModel && v ? `AI output (${(v.rotation % 180 ? v.height : v.width) * aiModel.scale} × ${(v.rotation % 180 ? v.width : v.height) * aiModel.scale})` : srcLabel }, { value: '2160', label: '2160p (4K UHD)' }, { value: '1440', label: '1440p' }, { value: '1080', label: '1080p (FHD)' },
-                    { value: '720', label: '720p' }, { value: '480', label: '480p' }, ...(ex.aiUpscale ? [] : [{ value: 'x2' as const, label: '2× Upscale (Lanczos, not AI)' }])]} />
+                    { value: 'source', label: aiModel && v ? `AI output (${(v.rotation % 180 ? v.height : v.width) * aiModel.scale} × ${(v.rotation % 180 ? v.width : v.height) * aiModel.scale})`
+                        : provider === 'video2x' && v ? (() => { const t = video2xTargetSize(ex, v.rotation % 180 ? v.height : v.width, v.rotation % 180 ? v.width : v.height); return `Video2X output (${t.w} × ${t.h})`; })() : srcLabel }, { value: '2160', label: '2160p (4K UHD)' }, { value: '1440', label: '1440p' }, { value: '1080', label: '1080p (FHD)' },
+                    { value: '720', label: '720p' }, { value: '480', label: '480p' }, ...(provider !== 'off' ? [] : [{ value: 'x2' as const, label: '2× Upscale (Lanczos, not AI)' }])]} />
                 <label className="select-row" title="Output frame rate. Empty = keep the source frame rate. Accepts e.g. 30, 29.97, 59.94 or 24000/1001. Frames are duplicated or dropped (no interpolation).">
                     <span className="select-label">Frame rate (fps)</span>
                     <input className={`text num fps${ex.fps && !parseFps(ex.fps) ? ' invalid' : ''}`} list="uve-fps-presets" value={ex.fps}
@@ -104,8 +114,9 @@ export function ExportPanel() {
             </div>
             <div className="row gap wrap">
                 <Toggle checked={ex.tenBit} label="10-bit output" onChange={t => set({ tenBit: t })} disabled={ex.videoCodec === 'prores'} title="Reads the processed frames with 16-bit precision and encodes 10-bit (HEVC/AV1/VP9; H.264 only on CPU)" />            </div>
-            {ex.aiUpscale && !rveInstalled && <p className="warn-text">AI upscaling needs REAL-Video-Enhancer – install it in Settings → AI Upscaling.</p>}
-            {ex.aiUpscale && rveInstalled && <p className="hint">Two-stage render: UVE look → lossless intermediate → REAL-Video-Enhancer {rve ? RVE_BACKEND_LABEL[rve.engine] : ''} {aiModel?.scale}× upscale → final encode.{rve?.engine === 'tensorrt' ? ' The first job per model/resolution builds a TensorRT engine.' : ''}</p>}
+            {provider === 'video2x' && <Video2xExportSection set={set} />}
+            {provider === 'rve' && !rveInstalled && <p className="warn-text">AI upscaling needs REAL-Video-Enhancer – install it in Settings → AI Upscaling.</p>}
+            {provider === 'rve' && rveInstalled && <p className="hint">Two-stage render: UVE look → lossless intermediate → REAL-Video-Enhancer {rve ? RVE_BACKEND_LABEL[rve.engine] : ''} {aiModel?.scale}× upscale → final encode.{rve?.engine === 'tensorrt' ? ' The first job per model/resolution builds a TensorRT engine.' : ''}</p>}
             <div className="row gap">
                 <button className="btn btn-primary btn-render" disabled={!hasClips || !caps?.ok} onClick={() => enqueueTimelineJob()} title="Render the whole timeline (all tracks, transitions and audio) as one file"><Icon name="render" /> Render Video</button>
                 <Button onClick={() => setState({ view: 'queue' })}>Render Queue</Button>

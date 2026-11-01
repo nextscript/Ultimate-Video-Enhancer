@@ -255,6 +255,80 @@ export async function runSelftest(): Promise<number> {
             delete process.env.UVE_RVE_PYTHON;
         } else say('SKIP AI upscale pipeline test (no system Python found)');
 
+        // 3b2. v1.0.7 Video2X provider (Anime4K) with the mock CLI from tests/fixtures/video2x-mock, run by Electron
+        //      as Node; the mock scales with the real FFmpeg, so stages 2-4 (encode, mux, verification) run for real
+        const v2xMock = path.join(app.getAppPath(), 'tests', 'fixtures', 'video2x-mock', 'video2x-mock.mjs');
+        if (await fsp.stat(v2xMock).catch(() => null)) {
+            process.env.UVE_VIDEO2X_EXE = process.execPath;
+            process.env.UVE_VIDEO2X_PREFIX = JSON.stringify([v2xMock]);
+            process.env.UVE_VIDEO2X_CONFIG_DIR = path.join(dir, 'v2xcfg');
+            process.env.UVE_VIDEO2X_SHADER_DIR = path.join(dir, 'v2xshaders');
+            process.env.VIDEO2X_MOCK_FFMPEG = caps.ffmpegPath;
+            const v2x = (name: string, out: string, ex: Partial<typeof DEFAULT_EXPORT> = {}) =>
+                mkSpec(name, look, out, { videoCodec: 'hevc', aiUpscale: 'janai-v2', upscaleProvider: 'video2x', video2x: { presetId: 'builtin:anime4k-v4-a', scale: 2, device: -1 }, ...ex });
+            const noTemps = async () => !(await fsp.readdir(dir)).some(f => /uvestage|uvepart/.test(f));
+            const outV = path.join(dir, 'v2x.mp4');
+            j = await waitJob(enqueue(v2x('video2x', outV)).id);
+            check(j.status === 'done' && j.provider === 'video2x' && /Video2X 6\.4\.0/.test(j.encoder || ''), `Video2X four-stage render (${j.encoder})${j.error ? ' – ' + j.error : ''}`);
+            if (j.status === 'done') {
+                const om = await probe(outV);
+                check(om.video?.width === 1280 && om.video?.height === 720 && om.video?.codec === 'hevc', `Video2X output ${om.video?.width}x${om.video?.height} ${om.video?.codec} (expected 1280x720 hevc – the RVE model in the settings is ignored)`);
+                check(om.video?.frames === 75 && om.audio.length === 1 && Math.abs(om.duration - 3) < 0.1, `Video2X output keeps ${om.video?.frames} frames (75), ${om.audio.length} audio, ${om.duration.toFixed(2)} s`);
+                check(j.log.some(l => /^Verify: .* – OK$/.test(l)) && j.progress === 1, 'Video2X output verified before the atomic rename');
+                check(await noTemps(), 'Video2X intermediates removed');
+            }
+            // timeline job straight to 1080p (Anime4K renders the final size, no second Lanczos pass)
+            {
+                const tl0 = addSource(defaultTimeline(25), src, media);
+                if (!tl0.ok) throw new Error(tl0.error);
+                const tl1 = insertClip(tl0.tl, { trackId: tl0.tl.tracks.find(t => t.kind === 'video')!.id, sourceId: tl0.tl.sources[0].id, start: 0, dur: 3, srcIn: 0, mode: 'replace' });
+                if (!tl1.ok) throw new Error(tl1.error);
+                const outT = path.join(dir, 'v2x_tl.mkv');
+                const spec = { ...v2x('video2x_tl', outT, { container: 'mkv', resolution: '1080', audio: 'aac' }), range: { start: 0, end: timelineDuration(tl1.tl) }, timeline: structuredClone(tl1.tl) };
+                j = await waitJob(enqueue(spec).id);
+                check(j.status === 'done', `Video2X timeline render${j.error ? ' – ' + j.error : ''}`);
+                if (j.status === 'done') {
+                    const om = await probe(outT);
+                    // mkv has no frame count in the header: count the decoded frames like the other timeline checks
+                    const nb = Number((await run(caps.ffprobePath, ['-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', outT])).out.toString().trim());
+                    check(om.video?.width === 1920 && om.video?.height === 1080 && om.audio.length === 1 && nb === 75, `Video2X timeline output ${om.video?.width}x${om.video?.height}, ${nb} frames (expected 75), ${om.audio.length} audio, ${om.duration.toFixed(2)} s`);
+                    check(j.log.some(l => /^Video2X: .* -w 1920 -h 1080 /.test(l)) && !j.log.some(l => /^Stage 3\/4: final encode .*scale=1920:1080/.test(l)), 'Video2X renders the target size directly');
+                }
+            }
+            // explicit provider: a Video2X failure fails the job and never falls back to RVE
+            process.env.VIDEO2X_MOCK_FAIL = 'vulkan';
+            const outF = path.join(dir, 'v2x_fail.mp4');
+            j = await waitJob(enqueue(v2x('video2x_fail', outF)).id);
+            check(j.status === 'failed' && /Vulkan/.test(j.error || '') && !/REAL-Video-Enhancer/.test(j.encoder || ''), `Video2X Vulkan failure is reported (${j.error?.slice(0, 120)})`);
+            check(!(await fsp.stat(outF).catch(() => null)) && await noTemps(), 'failed Video2X job leaves no output and no temps');
+            delete process.env.VIDEO2X_MOCK_FAIL;
+            // a dropped frame is caught by the stage-2 verification
+            process.env.VIDEO2X_MOCK_DROP = '1';
+            j = await waitJob(enqueue(v2x('video2x_drop', path.join(dir, 'v2x_drop.mp4'))).id);
+            check(j.status === 'failed' && /frames/.test(j.error || ''), `Video2X dropped frame detected (${j.error?.slice(0, 120)})`);
+            delete process.env.VIDEO2X_MOCK_DROP;
+            // cancel during stage 2 terminates Video2X and deletes only app-owned temps
+            process.env.VIDEO2X_MOCK_SLEEP = '200';
+            process.env.VIDEO2X_MOCK_FRAMES = '300';
+            const outX = path.join(dir, 'v2x_cancel.mp4');
+            const jx = enqueue(v2x('video2x_cancel', outX));
+            const { cancelJob: cancelV2x } = await import('./render');
+            const t0 = Date.now();
+            while (Date.now() - t0 < 120000) {
+                const cur = listJobs().find(x => x.id === jx.id)!;
+                if (cur.status === 'upscaling' && /Video2X/.test(cur.phase || '') && cur.frames > 0) break;
+                if (['done', 'failed', 'canceled'].includes(cur.status)) break;
+                await new Promise(res => setTimeout(res, 100));
+            }
+            cancelV2x(jx.id);
+            j = await waitJob(jx.id);
+            await new Promise(res => setTimeout(res, 500));
+            check(j.status === 'canceled' && !(await fsp.stat(outX).catch(() => null)) && await noTemps() && !!(await fsp.stat(src).catch(() => null)), `Video2X cancel in stage 2 (${j.status}, phase ${j.phase}); source kept, temps removed`);
+            delete process.env.VIDEO2X_MOCK_SLEEP;
+            delete process.env.VIDEO2X_MOCK_FRAMES;
+            for (const k of ['UVE_VIDEO2X_EXE', 'UVE_VIDEO2X_PREFIX', 'UVE_VIDEO2X_CONFIG_DIR', 'UVE_VIDEO2X_SHADER_DIR', 'VIDEO2X_MOCK_FFMPEG']) delete process.env[k];
+        } else say('SKIP Video2X pipeline test (mock not found)');
+
         // 3c. timeline jobs (v1.0.3 NLE) on both engines: the timeline compositor shaders, per-clip streams,
         //     the reverse pre-pass and the synthesized audio pass
         {

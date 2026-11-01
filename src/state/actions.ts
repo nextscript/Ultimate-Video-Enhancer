@@ -777,30 +777,35 @@ export async function enqueueCurrent() {
 }
 
 /** Renders the whole project timeline as one job (the single-file quick path stays `enqueueCurrent`). */
-export async function enqueueTimelineJob() {
+/**
+ * Renders the timeline. v1.0.7 `opts`: a sub-range and a fixed output path (Video2X "Render 5-second preview");
+ * returns the output path, or null when nothing was queued.
+ */
+export async function enqueueTimelineJob(opts?: { range?: { start: number; end: number }; output?: string; name?: string }): Promise<string | null> {
     const s = getState();
     const tl = s.timeline;
-    if (!tl.clips.length) { toast('The timeline is empty.', 'warn', 4000); return; }
-    if (!s.caps?.ok) { toast(s.caps?.error || 'FFmpeg is not available.', 'error'); return; }
+    if (!tl.clips.length) { toast('The timeline is empty.', 'warn', 4000); return null; }
+    if (!s.caps?.ok) { toast(s.caps?.error || 'FFmpeg is not available.', 'error'); return null; }
     const issues = validateTimeline(tl);
-    if (issues.length) { toast(`Cannot render the timeline: ${issues[0].message}`, 'error', 9000); return; }
+    if (issues.length) { toast(`Cannot render the timeline: ${issues[0].message}`, 'error', 9000); return null; }
     try {
         const primary = tl.sources.find(src => src.media.video)?.media;
         if (!primary) throw new Error('The timeline has no picture to render: no source has a video stream.');
-        const output = await api.outputPath(primary, s.exportSettings, profileLabel());
+        const output = opts?.output || await api.outputPath(primary, s.exportSettings, profileLabel());
         // global bypass is a preview-only comparison aid; the job always renders the edited look
         const effect: EffectState = JSON.parse(JSON.stringify(s.effect));
         await api.enqueue({
             id: 'job_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-            name: baseName(s.projectPath ?? primary.path),
+            name: opts?.name || baseName(s.projectPath ?? primary.path),
             input: primary.path, output, media: primary, effect,
             autoKeys: effect.settings.autoOn && s.analysis.status === 'ready' ? s.analysis.keys : null,
             // timeline audio is synthesized from clip/track levels, so it is always re-encoded
             exportSettings: { ...s.exportSettings, useInOut: false, audio: s.exportSettings.audio === 'copy' ? 'aac' : s.exportSettings.audio },
-            range: { start: 0, end: timelineDuration(tl) }, parityMode: !!s.prefs?.parityMode, timeline: structuredClone(tl)
+            range: opts?.range || { start: 0, end: timelineDuration(tl) }, parityMode: !!s.prefs?.parityMode, timeline: structuredClone(tl)
         });
-        toast(`Timeline added to the render queue → ${output}`, 'ok', 6000);
-    } catch (e) { toast(`Cannot start rendering: ${errMsg(e)}`, 'error', 8000); }
+        toast(`${opts?.name ? opts.name : 'Timeline'} added to the render queue → ${output}`, 'ok', 6000);
+        return output;
+    } catch (e) { toast(`Cannot start rendering: ${errMsg(e)}`, 'error', 8000); return null; }
 }
 
 export async function enqueueBatch(paths: string[], profile: UserProfile | null) {

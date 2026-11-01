@@ -1,7 +1,7 @@
 {
   "name": "uve-manager",
   "productName": "UVE Manager",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "UVE Manager – desktop video look editor and offline renderer built on the Ultimate Video Enhancer effect chain.",
   "author": "UVE Manager",
   "license": "SEE LICENSE IN docs/LICENSES.md",
@@ -79,7 +79,8 @@
         "to": "tools",
         "filter": [
           "**/*",
-          "!rve/**"
+          "!rve/**",
+          "!video2x/**"
         ]
       }
     ],
@@ -107,6 +108,7 @@
             "!**/*.exe",
             "!**/*.dll",
             "!rve/**",
+            "!video2x/**",
             "!ffmpeg/**"
           ]
         }
@@ -129,6 +131,7 @@
             "!**/*.exe",
             "!**/*.dll",
             "!rve/**",
+            "!video2x/**",
             "!ffmpeg/**"
           ]
         }

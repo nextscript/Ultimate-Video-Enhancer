@@ -8,7 +8,7 @@ project keeps the original look, in/out points and export settings.
 {
   "schema": "uve-project",
   "version": 2,
-  "app": "UVE Manager 1.0.6",
+  "app": "UVE Manager 1.0.7",
   "uveSource": { "name": "...", "version": "1.17.5", "repo": "...", "commit": "38b2ed1…", "sha256": "28b37df…" },
   "savedAt": "2026-10-31T12:00:00.000Z",
 
@@ -53,7 +53,10 @@ project keeps the original look, in/out points and export settings.
   "export": { "container": "mp4", "videoCodec": "hevc", "encoder": "auto", "quality": 20, "preset": "medium",
               "tenBit": false, "resolution": "source", "audio": "aac", "audioBitrate": 192, "audioTrack": -1,
               "subtitles": "none", "outputDir": "", "fileName": "{name}_UVE", "useInOut": false,
-              "aiUpscale": "", "fps": "" },
+              "aiUpscale": "", "fps": "",
+              // v1.0.7, optional: "off" | "rve" | "video2x"; absent = legacy meaning of aiUpscale
+              "upscaleProvider": "video2x",
+              "video2x": { "presetId": "builtin:anime4k-v4-a", "scale": 2, "device": -1 } },
 
   "ui": { "wipe": 0.5, "compare": true, "timelineZoom": 120 }
 }
@@ -79,6 +82,20 @@ project keeps the original look, in/out points and export settings.
   others. `locked` is an editing guard, not a playback state.
 * `kind: 'audio'` tracks contribute to the mix but never to the picture; video tracks are composited in
   `tracks` order (last drawn on top).
+
+## AI upscale provider (1.0.7)
+
+The file version stays 2: the new export fields are optional and older files simply lack them.
+
+* `upscaleProvider` absent → `aiUpscale` keeps its 1.0.0–1.0.6 meaning: a model id selects REAL-Video-Enhancer, `""` = off.
+  A missing provider is **never** read as Video2X, and `DEFAULT_EXPORT` deliberately has no provider so merging an old
+  project over the defaults keeps its meaning (`resolveUpscaleProvider` in `shared/upscale-provider.ts`).
+* `upscaleProvider: "video2x"` uses `video2x` (`presetId` = `builtin:<shader>` or `custom:<library id>`, `scale` 2/3/4,
+  `device` = Vulkan index or -1 = automatic). The RVE model in `aiUpscale` is kept so the provider can be switched back.
+* `upscaleProvider: "off"` clears `aiUpscale`. Saving and reopening round-trips all fields; queued render jobs and their
+  retry snapshot carry the same export settings.
+* Custom shader presets are not embedded in the project; a project that references a missing `custom:` preset fails the
+  render with a message asking for another preset.
 
 ## Validation and migration behaviour
 

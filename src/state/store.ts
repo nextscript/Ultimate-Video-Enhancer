@@ -4,6 +4,7 @@ import type {
     UpdateCheckResult, UserProfile
 } from '../../shared/types';
 import { DEFAULT_EXPORT } from '../../shared/types';
+import type { Video2xStatus } from '../../shared/video2x-types';
 import { defaultTimeline, type OpResult } from '../../shared/timeline';
 import type { AutoKey } from '../../shared/uve/auto';
 import type { CustomFilterEntry } from '../../shared/uve/customFilters';
@@ -113,6 +114,8 @@ export interface AppState {
     canRedo: boolean;
     /** REAL-Video-Enhancer (AI upscaling) installation status */
     rve: RveStatusUi | null;
+    /** v1.0.7: Video2X (Anime4K) provider status */
+    video2x: Video2xStatus | null;
     /** v1.0.1: filter engine used by the preview (and why) */
     engineInfo: { kind: 'webgpu' | 'webgl2'; adapter: string; reason: string; validation: { ok: boolean; maxDiff: number; meanDiff: number; prims: number; ms: number; error?: string } | null } | null;
 }
@@ -129,7 +132,7 @@ let state: AppState = {
     luts: { profiles: [], groups: [], repo: { status: 'idle', message: '' } },
     analysis: { status: 'none', pct: 0, keys: null }, jobs: [], updates: null, updateModal: false, updateBusy: null,
     toasts: [], graphWarnings: [], customErrors: {}, scopes: null, scopesHud: false, showIcons: true,
-    renderStats: { ms: 0, prims: 0, w: 0, h: 0, dropped: 0 }, canUndo: false, canRedo: false, rve: null, engineInfo: null
+    renderStats: { ms: 0, prims: 0, w: 0, h: 0, dropped: 0 }, canUndo: false, canRedo: false, rve: null, video2x: null, engineInfo: null
 };
 
 const listeners = new Set<() => void>();

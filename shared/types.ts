@@ -3,9 +3,10 @@ import type { ExpertSettings } from './uve/expert';
 import type { CustomFilterEntry } from './uve/customFilters';
 import type { LutProfile } from './uve/lut';
 import type { AutoKey } from './uve/auto';
+import type { UpscaleProvider, Video2xExportOptions } from './upscale-provider';
 
 export const APP_NAME = 'UVE Manager';
-export const APP_VERSION = '1.0.6';
+export const APP_VERSION = '1.0.7';
 export const UVE_SOURCE = {
     name: 'Ultimate Video Enhancer (Sharpen, HDR, Color Boost)',
     version: '1.17.5',
@@ -114,6 +115,13 @@ export interface ExportSettings {
     aiUpscale: string;
     /** Output frame rate (e.g. "30", "29.97", "24000/1001"); '' = source. Frames are duplicated/dropped, not interpolated. */
     fps: string;
+    /**
+     * v1.0.7: AI upscale provider. Absent (1.0.6 and older) = `aiUpscale` decides (model id = RVE, '' = off).
+     * Deliberately not part of DEFAULT_EXPORT, so merging old settings over the defaults keeps their meaning.
+     */
+    upscaleProvider?: UpscaleProvider;
+    /** v1.0.7: Video2X (Anime4K) options, used when upscaleProvider = 'video2x' */
+    video2x?: Video2xExportOptions;
 }
 
 export const DEFAULT_EXPORT: ExportSettings = {
@@ -324,6 +332,9 @@ export interface JobState {
     createdAt: number;
     /** v1.0.1: filter engine + adapter actually used */
     engine?: string;
+    /** v1.0.7: upscale provider of the job and the current pipeline phase (e.g. "Upscaling – Video2X (2/4)") */
+    provider?: UpscaleProvider;
+    phase?: string;
     /** v1.0.1: measured stage times (ms, summed over all frames) */
     stats?: { frames: number; totalMs: number; decodeWait: number; upload: number; gpu: number; readback: number; encodeWait: number; heapMB: number; engine: string; adapter: string };
 }

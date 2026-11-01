@@ -12,6 +12,7 @@ import { getState, setState, toast, updateEffect, useStore } from '../state/stor
 import { Button, Icon, Progress, Section, Select, Toggle, fmtBytes, fmtTime } from './controls';
 import { Scopes } from './Scopes';
 import { RveSettings } from './RveSettings';
+import { Video2xSettings } from './Video2xSettings';
 import { RenderingSettings } from './RenderingSettings';
 import { player } from './Player';
 import { PLATFORM, kbd } from './keys';
@@ -329,13 +330,13 @@ export function QueueView() {
                         <span className={`tag ${j.status}`}>{j.status}</span>
                         {j.encoder && <span className="tag">{j.encoder}</span>}
                         {j.engine && <span className="tag" title={j.engine}>{j.engine.split(' · ')[0]}</span>}
-                        {['queued', 'analyzing', 'rendering', 'upscaling'].includes(j.status) && <Button small kind="danger" onClick={() => api.cancelJob(j.id)}>Cancel</Button>}
+                        {['queued', 'analyzing', 'rendering', 'upscaling', ...(j.provider === 'video2x' ? ['finalizing'] : [])].includes(j.status) && <Button small kind="danger" onClick={() => api.cancelJob(j.id)}>Cancel</Button>}
                         {['failed', 'canceled'].includes(j.status) && <Button small onClick={() => api.retryJob(j.id)}>Retry</Button>}
                         {j.status === 'done' && <Button small icon="folder" onClick={() => api.showItem(j.output)}>Show</Button>}
                         <Button small onClick={() => setOpenLog(openLog === j.id ? null : j.id)}>Log</Button>
                         {!['analyzing', 'rendering', 'upscaling'].includes(j.status) && <Button small icon="trash" title="Remove" onClick={() => api.removeJob(j.id)} />}
                     </div>
-                    <Progress value={j.progress} label={j.status === 'analyzing' ? `Analysing ${Math.round(j.progress * 100)}%` : j.status === 'upscaling' ? `AI upscaling (RVE) ${Math.round(j.progress * 100)}%` : `${Math.round(j.progress * 100)}%`} />
+                    <Progress value={j.progress} label={j.phase && j.provider === 'video2x' ? `${j.phase} · ${Math.round(j.progress * 100)}%${j.fps ? ` · ${j.fps.toFixed(1)} fps` : ''}${j.eta > 0 ? ` · ${Math.round(j.eta)} s left` : ''}` : j.status === 'analyzing' ? `Analysing ${Math.round(j.progress * 100)}%` : j.status === 'upscaling' ? `AI upscaling (RVE) ${Math.round(j.progress * 100)}%` : `${Math.round(j.progress * 100)}%`} />
                     <div className="job-stats small dim">
                         <span>{j.frames}/{j.totalFrames || '?'} frames</span>
                         <span>{j.fps.toFixed(1)} fps</span>
@@ -443,6 +444,7 @@ export function SettingsView() {
             </Section>
             <RenderingSettings />
             <RveSettings />
+            <Video2xSettings />
             <Section title="Preview & engine" collapsible={false}>
                 <Select label="Preview quality" value={prefs.previewQuality} onChange={v => setP({ previewQuality: v })}
                     options={[{ value: 'full', label: 'Full (exact)' }, { value: 'half', label: 'Half' }, { value: 'quarter', label: 'Quarter' }]} />
@@ -477,6 +479,7 @@ export function SettingsView() {
                     <div><dt>Privacy</dt><dd>No telemetry. Network access only for the update check and the LUT/FFmpeg downloads.</dd></div>
                 </dl>
                 <p className="hint">FFmpeg is © the FFmpeg developers, distributed as a GPL build (BtbN FFmpeg-Builds). See docs/LICENSES.md for all third-party notices.</p>
+                <p className="hint">Optional external tools, downloaded on request and run as separate programs (not part of UVE Manager): REAL-Video-Enhancer (TNTwise, GNU AGPL-3.0) and Video2X (K4YT3X and contributors, GNU AGPL-3.0, source: github.com/k4yt3x/video2x) with the Anime4K shaders (bloc97, MIT).</p>
                 <div className="row gap">
                     <Button small onClick={() => api.openExternal('https://github.com/nextscript/Ultimate-Video-Enhancer')}>UVE repository</Button>
                     <Button small onClick={() => api.openExternal('https://greasyfork.org/de/scripts/561189-ultimate-video-enhancer-sharpen-hdr-color-boost')}>UVE on Greasy Fork</Button>

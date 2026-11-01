@@ -128,6 +128,37 @@ Rendering has three stages:
 With TensorRT the first job per model and resolution builds a TensorRT engine (minutes), later jobs reuse it.
 NCNN and PyTorch need no engine build. NCNN needs a current graphics driver with Vulkan support.
 
+## Fast upscale: Video2X + Anime4K (1.0.7)
+
+Export → **AI Upscale** chooses the provider explicitly: **Off**, **REAL-Video-Enhancer** or **Video2X (Anime4K)**. Only
+one provider runs per export; a Video2X problem fails the job with its diagnostic and never falls back to RVE.
+
+* **Install** (Settings → AI Upscaling → Video2X): the pinned official release 6.4.0 from
+  `github.com/k4yt3x/video2x/releases` (`video2x-windows-amd64.zip` / `Video2X-x86_64.AppImage`). Version, license, vendor,
+  size, release/asset ids and SHA-256 are shown before the download; the SHA-256 is pinned in `shared/video2x-cli.ts`
+  (upstream publishes no checksums or signatures). The archive is unpacked in a staging folder with path checks and then
+  moved to `tools/video2x/<version>`. *Remove managed installation* deletes only that folder; a user-selected executable is
+  never deleted. No admin rights are needed. Works offline after installation.
+* **Detection**: platform → executable → `--help` / `--version` (the adapter reads the options the binary offers; versions
+  older than 6.1 or newer than 6.x are rejected with an upgrade path) → `--list-devices` → a synthetic 10-frame test job
+  (128×72 → 256×144). Status: Installed / Not installed / Unsupported / Verification failed, with the exact diagnostic.
+  Results are cached per executable (path, size, modification time) and re-checked after an update or a new path;
+  *Verify installation* re-runs them after a driver change.
+* **Presets**: built-in Anime4K presets are listed only when the installed binary names them in `--help`. Custom presets
+  live in `<data>/video2x/shaders` (`library.json`, `files/<sha256>.glsl` copies, `chains/<sha256>.glsl` combined chains).
+  Import either copies a file or references it read-only; every file's SHA-256 is recorded and checked before each use
+  (missing / modified files are reported, *Accept change* re-checks and re-hashes). Files are checked for known
+  mpv/libplacebo directives, `//!HOOK` passes, a `hook()` function and `//!BIND` dependencies in chain order; libplacebo
+  compiles them only in a test run, which happens automatically before the first render with a new chain.
+* **Preview**: *Render 5-second preview* renders 5 s from the playhead through the real pipeline into
+  `<data>/cache/video2x-preview`, cached by timeline, effects, export settings, range and shader hashes.
+* Logs: `<data>/logs/video2x.log` (Settings → *Open logs*).
+
+The job runs: UVE render → lossless FFV1 RGB intermediate (1/4) → Video2X Anime4K at the final size, lossless (2/4)
+→ final encode with your encoder settings (3/4) → audio/subtitles mux (4/4) → verification (size, frame count, fps,
+audio present and A/V length within 0.25 s) → atomic rename. Cancel kills the Video2X process tree and FFmpeg and
+removes only app-owned temp files.
+
 ## settings.json
 
 All choices are stored in `data\settings.json` (portable version and development; installed copies use `%APPDATA%\UVE Manager`):
