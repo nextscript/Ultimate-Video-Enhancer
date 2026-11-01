@@ -11,8 +11,8 @@ import type { ExportSettings } from '../../shared/types';
 import { api } from '../api';
 import { enqueueTimelineJob } from '../state/actions';
 import { getState, setState, toast, useStore } from '../state/store';
-import { Button, Select, Toggle, fmtBytes } from './controls';
-import { errText, refreshVideo2x, video2xApi } from './Video2xSettings';
+import { Button, Progress, Select, Toggle, fmtBytes } from './controls';
+import { errText, installVideo2xInteractive, refreshVideo2x, video2xApi } from './Video2xSettings';
 
 const even = (n: number) => Math.max(2, Math.round(n / 2) * 2);
 
@@ -31,6 +31,13 @@ export function Video2xExportSection({ set }: { set: (p: Partial<ExportSettings>
     const time = useStore(s => s.time);
     const [previewBusy, setPreviewBusy] = useState(false);
     const [testBusy, setTestBusy] = useState(false);
+    const [installing, setInstalling] = useState<{ message: string; pct: number } | null>(null);
+    useEffect(() => api.on('video2x:progress', (p: { message: string; pct: number }) => setInstalling(cur => (cur ? p : cur))), []);
+    const needsInstall = !st?.managed && !st?.customExe && st?.platformSupported !== false;
+    const installNow = async () => {
+        setInstalling({ message: 'Starting download…', pct: 0 });
+        try { await installVideo2xInteractive(); } finally { setInstalling(null); }
+    };
     useEffect(() => { if (!st) void refreshVideo2x(false); }, [st]);
     const o = video2xOptions(ex);
     const setO = (p: Partial<typeof o>) => set({ video2x: { ...o, ...p } });
@@ -150,10 +157,14 @@ export function Video2xExportSection({ set }: { set: (p: Partial<ExportSettings>
                 {verified ? `Verified on this GPU (${modelId}, ${o.scale}×).` : failed ? `Last test failed: ${failed.message}` : 'Not tested yet – a 10-frame test job runs automatically before the first render.'}
             </p>}
             <p className={st?.state === 'installed' ? 'hint' : 'warn-text'}>
-                Status: {st ? (st.state === 'unsupported' ? st.platformReason : st.state === 'not-installed' ? 'Video2X is not installed – install it in Settings → AI Upscaling → Video2X.' : `${st.summary}${st.diagnostic ? ` – ${st.diagnostic}` : ''}`) : 'checking…'}
+                Status: {st ? (st.state === 'unsupported' ? st.platformReason : st.state === 'not-installed' ? 'Video2X is not installed yet – click “Install Video2X” below.' : `${st.summary}${st.diagnostic ? ` – ${st.diagnostic}` : ''}`) : 'checking…'}
             </p>
+            {installing && <Progress value={installing.pct} label={installing.message} />}
             <div className="row gap wrap">
-                <Button small onClick={() => setState({ view: 'settings' })}>{usable ? (neural ? 'Configure Video2X' : 'Configure / Manage shaders') : 'Install / Verify / Configure'}</Button>
+                {needsInstall && <Button small kind="primary" icon="download" disabled={!!installing} onClick={installNow}
+                    title="Downloads the official Video2X release (about 190 MB), checks its SHA-256 and verifies it with a short test job">Install Video2X{st?.install ? ` ${st.install.version}` : ''}</Button>}
+                {installing && <Button small kind="danger" onClick={() => video2xApi.cancelInstall()}>Cancel</Button>}
+                <Button small onClick={() => setState({ view: 'settings' })}>{usable ? (neural ? 'Configure Video2X' : 'Configure / Manage shaders') : 'Video2X settings'}</Button>
                 {neural && <Button small disabled={!usable || testBusy || !!combo || pcap?.available === false} onClick={testCombo}
                     title="Runs a 10-frame test job with exactly this model, scale, noise level and GPU">Test this model</Button>}
                 <Button small disabled={!usable || previewBusy || !tl.clips.length || !previewOk} onClick={preview}

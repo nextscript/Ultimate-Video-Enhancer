@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import type { Video2xStatus } from '../../shared/video2x-types';
-import { setState, toast, useStore } from '../state/store';
+import { getState, setState, toast, useStore } from '../state/store';
 import { Button, Progress, Section, fmtBytes } from './controls';
 import { Video2xShaderLibrary } from './Video2xShaderLibrary';
 
@@ -29,8 +29,31 @@ export const video2xApi = {
     previewPath: (o: { key: unknown; presetId: string; ext: string }) => inv<{ path: string; exists: boolean; queued: boolean }>('video2x:previewPath', o)
 };
 
-export async function refreshVideo2x(deep = true) {
-    try { setState({ video2x: await video2xApi.status(deep) }); } catch { /* not available */ }
+/** Loads the Video2X status into the store; returns the error text when it could not be loaded. */
+export async function refreshVideo2x(deep = true): Promise<string> {
+    try { setState({ video2x: await video2xApi.status(deep) }); return ''; } catch (e) { return errText(e); }
+}
+
+/**
+ * Asks for confirmation (version, license, size, source, checksum) and installs the pinned Video2X release.
+ * Works before the status was loaded; used by Settings and by Output Settings → Video2X.
+ */
+export async function installVideo2xInteractive(): Promise<Video2xStatus | null> {
+    const i = getState().video2x?.install;
+    const text = i
+        ? `Install Video2X ${i.version} into the tools folder?\n\nVendor: ${i.vendor}\nLicense: ${i.license} – Video2X is a separate program, not part of UVE Manager.\nFile: ${i.asset} (${fmtBytes(i.size)})\nSource: ${i.url}\nGitHub release ${i.releaseId}, asset ${i.assetId}\nSHA-256: ${i.sha256}\n\n${i.integrity}`
+        : 'Install Video2X (official GitHub release, GNU AGPL-3.0, separate program) into the tools folder? The download is about 190 MB and its SHA-256 is checked.';
+    if (!confirm(text)) return null;
+    try {
+        const s = await video2xApi.install();
+        setState({ video2x: s });
+        toast(s.state === 'installed' ? `Video2X ${s.version} installed and verified` : `Video2X installed – ${s.diagnostic || s.summary}`, s.state === 'installed' ? 'ok' : 'warn', 9000);
+        return s;
+    } catch (e) {
+        toast(`Video2X installation failed: ${errText(e)}`, 'error', 12000);
+        void refreshVideo2x(true);
+        return null;
+    }
 }
 
 export const errText = (e: unknown) => `${e instanceof Error ? e.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : e}`;
@@ -43,8 +66,9 @@ export function Video2xSettings() {
     const st = useStore(s => s.video2x);
     const [prog, setProg] = useState<{ message: string; pct: number } | null>(null);
     const [busy, setBusy] = useState(false);
+    const [loadError, setLoadError] = useState('');
     useEffect(() => {
-        void refreshVideo2x(true);
+        void refreshVideo2x(true).then(setLoadError);
         return api.on('video2x:progress', (p: { message: string; pct: number }) => setProg(p));
     }, []);
 
@@ -54,12 +78,14 @@ export function Video2xSettings() {
         catch (e) { toast(errText(e), 'error', 12000); void refreshVideo2x(true); }
         finally { setBusy(false); setProg(null); }
     };
-    const install = () => {
-        const i = st?.install;
-        if (!i) return;
-        const ok = confirm(`Install Video2X ${i.version} into the tools folder?\n\nVendor: ${i.vendor}\nLicense: ${i.license} – Video2X is a separate program, not part of UVE Manager.\nFile: ${i.asset} (${fmtBytes(i.size)})\nSource: ${i.url}\nGitHub release ${i.releaseId}, asset ${i.assetId}\nSHA-256: ${i.sha256}\n\n${i.integrity}`);
-        if (ok) void run(() => video2xApi.install(), s => s.state === 'installed' ? `Video2X ${s.version} installed and verified` : `Video2X installed – ${s.diagnostic || STATE_LABEL[s.state]}`);
+    const install = async () => {
+        setBusy(true);
+        try { await installVideo2xInteractive(); setLoadError(''); }
+        finally { setBusy(false); setProg(null); }
     };
+    // Install is the first step whenever UVE Manager has not installed Video2X yet – also while the status is loading
+    const canInstall = !st?.managed && st?.platformSupported !== false;
+    const nothingYet = !st?.managed && !st?.customExe;
 
     const dis = busy || !!st?.busy;
     return (
@@ -87,18 +113,21 @@ export function Video2xSettings() {
                 <div><dt>Last verification</dt><dd>{st?.verification ? `${st.verification.ok ? 'passed' : 'FAILED'} ${new Date(st.verification.at).toLocaleString()} – ${st.verification.message}` : 'not run'}</dd></div>
                 {st?.managed && <div><dt>Managed install</dt><dd>{st.managed.dir} · from {st.managed.sourceUrl} · SHA-256 {st.managed.sha256.slice(0, 16)}…</dd></div>}
             </dl>
+            {loadError && <p className="warn-text">The Video2X status could not be loaded: {loadError}</p>}
+            {nothingYet && canInstall && <p className="hint">Video2X is not installed yet. Click <b>Install Video2X{st?.install ? ` ${st.install.version}` : ''}</b> – UVE Manager downloads the official release
+                (about {st?.install ? fmtBytes(st.install.size) : '190 MB'}), checks it and verifies it with a short test job. Nothing else has to be installed.</p>}
             {st?.diagnostic && <p className="warn-text">Diagnostic: {st.diagnostic}</p>}
             {st?.warnings.map(w => <p key={w} className="warn-text">{w}</p>)}
             {(prog || st?.busy) && <Progress value={prog?.pct ?? 0.5} label={prog?.message || st?.message || 'Working…'} />}
             <div className="row gap wrap">
-                {st?.install && !st.managed && <Button kind="primary" icon="download" disabled={dis} onClick={install} title={`${st.install.asset} · ${fmtBytes(st.install.size)}`}>Install Video2X {st.install.version}</Button>}
+                {canInstall && <Button kind="primary" icon="download" disabled={dis} onClick={install} title={st?.install ? `${st.install.asset} · ${fmtBytes(st.install.size)}` : 'Official Video2X release from GitHub'}>Install Video2X{st?.install ? ` ${st.install.version}` : ''}</Button>}
                 {st?.install && st.managed && st.updateAvailable && <Button kind="primary" icon="download" disabled={dis} onClick={install}>Update Video2X to {st.install.version}</Button>}
                 {busy && prog && <Button kind="danger" onClick={() => video2xApi.cancelInstall()}>Cancel</Button>}
-                <Button disabled={dis} onClick={() => run(() => video2xApi.selectExe())}>Select existing executable…</Button>
                 {st?.customExe && <Button disabled={dis} onClick={() => run(() => video2xApi.clearExe())}>Use managed installation</Button>}
                 <Button disabled={dis || !st?.exe} onClick={() => run(() => video2xApi.verify(), s => s.verification?.ok ? 'Video2X verified: test job passed' : `Verification failed: ${s.diagnostic || s.verification?.message || ''}`)}>Verify installation</Button>
                 {st?.managed && <Button kind="danger" disabled={dis} onClick={() => { if (confirm(`Remove the Video2X installation in ${st.managed!.dir}? (A selected executable elsewhere is not touched.)`)) void run(() => video2xApi.remove()); }}>Remove managed installation</Button>}
-                <Button small disabled={dis} onClick={() => refreshVideo2x(true)}>Re-check</Button>
+                <Button small disabled={dis} onClick={() => refreshVideo2x(true).then(setLoadError)}>Re-check</Button>
+                <Button small disabled={dis} title="Advanced: use a Video2X build you already have instead of installing one" onClick={() => run(() => video2xApi.selectExe())}>{st?.customExe ? 'Select another executable…' : 'Use my own video2x.exe…'}</Button>
                 <Button small onClick={() => video2xApi.openLogs()}>Open logs</Button>
                 <Button small disabled={dis} onClick={() => { if (confirm('Reset Video2X settings to default? This forgets a selected executable and all verification results; installed files and shaders are kept.')) void run(() => video2xApi.reset()); }}>Reset to default</Button>
             </div>
