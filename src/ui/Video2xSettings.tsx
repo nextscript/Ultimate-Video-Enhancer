@@ -23,6 +23,9 @@ export const video2xApi = {
     importFolder: (o: { mode: 'copy' | 'reference' }) => inv<string | null>('video2x:importFolder', o),
     editPreset: (e: Record<string, unknown>) => inv<string>('video2x:editPreset', e),
     testPreset: (id: string, device = -1) => inv<{ ok: boolean; message: string }>('video2x:testPreset', id, device),
+    /** v1.0.8 Real-ESRGAN / Real-CUGAN test job */
+    testProcessor: (o: { processor: 'realesrgan' | 'realcugan'; modelId: string; scale: number; noiseLevel?: number; device?: number }) =>
+        inv<{ ok: boolean; message: string }>('video2x:testProcessor', o),
     previewPath: (o: { key: unknown; presetId: string; ext: string }) => inv<{ path: string; exists: boolean; queued: boolean }>('video2x:previewPath', o)
 };
 
@@ -74,6 +77,13 @@ export function Video2xSettings() {
                 <div><dt>Executable path</dt><dd>{st?.exe ? `${st.exe} (${st.source === 'managed' ? 'installed by UVE Manager' : st.source === 'custom' ? 'selected by you' : 'test override'})` : '—'}</dd></div>
                 <div><dt>Vulkan status</dt><dd>{st ? `${{ verified: 'Verified by a test job', 'devices-found': 'Device(s) found, not verified', none: 'No Vulkan device', unknown: 'Unknown', error: 'Error' }[st.vulkan.status]}${st.vulkan.devices.length ? ` – ${st.vulkan.devices.map(d => `${d.index}. ${d.name}${d.type ? ` (${d.type})` : ''}`).join(', ')}` : ''}` : '—'}</dd></div>
                 <div><dt>Shader support</dt><dd>{st?.shaderSupport || '—'}</dd></div>
+                {(['realesrgan', 'realcugan'] as const).map(p => {
+                    const c = st?.processors?.[p];
+                    const name = p === 'realesrgan' ? 'Real-ESRGAN' : 'Real-CUGAN';
+                    return <div key={p}><dt>{name}</dt><dd>{!c ? '— (shown after Video2X has been detected)'
+                        : !c.available ? `not available – ${c.problem}`
+                            : `available (${c.models.map(m => m.id).join(', ')}) – ${c.verified.length ? `verified: ${c.verified.map(k => k.split('|').slice(1, 3).join(' ') + '×').join(', ')}` : 'not verified yet (tested before the first render or with “Test this model” in Output Settings)'}${c.failed.length ? ` – ${c.failed.length} failed test(s): ${c.failed[c.failed.length - 1].message}` : ''}`}</dd></div>;
+                })}
                 <div><dt>Last verification</dt><dd>{st?.verification ? `${st.verification.ok ? 'passed' : 'FAILED'} ${new Date(st.verification.at).toLocaleString()} – ${st.verification.message}` : 'not run'}</dd></div>
                 {st?.managed && <div><dt>Managed install</dt><dd>{st.managed.dir} · from {st.managed.sourceUrl} · SHA-256 {st.managed.sha256.slice(0, 16)}…</dd></div>}
             </dl>

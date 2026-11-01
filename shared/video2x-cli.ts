@@ -200,7 +200,7 @@ export function parseProgress(segment: string): Video2xProgress | null {
     return { frames, total, percent: pct ? Number(pct[1]) : total ? frames * 100 / total : 0, fps: fpsV, remaining: rem ? hms(rem[1]) : -1 };
 }
 
-export type Video2xErrorKind = 'vulkan' | 'shader' | 'encoder' | 'input' | 'output' | 'canceled' | 'crash' | 'unknown';
+export type Video2xErrorKind = 'vulkan' | 'shader' | 'encoder' | 'input' | 'output' | 'canceled' | 'crash' | 'oom' | 'model' | 'unknown';
 
 /** Classifies a failed run from its exit code and the tail of its log, with guidance for the user. */
 export function classifyError(code: number | null, signal: string | null, log: string): { kind: Video2xErrorKind; message: string } {
@@ -208,6 +208,13 @@ export function classifyError(code: number | null, signal: string | null, log: s
     const last = log.trim().split(/\r?\n/).filter(l => /error|critical|fail|invalid/i.test(l)).slice(-3).join(' | ').slice(0, 600);
     const detail = last ? ` Video2X: ${last}` : '';
     if (code === 2 || /processing aborted/.test(t)) return { kind: 'canceled', message: 'Video2X processing was aborted.' };
+    // v1.0.8 (Real-ESRGAN / Real-CUGAN): checked before the generic Vulkan / shader patterns
+    if (/out_of_device_memory|out_of_host_memory|out of (gpu |device |video )?memory|bad_alloc|failed to allocate/.test(t)) {
+        return { kind: 'oom', message: `The GPU ran out of memory in Video2X. Choose a smaller scale, another model or another GPU, or close other GPU applications.${detail}` };
+    }
+    if (/model (param|bin) file not found|failed to load (the )?model|model file .* not found/.test(t)) {
+        return { kind: 'model', message: `The selected Real-ESRGAN / Real-CUGAN model files are missing in this Video2X installation. Reinstall Video2X or choose another model / scale.${detail}` };
+    }
     if (/vulkan|vk_error|vkcreate|no (suitable )?(vulkan )?(gpu|device)|failed to (create|initialize) (the )?(vulkan|libplacebo)|vk_icd|loader/.test(t)) {
         return { kind: 'vulkan', message: `Vulkan is not usable for Video2X (no compatible GPU/driver, or the selected device index does not exist). Install the current graphics driver and check Settings → AI Upscaling → Video2X → Verify installation.${detail}` };
     }

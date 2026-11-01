@@ -154,6 +154,18 @@ one provider runs per export; a Video2X problem fails the job with its diagnosti
   `<data>/cache/video2x-preview`, cached by timeline, effects, export settings, range and shader hashes.
 * Logs: `<data>/logs/video2x.log` (Settings → *Open logs*).
 
+**1.0.8 – Real-ESRGAN / Real-CUGAN.** Export → Video2X → **Processor** selects Anime4K v4 (libplacebo, the 1.0.7 path,
+default), Real-ESRGAN or Real-CUGAN (ncnn, Vulkan). The adapter is `shared/video2x-processors.ts`; Anime4K keeps its own
+`buildArgs`. Model ids, scales and Real-CUGAN noise levels come from a table checked against the model files of the
+pinned Video2X 6.4.0 and are intersected with the models the installed binary lists in `--help`; a processor whose
+options are missing in `--help` is shown as unavailable without affecting Anime4K. Every model / scale / noise / GPU
+combination is verified once by a 10-frame 128×72 test job (cached per executable fingerprint; an Anime4K test never
+counts). Neural models output exactly scale × the UVE frame; a Resolution choice that differs is refused unless
+*Resize model output to the Resolution choice* is on (then the final encode resizes with Lanczos and the log says so).
+Missing model files, GPU out-of-memory and Vulkan errors are reported with the options to change model, scale or GPU –
+there is no automatic fallback. Export fields (optional, absent = Anime4K): `video2x.processor`, `modelId`, `noiseLevel`,
+`postResize`; `presetId` keeps the Anime4K choice while another processor is active. RIFE is not offered.
+
 The job runs: UVE render → lossless FFV1 RGB intermediate (1/4) → Video2X Anime4K at the final size, lossless (2/4)
 → final encode with your encoder settings (3/4) → audio/subtitles mux (4/4) → verification (size, frame count, fps,
 audio present and A/V length within 0.25 s) → atomic rename. Cancel kills the Video2X process tree and FFmpeg and

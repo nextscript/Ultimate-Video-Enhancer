@@ -84,6 +84,16 @@ export interface Video2xStatus {
     builtinShaders: string[];
     verification: { ok: boolean; at: number; message: string; codec: string } | null;
     presets: Video2xPresetInfo[];
+    /** v1.0.8: Real-ESRGAN / Real-CUGAN support of the detected binary (undefined until it was probed) */
+    processors?: Record<'realesrgan' | 'realcugan', {
+        available: boolean;
+        problem: string;
+        noise: boolean;
+        models: { id: string; label: string; scales: Record<number, number[]> }[];
+        /** verified combinations "<processor>|<model>|<scale>|<noise>|<device>" */
+        verified: string[];
+        failed: { combo: string; message: string }[];
+    }>;
     install: Video2xInstallInfo | null;
     warnings: string[];
     busy: boolean;

@@ -23,11 +23,36 @@ import { fileExists } from './util';
 import { BACKEND_LABEL, type RveBackend, downloadModel, findModel, rveStatus, runUpscale } from './rve';
 import { resolveUpscaleProvider, video2xOptions } from '../shared/upscale-provider';
 import { buildArgs as video2xArgs, estimateTempBytes } from '../shared/video2x-cli';
+import { buildNeuralArgs } from '../shared/video2x-processors';
+import { APP_VERSION } from '../shared/types';
 import { type PreparedVideo2x, prepareJob as prepareVideo2x, probeFile, v2xLog } from './video2x';
 import { execute as executeVideo2x } from './video2x-process';
 
 /** AI upscaling options for the plan builders. `provider` video2x: the upscaler renders straight to the final size. */
-export interface UpscalePlan { scale: number; provider?: 'rve' | 'video2x' }
+export interface UpscalePlan {
+    scale: number;
+    provider?: 'rve' | 'video2x';
+    /**
+     * v1.0.8 Video2X Real-ESRGAN / Real-CUGAN: the model output is exactly `scale` × the UVE frame. A different
+     * Resolution choice is refused unless `postResize` (then FFmpeg resizes the model output with Lanczos).
+     */
+    neural?: { postResize: boolean };
+}
+
+/**
+ * v1.0.8: sizes of a Video2X job. Anime4K (libplacebo) renders straight to the final size (1.0.7 behaviour);
+ * a neural model renders its fixed scale and the final size must match unless a post-resize was chosen.
+ */
+function video2xSizes(upscale: UpscalePlan, pw: number, ph: number, final: { w: number; h: number }): { stage2: { w: number; h: number }; resize: boolean } {
+    if (!upscale.neural) return { stage2: final, resize: false };
+    const stage2 = { w: pw * upscale.scale, h: ph * upscale.scale };
+    if (stage2.w % 2 || stage2.h % 2) throw new Error(`The ${upscale.scale}x model output would be ${stage2.w}x${stage2.h} – odd sizes cannot be encoded. Choose 2x or 4x for this source.`);
+    const resize = stage2.w !== final.w || stage2.h !== final.h;
+    if (resize && !upscale.neural.postResize) {
+        throw new Error(`The ${upscale.scale}x model outputs ${stage2.w}x${stage2.h}, but Resolution asks for ${final.w}x${final.h}. Set Resolution to Source, or enable "Resize model output to the Resolution choice" in Output Settings.`);
+    }
+    return { stage2, resize };
+}
 
 /** What buildPlan / buildTimelineJob return for the upscale stages besides the worker plan. */
 interface UpscaleOutputs {
@@ -35,8 +60,10 @@ interface UpscaleOutputs {
     muxArgs?: (videoFile: string, outFile: string) => string[];
     /** video2x: final encoder options (argv parts) applied to the upscaled lossless file */
     finalVideoArgs?: string[];
-    /** size the upscaler renders (video2x: = final output size) */
+    /** size the upscaler renders (video2x Anime4K: = final output size) */
     stage2Size?: { w: number; h: number };
+    /** v1.0.8: size of the final file (differs from stage2Size only for a neural model with post-resize) */
+    finalSize?: { w: number; h: number };
     /** frames in the upscaled stream (before an output frame-rate change) / in the final file */
     stage2Frames?: number;
     finalFrames?: number;
@@ -99,7 +126,7 @@ interface ActiveJob {
     video2x?: {
         prep: PreparedVideo2x; stage2: string; stage3: string; ffmpeg: string; ffprobe: string;
         finalVideoArgs: string[]; muxArgs: (videoFile: string, outFile: string) => string[];
-        size: { w: number; h: number }; stage2Frames: number; finalFrames: number; vaapi: boolean; audio: boolean; fps: number;
+        size: { w: number; h: number }; finalSize: { w: number; h: number }; stage2Frames: number; finalFrames: number; vaapi: boolean; audio: boolean; fps: number;
     };
     /** v1.0.7: maps the current phase's 0..1 progress into the job's overall progress (monotonic across phases) */
     span?: { base: number; size: number };
@@ -326,9 +353,10 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: Upscale
     // final size: after the AI model scale (if any), then the resolution choice
     const baseW = upscale ? pw * upscale.scale : pw, baseH = upscale ? ph * upscale.scale : ph;
     const size = targetSize(upscale && s.resolution === 'x2' ? { ...s, resolution: 'source' } : s, baseW, baseH);
+    const v2xSize = direct && upscale ? video2xSizes(upscale, pw, ph, size) : null;
     const scaleParts = [];
     // Video2X renders straight to the final size (no second resampling after Anime4K)
-    if (!direct && (size.w !== baseW || size.h !== baseH)) scaleParts.push(`scale=${size.w}:${size.h}:flags=lanczos`);
+    if ((!direct || v2xSize?.resize) && (size.w !== baseW || size.h !== baseH || v2xSize?.resize)) scaleParts.push(`scale=${size.w}:${size.h}:flags=lanczos`);
     scaleParts.push(`scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int`, `format=${enc.pix}`);
     if (enc.vaapi) scaleParts.push('hwupload');
     const videoOut = ['-vf', scaleParts.join(','), ...enc.args, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'];
@@ -370,7 +398,7 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: Upscale
             a.push(...audioArgs());
             if (subCodec) a.push('-map', '1:s?', '-c:s', subCodec);
             if (needSecond) a.push('-map_metadata', '1');
-            a.push('-metadata', `comment=Processed with UVE Manager 1.0.7 (Ultimate Video Enhancer effect chain, ${direct ? 'Video2X Anime4K' : 'REAL-Video-Enhancer'} upscaling)`);
+            a.push('-metadata', `comment=Processed with UVE Manager ${APP_VERSION} (Ultimate Video Enhancer effect chain, ${direct ? 'Video2X' : 'REAL-Video-Enhancer'} upscaling)`);
             if (ext === 'mp4' || ext === 'mov') a.push('-movflags', '+faststart');
             if ((ext === 'mp4' || ext === 'mov') && /hevc|x265/.test(enc.name)) a.push('-tag:v', 'hvc1');
             a.push('-f', muxer, outFile);
@@ -397,7 +425,8 @@ export async function buildPlan(spec: JobSpec, tmpOut: string, upscale?: Upscale
         customEncoder,
         muxArgs,
         finalVideoArgs,
-        stage2Size: upscale ? size : undefined,
+        stage2Size: upscale ? (v2xSize?.stage2 ?? size) : undefined,
+        finalSize: upscale ? size : undefined,
         stage2Frames: totalFrames,
         finalFrames: totalFrames,
         vaapi: enc.vaapi,
@@ -556,7 +585,7 @@ export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: 
         }
     }
     const audioCodec = ext === 'webm' ? ['-c:a', 'libopus', '-b:a', `${s.audioBitrate}k`] : ['-c:a', 'aac', '-b:a', `${s.audioBitrate}k`];
-    const comment = `comment=Processed with UVE Manager 1.0.7 (timeline, Ultimate Video Enhancer effect chain${upscale ? `, ${direct ? 'Video2X Anime4K' : 'REAL-Video-Enhancer'} upscaling` : ''})`;
+    const comment = `comment=Processed with UVE Manager ${APP_VERSION} (timeline, Ultimate Video Enhancer effect chain${upscale ? `, ${direct ? 'Video2X' : 'REAL-Video-Enhancer'} upscaling` : ''})`;
     const muxExtra = (): string[] => {
         const a = ['-metadata', comment];
         if (ext === 'mp4' || ext === 'mov') a.push('-movflags', '+faststart');
@@ -566,9 +595,10 @@ export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: 
 
     const baseW = upscale ? pw * upscale.scale : pw, baseH = upscale ? ph * upscale.scale : ph;
     const size = targetSize(upscale && s.resolution === 'x2' ? { ...s, resolution: 'source' } : s, baseW, baseH);
+    const v2xSize = direct && upscale ? video2xSizes(upscale, pw, ph, size) : null;
     const scaleParts: string[] = [];
     if (outRate && retime) scaleParts.push(`fps=${outRate.num}/${outRate.den}`);
-    if (!direct && (size.w !== baseW || size.h !== baseH)) scaleParts.push(`scale=${size.w}:${size.h}:flags=lanczos`);
+    if ((!direct || v2xSize?.resize) && (size.w !== baseW || size.h !== baseH || v2xSize?.resize)) scaleParts.push(`scale=${size.w}:${size.h}:flags=lanczos`);
     scaleParts.push(`scale=out_color_matrix=bt709:out_range=tv:flags=accurate_rnd+full_chroma_int`, `format=${enc.pix}`);
     if (enc.vaapi) scaleParts.push('hwupload');
     const videoOut = ['-vf', scaleParts.join(','), ...enc.args, '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', '-color_range', 'tv'];
@@ -617,7 +647,8 @@ export async function buildTimelineJob(spec: JobSpec, tmpOut: string, upscale?: 
         customEncoder,
         muxArgs,
         finalVideoArgs,
-        stage2Size: upscale ? size : undefined,
+        stage2Size: upscale ? (v2xSize?.stage2 ?? size) : undefined,
+        finalSize: upscale ? size : undefined,
         stage2Frames: plan.totalFrames,
         finalFrames: outFrames,
         vaapi: enc.vaapi,
@@ -725,7 +756,7 @@ async function pump() {
             if (active?.canceled) throw new Error('canceled');
             v2x.notes.forEach(n => next.log.push(n));
             next.log.push(`Video2X ${v2x.version}: ${v2x.launcher.exe} · shader ${v2x.shaderLabel} · intermediate ${v2x.lossless}`);
-            upscale = { scale: o.scale, provider: 'video2x' };
+            upscale = { scale: o.scale, provider: 'video2x', ...(v2x.neural ? { neural: { postResize: !!o.postResize } } : {}) };
             active.stage1 = spec.output.replace(/(\.[^.]+)$/, '.uvestage1.mkv');
         } else if (provider === 'rve') {
             const st = await rveStatus(false);
@@ -813,12 +844,13 @@ function setupVideo2x(cur: ActiveJob, spec: JobSpec, prep: PreparedVideo2x, b: U
     cur.video2x = {
         prep, stage2: spec.output.replace(/(\.[^.]+)$/, '.uvestage2.mkv'), stage3: spec.output.replace(/(\.[^.]+)$/, '.uvestage3.mkv'),
         ffmpeg: caps?.ffmpegPath || '', ffprobe: caps?.ffprobePath || '',
-        finalVideoArgs: b.finalVideoArgs, muxArgs: b.muxArgs, size: b.stage2Size, stage2Frames: b.stage2Frames, finalFrames: b.finalFrames ?? b.stage2Frames,
+        finalVideoArgs: b.finalVideoArgs, muxArgs: b.muxArgs, size: b.stage2Size, finalSize: b.finalSize ?? b.stage2Size, stage2Frames: b.stage2Frames, finalFrames: b.finalFrames ?? b.stage2Frames,
         vaapi: !!b.vaapi, audio: !!b.hasAudio, fps: b.outFps || 0
     };
     cur.span = V2X_SPANS.uve;
     j.log.push(`Stage 1/4: UVE render -> lossless intermediate ${cur.stage1}`);
     j.log.push(`Stage 2/4: Video2X ${prep.presetName} -> ${b.stage2Size.w}x${b.stage2Size.h} (${prep.lossless} lossless)`);
+    if (b.finalSize && (b.finalSize.w !== b.stage2Size.w || b.finalSize.h !== b.stage2Size.h)) j.log.push(`Post-resize (chosen in Output Settings): model output ${b.stage2Size.w}x${b.stage2Size.h} -> ${b.finalSize.w}x${b.finalSize.h} with Lanczos in the final encode.`);
     j.log.push(`Stage 3/4: final encode ffmpeg ${b.finalVideoArgs.join(' ')}`);
     j.log.push('Stage 4/4: mux audio/subtitles, verify, rename');
     const v = spec.timeline ? null : spec.media.video;
@@ -870,7 +902,10 @@ async function runVideo2xStages() {
         // ---- stage 2: Video2X
         setPhase('upscaling', `Upscaling – Video2X ${vx.prep.presetName} (2/4)`, V2X_SPANS.video2x);
         j.totalFrames = vx.stage2Frames;
-        const args = video2xArgs(vx.prep.caps, { input: cur.stage1, output: vx.stage2, shader: vx.prep.shader, width: vx.size.w, height: vx.size.h, device: vx.prep.device, lossless: vx.prep.lossless });
+        const nn = vx.prep.neural;
+        const args = nn
+            ? buildNeuralArgs(vx.prep.caps, nn.caps, { input: cur.stage1, output: vx.stage2, processor: nn.processor, modelId: nn.modelId, scale: nn.scale, noiseLevel: nn.noiseLevel, device: vx.prep.device, lossless: vx.prep.lossless })
+            : video2xArgs(vx.prep.caps, { input: cur.stage1, output: vx.stage2, shader: vx.prep.shader, width: vx.size.w, height: vx.size.h, device: vx.prep.device, lossless: vx.prep.lossless });
         pushLog(`Video2X: ${[vx.prep.launcher.exe, ...vx.prep.launcher.prefix, ...args].map(a => (/\s/.test(a) ? `"${a}"` : a)).join(' ')}`);
         void v2xLog(`job ${cur.id}: ${vx.prep.launcher.exe} ${args.join(' ')}`);
         const t0 = Date.now();
@@ -928,7 +963,7 @@ async function runVideo2xStages() {
         emit();
         const f = await probeFile(vx.ffprobe, cur.tmp);
         const problems: string[] = [];
-        if (f.width !== vx.size.w || f.height !== vx.size.h) problems.push(`size ${f.width}x${f.height} (expected ${vx.size.w}x${vx.size.h})`);
+        if (f.width !== vx.finalSize.w || f.height !== vx.finalSize.h) problems.push(`size ${f.width}x${f.height} (expected ${vx.finalSize.w}x${vx.finalSize.h})`);
         if (!(f.duration > 0)) problems.push('zero duration');
         if (!f.frames) problems.push('no video frames');
         else if (Math.abs(f.frames - vx.finalFrames) > 1) problems.push(`${f.frames} frames (expected ${vx.finalFrames})`);

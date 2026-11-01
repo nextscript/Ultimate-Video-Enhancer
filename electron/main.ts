@@ -16,7 +16,7 @@ import { applyUpdate, checkUpdates, skipUpdate } from './updates';
 import { RVE, type RveBackend, type TorchFlavor, cancelInstall, deleteModel, downloadModel, importCustomModel, installRve, rveStatus, setRveEngine, uninstallRve } from './rve';
 import { readJson, safeUnzip, writeJson } from './util';
 import {
-    cancelVideo2xInstall, installVideo2x, logFile as video2xLogFile, removeManaged, resetVideo2x, setCustomExe, testPreset, verifyInstallation, video2xStatus
+    cancelVideo2xInstall, installVideo2x, logFile as video2xLogFile, removeManaged, resetVideo2x, setCustomExe, testPreset, testProcessor, verifyInstallation, video2xStatus
 } from './video2x';
 import { type PresetEdit, editPreset, importShaderFiles, presetHash, shaderFilesInFolder, shaderRoot } from './video2x-shaders';
 import { VIDEO2X_COMPAT } from '../shared/video2x-cli';
@@ -237,6 +237,9 @@ function registerIpc() {
         return importShaderFiles(files, { mode: o?.mode === 'reference' ? 'reference' : 'copy', name: path.basename(r.filePaths[0]) });
     });
     h('video2x:editPreset', (e: PresetEdit) => editPreset(e));
+    // v1.0.8: Real-ESRGAN / Real-CUGAN test job for one model / scale / noise combination (values are allowlisted in testProcessor)
+    h('video2x:testProcessor', (o: { processor: 'realesrgan' | 'realcugan'; modelId: string; scale: number; noiseLevel?: number; device?: number }) =>
+        testProcessor(o.processor, String(o.modelId), Number(o.scale), o.noiseLevel === undefined ? undefined : Number(o.noiseLevel), Number.isInteger(o.device) ? o.device! : -1));
     h('video2x:testPreset', (presetId: string, device?: number) => testPreset(String(presetId), Number.isInteger(device) ? device! : -1));
     // "Render 5-second preview": a cache path keyed by everything that changes the result
     h('video2x:previewPath', async (o: { key: unknown; presetId: string; ext: string }) => {

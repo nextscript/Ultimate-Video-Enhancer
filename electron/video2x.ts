@@ -15,7 +15,11 @@ import {
     LOSSLESS_CANDIDATES, VIDEO2X_COMPAT, type Video2xCapabilities, assetUrl, buildArgs, cmpVersion, parseDevices, parseHelp, video2xPlatform
 } from '../shared/video2x-cli';
 import type { Video2xDevice, Video2xInstallInfo, Video2xPresetInfo, Video2xStatus } from '../shared/video2x-types';
-import { DEFAULT_VIDEO2X_PRESET, type Video2xExportOptions } from '../shared/upscale-provider';
+import { DEFAULT_VIDEO2X_PRESET, type Video2xExportOptions, video2xProcessor } from '../shared/upscale-provider';
+import {
+    DEFAULT_MODEL, NEURAL_MODELS, type NeuralProcessorCaps, PROCESSOR_LABEL, type Video2xNeuralProcessor, buildNeuralArgs, comboKey, isNeural, modelFiles,
+    neuralComboProblem, parseNeuralCaps
+} from '../shared/video2x-processors';
 import { capabilities } from './tools';
 import { toolsDir, userDir } from './store';
 import { download, fileExists, readJson, safeUnzip, writeJson } from './util';
@@ -28,6 +32,10 @@ interface Config {
     verification?: { fingerprint: string; ok: boolean; at: number; message: string; codec: string; shader: string };
     /** built-in shaders of the last probed binary (shown without re-probing) */
     builtins?: { fingerprint: string; names: string[]; version: string };
+    /** v1.0.8: Real-ESRGAN / Real-CUGAN test jobs, keyed "<fingerprint>|<processor>|<model>|<scale>|<noise>|<device>" */
+    neuralTests?: Record<string, { ok: boolean; at: number; message: string; codec: string }>;
+    /** v1.0.8: neural processor capabilities of the last probed binary */
+    neural?: { fingerprint: string; caps: Record<Video2xNeuralProcessor, NeuralProcessorCaps> };
 }
 
 // UVE_VIDEO2X_CONFIG_DIR: test override (self test) so the user's settings are not touched
@@ -79,20 +87,20 @@ async function fingerprint(l: Video2xLauncher): Promise<string> {
 const probeCache = new Map<string, { caps: Video2xCapabilities; help: string }>();
 
 /** `--help` + `--version` of the binary (both exit with code 1 by design – the output is what counts). */
-export async function probe(l: Video2xLauncher): Promise<{ caps: Video2xCapabilities; fp: string; error: string }> {
+export async function probe(l: Video2xLauncher): Promise<{ caps: Video2xCapabilities; fp: string; error: string; help: string }> {
     const fp = await fingerprint(l);
     const hit = probeCache.get(fp);
-    if (hit) return { caps: hit.caps, fp, error: '' };
+    if (hit) return { caps: hit.caps, fp, error: '', help: hit.help };
     const help = await runQuick(l, ['--help'], 20000);
     const ver = await runQuick(l, ['--version'], 20000);
-    if (help.spawnError) return { caps: parseHelp('', ''), fp, error: `Video2X could not be started: ${help.spawnError}` };
-    if (help.timedOut) return { caps: parseHelp('', ''), fp, error: 'Video2X did not answer --help within 20 s.' };
+    if (help.spawnError) return { caps: parseHelp('', ''), fp, error: `Video2X could not be started: ${help.spawnError}`, help: '' };
+    if (help.timedOut) return { caps: parseHelp('', ''), fp, error: 'Video2X did not answer --help within 20 s.', help: '' };
     const text = help.out + '\n' + help.err;
     const caps = parseHelp(text, ver.out + '\n' + ver.err);
-    if (!text.trim()) return { caps, fp, error: `Video2X printed no help text (exit ${help.code}).${/\.AppImage$/i.test(l.exe) ? ' AppImages need FUSE or APPIMAGE_EXTRACT_AND_RUN support.' : ''}` };
+    if (!text.trim()) return { caps, fp, error: `Video2X printed no help text (exit ${help.code}).${/\.AppImage$/i.test(l.exe) ? ' AppImages need FUSE or APPIMAGE_EXTRACT_AND_RUN support.' : ''}`, help: '' };
     probeCache.set(fp, { caps, help: text });
     await v2xLog(`probe ${l.exe}: version ${caps.version || '?'}; ${caps.problem || 'options ok'}; built-in shaders: ${caps.builtinShaders.join(', ')}`);
-    return { caps, fp, error: '' };
+    return { caps, fp, error: '', help: text };
 }
 
 async function listDevices(l: Video2xLauncher, caps: Video2xCapabilities): Promise<{ devices: Video2xDevice[]; error: string }> {
@@ -140,6 +148,12 @@ export async function probeFile(ffprobe: string, file: string): Promise<StreamPr
  * and the shader work on this machine.
  */
 async function testRun(l: Video2xLauncher, caps: Video2xCapabilities, shader: string, device: number): Promise<{ ok: boolean; codec: string; message: string }> {
+    return testRunWith(l, (input, output, lossless) => buildArgs(caps, { input, output, shader, width: 256, height: 144, device, lossless }), 256, 144,
+        shader.length > 40 ? 'custom shader chain' : shader);
+}
+
+/** The synthetic test job with any argv builder (v1.0.8: also used for Real-ESRGAN / Real-CUGAN). */
+async function testRunWith(l: Video2xLauncher, makeArgs: (input: string, output: string, lossless: string) => string[], expectW: number, expectH: number, label: string): Promise<{ ok: boolean; codec: string; message: string }> {
     const ff = await capabilities();
     if (!ff.ok) return { ok: false, codec: '', message: `FFmpeg is needed for the Video2X test: ${ff.error || 'not available'}` };
     const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'uve-v2x-test-'));
@@ -151,7 +165,7 @@ async function testRun(l: Video2xLauncher, caps: Video2xCapabilities, shader: st
         for (const c of LOSSLESS_CANDIDATES) {
             const out = path.join(dir, `out-${c.id}.mkv`);
             let args: string[];
-            try { args = buildArgs(caps, { input, output: out, shader, width: 256, height: 144, device, lossless: c.id }); }
+            try { args = makeArgs(input, out, c.id); }
             catch (e) { errors.push(`${c.label}: ${e instanceof Error ? e.message : e}`); continue; }
             await v2xLog(`test: ${l.exe} ${args.join(' ')}`);
             const run = execute(l, args, { onLog: line => void v2xLog(`[test] ${line}`) });
@@ -161,13 +175,81 @@ async function testRun(l: Video2xLauncher, caps: Video2xCapabilities, shader: st
             if (!res.ok) { errors.push(`${c.label}: ${res.error}`); continue; }
             const pr = await probeFile(ff.ffprobePath, out).catch(e => { errors.push(`${c.label}: ${e.message}`); return null; });
             if (!pr) continue;
-            if (pr.width !== 256 || pr.height !== 144 || Math.abs(pr.frames - 10) > 1) { errors.push(`${c.label}: test output is ${pr.width}x${pr.height}, ${pr.frames} frames (expected 256x144, 10 frames)`); continue; }
-            return { ok: true, codec: c.id, message: `Test job passed (${c.label}, ${shader.length > 40 ? 'custom shader chain' : shader}).` };
+            if (pr.width !== expectW || pr.height !== expectH || Math.abs(pr.frames - 10) > 1) { errors.push(`${c.label}: test output is ${pr.width}x${pr.height}, ${pr.frames} frames (expected ${expectW}x${expectH}, 10 frames)`); continue; }
+            return { ok: true, codec: c.id, message: `Test job passed (${c.label}, ${label}).` };
         }
         return { ok: false, codec: '', message: errors.join(' · ') || 'The test job failed.' };
     } finally {
         await fsp.rm(dir, { recursive: true, force: true }).catch(() => undefined);
     }
+}
+
+/* ------------------------------------------------------------------ v1.0.8 neural processors */
+
+/**
+ * Model files of a combination next to the executable (Windows zip layout). An AppImage or another layout keeps
+ * its models elsewhere – then the test job is the only check.
+ */
+async function missingModelFiles(l: Video2xLauncher, p: Video2xNeuralProcessor, model: string, scale: number, noise: number): Promise<string> {
+    const root = path.dirname(l.exe);
+    if (!(await fileExists(path.join(root, 'models')))) return '';
+    const missing: string[] = [];
+    for (const f of modelFiles(p, model, scale, noise)) if (!(await fileExists(path.join(root, f)))) missing.push(f);
+    return missing.length ? `Model files missing next to Video2X (${root}): ${missing.join(', ')}. Reinstall Video2X or choose another model / scale.` : '';
+}
+
+/** 10-frame 128x72 test of one Real-ESRGAN / Real-CUGAN combination; never reuses an Anime4K result. */
+async function neuralTest(l: Video2xLauncher, caps: Video2xCapabilities, neural: Record<Video2xNeuralProcessor, NeuralProcessorCaps>, p: Video2xNeuralProcessor, model: string, scale: number, noise: number | undefined, device: number) {
+    const miss = await missingModelFiles(l, p, model, scale, noise ?? 0);
+    if (miss) return { ok: false, codec: '', message: miss };
+    return testRunWith(l, (input, output, lossless) => buildNeuralArgs(caps, neural, { input, output, processor: p, modelId: model, scale, noiseLevel: noise, device, lossless }),
+        128 * scale, 72 * scale, `${PROCESSOR_LABEL[p]} ${model} ${scale}x${p === 'realcugan' ? ` noise ${noise ?? 0}` : ''}`);
+}
+
+async function neuralCapsOf(l: Video2xLauncher) {
+    const pr = await probe(l);
+    const neural = parseNeuralCaps(pr.help, pr.caps);
+    const c = await readCfg();
+    if (!pr.error && JSON.stringify(c.neural) !== JSON.stringify({ fingerprint: pr.fp, caps: neural })) { c.neural = { fingerprint: pr.fp, caps: neural }; await writeCfg(c); }
+    return { pr, neural };
+}
+
+/** Settings → Video2X → "Test" for one processor / model / scale / noise combination. */
+export async function testProcessor(p: Video2xNeuralProcessor, model: string, scale: number, noise: number | undefined, device = -1): Promise<{ ok: boolean; message: string }> {
+    if (busy) throw new Error('Video2X is busy.');
+    if (!isNeural(p)) throw new Error('Unknown processor.');
+    const { l } = await launcher();
+    if (!l) throw new Error('Video2X is not installed.');
+    busy = { message: `Testing ${PROCESSOR_LABEL[p]}…` };
+    try {
+        const { pr, neural } = await neuralCapsOf(l);
+        if (pr.error || !pr.caps.versionSupported) throw new Error(pr.error || pr.caps.problem);
+        if (!neural[p].available) throw new Error(neural[p].problem);
+        const combo = neuralComboProblem(p, model, scale, noise);
+        if (combo) throw new Error(combo);
+        const r = await neuralTest(l, pr.caps, neural, p, model, scale, noise, device);
+        await v2xLog(`test ${comboKey(p, model, scale, noise, device)}: ${r.ok ? 'OK' : 'FAILED'} ${r.message}`);
+        const c = await readCfg();
+        c.neuralTests = { ...(c.neuralTests || {}), [`${pr.fp}|${comboKey(p, model, scale, noise, device)}`]: { ok: r.ok, at: Date.now(), message: r.message.slice(0, 2000), codec: r.codec } };
+        await writeCfg(c);
+        return { ok: r.ok, message: r.message };
+    } finally { busy = null; }
+}
+
+function processorStatus(cfg: Config, fp: string, neural: Record<Video2xNeuralProcessor, NeuralProcessorCaps> | undefined): Video2xStatus['processors'] {
+    if (!neural) return undefined;
+    const out = {} as NonNullable<Video2xStatus['processors']>;
+    for (const p of ['realesrgan', 'realcugan'] as const) {
+        const prefix = `${fp}|${p}|`;
+        const tests = Object.entries(cfg.neuralTests || {}).filter(([k]) => k.startsWith(prefix));
+        out[p] = {
+            available: neural[p].available, problem: neural[p].problem, noise: neural[p].noise,
+            models: neural[p].models.map(m => ({ id: m.id, label: m.label, scales: m.scales })),
+            verified: tests.filter(([, v]) => v.ok).map(([k]) => k.slice(fp.length + 1)),
+            failed: tests.filter(([, v]) => !v.ok).map(([k, v]) => ({ combo: k.slice(fp.length + 1), message: v.message }))
+        };
+    }
+    return out;
 }
 
 /* ------------------------------------------------------------------ presets */
@@ -242,6 +324,7 @@ export async function video2xStatus(deep = true): Promise<Video2xStatus> {
         return {
             ...base, version: cachedBuiltins?.version || '', versionSupported: !!cachedBuiltins, builtinShaders: names,
             presets: [...builtinPresets(names, ver, fp), ...base.presets],
+            processors: processorStatus(cfg, fp, cfg.neural?.fingerprint === fp ? cfg.neural.caps : undefined),
             verification: ver ? { ok: ver.ok, at: ver.at, message: ver.message, codec: ver.codec } : null,
             vulkan: { status: ver?.ok ? 'verified' : 'unknown', message: '', devices: [] },
             state: ver ? (ver.ok ? 'installed' : 'verification-failed') : 'unverified',
@@ -259,6 +342,7 @@ export async function video2xStatus(deep = true): Promise<Video2xStatus> {
         await writeCfg(cfg);
     }
     const dev = await listDevices(l, caps);
+    const { neural } = await neuralCapsOf(l);
     const vulkan: Video2xStatus['vulkan'] = ver?.ok
         ? { status: 'verified', message: 'Test job passed on this GPU', devices: dev.devices }
         : dev.devices.length ? { status: 'devices-found', message: `${dev.devices.length} Vulkan device(s) found – not verified by a test job yet`, devices: dev.devices }
@@ -269,6 +353,7 @@ export async function video2xStatus(deep = true): Promise<Video2xStatus> {
         ...base, version: caps.version, versionSupported: true, builtinShaders: caps.builtinShaders,
         shaderSupport: `libplacebo · ${caps.builtinShaders.length} built-in Anime4K shader(s) · custom mpv GLSL`,
         presets: [...builtinPresets(caps.builtinShaders, ver, fp), ...base.presets],
+        processors: processorStatus(await readCfg(), fp, neural),
         verification: ver ? { ok: ver.ok, at: ver.at, message: ver.message, codec: ver.codec } : null,
         vulkan, state,
         summary: `Video2X ${caps.version} | ${ver?.ok ? 'Vulkan verified' : ver ? 'verification failed' : dev.devices.length ? 'Vulkan device found, not verified' : 'Vulkan not verified'}`,
@@ -434,6 +519,8 @@ export interface PreparedVideo2x {
     lossless: string;
     version: string;
     notes: string[];
+    /** v1.0.8: set for Real-ESRGAN / Real-CUGAN jobs (then `shader` is unused) */
+    neural?: { processor: Video2xNeuralProcessor; modelId: string; scale: number; noiseLevel?: number; caps: Record<Video2xNeuralProcessor, NeuralProcessorCaps> };
 }
 
 /**
@@ -451,6 +538,8 @@ export async function prepareJob(o: Video2xExportOptions): Promise<PreparedVideo
     const pr = await probe(l);
     if (pr.error) throw new Error(pr.error);
     if (!pr.caps.versionSupported) throw new Error(pr.caps.problem);
+    const processor = video2xProcessor(o);
+    if (isNeural(processor)) return prepareNeural(l, source, pr, processor, o);
     const notes: string[] = [];
     const presetId = o.presetId || DEFAULT_VIDEO2X_PRESET;
     let shader: string, shaderLabel: string, presetName: string;
@@ -491,4 +580,45 @@ export async function prepareJob(o: Video2xExportOptions): Promise<PreparedVideo
     }
     if (source === 'custom') notes.push(`Video2X: user-selected executable ${l.exe} (not downloaded by UVE Manager).`);
     return { launcher: l, caps: pr.caps, shader, shaderLabel, presetName, device: o.device, lossless: ver.codec || LOSSLESS_CANDIDATES[0].id, version: pr.caps.version, notes };
+}
+
+/**
+ * v1.0.8: preparation of a Real-ESRGAN / Real-CUGAN job: processor and model offered by this binary, valid
+ * model/scale/noise combination, model files present (when the layout allows checking), a passed 10-frame test of
+ * exactly this combination on this GPU. No fallback to another model or processor.
+ */
+async function prepareNeural(l: Video2xLauncher, source: Video2xStatus['source'], pr: Awaited<ReturnType<typeof probe>>, p: Video2xNeuralProcessor, o: Video2xExportOptions): Promise<PreparedVideo2x> {
+    const neural = parseNeuralCaps(pr.help, pr.caps);
+    const name = PROCESSOR_LABEL[p];
+    if (!neural[p].available) throw new Error(`${name} is not available: ${neural[p].problem} Choose another Video2X processor.`);
+    const modelId = o.modelId || DEFAULT_MODEL[p];
+    if (!neural[p].models.some(m => m.id === modelId)) throw new Error(`${name}: model "${modelId}" is not offered by this Video2X build (available: ${neural[p].models.map(m => m.id).join(', ')}). Choose another model.`);
+    const noise = p === 'realcugan' ? (o.noiseLevel ?? (NEURAL_MODELS.realcugan.find(m => m.id === modelId)?.scales[o.scale]?.[0] ?? 0)) : undefined;
+    const combo = neuralComboProblem(p, modelId, o.scale, noise);
+    if (combo) throw new Error(`${name}: ${combo}`);
+    const miss = await missingModelFiles(l, p, modelId, o.scale, noise ?? 0);
+    if (miss) throw new Error(`${name}: ${miss}`);
+    if (o.device >= 0 && pr.caps.hasListDevices) {
+        const d = await listDevices(l, pr.caps);
+        if (d.devices.length && !d.devices.some(x => x.index === o.device)) throw new Error(`GPU #${o.device} is not available for Video2X (devices: ${d.devices.map(x => `${x.index}. ${x.name}`).join(', ')}). Choose another GPU in Output Settings.`);
+    }
+    const notes: string[] = [];
+    const key = `${pr.fp}|${comboKey(p, modelId, o.scale, noise, o.device)}`;
+    let t = (await readCfg()).neuralTests?.[key];
+    if (!t?.ok) {
+        notes.push(`Video2X: testing ${name} ${modelId} ${o.scale}x on this GPU (10-frame test job)…`);
+        const r = await neuralTest(l, pr.caps, neural, p, modelId, o.scale, noise, o.device);
+        const c = await readCfg();
+        t = { ok: r.ok, at: Date.now(), message: r.message.slice(0, 2000), codec: r.codec };
+        c.neuralTests = { ...(c.neuralTests || {}), [key]: t };
+        await writeCfg(c);
+        await v2xLog(`test ${key}: ${r.ok ? 'OK' : 'FAILED'} ${r.message}`);
+        if (!r.ok) throw new Error(`${name} ${modelId} ${o.scale}x failed its test job: ${r.message} Choose another model, scale or GPU.`);
+    }
+    if (source === 'custom') notes.push(`Video2X: user-selected executable ${l.exe} (not downloaded by UVE Manager).`);
+    const label = `${name} ${modelId} ${o.scale}x${p === 'realcugan' ? ` noise ${noise}` : ''}`;
+    return {
+        launcher: l, caps: pr.caps, shader: '', shaderLabel: label, presetName: label, device: o.device, lossless: t.codec || LOSSLESS_CANDIDATES[0].id,
+        version: pr.caps.version, notes, neural: { processor: p, modelId, scale: o.scale, noiseLevel: noise, caps: neural }
+    };
 }

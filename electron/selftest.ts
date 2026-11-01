@@ -326,6 +326,48 @@ export async function runSelftest(): Promise<number> {
             check(j.status === 'canceled' && !(await fsp.stat(outX).catch(() => null)) && await noTemps() && !!(await fsp.stat(src).catch(() => null)), `Video2X cancel in stage 2 (${j.status}, phase ${j.phase}); source kept, temps removed`);
             delete process.env.VIDEO2X_MOCK_SLEEP;
             delete process.env.VIDEO2X_MOCK_FRAMES;
+
+            // v1.0.8: Real-ESRGAN / Real-CUGAN through the same four-stage pipeline
+            const nn = (name: string, out: string, v2: Record<string, unknown>, ex: Partial<typeof DEFAULT_EXPORT> = {}) =>
+                mkSpec(name, look, out, { videoCodec: 'hevc', upscaleProvider: 'video2x', video2x: { presetId: 'builtin:anime4k-v4-a+a', scale: 2, device: -1, ...v2 }, ...ex });
+            const outE = path.join(dir, 'v2x_esrgan.mp4');
+            j = await waitJob(enqueue(nn('v2x_esrgan', outE, { processor: 'realesrgan', modelId: 'realesr-animevideov3' })).id);
+            check(j.status === 'done' && j.log.some(l => / -p realesrgan -s 2 --realesrgan-model realesr-animevideov3 /.test(l)), `Video2X Real-ESRGAN render${j.error ? ' – ' + j.error : ''}`);
+            if (j.status === 'done') {
+                const om = await probe(outE);
+                check(om.video?.width === 1280 && om.video?.height === 720 && om.video?.frames === 75 && om.audio.length === 1 && om.video?.codec === 'hevc', `Real-ESRGAN output ${om.video?.width}x${om.video?.height}, ${om.video?.frames} frames, ${om.audio.length} audio, ${om.video?.codec}`);
+            }
+            {
+                const tl0 = addSource(defaultTimeline(25), src, media);
+                if (!tl0.ok) throw new Error(tl0.error);
+                const tl1 = insertClip(tl0.tl, { trackId: tl0.tl.tracks.find(t => t.kind === 'video')!.id, sourceId: tl0.tl.sources[0].id, start: 0, dur: 3, srcIn: 0, mode: 'replace' });
+                if (!tl1.ok) throw new Error(tl1.error);
+                const outC2 = path.join(dir, 'v2x_cugan.mkv');
+                const spec = { ...nn('v2x_cugan', outC2, { processor: 'realcugan', modelId: 'models-se', scale: 3, noiseLevel: -1 }, { container: 'mkv', audio: 'aac' }), range: { start: 0, end: timelineDuration(tl1.tl) }, timeline: structuredClone(tl1.tl) };
+                j = await waitJob(enqueue(spec).id);
+                check(j.status === 'done' && j.log.some(l => / -p realcugan -s 3 -n -1 --realcugan-model models-se /.test(l)), `Video2X Real-CUGAN timeline render${j.error ? ' – ' + j.error : ''}`);
+                if (j.status === 'done') {
+                    const om = await probe(outC2);
+                    const nb = Number((await run(caps.ffprobePath, ['-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', outC2])).out.toString().trim());
+                    check(om.video?.width === 1920 && om.video?.height === 1080 && nb === 75 && om.audio.length === 1, `Real-CUGAN 3x output ${om.video?.width}x${om.video?.height}, ${nb} frames (75), ${om.audio.length} audio`);
+                }
+            }
+            const outBad = path.join(dir, 'v2x_badcombo.mp4');
+            j = await waitJob(enqueue(nn('v2x_badcombo', outBad, { processor: 'realesrgan', modelId: 'realesrgan-plus' })).id);
+            check(j.status === 'failed' && /only 4×/.test(j.error || '') && !j.log.some(l => /^Stage 1\/4/.test(l)) && !(await fsp.stat(outBad).catch(() => null)), `unsupported model/scale rejected before rendering (${j.error?.slice(0, 100)})`);
+            const outR = path.join(dir, 'v2x_resize.mp4');
+            j = await waitJob(enqueue(nn('v2x_noresize', outR, { processor: 'realesrgan', modelId: 'realesr-animevideov3' }, { resolution: '1080' })).id);
+            check(j.status === 'failed' && /Resolution asks for 1920x1080/.test(j.error || '') && !(await fsp.stat(outR).catch(() => null)), `no silent resize of the model output (${j.error?.slice(0, 100)})`);
+            j = await waitJob(enqueue(nn('v2x_postresize', outR, { processor: 'realesrgan', modelId: 'realesr-animevideov3', postResize: true }, { resolution: '1080' })).id);
+            if (j.status === 'done') {
+                const om = await probe(outR);
+                check(om.video?.width === 1920 && om.video?.height === 1080 && j.log.some(l => /^Post-resize/.test(l)), `explicit post-resize 1280x720 -> ${om.video?.width}x${om.video?.height}`);
+            } else check(false, `explicit post-resize render – ${j.error}`);
+            process.env.VIDEO2X_MOCK_NOMODELS = 'realesrgan/realesr-animevideov3-x4';
+            const outM = path.join(dir, 'v2x_nomodel.mp4');
+            j = await waitJob(enqueue(nn('v2x_nomodel', outM, { processor: 'realesrgan', modelId: 'realesr-animevideov3', scale: 4 })).id);
+            check(j.status === 'failed' && /test job/.test(j.error || '') && /model/i.test(j.error || '') && !(await fsp.stat(outM).catch(() => null)) && await noTemps(), `missing model files reported, no fallback (${j.error?.slice(0, 120)})`);
+            delete process.env.VIDEO2X_MOCK_NOMODELS;
             for (const k of ['UVE_VIDEO2X_EXE', 'UVE_VIDEO2X_PREFIX', 'UVE_VIDEO2X_CONFIG_DIR', 'UVE_VIDEO2X_SHADER_DIR', 'VIDEO2X_MOCK_FFMPEG']) delete process.env[k];
         } else say('SKIP Video2X pipeline test (mock not found)');
 

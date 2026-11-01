@@ -92,6 +92,9 @@ The file version stays 2: the new export fields are optional and older files sim
   project over the defaults keeps its meaning (`resolveUpscaleProvider` in `shared/upscale-provider.ts`).
 * `upscaleProvider: "video2x"` uses `video2x` (`presetId` = `builtin:<shader>` or `custom:<library id>`, `scale` 2/3/4,
   `device` = Vulkan index or -1 = automatic). The RVE model in `aiUpscale` is kept so the provider can be switched back.
+* 1.0.8, optional inside `video2x`: `processor` (`"libplacebo"` | `"realesrgan"` | `"realcugan"`; absent = libplacebo,
+  i.e. the unchanged Anime4K path), `modelId`, `noiseLevel` (Real-CUGAN), `postResize`. Unknown values are dropped and fall
+  back to Anime4K; `presetId` and `scale` keep their 1.0.7 meaning.
 * `upscaleProvider: "off"` clears `aiUpscale`. Saving and reopening round-trips all fields; queued render jobs and their
   retry snapshot carry the same export settings.
 * Custom shader presets are not embedded in the project; a project that references a missing `custom:` preset fails the
