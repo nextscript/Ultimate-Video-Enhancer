@@ -343,9 +343,9 @@ export async function runSelftest(): Promise<number> {
                 const tl1 = insertClip(tl0.tl, { trackId: tl0.tl.tracks.find(t => t.kind === 'video')!.id, sourceId: tl0.tl.sources[0].id, start: 0, dur: 3, srcIn: 0, mode: 'replace' });
                 if (!tl1.ok) throw new Error(tl1.error);
                 const outC2 = path.join(dir, 'v2x_cugan.mkv');
-                const spec = { ...nn('v2x_cugan', outC2, { processor: 'realcugan', modelId: 'models-se', scale: 3, noiseLevel: -1 }, { container: 'mkv', audio: 'aac' }), range: { start: 0, end: timelineDuration(tl1.tl) }, timeline: structuredClone(tl1.tl) };
+                const spec = { ...nn('v2x_cugan', outC2, { processor: 'realcugan', modelId: 'models-pro', scale: 3 }, { container: 'mkv', audio: 'aac' }), range: { start: 0, end: timelineDuration(tl1.tl) }, timeline: structuredClone(tl1.tl) };
                 j = await waitJob(enqueue(spec).id);
-                check(j.status === 'done' && j.log.some(l => / -p realcugan -s 3 -n -1 --realcugan-model models-se /.test(l)), `Video2X Real-CUGAN timeline render${j.error ? ' – ' + j.error : ''}`);
+                check(j.status === 'done' && j.log.some(l => / -p realcugan -s 3 -n 0 --realcugan-model models-pro /.test(l)), `Video2X Real-CUGAN timeline render${j.error ? ' – ' + j.error : ''}`);
                 if (j.status === 'done') {
                     const om = await probe(outC2);
                     const nb = Number((await run(caps.ffprobePath, ['-v', 'error', '-count_frames', '-select_streams', 'v:0', '-show_entries', 'stream=nb_read_frames', '-of', 'csv=p=0', outC2])).out.toString().trim());

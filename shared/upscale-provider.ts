@@ -27,7 +27,7 @@ export interface Video2xExportOptions {
     processor?: Video2xProcessor;
     /** v1.0.8: Real-ESRGAN / Real-CUGAN model id (allowlisted against the installed binary before use) */
     modelId?: string;
-    /** v1.0.8: Real-CUGAN noise level (-1 conservative, 0 none, 1-3 denoise) */
+    /** v1.0.8: Real-CUGAN noise level (0 none, 1-3 denoise) */
     noiseLevel?: number;
     /**
      * v1.0.8: neural models have a fixed scale. When the Resolution choice differs from the model output, the
@@ -59,7 +59,8 @@ export function video2xOptions(s: Pick<ExportSettings, 'video2x'>): Video2xExpor
     // v1.0.8 optional fields: only carried when present and valid (unknown values fall back to the Anime4K path)
     if (o?.processor && VIDEO2X_PROCESSORS.includes(o.processor)) out.processor = o.processor;
     if (typeof o?.modelId === 'string' && /^[\w.+-]{1,64}$/.test(o.modelId)) out.modelId = o.modelId;
-    if (Number.isInteger(o?.noiseLevel) && o!.noiseLevel! >= -1 && o!.noiseLevel! <= 3) out.noiseLevel = o!.noiseLevel;
+    // 0..3 only: the Video2X 6.4.0 CLI rejects -1 ("conservative"); a -1 stored by 1.0.8 / 1.0.9 falls back to 0
+    if (Number.isInteger(o?.noiseLevel) && o!.noiseLevel! >= 0 && o!.noiseLevel! <= 3) out.noiseLevel = o!.noiseLevel;
     if (o?.postResize === true) out.postResize = true;
     return out;
 }

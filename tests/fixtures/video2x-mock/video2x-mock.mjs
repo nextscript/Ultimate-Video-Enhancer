@@ -119,6 +119,8 @@ if (proc === 'realcugan') {
     const n = Number(opt('-n', '--noise-level') ?? 0);
     if (!['models-nose', 'models-pro', 'models-se'].includes(m)) { process.stderr.write("Error: the argument for option '--realcugan-model' is invalid\n"); process.exit(255); }
     if (!(sf >= 2 && sf <= 4)) { log('critical', 'Scaling factor must be set to 2, 3, or 4 for RealCUGAN.'); process.exit(255); }
+    // 6.4.0: boost notifier validate_min(v, "noise-level", 0) runs while parsing, before the -1..3 check
+    if (n < 0) { log('critical', "Error parsing arguments: the argument for option 'noise-level' is invalid"); process.exit(255); }
     if (!(n >= -1 && n <= 3)) { log('critical', 'Noise level must be set to -1, 0, 1, 2, or 3 for RealCUGAN.'); process.exit(255); }
     modelFile = `realcugan/${m}/up${sf}x-${n === -1 ? 'conservative' : n === 0 ? 'no-denoise' : `denoise${n}x`}`;
 }

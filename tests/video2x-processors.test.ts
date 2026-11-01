@@ -59,7 +59,10 @@ test('model / scale / noise combinations follow the 6.4.0 model files', () => {
     assert.equal(neuralComboProblem('realesrgan', 'realesr-animevideov3', 3, undefined), '');
     assert.match(neuralComboProblem('realesrgan', 'realesrgan-plus', 2, undefined), /only 4×/);
     assert.equal(neuralComboProblem('realcugan', 'models-se', 2, 2), '');
-    assert.match(neuralComboProblem('realcugan', 'models-se', 4, 1), /noise levels Conservative, No denoise, Denoise 3×/);
+    assert.match(neuralComboProblem('realcugan', 'models-se', 4, 1), /noise levels No denoise, Denoise 3×/);
+    // the 6.4.0 CLI rejects -n -1 while parsing ("the argument for option 'noise-level' is invalid")
+    for (const m of NEURAL_MODELS.realcugan) for (const ns of Object.values(m.scales)) assert.ok(ns.every(n => n >= 0), `${m.id} offers no negative noise level`);
+    assert.match(neuralComboProblem('realcugan', 'models-se', 2, -1), /noise levels/);
     assert.match(neuralComboProblem('realcugan', 'models-pro', 4, 0), /2× \/ 3×/);
     assert.match(neuralComboProblem('realcugan', 'models-nose', 2, -1), /noise/);
     assert.match(neuralComboProblem('realesrgan', 'nope', 2, undefined), /Unknown/);
@@ -71,7 +74,7 @@ test('model / scale / noise combinations follow the 6.4.0 model files', () => {
         assert.ok(src.includes(modelFiles(p, m.id, Number(sc), n)[0].replace(/^models\//, '').replace(/\.param$/, '').split('/').pop()!), `${p} ${m.id} ${sc} ${n} in the mock table`);
         combos++;
     }
-    assert.equal(combos, 3 + 1 + 1 + 11 + 6 + 1);
+    assert.equal(combos, 3 + 1 + 1 + 8 + 4 + 1);
 });
 
 /* ------------------------------------------------------------------ argv */
@@ -79,8 +82,8 @@ test('model / scale / noise combinations follow the 6.4.0 model files', () => {
 test('argv snapshots for Real-ESRGAN and Real-CUGAN', () => {
     assert.deepEqual(run(), ['-i', 'C:\\Videos\\a.uvestage1.mkv', '-o', 'C:\\Videos\\a.uvestage2.mkv', '-p', 'realesrgan', '-s', '2', '--realesrgan-model', 'realesr-animevideov3',
         '-c', 'ffv1', '--pix-fmt', 'gbrp', '--no-copy-streams', '--log-level', 'info']);
-    assert.deepEqual(run({ processor: 'realcugan', modelId: 'models-se', scale: 3, noiseLevel: -1, device: 1, lossless: 'x264rgb' }),
-        ['-i', 'C:\\Videos\\a.uvestage1.mkv', '-o', 'C:\\Videos\\a.uvestage2.mkv', '-p', 'realcugan', '-s', '3', '-n', '-1', '--realcugan-model', 'models-se',
+    assert.deepEqual(run({ processor: 'realcugan', modelId: 'models-se', scale: 3, noiseLevel: 0, device: 1, lossless: 'x264rgb' }),
+        ['-i', 'C:\\Videos\\a.uvestage1.mkv', '-o', 'C:\\Videos\\a.uvestage2.mkv', '-p', 'realcugan', '-s', '3', '-n', '0', '--realcugan-model', 'models-se',
             '-c', 'libx264rgb', '-e', 'qp=0', '-e', 'preset=ultrafast', '--no-copy-streams', '-d', '1', '--log-level', 'info']);
     // never --libplacebo-shader, never -w / -h (the model scale is fixed)
     for (const a of [run(), run({ processor: 'realcugan', modelId: 'models-pro', scale: 2, noiseLevel: 3 })]) {
@@ -128,6 +131,8 @@ test('neural options round-trip; unknown values fall back to safe defaults', () 
     const back = video2xOptions(JSON.parse(JSON.stringify(ex({ upscaleProvider: 'video2x', video2x: o }))));
     assert.deepEqual(back, o);
     assert.equal(back.presetId, 'builtin:anime4k-v4-a+a', 'the Anime4K preset is kept while another processor is active');
+    // a -1 stored by 1.0.8 / 1.0.9 is dropped (the CLI rejects it) → default noise level
+    assert.equal(video2xOptions(ex({ video2x: { presetId: 'builtin:anime4k-v4-a', scale: 2, device: -1, processor: 'realcugan', modelId: 'models-pro', noiseLevel: -1 } })).noiseLevel, undefined);
     const bad = video2xOptions(ex({ video2x: { presetId: 'builtin:anime4k-v4-a', scale: 2, device: -1, processor: 'rife' as never, modelId: '../x y', noiseLevel: 9, postResize: 'yes' as never } }));
     assert.deepEqual(bad, { presetId: 'builtin:anime4k-v4-a', scale: 2, device: -1 });
     assert.equal(video2xProcessor(bad), 'libplacebo');
@@ -140,6 +145,9 @@ test('neural failures get specific messages', () => {
     const oom = classifyError(1, null, '[error] vkAllocateMemory failed: VK_ERROR_OUT_OF_DEVICE_MEMORY');
     assert.equal(oom.kind, 'oom');
     assert.match(oom.message, /smaller scale, another model or another GPU/);
+    const args = classifyError(4294967295, null, "[critical] Error parsing arguments: the argument for option 'noise-level' is invalid");
+    assert.equal(args.kind, 'arguments', 'an argument error is not a crash');
+    assert.doesNotMatch(args.message, /crashed/);
     const mdl = classifyError(1, null, '[error] Real-ESRGAN model param file not found: models/realesrgan/x-x2.param');
     assert.equal(mdl.kind, 'model');
     assert.equal(classifyError(1, null, '[error] Failed to create Vulkan instance: VK_ERROR_INCOMPATIBLE_DRIVER').kind, 'vulkan');

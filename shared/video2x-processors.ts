@@ -4,9 +4,12 @@
 // Verified against Video2X 6.4.0 (tools/video2x/src/argparse.cpp, src/filter_realesrgan.cpp,
 // src/filter_realcugan.cpp and the model files of the release):
 //   -p realesrgan -s <2|3|4> --realesrgan-model <name>       model file models/realesrgan/<name>-x<scale>.param/.bin
-//   -p realcugan  -s <2|3|4> -n <-1..3> --realcugan-model <name>
+//   -p realcugan  -s <2|3|4> -n <0..3> --realcugan-model <name>
 //                                                            model file models/realcugan/<name>/up<scale>x-<noise>.param/.bin
-//                                                            noise -1 = conservative, 0 = no-denoise, n = denoise<n>x
+//                                                            noise 0 = no-denoise, n = denoise<n>x
+// The release also ships the "conservative" models (noise -1), but the 6.4.0 CLI rejects -n -1 while parsing
+// (argparse.cpp: validate_min(v, "noise-level", 0) → "the argument for option 'noise-level' is invalid"), so -1 is
+// not offered.
 // A model/scale/noise combination without model files fails inside Video2X ("model param file not found"), so
 // combinations are checked against this table BEFORE rendering. RIFE (frame interpolation) is deliberately not
 // offered in 1.0.8 (see CHANGELOG_1.0.8.md).
@@ -37,8 +40,8 @@ export const NEURAL_MODELS: Record<Video2xNeuralProcessor, NeuralModelInfo[]> = 
         { id: 'realesrgan-plus', label: 'Real-ESRGAN+ (general content, 4× only)', scales: { 4: [0] } }
     ],
     realcugan: [
-        { id: 'models-se', label: 'Real-CUGAN SE (2× / 3× / 4×)', scales: { 2: [-1, 0, 1, 2, 3], 3: [-1, 0, 3], 4: [-1, 0, 3] } },
-        { id: 'models-pro', label: 'Real-CUGAN Pro (2× / 3×)', scales: { 2: [-1, 0, 3], 3: [-1, 0, 3] } },
+        { id: 'models-se', label: 'Real-CUGAN SE (2× / 3× / 4×)', scales: { 2: [0, 1, 2, 3], 3: [0, 3], 4: [0, 3] } },
+        { id: 'models-pro', label: 'Real-CUGAN Pro (2× / 3×)', scales: { 2: [0, 3], 3: [0, 3] } },
         { id: 'models-nose', label: 'Real-CUGAN No-Denoise (2× only)', scales: { 2: [0] } }
     ]
 };
