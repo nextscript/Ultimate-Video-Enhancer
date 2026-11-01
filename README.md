@@ -1,19 +1,19 @@
-# UVE Manager 1.0.9
+# UVE Manager 1.1.0
 
 Desktop video editor and offline renderer built on the Ultimate Video Enhancer effect chain –
 for Windows, macOS and Linux. Since 1.0.3 the editor is a multi-track timeline.
 
 ## Downloads
 
-All packages are attached to the [GitHub release](https://github.com/nextscript/Ultimate-Video-Enhancer/releases/tag/1.0.9)
+All packages are attached to the [GitHub release](https://github.com/nextscript/Ultimate-Video-Enhancer/releases/tag/1.1.0)
 and built automatically by `.github/workflows/release.yml`:
 
 | System | Package |
 |---|---|
-| Windows x64 | `UVE-Manager-1.0.9-setup.exe` (installer) or `UVE-Manager-1.0.9-portable.exe` (portable, ships FFmpeg) |
-| macOS Apple Silicon | `UVE-Manager-1.0.9-mac-arm64.dmg` / `.zip` |
-| macOS Intel | `UVE-Manager-1.0.9-mac-x64.dmg` / `.zip` |
-| Linux x64 | `UVE-Manager-1.0.9-linux-x86_64.AppImage` / `UVE-Manager-1.0.9-linux-x64.tar.gz` |
+| Windows x64 | `UVE-Manager-1.1.0-setup.exe` (installer) or `UVE-Manager-1.1.0-portable.exe` (portable, ships FFmpeg) |
+| macOS Apple Silicon | `UVE-Manager-1.1.0-mac-arm64.dmg` / `.zip` |
+| macOS Intel | `UVE-Manager-1.1.0-mac-x64.dmg` / `.zip` |
+| Linux x64 | `UVE-Manager-1.1.0-linux-x86_64.AppImage` / `UVE-Manager-1.1.0-linux-x64.tar.gz` |
 
 - **macOS:** the app is not notarized – open it the first time with right click → *Open*
   (or `xattr -cr "/Applications/UVE Manager.app"`). FFmpeg must be installed, e.g. `brew install ffmpeg`.
@@ -55,7 +55,7 @@ restores less detail than a large model. No speed figures are claimed until they
 - **Render 5-second preview** renders from the playhead through the exact pipeline (the live player does not show Anime4K).
 - **1.0.8 – more Video2X processors:** the Video2X section has a **Processor** choice: *Anime4K v4* (default, unchanged),
   **Real-ESRGAN** (RealESR AnimeVideo v3 2×/3×/4×, Real-ESRGAN+ / + Anime 4×) and **Real-CUGAN** (SE 2×/3×/4×, Pro 2×/3×,
-  No-Denoise 2×, with noise level). They run as ncnn models on any Vulkan GPU through the installed Video2X – no extra
+  No-Denoise 2×, with noise level: no denoise or denoise 1×–3×). They run as ncnn models on any Vulkan GPU through the installed Video2X – no extra
   download. Only combinations the installed Video2X offers are selectable; each is checked with a 10-frame test job
   before its first render (*Test this model*). The model scale is fixed: a different Resolution is only applied when
   *Resize model output to the Resolution choice* is switched on. RIFE frame interpolation is not included.
@@ -117,6 +117,7 @@ All shortcuts can be changed in Settings → Keyboard shortcuts.
 - `docs/BUILD.md`: build instructions per platform and the release workflow
 - `docs/PROJECT_SCHEMA.md`: the `.uveproj` project format (schema version 2, timeline)
 - `docs/TRANSITIONS.md`: transition geometry shared by preview and export
+- `CHANGELOG_1.1.0.md`: changes since 1.0.9 (Real-CUGAN noise-level fix; summary of the Video2X releases)
 - `CHANGELOG_1.0.9.md`: changes since 1.0.8 (Video2X: Install as the first step)
 - `CHANGELOG_1.0.8.md`: changes since 1.0.7 (Real-ESRGAN and Real-CUGAN through Video2X)
 - `CHANGELOG_1.0.7.md`: changes since 1.0.6 (Video2X / Anime4K fast upscale provider, custom GLSL shader library)
