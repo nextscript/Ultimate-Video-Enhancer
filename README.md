@@ -129,4 +129,3 @@ All shortcuts can be changed in Settings → Keyboard shortcuts.
 - `CHANGELOG_1.0.2.md`: changes since 1.0.1
 - `CHANGELOG_1.0.1.md`: changes since 1.0.0
 - `migration/`: feature-parity inventory, parity comparison, capability probe, benchmark, migration/rollback notes
-- `UVE_DESKTOP_V1.0.1_CROSS_PLATFORM_GPU_MIGRATION.md`: the specification of the cross-platform GPU release
