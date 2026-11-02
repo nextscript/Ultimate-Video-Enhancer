@@ -1,0 +1,174 @@
+name: Release
+
+# Builds UVE Player for Windows, Linux and macOS and publishes the GitHub release
+# "UVE Player <version>" (tag v<version>, version taken from CMakeLists.txt).
+on:
+  push:
+    branches: [uve-player]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  QT_VERSION: "6.12.0"
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: echo "version=$(sed -n 's/^project(UVEPlayer VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)" >> "$GITHUB_OUTPUT"
+
+  windows:
+    needs: version
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: win64_msvc2022_64
+          modules: qtimageformats qtshadertools
+          cache: true
+
+      - name: Fetch libmpv, yt-dlp, 7zr and NSIS
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $mpv = Get-Content deps/mpv/version.json | ConvertFrom-Json
+          Invoke-WebRequest "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/$($mpv.version)/$($mpv.asset)" -OutFile mpv-dev.7z
+          7z e -y mpv-dev.7z libmpv-2.dll -odeps/mpv | Out-Null
+          if (-not (Test-Path deps/mpv/libmpv-2.dll)) { throw "libmpv-2.dll missing" }
+
+          $yt = Get-Content deps/tools/yt-dlp/version.json | ConvertFrom-Json
+          $base = "https://github.com/yt-dlp/yt-dlp/releases/download/$($yt.version)"
+          Invoke-WebRequest "$base/yt-dlp.exe" -OutFile deps/tools/yt-dlp/yt-dlp.exe
+          $sums = (Invoke-WebRequest "$base/SHA2-256SUMS").Content -split "`n"
+          $expected = ($sums | Where-Object { $_ -match '\s\*?yt-dlp\.exe\s*$' }) -replace '\s.*$', ''
+          if ((Get-FileHash deps/tools/yt-dlp/yt-dlp.exe).Hash -ne $expected.ToUpper()) { throw "yt-dlp checksum mismatch" }
+
+          Invoke-WebRequest "https://github.com/ip7z/7zip/releases/download/26.05/7zr.exe" -OutFile deps/tools/7zr.exe
+          choco install nsis -y --no-progress
+
+      - name: Build, test and package
+        shell: pwsh
+        run: ./scripts/package.ps1 -Generator "Visual Studio 17 2022" -SkipTests
+
+      - name: Tests
+        continue-on-error: true   # media playback tests need a GPU, which hosted runners do not have
+        shell: pwsh
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: |
+            release/UVE-Player-*-setup.exe
+            release/UVE-Player-*-portable.exe
+            release/UVE-Player-*-portable.zip
+
+  linux:
+    needs: version
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libmpv-dev ninja-build pkg-config \
+            libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-0 libxcb-cursor0 libfuse2 file
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: linux_gcc_64
+          modules: qtimageformats qtshadertools
+          cache: true
+
+      - name: Build and package
+        run: bash scripts/package-linux.sh
+
+      - name: Tests
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir build --output-on-failure
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            release/UVE-Player-*.AppImage
+            release/UVE-Player-*.tar.gz
+
+  macos:
+    needs: version
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Homebrew packages
+        run: brew install mpv ninja pkg-config
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: clang_64
+          modules: qtimageformats qtshadertools
+          cache: true
+
+      - name: Build and package
+        run: bash scripts/package-macos.sh
+
+      - name: Tests
+        continue-on-error: true
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir build --output-on-failure
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: release/UVE-Player-*.dmg
+
+  release:
+    needs: [version, windows, linux, macos]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        run: |
+          cd dist
+          sha256sum UVE-Player-* > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ needs.version.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: UVE Player ${{ needs.version.outputs.version }}
+          body_path: CHANGELOG.md
+          make_latest: true
+          files: |
+            dist/UVE-Player-*
+            dist/SHA256SUMS.txt

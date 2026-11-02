@@ -1,0 +1,4 @@
+node_modules/
+release/
+tools/ffmpeg/*.exe
+tools/yt-dlp/*.exe

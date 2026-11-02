@@ -1,0 +1,2804 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS>
+<TS version="2.1" language="es_ES" sourcelanguage="de">
+<context>
+    <name>AboutDialog</name>
+    <message>
+        <source>Über UVE Player</source>
+        <translation>Acerca de UVE Player</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Cerrar</translation>
+    </message>
+    <message>
+        <source>UVE Player </source>
+        <translation>UVE Player </translation>
+    </message>
+    <message>
+        <source>Medienplayer mit libmpv und Ultimate-Video-Enhancer-Plugin</source>
+        <translation>Reproductor multimedia con libmpv y el plugin Ultimate Video Enhancer</translation>
+    </message>
+    <message>
+        <source>mpv / libmpv</source>
+        <translation>mpv / libmpv</translation>
+    </message>
+    <message>
+        <source>libmpv-Datei</source>
+        <translation>Archivo libmpv</translation>
+    </message>
+    <message>
+        <source>Qt</source>
+        <translation>Qt</translation>
+    </message>
+    <message>
+        <source>Datenordner</source>
+        <translation>Carpeta de datos</translation>
+    </message>
+    <message>
+        <source>Wiedergabe-Engine: mpv/libmpv (LGPL/GPL, je nach Build), FFmpeg-Bibliotheken in libmpv enthalten. Oberfläche: Qt 6 (LGPLv3). </source>
+        <translation>Motor de reproducción: mpv/libmpv (LGPL/GPL, según la compilación), bibliotecas FFmpeg incluidas en libmpv. Interfaz: Qt 6 (LGPLv3). </translation>
+    </message>
+    <message>
+        <source>Ultimate Video Enhancer: Freak288 / nextscript – nativer Port der WebGL-Effekte. Lizenzübersicht: docs/THIRD_PARTY_LICENSES.md. </source>
+        <translation>Ultimate Video Enhancer: Freak288 / nextscript – adaptación nativa de los efectos WebGL. Resumen de licencias: docs/THIRD_PARTY_LICENSES.md. </translation>
+    </message>
+    <message>
+        <source>Keine Telemetrie; Netzwerkzugriffe nur für Streams und – mit Einwilligung – die Update-Prüfung.</source>
+        <translation>Sin telemetría; acceso a la red solo para streams y – con consentimiento – la búsqueda de actualizaciones.</translation>
+    </message>
+    <message>
+        <source>Datenordner öffnen</source>
+        <translation>Abrir carpeta de datos</translation>
+    </message>
+    <message>
+        <source>Protokoll öffnen</source>
+        <translation>Abrir registro</translation>
+    </message>
+</context>
+<context>
+    <name>ControlBar</name>
+    <message>
+        <source>Einpassen</source>
+        <translation>Ajustar</translation>
+    </message>
+    <message>
+        <source>Wiedergabe / Pause (Leertaste)</source>
+        <translation>Reproducir / Pausa (Espacio)</translation>
+    </message>
+    <message>
+        <source>Vorheriger (P)</source>
+        <translation>Anterior (P)</translation>
+    </message>
+    <message>
+        <source>Stopp (S)</source>
+        <translation>Detener (S)</translation>
+    </message>
+    <message>
+        <source>Nächster (N)</source>
+        <translation>Siguiente (N)</translation>
+    </message>
+    <message>
+        <source>  ● LIVE</source>
+        <translation>  ● LIVE</translation>
+    </message>
+    <message>
+        <source>Geschwindigkeit ([ ] =)</source>
+        <translation>Velocidad ([ ] =)</translation>
+    </message>
+    <message>
+        <source>CC</source>
+        <translation>CC</translation>
+    </message>
+    <message>
+        <source>Untertitel (V)</source>
+        <translation>Subtítulos (V)</translation>
+    </message>
+    <message>
+        <source>Audio</source>
+        <translation>Audio</translation>
+    </message>
+    <message>
+        <source>Audiospur (B)</source>
+        <translation>Pista de audio (B)</translation>
+    </message>
+    <message>
+        <source>Seitenverhältnis (A)</source>
+        <translation>Relación de aspecto (A)</translation>
+    </message>
+    <message>
+        <source>Foto</source>
+        <translation>Foto</translation>
+    </message>
+    <message>
+        <source>Bildschirmfoto (Umschalt+S)</source>
+        <translation>Captura de pantalla (Mayús+S)</translation>
+    </message>
+    <message>
+        <source>UVE</source>
+        <translation>UVE</translation>
+    </message>
+    <message>
+        <source>Effekte an/aus (Strg+Alt+E)</source>
+        <translation>Activar/desactivar efectos (Ctrl+Alt+E)</translation>
+    </message>
+    <message>
+        <source>Effekt-Plugin nicht aktiv</source>
+        <translation>Plugin de efectos no activo</translation>
+    </message>
+    <message>
+        <source>Seitenleiste (Strg+L)</source>
+        <translation>Barra lateral (Ctrl+L)</translation>
+    </message>
+    <message>
+        <source>Vollbild (F)</source>
+        <translation>Pantalla completa (F)</translation>
+    </message>
+    <message>
+        <source>Stumm (M)</source>
+        <translation>Silenciar (M)</translation>
+    </message>
+    <message>
+        <source>Lautstärke (bis 150 %)</source>
+        <translation>Volumen (hasta 150 %)</translation>
+    </message>
+</context>
+<context>
+    <name>DiagnosticsOverlay</name>
+    <message>
+        <source>Decoder (hwdec):   </source>
+        <translation>Decodif. (hwdec):   </translation>
+    </message>
+    <message>
+        <source>Software</source>
+        <translation>Software</translation>
+    </message>
+    <message>
+        <source>Video-Ausgabe:     </source>
+        <translation>Salida de vídeo:     </translation>
+    </message>
+    <message>
+        <source> (Render-API, OpenGL)</source>
+        <translation> (API de renderizado, OpenGL)</translation>
+    </message>
+    <message>
+        <source>Video:             </source>
+        <translation>Vídeo:             </translation>
+    </message>
+    <message>
+        <source>Auflösung:         </source>
+        <translation>Resolución:         </translation>
+    </message>
+    <message>
+        <source>Farbraum:          </source>
+        <translation>Espacio de color:          </translation>
+    </message>
+    <message>
+        <source>FPS (Quelle/est.): </source>
+        <translation>FPS (orig./est.): </translation>
+    </message>
+    <message>
+        <source>Verworfen (VO/Dec):</source>
+        <translation>Descart. (VO/Dec):</translation>
+    </message>
+    <message>
+        <source>A/V-Abweichung:    </source>
+        <translation>Desfase A/V:       </translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <source>Audio:             </source>
+        <translation>Audio:             </translation>
+    </message>
+    <message>
+        <source> ch  </source>
+        <translation> ch  </translation>
+    </message>
+    <message>
+        <source> Hz</source>
+        <translation> Hz</translation>
+    </message>
+    <message>
+        <source>Bitrate V/A:       </source>
+        <translation>Tasa bits V/A:       </translation>
+    </message>
+    <message>
+        <source> kbit/s</source>
+        <translation> kbit/s</translation>
+    </message>
+    <message>
+        <source>Puffer:            </source>
+        <translation>Búfer:             </translation>
+    </message>
+    <message>
+        <source>Shader-Kette:      </source>
+        <translation>Cadena de shaders:      </translation>
+    </message>
+</context>
+<context>
+    <name>EnhancementsPanel</name>
+    <message>
+        <source>Basis</source>
+        <translation>Básico</translation>
+    </message>
+    <message>
+        <source>Farbe</source>
+        <translation>Color</translation>
+    </message>
+    <message>
+        <source>Schärfe</source>
+        <translation>Nitidez</translation>
+    </message>
+    <message>
+        <source>HDR-like</source>
+        <translation>HDR-like</translation>
+    </message>
+    <message>
+        <source>Denoise</source>
+        <translation>Reducción de ruido</translation>
+    </message>
+    <message>
+        <source>LUT</source>
+        <translation>LUT</translation>
+    </message>
+    <message>
+        <source>3D-LUT laden (.cube)</source>
+        <translation>Cargar LUT 3D (.cube)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>Todos los archivos (*)</translation>
+    </message>
+    <message>
+        <source>UVE-Profil importieren</source>
+        <translation>Importar perfil UVE</translation>
+    </message>
+    <message>
+        <source>UVE-Profil exportieren</source>
+        <translation>Exportar perfil UVE</translation>
+    </message>
+    <message>
+        <source>UVE-LUT-Profile importieren (.json / LUTsProfiles_v*.zip)</source>
+        <translation>Importar perfiles LUT de UVE (.json / LUTsProfiles_v*.zip)</translation>
+    </message>
+    <message>
+        <source>Preset speichern</source>
+        <translation>Guardar preajuste</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Name des Presets</source>
+        <translation>Nombre del preajuste</translation>
+    </message>
+    <message>
+        <source>LUT-Galerie</source>
+        <translation>Galería de LUT</translation>
+    </message>
+    <message>
+        <source>⟳ Frame aktualisieren</source>
+        <translation>⟳ Actualizar fotograma</translation>
+    </message>
+    <message>
+        <source>Aktuelles Videobild neu übernehmen</source>
+        <translation>Volver a capturar el fotograma actual</translation>
+    </message>
+    <message>
+        <source>LUT-Paket von GitHub laden</source>
+        <translation>Descargar paquete de LUT desde GitHub</translation>
+    </message>
+    <message>
+        <source>Alle Gruppen</source>
+        <translation>Todos los grupos</translation>
+    </message>
+    <message>
+        <source>Suchen…</source>
+        <translation>Buscar…</translation>
+    </message>
+    <message>
+        <source>Aktiv: </source>
+        <translation>Activo: </translation>
+    </message>
+    <message>
+        <source>Kein LUT</source>
+        <translation>Sin LUT</translation>
+    </message>
+    <message>
+        <source>Original (ohne LUT)</source>
+        <translation>Original (sin LUT)</translation>
+    </message>
+    <message>
+        <source>Klick: anwenden · Doppelklick: anwenden und schließen</source>
+        <translation>Clic: aplicar · Doble clic: aplicar y cerrar</translation>
+    </message>
+    <message>
+        <source>Keine LUT-Profile vorhanden. Das Download-Symbol oben lädt das aktuelle LUTsProfiles-Paket aus dem UVE-Repository.</source>
+        <translation>No hay perfiles LUT. El icono de descarga de arriba descarga el paquete LUTsProfiles actual del repositorio de UVE.</translation>
+    </message>
+    <message>
+        <source>Effekte an</source>
+        <translation>Efectos activados</translation>
+    </message>
+    <message>
+        <source>Effekte aus</source>
+        <translation>Efectos desactivados</translation>
+    </message>
+    <message>
+        <source>Strg+Alt+E</source>
+        <translation>Strg+Alt+E</translation>
+    </message>
+    <message>
+        <source>Rückgängig</source>
+        <translation>Deshacer</translation>
+    </message>
+    <message>
+        <source>Wiederholen</source>
+        <translation>Rehacer</translation>
+    </message>
+    <message>
+        <source>Vorher/Nachher</source>
+        <translation>Antes/Después</translation>
+    </message>
+    <message>
+        <source>Strg+Alt+U – links Original, rechts mit Effekten</source>
+        <translation>Ctrl+Alt+U – original a la izquierda, con efectos a la derecha</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Reintentar</translation>
+    </message>
+    <message>
+        <source>PRESETS</source>
+        <translation>PREAJUSTES</translation>
+    </message>
+    <message>
+        <source>(angepasst)</source>
+        <translation>(personalizado)</translation>
+    </message>
+    <message>
+        <source>Beispielprofil von GitHub laden (My_Profile.json)</source>
+        <translation>Descargar perfil de ejemplo desde GitHub (My_Profile.json)</translation>
+    </message>
+    <message>
+        <source>Speichern…</source>
+        <translation>Guardar…</translation>
+    </message>
+    <message>
+        <source>Als Preset speichern</source>
+        <translation>Guardar como preajuste</translation>
+    </message>
+    <message>
+        <source>Eigenes Preset löschen</source>
+        <translation>Eliminar preajuste propio</translation>
+    </message>
+    <message>
+        <source>Für diese Datei merken</source>
+        <translation>Recordar para este archivo</translation>
+    </message>
+    <message>
+        <source>Standard</source>
+        <translation>Predeterminado</translation>
+    </message>
+    <message>
+        <source>Globales Standard-Preset für neue Dateien</source>
+        <translation>Preajuste predeterminado global para archivos nuevos</translation>
+    </message>
+    <message>
+        <source>UVE-Profil importieren…</source>
+        <translation>Importar perfil UVE…</translation>
+    </message>
+    <message>
+        <source>Exportieren…</source>
+        <translation>Exportar…</translation>
+    </message>
+    <message>
+        <source>Abschnitt zurücksetzen</source>
+        <translation>Restablecer sección</translation>
+    </message>
+    <message>
+        <source>Laden…</source>
+        <translation>Cargar…</translation>
+    </message>
+    <message>
+        <source>Entfernen</source>
+        <translation>Quitar</translation>
+    </message>
+    <message>
+        <source>UVE-LUT-Profil</source>
+        <translation>Perfil LUT de UVE</translation>
+    </message>
+    <message>
+        <source>(keins)</source>
+        <translation>(ninguno)</translation>
+    </message>
+    <message>
+        <source>LUT-Paket von GitHub laden (neuestes LUTsProfiles_v*.zip)</source>
+        <translation>Descargar paquete de LUT desde GitHub (último LUTsProfiles_v*.zip)</translation>
+    </message>
+    <message>
+        <source>LUT-Galerie – aktuelles Bild mit allen LUT-Profilen</source>
+        <translation>Galería de LUT – fotograma actual con todos los perfiles LUT</translation>
+    </message>
+    <message>
+        <source> Profile</source>
+        <translation> perfiles</translation>
+    </message>
+    <message>
+        <source>LUT-Profile importieren…</source>
+        <translation>Importar perfiles LUT…</translation>
+    </message>
+    <message>
+        <source>Pipeline: </source>
+        <translation>Canalización: </translation>
+    </message>
+    <message>
+        <source>Alles zurücksetzen</source>
+        <translation>Restablecer todo</translation>
+    </message>
+</context>
+<context>
+    <name>Main</name>
+    <message>
+        <source>UVE Player</source>
+        <translation>UVE Player</translation>
+    </message>
+    <message>
+        <source>Lautstärke </source>
+        <translation>Volumen </translation>
+    </message>
+    <message>
+        <source>Geschwindigkeit </source>
+        <translation>Velocidad </translation>
+    </message>
+    <message>
+        <source>Stopp</source>
+        <translation>Detener</translation>
+    </message>
+    <message>
+        <source>Einzelbild ▶</source>
+        <translation>Fotograma ▶</translation>
+    </message>
+    <message>
+        <source>◀ Einzelbild</source>
+        <translation>◀ Fotograma</translation>
+    </message>
+    <message>
+        <source>A-B: </source>
+        <translation>A-B: </translation>
+    </message>
+    <message>
+        <source>A-B-Wiederholung aus</source>
+        <translation>Bucle A-B desactivado</translation>
+    </message>
+    <message>
+        <source>Wiederholen: aus</source>
+        <translation>Repetir: no</translation>
+    </message>
+    <message>
+        <source>Wiederholen: alle</source>
+        <translation>Repetir: todo</translation>
+    </message>
+    <message>
+        <source>Wiederholen: eins</source>
+        <translation>Repetir: uno</translation>
+    </message>
+    <message>
+        <source>Zufall: </source>
+        <translation>Aleatorio: </translation>
+    </message>
+    <message>
+        <source>Ton an</source>
+        <translation>Sonido activado</translation>
+    </message>
+    <message>
+        <source>Stumm</source>
+        <translation>Silenciado</translation>
+    </message>
+    <message>
+        <source>Audio: </source>
+        <translation>Audio: </translation>
+    </message>
+    <message>
+        <source>Audio aus</source>
+        <translation>Audio desactivado</translation>
+    </message>
+    <message>
+        <source>Audioverzögerung </source>
+        <translation>Retardo de audio </translation>
+    </message>
+    <message>
+        <source> ms</source>
+        <translation> ms</translation>
+    </message>
+    <message>
+        <source>Untertitel: </source>
+        <translation>Subtítulos: </translation>
+    </message>
+    <message>
+        <source>Untertitel aus</source>
+        <translation>Subtítulos desactivados</translation>
+    </message>
+    <message>
+        <source>Untertitelverzögerung </source>
+        <translation>Retardo de subtítulos </translation>
+    </message>
+    <message>
+        <source>Bild: </source>
+        <translation>Imagen: </translation>
+    </message>
+    <message>
+        <source>Einpassen</source>
+        <translation>Ajustar</translation>
+    </message>
+    <message>
+        <source>Füllen</source>
+        <translation>Rellenar</translation>
+    </message>
+    <message>
+        <source>Strecken</source>
+        <translation>Estirar</translation>
+    </message>
+    <message>
+        <source>Effekt-Plugin nicht aktiv</source>
+        <translation>Plugin de efectos no activo</translation>
+    </message>
+    <message>
+        <source>&amp;Datei</source>
+        <translation>&amp;Archivo</translation>
+    </message>
+    <message>
+        <source>Datei öffnen…</source>
+        <translation>Abrir archivo…</translation>
+    </message>
+    <message>
+        <source>Ordner öffnen…</source>
+        <translation>Abrir carpeta…</translation>
+    </message>
+    <message>
+        <source>Netzwerkstream öffnen…</source>
+        <translation>Abrir stream de red…</translation>
+    </message>
+    <message>
+        <source>Zuletzt geöffnet</source>
+        <translation>Abiertos recientemente</translation>
+    </message>
+    <message>
+        <source>Liste leeren</source>
+        <translation>Vaciar lista</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste speichern…</source>
+        <translation>Guardar lista de reproducción…</translation>
+    </message>
+    <message>
+        <source>Beenden</source>
+        <translation>Salir</translation>
+    </message>
+    <message>
+        <source>&amp;Wiedergabe</source>
+        <translation>&amp;Reproducción</translation>
+    </message>
+    <message>
+        <source>Wiedergabe</source>
+        <translation>Reproducir</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Pausa</translation>
+    </message>
+    <message>
+        <source>Vorheriger Titel</source>
+        <translation>Pista anterior</translation>
+    </message>
+    <message>
+        <source>Nächster Titel</source>
+        <translation>Pista siguiente</translation>
+    </message>
+    <message>
+        <source>Zu Zeit springen…</source>
+        <translation>Ir a un tiempo…</translation>
+    </message>
+    <message>
+        <source>Einzelbild vor</source>
+        <translation>Fotograma siguiente</translation>
+    </message>
+    <message>
+        <source>Einzelbild zurück</source>
+        <translation>Fotograma anterior</translation>
+    </message>
+    <message>
+        <source>Schneller</source>
+        <translation>Más rápido</translation>
+    </message>
+    <message>
+        <source>Langsamer</source>
+        <translation>Más lento</translation>
+    </message>
+    <message>
+        <source>Normale Geschwindigkeit</source>
+        <translation>Velocidad normal</translation>
+    </message>
+    <message>
+        <source>A-B-Wiederholung</source>
+        <translation>Bucle A-B</translation>
+    </message>
+    <message>
+        <source>Wiederholen: </source>
+        <translation>Repetir: </translation>
+    </message>
+    <message>
+        <source>Zufallswiedergabe</source>
+        <translation>Reproducción aleatoria</translation>
+    </message>
+    <message>
+        <source>&amp;Video</source>
+        <translation>Ví&amp;deo</translation>
+    </message>
+    <message>
+        <source>Vollbild</source>
+        <translation>Pantalla completa</translation>
+    </message>
+    <message>
+        <source>Seitenverhältnis wechseln</source>
+        <translation>Cambiar relación de aspecto</translation>
+    </message>
+    <message>
+        <source>Bildschirmfoto</source>
+        <translation>Captura de pantalla</translation>
+    </message>
+    <message>
+        <source>Diagnose-Overlay</source>
+        <translation>Superposición de diagnóstico</translation>
+    </message>
+    <message>
+        <source>&amp;Audio</source>
+        <translation>A&amp;udio</translation>
+    </message>
+    <message>
+        <source>Lauter</source>
+        <translation>Subir volumen</translation>
+    </message>
+    <message>
+        <source>Leiser</source>
+        <translation>Bajar volumen</translation>
+    </message>
+    <message>
+        <source>Audioverzögerung −50 ms</source>
+        <translation>Retardo de audio −50 ms</translation>
+    </message>
+    <message>
+        <source>Audioverzögerung +50 ms</source>
+        <translation>Retardo de audio +50 ms</translation>
+    </message>
+    <message>
+        <source>&amp;Untertitel</source>
+        <translation>&amp;Subtítulos</translation>
+    </message>
+    <message>
+        <source>Aus</source>
+        <translation>Desactivados</translation>
+    </message>
+    <message>
+        <source>Untertiteldatei hinzufügen…</source>
+        <translation>Añadir archivo de subtítulos…</translation>
+    </message>
+    <message>
+        <source>Verzögerung −50 ms</source>
+        <translation>Retardo −50 ms</translation>
+    </message>
+    <message>
+        <source>Verzögerung +50 ms</source>
+        <translation>Retardo +50 ms</translation>
+    </message>
+    <message>
+        <source>&amp;Effekte</source>
+        <translation>&amp;Efectos</translation>
+    </message>
+    <message>
+        <source>Effekte an</source>
+        <translation>Efectos activados</translation>
+    </message>
+    <message>
+        <source>Vorher/Nachher-Vergleich</source>
+        <translation>Comparación antes/después</translation>
+    </message>
+    <message>
+        <source>Effekt-Panel öffnen</source>
+        <translation>Abrir panel de efectos</translation>
+    </message>
+    <message>
+        <source>LUT-Galerie…</source>
+        <translation>Galería de LUT…</translation>
+    </message>
+    <message>
+        <source>Beispielprofil von GitHub laden (My_Profile.json)</source>
+        <translation>Descargar perfil de ejemplo desde GitHub (My_Profile.json)</translation>
+    </message>
+    <message>
+        <source>LUT-Paket von GitHub laden</source>
+        <translation>Descargar paquete de LUT desde GitHub</translation>
+    </message>
+    <message>
+        <source>Ultimate Video Enhancer aktiv</source>
+        <translation>Ultimate Video Enhancer activo</translation>
+    </message>
+    <message>
+        <source>Ultimate Video Enhancer nicht aktiv</source>
+        <translation>Ultimate Video Enhancer no activo</translation>
+    </message>
+    <message>
+        <source>&amp;Plugins</source>
+        <translation>&amp;Plugins</translation>
+    </message>
+    <message>
+        <source>Plugins verwalten…</source>
+        <translation>Administrar plugins…</translation>
+    </message>
+    <message>
+        <source>Safe Mode beenden</source>
+        <translation>Salir del modo seguro</translation>
+    </message>
+    <message>
+        <source>A&amp;nsicht</source>
+        <translation>&amp;Ver</translation>
+    </message>
+    <message>
+        <source>Seitenleiste</source>
+        <translation>Barra lateral</translation>
+    </message>
+    <message>
+        <source>Minimale Oberfläche</source>
+        <translation>Interfaz mínima</translation>
+    </message>
+    <message>
+        <source>Medieninformationen…</source>
+        <translation>Información multimedia…</translation>
+    </message>
+    <message>
+        <source>Helles Farbschema</source>
+        <translation>Esquema de colores claro</translation>
+    </message>
+    <message>
+        <source>Einstellungen…</source>
+        <translation>Configuración…</translation>
+    </message>
+    <message>
+        <source>&amp;Hilfe</source>
+        <translation>A&amp;yuda</translation>
+    </message>
+    <message>
+        <source>Tastenkürzel</source>
+        <translation>Atajos de teclado</translation>
+    </message>
+    <message>
+        <source>Nach Updates für yt-dlp und libmpv suchen</source>
+        <translation>Buscar actualizaciones de yt-dlp y libmpv</translation>
+    </message>
+    <message>
+        <source>Suche nach Updates …</source>
+        <translation>Buscando actualizaciones…</translation>
+    </message>
+    <message>
+        <source>Über UVE Player</source>
+        <translation>Acerca de UVE Player</translation>
+    </message>
+    <message>
+        <source>Safe Mode – Plugins nicht geladen. </source>
+        <translation>Modo seguro – plugins no cargados. </translation>
+    </message>
+    <message>
+        <source>Plugins wieder aktivieren</source>
+        <translation>Volver a activar plugins</translation>
+    </message>
+    <message>
+        <source>Datei hierher ziehen oder über das Menü „Datei“ öffnen</source>
+        <translation>Arrastre un archivo aquí o ábralo desde el menú “Archivo”</translation>
+    </message>
+    <message>
+        <source>Ultimate Video Enhancer aktiv · Strg+Alt+E Effekte an/aus</source>
+        <translation>Ultimate Video Enhancer activo · Ctrl+Alt+E activa/desactiva los efectos</translation>
+    </message>
+    <message>
+        <source>Safe Mode</source>
+        <translation>Modo seguro</translation>
+    </message>
+    <message>
+        <source>Letzter Fehler: </source>
+        <translation>Último error: </translation>
+    </message>
+    <message>
+        <source>❚❚ Pause</source>
+        <translation>❚❚ Pausa</translation>
+    </message>
+    <message>
+        <source>▶ Wiedergabe</source>
+        <translation>▶ Reproducir</translation>
+    </message>
+    <message>
+        <source>Zum Abspielen loslassen</source>
+        <translation>Suelte para reproducir</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste</source>
+        <translation>Lista de reproducción</translation>
+    </message>
+    <message>
+        <source>Das Panel des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>No se pudo cargar el panel del plugin (consulte el registro de errores de plugins). La reproducción no se ve afectada.</translation>
+    </message>
+    <message>
+        <source>Keine Audiospuren</source>
+        <translation>Sin pistas de audio</translation>
+    </message>
+    <message>
+        <source>Medien öffnen</source>
+        <translation>Abrir medios</translation>
+    </message>
+    <message>
+        <source>Zur Wiedergabeliste hinzufügen</source>
+        <translation>Añadir a la lista de reproducción</translation>
+    </message>
+    <message>
+        <source>Ordner öffnen</source>
+        <translation>Abrir carpeta</translation>
+    </message>
+    <message>
+        <source>Ordner hinzufügen</source>
+        <translation>Añadir carpeta</translation>
+    </message>
+    <message>
+        <source>Untertiteldatei hinzufügen</source>
+        <translation>Añadir archivo de subtítulos</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>Todos los archivos (*)</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste speichern</source>
+        <translation>Guardar lista de reproducción</translation>
+    </message>
+    <message>
+        <source>Zu Zeit springen</source>
+        <translation>Ir a un tiempo</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Ungültige Zeit</source>
+        <translation>Tiempo no válido</translation>
+    </message>
+    <message>
+        <source>Zeit (h:mm:ss)</source>
+        <translation>Tiempo (h:mm:ss)</translation>
+    </message>
+    <message>
+        <source>Update-Prüfung fehlgeschlagen: </source>
+        <translation>Error al buscar actualizaciones: </translation>
+    </message>
+    <message>
+        <source>yt-dlp und libmpv sind aktuell</source>
+        <translation>yt-dlp y libmpv están actualizados</translation>
+    </message>
+</context>
+<context>
+    <name>MediaInfoDialog</name>
+    <message>
+        <source>Medieninformationen</source>
+        <translation>Información multimedia</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Cerrar</translation>
+    </message>
+</context>
+<context>
+    <name>OpenUrlDialog</name>
+    <message>
+        <source>Netzwerkstream öffnen</source>
+        <translation>Abrir stream de red</translation>
+    </message>
+    <message>
+        <source>https://www.youtube.com/watch?v=…  ·  https://www.twitch.tv/kanal  ·  tcp://host:port</source>
+        <translation>https://www.youtube.com/watch?v=…  ·  https://www.twitch.tv/canal  ·  tcp://host:port</translation>
+    </message>
+    <message>
+        <source>YouTube, Twitch, Webseiten</source>
+        <translation>YouTube, Twitch, sitios web</translation>
+    </message>
+    <message>
+        <source>über yt-dlp (H.264 bevorzugt, Auflösung in den Einstellungen)</source>
+        <translation>mediante yt-dlp (se prefiere H.264, resolución en la configuración)</translation>
+    </message>
+    <message>
+        <source>tcp:// udp:// rtmp:// rtsp:// srt://</source>
+        <translation>tcp:// udp:// rtmp:// rtsp:// srt://</translation>
+    </message>
+    <message>
+        <source>Live-Übertragungen direkt über mpv</source>
+        <translation>Transmisiones en directo directamente mediante mpv</translation>
+    </message>
+    <message>
+        <source>.m3u8 / .mpd / .mp4 …</source>
+        <translation>.m3u8 / .mpd / .mp4 …</translation>
+    </message>
+    <message>
+        <source>HLS, DASH und direkte Medien-URLs</source>
+        <translation>HLS, DASH y URL de medios directas</translation>
+    </message>
+    <message>
+        <source>Zugangs- oder Werbeschutzsysteme werden nicht umgangen; DRM-geschützte Inhalte sind nicht abspielbar.</source>
+        <translation>No se eluden los sistemas de protección de acceso ni antipublicidad; el contenido protegido con DRM no se puede reproducir.</translation>
+    </message>
+</context>
+<context>
+    <name>PlayerApp</name>
+    <message>
+        <source>direkte Verbindung</source>
+        <translation>conexión directa</translation>
+    </message>
+    <message>
+        <source>Proxy: </source>
+        <translation>Proxy: </translation>
+    </message>
+    <message>
+        <source>System – direkte Verbindung</source>
+        <translation>Sistema – conexión directa</translation>
+    </message>
+    <message>
+        <source>kein Proxy</source>
+        <translation>sin proxy</translation>
+    </message>
+    <message>
+        <source>System: </source>
+        <translation>Sistema: </translation>
+    </message>
+    <message>
+        <source>SOCKS5 über lokale Brücke</source>
+        <translation>SOCKS5 mediante puente local</translation>
+    </message>
+    <message>
+        <source>Verbindung OK über %1 – YouTube antwortet (HTTP %2) in %3 ms</source>
+        <translation>Conexión correcta mediante %1 – YouTube respondió (HTTP %2) en %3 ms</translation>
+    </message>
+    <message>
+        <source>Fehlgeschlagen über %1: %2</source>
+        <translation>Error mediante %1: %2</translation>
+    </message>
+    <message>
+        <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
+        <translation>Modo seguro finalizado – los plugins se cargarán en el próximo inicio</translation>
+    </message>
+    <message>
+        <source>Untertitel: </source>
+        <translation>Subtítulos: </translation>
+    </message>
+    <message>
+        <source>Nichts Abspielbares gefunden</source>
+        <translation>No se encontró nada reproducible</translation>
+    </message>
+    <message>
+        <source>Bitte eine Adresse eingeben</source>
+        <translation>Introduzca una dirección</translation>
+    </message>
+    <message>
+        <source>Adresse muss mit einem Schema beginnen (z. B. https://, tcp://)</source>
+        <translation>La dirección debe empezar por un esquema (p. ej., https://, tcp://)</translation>
+    </message>
+    <message>
+        <source>Nicht unterstütztes Adressformat oder fehlender Host</source>
+        <translation>Formato de dirección no admitido o falta el host</translation>
+    </message>
+    <message>
+        <source>Fortgesetzt bei %1</source>
+        <translation>Reanudado en %1</translation>
+    </message>
+    <message>
+        <source>Nicht abspielbar: %1 (%2)</source>
+        <translation>No reproducible: %1 (%2)</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste gespeichert</source>
+        <translation>Lista de reproducción guardada</translation>
+    </message>
+    <message>
+        <source>Speichern fehlgeschlagen</source>
+        <translation>Error al guardar</translation>
+    </message>
+    <message>
+        <source>Bildschirmfoto: </source>
+        <translation>Captura de pantalla: </translation>
+    </message>
+    <message>
+        <source>Datei / Adresse</source>
+        <translation>Archivo / dirección</translation>
+    </message>
+    <message>
+        <source>Titel</source>
+        <translation>Título</translation>
+    </message>
+    <message>
+        <source>Container</source>
+        <translation>Contenedor</translation>
+    </message>
+    <message>
+        <source>Dauer</source>
+        <translation>Duración</translation>
+    </message>
+    <message>
+        <source>Größe</source>
+        <translation>Tamaño</translation>
+    </message>
+    <message>
+        <source>Video-Codec</source>
+        <translation>Códec de vídeo</translation>
+    </message>
+    <message>
+        <source>Auflösung</source>
+        <translation>Resolución</translation>
+    </message>
+    <message>
+        <source>Pixelformat</source>
+        <translation>Formato de píxel</translation>
+    </message>
+    <message>
+        <source>Farbraum</source>
+        <translation>Espacio de color</translation>
+    </message>
+    <message>
+        <source>Bildrate</source>
+        <translation>Velocidad de fotogramas</translation>
+    </message>
+    <message>
+        <source>Hardware-Dekodierung</source>
+        <translation>Decodificación por hardware</translation>
+    </message>
+    <message>
+        <source>nein (Software)</source>
+        <translation>no (software)</translation>
+    </message>
+    <message>
+        <source>Audio-Codec</source>
+        <translation>Códec de audio</translation>
+    </message>
+    <message>
+        <source>Audio</source>
+        <translation>Audio</translation>
+    </message>
+    <message>
+        <source>%1 Kanäle · %2 Hz</source>
+        <translation>%1 canales · %2 Hz</translation>
+    </message>
+    <message>
+        <source>Audiospuren</source>
+        <translation>Pistas de audio</translation>
+    </message>
+    <message>
+        <source>Untertitelspuren</source>
+        <translation>Pistas de subtítulos</translation>
+    </message>
+    <message>
+        <source>Aktive Shader</source>
+        <translation>Shaders activos</translation>
+    </message>
+    <message>
+        <source>Gemerkte Positionen gelöscht</source>
+        <translation>Posiciones recordadas eliminadas</translation>
+    </message>
+    <message>
+        <source>Hardware-Dekodierung: </source>
+        <translation>Decodificación por hardware: </translation>
+    </message>
+</context>
+<context>
+    <name>PlaylistPanel</name>
+    <message>
+        <source>Wiedergabeliste</source>
+        <translation>Lista de reproducción</translation>
+    </message>
+    <message>
+        <source> Titel</source>
+        <translation> elementos</translation>
+    </message>
+    <message>
+        <source>Suchen…</source>
+        <translation>Buscar…</translation>
+    </message>
+    <message>
+        <source>Dateien hinzufügen</source>
+        <translation>Añadir archivos</translation>
+    </message>
+    <message>
+        <source>Ausgewählte entfernen (Entf)</source>
+        <translation>Quitar seleccionados (Supr)</translation>
+    </message>
+    <message>
+        <source>Liste leeren</source>
+        <translation>Vaciar lista</translation>
+    </message>
+    <message>
+        <source>Nach Name sortieren</source>
+        <translation>Ordenar por nombre</translation>
+    </message>
+    <message>
+        <source>Speichern (Strg+Y)</source>
+        <translation>Guardar (Ctrl+Y)</translation>
+    </message>
+    <message>
+        <source>Zufall (Z)</source>
+        <translation>Aleatorio (Z)</translation>
+    </message>
+    <message>
+        <source>Wiederholen: aus</source>
+        <translation>Repetir: no</translation>
+    </message>
+    <message>
+        <source>Wiederholen: alle</source>
+        <translation>Repetir: todo</translation>
+    </message>
+    <message>
+        <source>Wiederholen: eins</source>
+        <translation>Repetir: uno</translation>
+    </message>
+    <message>
+        <source>Abspielen</source>
+        <translation>Reproducir</translation>
+    </message>
+    <message>
+        <source>Als Nächstes abspielen (</source>
+        <translation>Reproducir a continuación (</translation>
+    </message>
+    <message>
+        <source>Als Nächstes abspielen</source>
+        <translation>Reproducir a continuación</translation>
+    </message>
+    <message>
+        <source> Einträge entfernen</source>
+        <translation> entradas: quitar</translation>
+    </message>
+    <message>
+        <source>Entfernen</source>
+        <translation>Quitar</translation>
+    </message>
+    <message>
+        <source>Alle anderen entfernen</source>
+        <translation>Quitar todos los demás</translation>
+    </message>
+    <message>
+        <source>Fehlerhafte Einträge entfernen</source>
+        <translation>Quitar entradas con errores</translation>
+    </message>
+    <message>
+        <source>Nach oben</source>
+        <translation>Subir</translation>
+    </message>
+    <message>
+        <source>Nach unten</source>
+        <translation>Bajar</translation>
+    </message>
+    <message>
+        <source>An den Anfang</source>
+        <translation>Mover al principio</translation>
+    </message>
+    <message>
+        <source>Ans Ende</source>
+        <translation>Mover al final</translation>
+    </message>
+    <message>
+        <source>Im Explorer zeigen</source>
+        <translation>Mostrar en el Explorador</translation>
+    </message>
+    <message>
+        <source>Pfade kopieren</source>
+        <translation>Copiar rutas</translation>
+    </message>
+    <message>
+        <source>Pfad / Link kopieren</source>
+        <translation>Copiar ruta / enlace</translation>
+    </message>
+    <message>
+        <source>Medieninformationen</source>
+        <translation>Información multimedia</translation>
+    </message>
+    <message>
+        <source>Dateien hinzufügen…</source>
+        <translation>Añadir archivos…</translation>
+    </message>
+    <message>
+        <source>Ordner hinzufügen…</source>
+        <translation>Añadir carpeta…</translation>
+    </message>
+    <message>
+        <source>Netzwerkstream hinzufügen…</source>
+        <translation>Añadir stream de red…</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste speichern…</source>
+        <translation>Guardar lista de reproducción…</translation>
+    </message>
+</context>
+<context>
+    <name>PluginManifest</name>
+    <message>
+        <source>Feld 'id' fehlt</source>
+        <translation>Falta el campo 'id'</translation>
+    </message>
+    <message>
+        <source>Ungültige id '%1' (erwartet z. B. org.firma.plugin)</source>
+        <translation>id '%1' no válido (se esperaba p. ej. org.empresa.plugin)</translation>
+    </message>
+    <message>
+        <source>Feld 'name' fehlt</source>
+        <translation>Falta el campo 'name'</translation>
+    </message>
+    <message>
+        <source>Ungültige Plugin-Version '%1'</source>
+        <translation>Versión de plugin '%1' no válida</translation>
+    </message>
+    <message>
+        <source>Inkompatible apiVersion %1 (Host unterstützt %2)</source>
+        <translation>apiVersion %1 incompatible (el host admite %2)</translation>
+    </message>
+    <message>
+        <source>Ungültige minHostVersion '%1'</source>
+        <translation>minHostVersion '%1' no válida</translation>
+    </message>
+    <message>
+        <source>Benötigt Host ≥ %1 (vorhanden %2)</source>
+        <translation>Requiere host ≥ %1 (instalado %2)</translation>
+    </message>
+    <message>
+        <source>Plattform '%1' nicht unterstützt (%2)</source>
+        <translation>Plataforma '%1' no admitida (%2)</translation>
+    </message>
+    <message>
+        <source>Benötigtes Backend fehlt: %1</source>
+        <translation>Falta el backend necesario: %1</translation>
+    </message>
+</context>
+<context>
+    <name>PluginsDialog</name>
+    <message>
+        <source>Plugins</source>
+        <translation>Plugins</translation>
+    </message>
+    <message>
+        <source>gefunden</source>
+        <translation>detectado</translation>
+    </message>
+    <message>
+        <source>abgelehnt</source>
+        <translation>rechazado</translation>
+    </message>
+    <message>
+        <source>geprüft</source>
+        <translation>verificado</translation>
+    </message>
+    <message>
+        <source>geladen</source>
+        <translation>cargado</translation>
+    </message>
+    <message>
+        <source>initialisiert</source>
+        <translation>inicializado</translation>
+    </message>
+    <message>
+        <source>aktiv</source>
+        <translation>activo</translation>
+    </message>
+    <message>
+        <source>pausiert</source>
+        <translation>en pausa</translation>
+    </message>
+    <message>
+        <source>deaktiviert</source>
+        <translation>desactivado</translation>
+    </message>
+    <message>
+        <source>entladen</source>
+        <translation>descargado</translation>
+    </message>
+    <message>
+        <source>Fehler</source>
+        <translation>Error</translation>
+    </message>
+    <message>
+        <source>Safe Mode</source>
+        <translation>Modo seguro</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Cerrar</translation>
+    </message>
+    <message>
+        <source>Safe Mode: Plugins wurden nicht geladen. </source>
+        <translation>Modo seguro: no se cargaron los plugins. </translation>
+    </message>
+    <message>
+        <source>Plugins wieder aktivieren</source>
+        <translation>Volver a activar plugins</translation>
+    </message>
+    <message>
+        <source>ID: </source>
+        <translation>ID: </translation>
+    </message>
+    <message>
+        <source>   ·   API </source>
+        <translation>   ·   API </translation>
+    </message>
+    <message>
+        <source>Berechtigungen: </source>
+        <translation>Permisos: </translation>
+    </message>
+    <message>
+        <source>Fehler: </source>
+        <translation>Error: </translation>
+    </message>
+    <message>
+        <source>GPU-Stufe nach Shaderfehler deaktiviert (Wiedergabe läuft ohne Effekte weiter)</source>
+        <translation>Etapa de GPU desactivada tras un error de shader (la reproducción continúa sin efectos)</translation>
+    </message>
+    <message>
+        <source>Plugins liegen im Programmordner (plugins/) und im Benutzerordner. Inkompatible Plugins werden vor dem Laden abgelehnt; </source>
+        <translation>Los plugins se encuentran en la carpeta del programa (plugins/) y en la carpeta del usuario. Los plugins incompatibles se rechazan antes de cargarse; </translation>
+    </message>
+    <message>
+        <source>nach wiederholten Abstürzen startet der Player im Safe Mode (auch per --safe-mode).</source>
+        <translation>tras varios bloqueos, el reproductor se inicia en modo seguro (también con --safe-mode).</translation>
+    </message>
+    <message>
+        <source>Fehlerprotokoll</source>
+        <translation>Registro de errores</translation>
+    </message>
+    <message>
+        <source>Plugin-Ordner</source>
+        <translation>Carpeta de plugins</translation>
+    </message>
+</context>
+<context>
+    <name>ProxyConfig</name>
+    <message>
+        <source>Unbekannter Proxy-Modus</source>
+        <translation>Modo de proxy desconocido</translation>
+    </message>
+    <message>
+        <source>Proxy-Typ muss HTTP oder SOCKS5 sein</source>
+        <translation>El tipo de proxy debe ser HTTP o SOCKS5</translation>
+    </message>
+    <message>
+        <source>Proxy-Adresse fehlt</source>
+        <translation>Falta la dirección del proxy</translation>
+    </message>
+    <message>
+        <source>Proxy-Adresse ungültig (nur Hostname oder IP, ohne http://)</source>
+        <translation>Dirección de proxy no válida (solo nombre de host o IP, sin http://)</translation>
+    </message>
+    <message>
+        <source>Port muss zwischen 1 und 65535 liegen</source>
+        <translation>El puerto debe estar entre 1 y 65535</translation>
+    </message>
+    <message>
+        <source>Benutzername darf keinen Doppelpunkt enthalten</source>
+        <translation>El nombre de usuario no puede contener dos puntos</translation>
+    </message>
+</context>
+<context>
+    <name>SafeMode</name>
+    <message>
+        <source>Der Player ist %1-mal beim Laden der Plugins abgestürzt</source>
+        <translation>El reproductor se ha bloqueado %1 veces al cargar los plugins</translation>
+    </message>
+</context>
+<context>
+    <name>SettingsDialog</name>
+    <message>
+        <source>Einstellungen</source>
+        <translation>Configuración</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Cerrar</translation>
+    </message>
+    <message>
+        <source>Allgemein</source>
+        <translation>General</translation>
+    </message>
+    <message>
+        <source>Wiedergabe</source>
+        <translation>Reproducir</translation>
+    </message>
+    <message>
+        <source>Video &amp; GPU</source>
+        <translation>Vídeo y GPU</translation>
+    </message>
+    <message>
+        <source>Audio</source>
+        <translation>Audio</translation>
+    </message>
+    <message>
+        <source>Untertitel</source>
+        <translation>Subtítulos</translation>
+    </message>
+    <message>
+        <source>Plugins</source>
+        <translation>Plugins</translation>
+    </message>
+    <message>
+        <source>Effekte</source>
+        <translation>Efectos</translation>
+    </message>
+    <message>
+        <source>Tastenkürzel</source>
+        <translation>Atajos de teclado</translation>
+    </message>
+    <message>
+        <source>Datenschutz</source>
+        <translation>Privacidad</translation>
+    </message>
+    <message>
+        <source>Netzwerk</source>
+        <translation>Red</translation>
+    </message>
+    <message>
+        <source>Erweitert</source>
+        <translation>Avanzado</translation>
+    </message>
+    <message>
+        <source>Sprache</source>
+        <translation>Idioma</translation>
+    </message>
+    <message>
+        <source>Eigene Sprache: lang/uve_en.ts als z. B. uve_fr.ts kopieren, mit Qt Linguist übersetzen und als uve_fr.qm veröffentlichen – Anleitung in lang/README.md.</source>
+        <translation>Idioma propio: copie lang/uve_en.ts, p. ej. como uve_fr.ts, tradúzcalo con Qt Linguist y publíquelo como uve_fr.qm – instrucciones en lang/README.md.</translation>
+    </message>
+    <message>
+        <source>Sprachordner öffnen</source>
+        <translation>Abrir carpeta de idiomas</translation>
+    </message>
+    <message>
+        <source>Farbschema</source>
+        <translation>Esquema de colores</translation>
+    </message>
+    <message>
+        <source>Dunkel</source>
+        <translation>Oscuro</translation>
+    </message>
+    <message>
+        <source>Hell</source>
+        <translation>Claro</translation>
+    </message>
+    <message>
+        <source>Letzte Wiedergabeliste beim Start wiederherstellen</source>
+        <translation>Restaurar la última lista de reproducción al iniciar</translation>
+    </message>
+    <message>
+        <source>Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)</source>
+        <translation>Buscar actualizaciones de yt-dlp y libmpv al iniciar (acceso a la red a GitHub)</translation>
+    </message>
+    <message>
+        <source>Jetzt nach Updates suchen</source>
+        <translation>Buscar actualizaciones ahora</translation>
+    </message>
+    <message>
+        <source>Wiedergabe an der letzten Position fortsetzen</source>
+        <translation>Reanudar la reproducción en la última posición</translation>
+    </message>
+    <message>
+        <source>Sprungweite Pfeiltasten (Sekunden)</source>
+        <translation>Salto con las teclas de flecha (segundos)</translation>
+    </message>
+    <message>
+        <source>Maximale Auflösung für YouTube/Twitch</source>
+        <translation>Resolución máxima para YouTube/Twitch</translation>
+    </message>
+    <message>
+        <source>Hardware-Dekodierung</source>
+        <translation>Decodificación por hardware</translation>
+    </message>
+    <message>
+        <source>Automatisch (empfohlen)</source>
+        <translation>Automático (recomendado)</translation>
+    </message>
+    <message>
+        <source>Automatisch mit Kopie (kompatibler)</source>
+        <translation>Automático con copia (más compatible)</translation>
+    </message>
+    <message>
+        <source>Direct3D 11 (d3d11va)</source>
+        <translation>Direct3D 11 (d3d11va)</translation>
+    </message>
+    <message>
+        <source>DXVA2</source>
+        <translation>DXVA2</translation>
+    </message>
+    <message>
+        <source>NVIDIA NVDEC</source>
+        <translation>NVIDIA NVDEC</translation>
+    </message>
+    <message>
+        <source>Vulkan</source>
+        <translation>Vulkan</translation>
+    </message>
+    <message>
+        <source>Aus (Software)</source>
+        <translation>Desactivado (software)</translation>
+    </message>
+    <message>
+        <source>Aktiv: </source>
+        <translation>Activo: </translation>
+    </message>
+    <message>
+        <source>Software</source>
+        <translation>Software</translation>
+    </message>
+    <message>
+        <source>. Bei Bildfehlern auf „mit Kopie“ oder „Aus“ wechseln. </source>
+        <translation>. Si la imagen presenta errores, cambie a “con copia” o “Desactivado”. </translation>
+    </message>
+    <message>
+        <source>Die Videoausgabe läuft über die libmpv-Render-API (OpenGL); Effekt-Shader nutzen die mpv-Benutzer-Shader.</source>
+        <translation>La salida de vídeo usa la API de renderizado de libmpv (OpenGL); los shaders de efectos usan los shaders de usuario de mpv.</translation>
+    </message>
+    <message>
+        <source>Audiogerät</source>
+        <translation>Dispositivo de audio</translation>
+    </message>
+    <message>
+        <source>Bevorzugte Audiosprachen (z. B. de,en)</source>
+        <translation>Idiomas de audio preferidos (p. ej., es,en)</translation>
+    </message>
+    <message>
+        <source>Untertiteldateien mit gleichem Namen automatisch laden</source>
+        <translation>Cargar automáticamente archivos de subtítulos con el mismo nombre</translation>
+    </message>
+    <message>
+        <source>Schriftgröße</source>
+        <translation>Tamaño de fuente</translation>
+    </message>
+    <message>
+        <source>Bevorzugte Untertitelsprachen</source>
+        <translation>Idiomas de subtítulos preferidos</translation>
+    </message>
+    <message>
+        <source>Safe Mode aktiv: </source>
+        <translation>Modo seguro activo: </translation>
+    </message>
+    <message>
+        <source> Plugins gefunden.</source>
+        <translation> plugins encontrados.</translation>
+    </message>
+    <message>
+        <source>Plugin-Verwaltung öffnen…</source>
+        <translation>Abrir el administrador de plugins…</translation>
+    </message>
+    <message>
+        <source>Safe Mode beenden</source>
+        <translation>Salir del modo seguro</translation>
+    </message>
+    <message>
+        <source>Effekte stellt das Ultimate-Video-Enhancer-Plugin bereit (Seitenleiste → Effekte). Dort lassen sich Presets, ein Standard-Preset für neue Dateien und Presets pro Datei festlegen.</source>
+        <translation>Los efectos los proporciona el plugin Ultimate Video Enhancer (barra lateral → Efectos). Allí puede definir preajustes, un preajuste predeterminado para archivos nuevos y preajustes por archivo.</translation>
+    </message>
+    <message>
+        <source>Effekt-Panel öffnen</source>
+        <translation>Abrir panel de efectos</translation>
+    </message>
+    <message>
+        <source>Neue Taste drücken … (Esc = Abbrechen, Entf = leeren)</source>
+        <translation>Pulse una tecla nueva… (Esc = cancelar, Supr = borrar)</translation>
+    </message>
+    <message>
+        <source>„Ändern“ klicken und die neue Tastenkombination drücken.</source>
+        <translation>Haga clic en “Cambiar” y pulse la nueva combinación de teclas.</translation>
+    </message>
+    <message>
+        <source>Alle zurücksetzen</source>
+        <translation>Restablecer todo</translation>
+    </message>
+    <message>
+        <source>Ändern</source>
+        <translation>Cambiar</translation>
+    </message>
+    <message>
+        <source>“ ist bereits „</source>
+        <translation>” ya está asignado a “</translation>
+    </message>
+    <message>
+        <source>“ zugewiesen. Erneut drücken, um es zu übernehmen (die andere Aktion verliert die Belegung).</source>
+        <translation>”. Pulse de nuevo para aplicarlo (la otra acción pierde el atajo).</translation>
+    </message>
+    <message>
+        <source>Der Player sendet keine Telemetrie. Netzwerkzugriffe erfolgen nur für geöffnete Streams und – falls aktiviert – für die Update-Prüfung bei GitHub.</source>
+        <translation>El reproductor no envía telemetría. Solo se accede a la red para los streams abiertos y – si está activada – para la búsqueda de actualizaciones en GitHub.</translation>
+    </message>
+    <message>
+        <source>Verlauf (zuletzt geöffnet) speichern</source>
+        <translation>Guardar historial (abiertos recientemente)</translation>
+    </message>
+    <message>
+        <source>Verlauf löschen (</source>
+        <translation>Borrar historial (</translation>
+    </message>
+    <message>
+        <source>Gemerkte Wiedergabepositionen löschen</source>
+        <translation>Eliminar posiciones de reproducción recordadas</translation>
+    </message>
+    <message>
+        <source>•••••• (gespeichert – leer lassen zum Behalten)</source>
+        <translation>•••••• (guardada – dejar vacío para conservarla)</translation>
+    </message>
+    <message>
+        <source>Passwort (optional)</source>
+        <translation>Contraseña (opcional)</translation>
+    </message>
+    <message>
+        <source>PROXY FÜR NETZWERKSTREAMS</source>
+        <translation>PROXY PARA STREAMS DE RED</translation>
+    </message>
+    <message>
+        <source>Kein Proxy (direkte Verbindung)</source>
+        <translation>Sin proxy (conexión directa)</translation>
+    </message>
+    <message>
+        <source>Systemproxy von Windows verwenden (</source>
+        <translation>Usar el proxy del sistema de Windows (</translation>
+    </message>
+    <message>
+        <source>Manuell</source>
+        <translation>Manual</translation>
+    </message>
+    <message>
+        <source>Typ</source>
+        <translation>Tipo</translation>
+    </message>
+    <message>
+        <source>SOCKS5</source>
+        <translation>SOCKS5</translation>
+    </message>
+    <message>
+        <source>Adresse</source>
+        <translation>Dirección</translation>
+    </message>
+    <message>
+        <source>proxy.example.org oder 10.0.0.1</source>
+        <translation>proxy.example.org o 10.0.0.1</translation>
+    </message>
+    <message>
+        <source>Port</source>
+        <translation>Puerto</translation>
+    </message>
+    <message>
+        <source>Benutzer</source>
+        <translation>Usuario</translation>
+    </message>
+    <message>
+        <source>optional</source>
+        <translation>opcional</translation>
+    </message>
+    <message>
+        <source>Passwort</source>
+        <translation>Contraseña</translation>
+    </message>
+    <message>
+        <source>Ausnahmen (kein Proxy)</source>
+        <translation>Excepciones (sin proxy)</translation>
+    </message>
+    <message>
+        <source>Übernehmen</source>
+        <translation>Aplicar</translation>
+    </message>
+    <message>
+        <source>Übernommen – gilt ab dem nächsten geöffneten Stream.</source>
+        <translation>Aplicado – se usará a partir del próximo stream abierto.</translation>
+    </message>
+    <message>
+        <source>Teste …</source>
+        <translation>Probando…</translation>
+    </message>
+    <message>
+        <source>Verbindung testen</source>
+        <translation>Probar conexión</translation>
+    </message>
+    <message>
+        <source>Über den Proxy laufen: HTTP(S)-, HLS- und DASH-Streams, YouTube/Twitch (yt-dlp), tcp://-Streams sowie Update- und LUT-Downloads. </source>
+        <translation>Pasan por el proxy: streams HTTP(S), HLS y DASH, YouTube/Twitch (yt-dlp), streams tcp:// y las descargas de actualizaciones y LUT. </translation>
+    </message>
+    <message>
+        <source>SOCKS5 wird für mpv über eine lokale Brücke (nur 127.0.0.1) bereitgestellt; Hostnamen werden am Proxy aufgelöst. </source>
+        <translation>Para mpv, SOCKS5 se proporciona mediante un puente local (solo 127.0.0.1); los nombres de host se resuelven en el proxy. </translation>
+    </message>
+    <message>
+        <source>Nicht über Proxys möglich: udp://, rtp://, rtmp://, rtsp:// und srt://. Das Passwort wird mit Windows-DPAPI verschlüsselt gespeichert.</source>
+        <translation>No es posible a través de proxies: udp://, rtp://, rtmp://, rtsp:// y srt://. La contraseña se guarda cifrada con DPAPI de Windows.</translation>
+    </message>
+    <message>
+        <source>nicht gefunden</source>
+        <translation>no encontrado</translation>
+    </message>
+    <message>
+        <source>Datenordner</source>
+        <translation>Carpeta de datos</translation>
+    </message>
+    <message>
+        <source>Datenordner öffnen</source>
+        <translation>Abrir carpeta de datos</translation>
+    </message>
+    <message>
+        <source>Protokoll öffnen</source>
+        <translation>Abrir registro</translation>
+    </message>
+    <message>
+        <source>Start ohne Plugins: UVEPlayer.exe --safe-mode. Portables Profil: Datei „portable.txt“ neben die EXE legen (Daten in ./data).</source>
+        <translation>Iniciar sin plugins: UVEPlayer.exe --safe-mode. Perfil portátil: coloque un archivo “portable.txt” junto al EXE (datos en ./data).</translation>
+    </message>
+</context>
+<context>
+    <name>SleepTimerPanel</name>
+    <message>
+        <source>Einschlaf-Timer</source>
+        <translation>Temporizador de apagado</translation>
+    </message>
+    <message>
+        <source>Beispiel-Plugin für die Plugin-API: pausiert die Wiedergabe nach Ablauf der Zeit.</source>
+        <translation>Plugin de ejemplo para la API de plugins: pausa la reproducción cuando se agota el tiempo.</translation>
+    </message>
+    <message>
+        <source>Minuten</source>
+        <translation>Minutos</translation>
+    </message>
+    <message>
+        <source>Stopp</source>
+        <translation>Detener</translation>
+    </message>
+    <message>
+        <source>Start</source>
+        <translation>Iniciar</translation>
+    </message>
+    <message>
+        <source> verbleibend</source>
+        <translation> restantes</translation>
+    </message>
+</context>
+<context>
+    <name>SleepTimerPlugin</name>
+    <message>
+        <source>Einschlaf-Timer: Wiedergabe pausiert</source>
+        <translation>Temporizador de apagado: reproducción en pausa</translation>
+    </message>
+    <message>
+        <source>Einschlaf-Timer: %1 min</source>
+        <translation>Temporizador de apagado: %1 min</translation>
+    </message>
+    <message>
+        <source>kein Host</source>
+        <translation>sin host</translation>
+    </message>
+</context>
+<context>
+    <name>UpdateDialog</name>
+    <message>
+        <source>Updates werden installiert</source>
+        <translation>Instalando actualizaciones</translation>
+    </message>
+    <message>
+        <source>Update-Ergebnis</source>
+        <translation>Resultado de la actualización</translation>
+    </message>
+    <message>
+        <source>Updates verfügbar</source>
+        <translation>Actualizaciones disponibles</translation>
+    </message>
+    <message>
+        <source> MB</source>
+        <translation> MB</translation>
+    </message>
+    <message>
+        <source> wird heruntergeladen…</source>
+        <translation> se está descargando…</translation>
+    </message>
+    <message>
+        <source>Später</source>
+        <translation>Más tarde</translation>
+    </message>
+    <message>
+        <source>Jetzt aktualisieren</source>
+        <translation>Actualizar ahora</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Cerrar</translation>
+    </message>
+    <message>
+        <source>Für folgende Werkzeuge gibt es neue Versionen:</source>
+        <translation>Hay versiones nuevas de las siguientes herramientas:</translation>
+    </message>
+    <message>
+        <source>yt-dlp wird für YouTube, Twitch und andere Webseiten verwendet – neue Versionen sind oft nötig, wenn Seiten etwas ändern. </source>
+        <translation>yt-dlp se usa para YouTube, Twitch y otros sitios web – a menudo se necesitan versiones nuevas cuando los sitios cambian. </translation>
+    </message>
+    <message>
+        <source>libmpv ist die Wiedergabe-Engine; ein Update wird nach einem Neustart aktiv. Downloads werden per SHA-256 geprüft.</source>
+        <translation>libmpv es el motor de reproducción; una actualización se aplica tras reiniciar. Las descargas se verifican con SHA-256.</translation>
+    </message>
+    <message>
+        <source>Diese Versionen überspringen</source>
+        <translation>Omitir estas versiones</translation>
+    </message>
+</context>
+<context>
+    <name>UvePlugin</name>
+    <message>
+        <source>Host-API nicht kompatibel</source>
+        <translation>API del host no compatible</translation>
+    </message>
+    <message>
+        <source>Effekte</source>
+        <translation>Efectos</translation>
+    </message>
+</context>
+<context>
+    <name>VideoContextMenu</name>
+    <message>
+        <source>Wiedergabe</source>
+        <translation>Reproducir</translation>
+    </message>
+    <message>
+        <source>Pause</source>
+        <translation>Pausa</translation>
+    </message>
+    <message>
+        <source>Stopp</source>
+        <translation>Detener</translation>
+    </message>
+    <message>
+        <source>Vorheriger Titel</source>
+        <translation>Pista anterior</translation>
+    </message>
+    <message>
+        <source>Nächster Titel</source>
+        <translation>Pista siguiente</translation>
+    </message>
+    <message>
+        <source>Audiospur</source>
+        <translation>Pista de audio</translation>
+    </message>
+    <message>
+        <source>Audioverzögerung −50 ms</source>
+        <translation>Retardo de audio −50 ms</translation>
+    </message>
+    <message>
+        <source>Audioverzögerung +50 ms</source>
+        <translation>Retardo de audio +50 ms</translation>
+    </message>
+    <message>
+        <source>Verzögerung zurücksetzen (</source>
+        <translation>Restablecer retardo (</translation>
+    </message>
+    <message>
+        <source> ms)</source>
+        <translation> ms)</translation>
+    </message>
+    <message>
+        <source>Ton einschalten</source>
+        <translation>Activar sonido</translation>
+    </message>
+    <message>
+        <source>Stumm</source>
+        <translation>Silenciado</translation>
+    </message>
+    <message>
+        <source>Untertitel</source>
+        <translation>Subtítulos</translation>
+    </message>
+    <message>
+        <source>Aus</source>
+        <translation>Desactivados</translation>
+    </message>
+    <message>
+        <source>Untertiteldatei hinzufügen…</source>
+        <translation>Añadir archivo de subtítulos…</translation>
+    </message>
+    <message>
+        <source>Verzögerung −50 ms</source>
+        <translation>Retardo −50 ms</translation>
+    </message>
+    <message>
+        <source>Verzögerung +50 ms</source>
+        <translation>Retardo +50 ms</translation>
+    </message>
+    <message>
+        <source>Geschwindigkeit (</source>
+        <translation>Velocidad (</translation>
+    </message>
+    <message>
+        <source> (normal)</source>
+        <translation> (normal)</translation>
+    </message>
+    <message>
+        <source>Bild</source>
+        <translation>Imagen</translation>
+    </message>
+    <message>
+        <source>Einpassen</source>
+        <translation>Ajustar</translation>
+    </message>
+    <message>
+        <source>Füllen (zuschneiden)</source>
+        <translation>Rellenar (recortar)</translation>
+    </message>
+    <message>
+        <source>Strecken</source>
+        <translation>Estirar</translation>
+    </message>
+    <message>
+        <source>Vollbild</source>
+        <translation>Pantalla completa</translation>
+    </message>
+    <message>
+        <source>Bildschirmfoto</source>
+        <translation>Captura de pantalla</translation>
+    </message>
+    <message>
+        <source>Einzelbild vor</source>
+        <translation>Fotograma siguiente</translation>
+    </message>
+    <message>
+        <source>Einzelbild zurück</source>
+        <translation>Fotograma anterior</translation>
+    </message>
+    <message>
+        <source>Effekte (UVE)</source>
+        <translation>Efectos (UVE)</translation>
+    </message>
+    <message>
+        <source>Effekte an</source>
+        <translation>Efectos activados</translation>
+    </message>
+    <message>
+        <source>Vorher/Nachher</source>
+        <translation>Antes/Después</translation>
+    </message>
+    <message>
+        <source>Preset</source>
+        <translation>Preajuste</translation>
+    </message>
+    <message>
+        <source>Effekt-Panel öffnen</source>
+        <translation>Abrir panel de efectos</translation>
+    </message>
+    <message>
+        <source>A-B-Wiederholung: </source>
+        <translation>Bucle A-B: </translation>
+    </message>
+    <message>
+        <source>A-B-Wiederholung: A setzen</source>
+        <translation>Bucle A-B: fijar A</translation>
+    </message>
+    <message>
+        <source>Zu Zeit springen…</source>
+        <translation>Ir a un tiempo…</translation>
+    </message>
+    <message>
+        <source>Medieninformationen…</source>
+        <translation>Información multimedia…</translation>
+    </message>
+    <message>
+        <source>Diagnose-Overlay</source>
+        <translation>Superposición de diagnóstico</translation>
+    </message>
+    <message>
+        <source>Seitenleiste ein/aus</source>
+        <translation>Mostrar/ocultar barra lateral</translation>
+    </message>
+</context>
+<context>
+    <name>main</name>
+    <message>
+        <source> (abhängige DLL fehlt – libmpv benötigt vulkan-1.dll aus dem Grafiktreiber)</source>
+        <translation> (falta una DLL dependiente – libmpv necesita vulkan-1.dll del controlador gráfico)</translation>
+    </message>
+    <message>
+        <source>%1: Fehler %2%3</source>
+        <translation>%1: error %2%3</translation>
+    </message>
+    <message>
+        <source>libmpv-2.dll wurde nicht gefunden (erwartet unter mpv\libmpv-2.dll).</source>
+        <translation>No se encontró libmpv-2.dll (se esperaba en mpv\libmpv-2.dll).</translation>
+    </message>
+    <message>
+        <source>libmpv (System)</source>
+        <translation>libmpv (sistema)</translation>
+    </message>
+    <message>
+        <source>UVE Player – libmpv fehlt</source>
+        <translation>UVE Player – falta libmpv</translation>
+    </message>
+    <message>
+        <source>Die Wiedergabe-Engine libmpv konnte nicht geladen werden.
+
+</source>
+        <translation>No se pudo cargar el motor de reproducción libmpv.
+
+</translation>
+    </message>
+    <message>
+        <source>UVE Player – mpv</source>
+        <translation>UVE Player – mpv</translation>
+    </message>
+    <message>
+        <source>libmpv konnte nicht initialisiert werden: </source>
+        <translation>No se pudo inicializar libmpv: </translation>
+    </message>
+    <message>
+        <source>UVE Player</source>
+        <translation>UVE Player</translation>
+    </message>
+    <message>
+        <source>Die Oberfläche konnte nicht geladen werden (siehe Protokoll).</source>
+        <translation>No se pudo cargar la interfaz (consulte el registro).</translation>
+    </message>
+</context>
+<context>
+    <name>uve</name>
+    <message>
+        <source>Datei nicht lesbar: %1</source>
+        <translation>Archivo no legible: %1</translation>
+    </message>
+    <message>
+        <source>LUT-Datei zu groß</source>
+        <translation>Archivo LUT demasiado grande</translation>
+    </message>
+    <message>
+        <source>1D-LUTs werden nicht unterstützt (nur LUT_3D_SIZE)</source>
+        <translation>No se admiten LUT 1D (solo LUT_3D_SIZE)</translation>
+    </message>
+    <message>
+        <source>Ungültige LUT_3D_SIZE in Zeile %1</source>
+        <translation>LUT_3D_SIZE no válido en la línea %1</translation>
+    </message>
+    <message>
+        <source>Ungültiges %1 in Zeile %2</source>
+        <translation>%1 no válido en la línea %2</translation>
+    </message>
+    <message>
+        <source>Zeile %1: erwartet 3 Werte</source>
+        <translation>Línea %1: se esperaban 3 valores</translation>
+    </message>
+    <message>
+        <source>Zeile %1: ungültige Zahl '%2'</source>
+        <translation>Línea %1: número no válido '%2'</translation>
+    </message>
+    <message>
+        <source>DOMAIN_MAX muss größer als DOMAIN_MIN sein</source>
+        <translation>DOMAIN_MAX debe ser mayor que DOMAIN_MIN</translation>
+    </message>
+    <message>
+        <source>matrix4x5 muss 20 Zahlen enthalten</source>
+        <translation>matrix4x5 debe contener 20 números</translation>
+    </message>
+    <message>
+        <source>matrix4x5 enthält ungültige Werte</source>
+        <translation>matrix4x5 contiene valores no válidos</translation>
+    </message>
+    <message>
+        <source>matrix4x5-Wert außerhalb des zulässigen Bereichs</source>
+        <translation>Valor de matrix4x5 fuera del rango permitido</translation>
+    </message>
+    <message>
+        <source>kein gültiges JSON</source>
+        <translation>JSON no válido</translation>
+    </message>
+    <message>
+        <source>keine ZIP-Datei (Verzeichnisende fehlt)</source>
+        <translation>no es un archivo ZIP (falta el final del directorio central)</translation>
+    </message>
+    <message>
+        <source>zu viele Einträge</source>
+        <translation>demasiadas entradas</translation>
+    </message>
+    <message>
+        <source>ZIP-Verzeichnis beschädigt</source>
+        <translation>Directorio ZIP dañado</translation>
+    </message>
+    <message>
+        <source>ZIP64 wird nicht unterstützt</source>
+        <translation>No se admite ZIP64</translation>
+    </message>
+    <message>
+        <source>Eintrag zu groß: </source>
+        <translation>Entrada demasiado grande: </translation>
+    </message>
+    <message>
+        <source>Paket entpackt zu groß</source>
+        <translation>Paquete demasiado grande al descomprimirlo</translation>
+    </message>
+    <message>
+        <source>lokaler Header beschädigt: </source>
+        <translation>encabezado local dañado: </translation>
+    </message>
+    <message>
+        <source>Prüfsumme falsch: </source>
+        <translation>Suma de comprobación incorrecta: </translation>
+    </message>
+    <message>
+        <source>'%1' ist keine Zahl</source>
+        <translation>'%1' no es un número</translation>
+    </message>
+</context>
+<context>
+    <name>uve::HotkeyModel</name>
+    <message>
+        <source>Wiedergabe / Pause</source>
+        <translation>Reproducir / Pausa</translation>
+    </message>
+    <message>
+        <source>Wiedergabe</source>
+        <translation>Reproducir</translation>
+    </message>
+    <message>
+        <source>Stopp</source>
+        <translation>Detener</translation>
+    </message>
+    <message>
+        <source>Nächster Titel</source>
+        <translation>Pista siguiente</translation>
+    </message>
+    <message>
+        <source>Vorheriger Titel</source>
+        <translation>Pista anterior</translation>
+    </message>
+    <message>
+        <source>Zurückspulen (Sprungweite)</source>
+        <translation>Retroceder (salto)</translation>
+    </message>
+    <message>
+        <source>Vorspulen (Sprungweite)</source>
+        <translation>Avanzar (salto)</translation>
+    </message>
+    <message>
+        <source>Einzelbild vor</source>
+        <translation>Fotograma siguiente</translation>
+    </message>
+    <message>
+        <source>Einzelbild zurück</source>
+        <translation>Fotograma anterior</translation>
+    </message>
+    <message>
+        <source>Schneller</source>
+        <translation>Más rápido</translation>
+    </message>
+    <message>
+        <source>Langsamer</source>
+        <translation>Más lento</translation>
+    </message>
+    <message>
+        <source>Normale Geschwindigkeit</source>
+        <translation>Velocidad normal</translation>
+    </message>
+    <message>
+        <source>A-B-Wiederholung</source>
+        <translation>Bucle A-B</translation>
+    </message>
+    <message>
+        <source>Wiederholen umschalten</source>
+        <translation>Cambiar repetición</translation>
+    </message>
+    <message>
+        <source>Zufallswiedergabe</source>
+        <translation>Reproducción aleatoria</translation>
+    </message>
+    <message>
+        <source>Zu Zeit springen…</source>
+        <translation>Ir a un tiempo…</translation>
+    </message>
+    <message>
+        <source>Lauter</source>
+        <translation>Subir volumen</translation>
+    </message>
+    <message>
+        <source>Audio</source>
+        <translation>Audio</translation>
+    </message>
+    <message>
+        <source>Leiser</source>
+        <translation>Bajar volumen</translation>
+    </message>
+    <message>
+        <source>Stumm</source>
+        <translation>Silenciado</translation>
+    </message>
+    <message>
+        <source>Audiospur wechseln</source>
+        <translation>Cambiar pista de audio</translation>
+    </message>
+    <message>
+        <source>Untertitelspur wechseln</source>
+        <translation>Cambiar pista de subtítulos</translation>
+    </message>
+    <message>
+        <source>Untertitel</source>
+        <translation>Subtítulos</translation>
+    </message>
+    <message>
+        <source>Vollbild</source>
+        <translation>Pantalla completa</translation>
+    </message>
+    <message>
+        <source>Video</source>
+        <translation>Vídeo</translation>
+    </message>
+    <message>
+        <source>Seitenverhältnis wechseln</source>
+        <translation>Cambiar relación de aspecto</translation>
+    </message>
+    <message>
+        <source>Bildschirmfoto</source>
+        <translation>Captura de pantalla</translation>
+    </message>
+    <message>
+        <source>Diagnose-Overlay</source>
+        <translation>Superposición de diagnóstico</translation>
+    </message>
+    <message>
+        <source>Effekte an/aus</source>
+        <translation>Activar/desactivar efectos</translation>
+    </message>
+    <message>
+        <source>Effekte</source>
+        <translation>Efectos</translation>
+    </message>
+    <message>
+        <source>Vorher/Nachher-Vergleich</source>
+        <translation>Comparación antes/después</translation>
+    </message>
+    <message>
+        <source>Datei öffnen…</source>
+        <translation>Abrir archivo…</translation>
+    </message>
+    <message>
+        <source>Datei</source>
+        <translation>Archivo</translation>
+    </message>
+    <message>
+        <source>Ordner öffnen…</source>
+        <translation>Abrir carpeta…</translation>
+    </message>
+    <message>
+        <source>Netzwerkstream öffnen…</source>
+        <translation>Abrir stream de red…</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste speichern…</source>
+        <translation>Guardar lista de reproducción…</translation>
+    </message>
+    <message>
+        <source>Seitenleiste ein/aus</source>
+        <translation>Mostrar/ocultar barra lateral</translation>
+    </message>
+    <message>
+        <source>Ansicht</source>
+        <translation>Ver</translation>
+    </message>
+    <message>
+        <source>Medieninformationen</source>
+        <translation>Información multimedia</translation>
+    </message>
+    <message>
+        <source>Einstellungen…</source>
+        <translation>Configuración…</translation>
+    </message>
+    <message>
+        <source>Beenden</source>
+        <translation>Salir</translation>
+    </message>
+</context>
+<context>
+    <name>uve::MpvController</name>
+    <message>
+        <source>A-B %1 – %2</source>
+        <translation>A-B %1 – %2</translation>
+    </message>
+</context>
+<context>
+    <name>uve::PlaylistModel</name>
+    <message>
+        <source>YouTube: </source>
+        <translation>YouTube: </translation>
+    </message>
+</context>
+<context>
+    <name>uve::PluginManager</name>
+    <message>
+        <source>Shaderfehler, Stufe deaktiviert: </source>
+        <translation>Error de shader, etapa desactivada: </translation>
+    </message>
+    <message>
+        <source>Laden fehlgeschlagen: </source>
+        <translation>Error al cargar: </translation>
+    </message>
+    <message>
+        <source>Bibliothek implementiert IPlayerPlugin nicht</source>
+        <translation>La biblioteca no implementa IPlayerPlugin</translation>
+    </message>
+    <message>
+        <source>unbekannte Ausnahme</source>
+        <translation>excepción desconocida</translation>
+    </message>
+    <message>
+        <source>Initialisierung fehlgeschlagen: </source>
+        <translation>Error de inicialización: </translation>
+    </message>
+    <message>
+        <source>Ausnahme in onMediaChanged</source>
+        <translation>Excepción en onMediaChanged</translation>
+    </message>
+</context>
+<context>
+    <name>uve::ToolUpdater</name>
+    <message>
+        <source>nicht installiert</source>
+        <translation>no instalado</translation>
+    </message>
+    <message>
+        <source>Keine Update-Information – bitte erneut prüfen</source>
+        <translation>Sin información de actualización – vuelva a comprobarlo</translation>
+    </message>
+    <message>
+        <source>Zielordner nicht beschreibbar</source>
+        <translation>No se puede escribir en la carpeta de destino</translation>
+    </message>
+    <message>
+        <source>Prüfsumme stimmt nicht – Download verworfen</source>
+        <translation>La suma de comprobación no coincide – descarga descartada</translation>
+    </message>
+    <message>
+        <source>Temporärer Ordner nicht beschreibbar</source>
+        <translation>No se puede escribir en la carpeta temporal</translation>
+    </message>
+    <message>
+        <source>libmpv-2.dll nicht im Archiv gefunden</source>
+        <translation>No se encontró libmpv-2.dll en el archivo comprimido</translation>
+    </message>
+    <message>
+        <source>libmpv-Build </source>
+        <translation>Compilación de libmpv </translation>
+    </message>
+    <message>
+        <source> installiert – wird nach einem Neustart verwendet</source>
+        <translation> instalada – se usará tras reiniciar</translation>
+    </message>
+</context>
+<context>
+    <name>uve::fx::LutLibrary</name>
+    <message>
+        <source>Paket ungültig: </source>
+        <translation>Paquete no válido: </translation>
+    </message>
+    <message>
+        <source>Keine gültigen LUT-Profile im Paket</source>
+        <translation>No hay perfiles LUT válidos en el paquete</translation>
+    </message>
+    <message>
+        <source>%1 LUT-Profile aus %2 geladen%3</source>
+        <translation>%1 perfiles LUT cargados de %2%3</translation>
+    </message>
+    <message>
+        <source> (%1 ungültige übersprungen)</source>
+        <translation> (%1 no válidos omitidos)</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar oder zu groß</source>
+        <translation>Archivo no legible o demasiado grande</translation>
+    </message>
+    <message>
+        <source>LUT-Profil ungültig: </source>
+        <translation>Perfil LUT no válido: </translation>
+    </message>
+    <message>
+        <source>GitHub</source>
+        <translation>GitHub</translation>
+    </message>
+    <message>
+        <source>GitHub-Limit erreicht</source>
+        <translation>Límite de GitHub alcanzado</translation>
+    </message>
+    <message>
+        <source>GitHub-API nicht erreichbar</source>
+        <translation>No se puede acceder a la API de GitHub</translation>
+    </message>
+    <message>
+        <source> – nutze jsDelivr-Spiegel …</source>
+        <translation> – usando el espejo de jsDelivr…</translation>
+    </message>
+    <message>
+        <source>jsDelivr (%1)</source>
+        <translation>jsDelivr (%1)</translation>
+    </message>
+    <message>
+        <source>unzulässiger Dateiname</source>
+        <translation>nombre de archivo no permitido</translation>
+    </message>
+    <message>
+        <source>Prüfsumme von %1 stimmt nicht</source>
+        <translation>La suma de comprobación de %1 no coincide</translation>
+    </message>
+    <message>
+        <source>kein Server erreichbar</source>
+        <translation>ningún servidor accesible</translation>
+    </message>
+    <message>
+        <source>Download läuft bereits</source>
+        <translation>La descarga ya está en curso</translation>
+    </message>
+    <message>
+        <source>Suche LUT-Pakete …</source>
+        <translation>Buscando paquetes de LUT…</translation>
+    </message>
+    <message>
+        <source>Kein LUTsProfiles_v*.zip gefunden (%1)</source>
+        <translation>No se encontró ningún LUTsProfiles_v*.zip (%1)</translation>
+    </message>
+    <message>
+        <source>Unerwartete Paketgröße: </source>
+        <translation>Tamaño de paquete inesperado: </translation>
+    </message>
+    <message>
+        <source>%1 ist bereits aktuell (%2 LUT-Profile)</source>
+        <translation>%1 ya está actualizado (%2 perfiles LUT)</translation>
+    </message>
+    <message>
+        <source>Lade %1 (%2 KB, Liste: %3) …</source>
+        <translation>Descargando %1 (%2 KB, lista: %3)…</translation>
+    </message>
+    <message>
+        <source>Download von %1 fehlgeschlagen: %2</source>
+        <translation>Error al descargar %1: %2</translation>
+    </message>
+    <message>
+        <source>Lade Beispielprofil My_Profile.json …</source>
+        <translation>Descargando el perfil de ejemplo My_Profile.json…</translation>
+    </message>
+    <message>
+        <source>Beispielprofil nicht ladbar: </source>
+        <translation>No se pudo cargar el perfil de ejemplo: </translation>
+    </message>
+    <message>
+        <source>Beispielprofil geladen</source>
+        <translation>Perfil de ejemplo cargado</translation>
+    </message>
+    <message>
+        <source>Antwort ist kein JSON</source>
+        <translation>La respuesta no es JSON</translation>
+    </message>
+</context>
+<context>
+    <name>uve::fx::UveController</name>
+    <message>
+        <source>UVE-Grundton</source>
+        <translation>Tono base UVE</translation>
+    </message>
+    <message>
+        <source>Kontrast ×1.05, Sättigung ×1.15, Helligkeit ×1.02</source>
+        <translation>Contraste ×1.05, saturación ×1.15, brillo ×1.02</translation>
+    </message>
+    <message>
+        <source>Profil</source>
+        <translation>Perfil</translation>
+    </message>
+    <message>
+        <source>Aus</source>
+        <translation>Desactivados</translation>
+    </message>
+    <message>
+        <source>Film</source>
+        <translation>Película</translation>
+    </message>
+    <message>
+        <source>Anime</source>
+        <translation>Anime</translation>
+    </message>
+    <message>
+        <source>Gaming</source>
+        <translation>Juegos</translation>
+    </message>
+    <message>
+        <source>Augenschonend</source>
+        <translation>Descanso visual</translation>
+    </message>
+    <message>
+        <source>Benutzer</source>
+        <translation>Usuario</translation>
+    </message>
+    <message>
+        <source>BL – Schwarzpegel</source>
+        <translation>BL – nivel de negro</translation>
+    </message>
+    <message>
+        <source>UVE-Hauptregler: höher = tiefere Schwarztöne</source>
+        <translation>Control principal de UVE: más alto = negros más profundos</translation>
+    </message>
+    <message>
+        <source>WL – Weißpegel</source>
+        <translation>WL – nivel de blanco</translation>
+    </message>
+    <message>
+        <source>UVE-Hauptregler: hebt/senkt die Lichter ab 78 %</source>
+        <translation>Control principal de UVE: sube/baja las luces a partir del 78 %</translation>
+    </message>
+    <message>
+        <source>Kontrast</source>
+        <translation>Contraste</translation>
+    </message>
+    <message>
+        <source>S-Kurve um 50 %</source>
+        <translation>Curva en S alrededor del 50 %</translation>
+    </message>
+    <message>
+        <source>Schwarzwert (Grading)</source>
+        <translation>Punto negro (gradación)</translation>
+    </message>
+    <message>
+        <source>Weißwert (Grading)</source>
+        <translation>Punto blanco (gradación)</translation>
+    </message>
+    <message>
+        <source>Schatten</source>
+        <translation>Sombras</translation>
+    </message>
+    <message>
+        <source>höher = dunkler</source>
+        <translation>más alto = más oscuro</translation>
+    </message>
+    <message>
+        <source>Lichter</source>
+        <translation>Luces</translation>
+    </message>
+    <message>
+        <source>Gamma (Mitteltöne)</source>
+        <translation>Gamma (tonos medios)</translation>
+    </message>
+    <message>
+        <source>Sättigung</source>
+        <translation>Saturación</translation>
+    </message>
+    <message>
+        <source>Dynamik (Vibrance)</source>
+        <translation>Intensidad (Vibrance)</translation>
+    </message>
+    <message>
+        <source>mit Hautschutz</source>
+        <translation>con protección de la piel</translation>
+    </message>
+    <message>
+        <source>Farbton</source>
+        <translation>Tono</translation>
+    </message>
+    <message>
+        <source>±30°</source>
+        <translation>±30°</translation>
+    </message>
+    <message>
+        <source>Rot</source>
+        <translation>Rojo</translation>
+    </message>
+    <message>
+        <source>Grün</source>
+        <translation>Verde</translation>
+    </message>
+    <message>
+        <source>Blau</source>
+        <translation>Azul</translation>
+    </message>
+    <message>
+        <source>Dark &amp; Moody</source>
+        <translation>Dark &amp; Moody</translation>
+    </message>
+    <message>
+        <source>Teal &amp; Orange</source>
+        <translation>Teal &amp; Orange</translation>
+    </message>
+    <message>
+        <source>GPU-Pfad: Farbton −5°</source>
+        <translation>Ruta de GPU: tono −5°</translation>
+    </message>
+    <message>
+        <source>Kräftige Farben</source>
+        <translation>Colores intensos</translation>
+    </message>
+    <message>
+        <source>Sättigung ×1.35</source>
+        <translation>Saturación ×1.35</translation>
+    </message>
+    <message>
+        <source>SL – Schärfe</source>
+        <translation>SL – nitidez</translation>
+    </message>
+    <message>
+        <source>UVE-Hauptregler</source>
+        <translation>Control principal de UVE</translation>
+    </message>
+    <message>
+        <source>SR – Radius</source>
+        <translation>SR – radio</translation>
+    </message>
+    <message>
+        <source>Radius der Detailschärfe (|SR|, mindestens 1 Pixel)</source>
+        <translation>Radio de la nitidez de detalle (|SR|, mínimo 1 píxel)</translation>
+    </message>
+    <message>
+        <source>Detail-Schärfe</source>
+        <translation>Nitidez de detalle</translation>
+    </message>
+    <message>
+        <source>negativ = weicher</source>
+        <translation>negativo = más suave</translation>
+    </message>
+    <message>
+        <source>Kanten betonen</source>
+        <translation>Realzar bordes</translation>
+    </message>
+    <message>
+        <source>HDR-like</source>
+        <translation>HDR-like</translation>
+    </message>
+    <message>
+        <source>wirkt bei Werten &gt; 0, max. 0.65</source>
+        <translation>actúa con valores &gt; 0, máx. 0.65</translation>
+    </message>
+    <message>
+        <source>Rauschfilter + CAS</source>
+        <translation>Filtro de ruido + CAS</translation>
+    </message>
+    <message>
+        <source>Bilateral 3×3 + Contrast-Adaptive Sharpening</source>
+        <translation>Bilateral 3×3 + Contrast-Adaptive Sharpening</translation>
+    </message>
+    <message>
+        <source>Korn (DN negativ)</source>
+        <translation>Grano (DN negativo)</translation>
+    </message>
+    <message>
+        <source>nur negative Werte wirken (Korn)</source>
+        <translation>solo actúan los valores negativos (grano)</translation>
+    </message>
+    <message>
+        <source>Filmkorn</source>
+        <translation>Grano de película</translation>
+    </message>
+    <message>
+        <source>LUT-Stärke</source>
+        <translation>Intensidad de LUT</translation>
+    </message>
+    <message>
+        <source>Effekte an</source>
+        <translation>Efectos activados</translation>
+    </message>
+    <message>
+        <source>Effekte aus (Original)</source>
+        <translation>Efectos desactivados (original)</translation>
+    </message>
+    <message>
+        <source>Vorher/Nachher: links Original, rechts mit Effekten</source>
+        <translation>Antes/después: original a la izquierda, con efectos a la derecha</translation>
+    </message>
+    <message>
+        <source>Vergleich aus</source>
+        <translation>Comparación desactivada</translation>
+    </message>
+    <message>
+        <source>Shaderdatei nicht schreibbar: </source>
+        <translation>No se puede escribir el archivo de shader: </translation>
+    </message>
+    <message>
+        <source>LUT-Shader nicht schreibbar: </source>
+        <translation>No se puede escribir el shader de LUT: </translation>
+    </message>
+    <message>
+        <source>Shaderfehler – Effekte vorübergehend deaktiviert, Wiedergabe läuft weiter: </source>
+        <translation>Error de shader – efectos desactivados temporalmente, la reproducción continúa: </translation>
+    </message>
+    <message>
+        <source>Aus – Originalbild</source>
+        <translation>Desactivado – imagen original</translation>
+    </message>
+    <message>
+        <source>Original sichern</source>
+        <translation>Guardar original</translation>
+    </message>
+    <message>
+        <source>Rauschfilter+CAS</source>
+        <translation>Filtro de ruido+CAS</translation>
+    </message>
+    <message>
+        <source>Farbkorrektur</source>
+        <translation>Corrección de color</translation>
+    </message>
+    <message>
+        <source>Detail/Kanten</source>
+        <translation>Detalle/bordes</translation>
+    </message>
+    <message>
+        <source>3D-LUT %1³</source>
+        <translation>3D-LUT %1³</translation>
+    </message>
+    <message>
+        <source>Split</source>
+        <translation>Dividido</translation>
+    </message>
+    <message>
+        <source>LUT konnte nicht geladen werden: </source>
+        <translation>No se pudo cargar la LUT: </translation>
+    </message>
+    <message>
+        <source>LUT ungültig: </source>
+        <translation>LUT no válida: </translation>
+    </message>
+    <message>
+        <source>LUT geladen: %1 (%2³)</source>
+        <translation>LUT cargada: %1 (%2³)</translation>
+    </message>
+    <message>
+        <source>kein .cube-LUT</source>
+        <translation>no es una LUT .cube</translation>
+    </message>
+    <message>
+        <source>LUT fehlt: </source>
+        <translation>Falta la LUT: </translation>
+    </message>
+    <message>
+        <source>Profil nicht lesbar</source>
+        <translation>Perfil no legible</translation>
+    </message>
+    <message>
+        <source>Profil ist kein gültiges JSON: </source>
+        <translation>El perfil no es un JSON válido: </translation>
+    </message>
+    <message>
+        <source>Profil abgelehnt: </source>
+        <translation>Perfil rechazado: </translation>
+    </message>
+    <message>
+        <source>UVE-Profil geladen: </source>
+        <translation>Perfil UVE cargado: </translation>
+    </message>
+    <message>
+        <source>kein LUT-Profil</source>
+        <translation>no es un perfil LUT</translation>
+    </message>
+    <message>
+        <source>LUT-Profil fehlt: %1 – Download-Symbol neben der LUT-Auswahl</source>
+        <translation>Falta el perfil LUT: %1 – icono de descarga junto a la selección de LUT</translation>
+    </message>
+    <message>
+        <source>Kein Videobild verfügbar – bitte zuerst ein Video öffnen.</source>
+        <translation>No hay ningún fotograma de vídeo disponible – abra primero un vídeo.</translation>
+    </message>
+    <message>
+        <source>%1 LUT-Profile · Frame bei %2 · Stärke %3 · %4 ms</source>
+        <translation>%1 perfiles LUT · fotograma en %2 · intensidad %3 · %4 ms</translation>
+    </message>
+    <message>
+        <source>Noch keine LUT-Profile – „LUT-Paket von GitHub“ laden.</source>
+        <translation>Aún no hay perfiles LUT – cargue “Paquete de LUT desde GitHub”.</translation>
+    </message>
+    <message>
+        <source>Zieldatei nicht beschreibbar</source>
+        <translation>No se puede escribir en el archivo de destino</translation>
+    </message>
+    <message>
+        <source>Speichern fehlgeschlagen</source>
+        <translation>Error al guardar</translation>
+    </message>
+    <message>
+        <source>UVE-Profil exportiert</source>
+        <translation>Perfil UVE exportado</translation>
+    </message>
+</context>
+</TS>

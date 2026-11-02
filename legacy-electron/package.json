@@ -1,0 +1,70 @@
+{
+  "name": "uve-player",
+  "productName": "UVE Player",
+  "version": "1.0.0",
+  "description": "UVE Player – Medienplayer nach VLC-Architektur mit Ultimate Video Enhancer als Plugin.",
+  "author": "nextscript",
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "private": true,
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "selftest": "electron . --selftest",
+    "check": "node scripts/check.mjs",
+    "update-uve": "node scripts/update-uve.mjs",
+    "icon": "python scripts/make-icon.py",
+    "dist": "electron-builder --win nsis portable --publish never",
+    "dist:dir": "electron-builder --win dir --publish never"
+  },
+  "devDependencies": {
+    "electron": "45.1.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.nextscript.uveplayer",
+    "productName": "UVE Player",
+    "artifactName": "UVE-Player-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**",
+      "plugins/**",
+      "package.json"
+    ],
+    "asarUnpack": [
+      "plugins/**"
+    ],
+    "extraFiles": [
+      {
+        "from": "tools",
+        "to": "tools",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "artifactName": "UVE-Player-${version}-setup.${ext}"
+    },
+    "portable": {
+      "artifactName": "UVE-Player-${version}-portable.${ext}"
+    },
+    "fileAssociations": [
+      { "ext": ["mp4", "m4v", "mkv", "webm", "mov", "avi", "wmv", "flv", "ts", "m2ts", "mts", "mpg", "mpeg", "3gp", "ogv"], "name": "Video", "role": "Viewer" },
+      { "ext": ["mp3", "m4a", "aac", "flac", "wav", "ogg", "opus", "wma"], "name": "Audio", "role": "Viewer" },
+      { "ext": ["m3u", "m3u8"], "name": "Wiedergabeliste", "role": "Viewer" }
+    ]
+  }
+}

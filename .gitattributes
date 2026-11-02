@@ -1,0 +1,11 @@
+* text=auto
+*.sh text eol=lf
+*.yml text eol=lf
+*.mkv binary
+*.avi binary
+*.cube binary
+*.png binary
+*.ico binary
+*.lib binary
+*.exp binary
+*.a binary

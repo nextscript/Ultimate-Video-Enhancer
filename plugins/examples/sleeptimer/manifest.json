@@ -1,0 +1,17 @@
+{
+  "id": "org.uveplayer.example.sleep-timer",
+  "name": "Einschlaf-Timer (Beispiel-Plugin)",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "minHostVersion": "1.0.0",
+  "type": "utility",
+  "entrypoint": "SleepTimerPlugin",
+  "description": "Referenz-Plugin für die Plugin-API: pausiert die Wiedergabe nach einer einstellbaren Zeit oder am Ende des aktuellen Titels.",
+  "author": "UVE Player",
+  "license": "MIT",
+  "capabilities": ["playback-control"],
+  "supportedPlatforms": ["windows", "linux", "macos"],
+  "requiredBackends": [],
+  "permissions": ["control-playback"],
+  "configurationSchema": { "type": "object", "properties": { "minutes": { "type": "integer", "minimum": 1, "maximum": 600 } } }
+}

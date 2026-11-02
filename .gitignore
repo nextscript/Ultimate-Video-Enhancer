@@ -1,0 +1,33 @@
+# Build- und Release-Ausgaben
+/build/
+/build-*/
+/release/
+*.inuse-*
+
+# Große Drittanbieter-Binärdateien (Beschaffung: docs/BUILD.md)
+/deps/mpv/libmpv-2.dll
+/deps/mpv-dev.7z
+/deps/qt-archives/
+/deps/tools/yt-dlp/yt-dlp.exe
+/deps/tools/7zr.exe
+
+# Kompilierte Übersetzungen (werden beim Build aus lang/*.ts erzeugt)
+/lang/*.qm
+
+# Electron-Vorgänger: Abhängigkeiten, Builds, gebündelte Werkzeuge
+/legacy-electron/node_modules/
+/legacy-electron/release/
+/legacy-electron/tools/
+/legacy-electron/dist/
+
+# Editor/OS
+.vs/
+.vscode/
+*.user
+Thumbs.db
+desktop.ini
+__pycache__/
+
+# Lokale Screenshots
+/21111.PNG
+/aqtinstall.log

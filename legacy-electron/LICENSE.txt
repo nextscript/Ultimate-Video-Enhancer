@@ -1,0 +1,9 @@
+UVE Player 1.0.0
+Copyright (c) 2026 nextscript
+
+Mitgelieferte Drittkomponenten:
+- Ultimate Video Enhancer (plugins/uve/uve.user.js) – Freak288 / nextscript,
+  https://github.com/nextscript/Ultimate-Video-Enhancer
+- JSZip 3.10.1 (plugins/uve/jszip.min.js) – MIT oder GPLv3, https://stuk.github.io/jszip/
+- Electron / Chromium – MIT bzw. BSD-Lizenzen, siehe LICENSES.chromium.html im Programmordner
+- FFmpeg (optional, tools/ffmpeg) – LGPL/GPL, je nach Build

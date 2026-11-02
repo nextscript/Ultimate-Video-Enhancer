@@ -1,0 +1,25 @@
+{
+  "id": "org.nextscript.ultimate-video-enhancer",
+  "name": "Ultimate Video Enhancer",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "minHostVersion": "1.0.0",
+  "type": "gpu-effect",
+  "entrypoint": "UvePlugin",
+  "description": "Nativer Port der UVE-WebGL-Effekte (Grading, Schärfe, HDR-like, Rauschfilter, Korn) als mpv-GPU-Shader, mit 3D-LUT, Presets, Vorher/Nachher und Import/Export von UVE-Profilen.",
+  "author": "nextscript (Ultimate Video Enhancer: Freak288)",
+  "license": "siehe docs/THIRD_PARTY_LICENSES.md",
+  "capabilities": ["video-effects", "presets", "before-after", "lut", "lut-profiles", "profile-import", "github-library"],
+  "supportedPlatforms": ["windows", "linux", "macos"],
+  "requiredBackends": ["mpv-user-shaders"],
+  "permissions": ["read-user-selected-presets", "read-user-selected-luts", "write-plugin-data", "network-on-user-request"],
+  "configurationSchema": {
+    "type": "object",
+    "properties": {
+      "params": { "type": "object", "description": "UVE-Parameter im Format gvf-settings (ver 1.10) + uvePlayer-Block" },
+      "activePreset": { "type": "string" },
+      "defaultPreset": { "type": "string" },
+      "mediaPresets": { "type": "object", "description": "Dateipfad (klein geschrieben) → Preset-Name" }
+    }
+  }
+}
