@@ -1,92 +1,94 @@
 # UVE Player 1.0.1
 
-Native media player for Windows built with **C++20, Qt 6 and libmpv** – with the **Ultimate Video Enhancer** as a
-GPU effects plugin, network streams (YouTube, Twitch, HLS, tcp://) including proxy support, and seven languages.
+Native media player for Windows built with **C++20, Qt 6, and libmpv** – featuring **Ultimate Video Enhancer** as a GPU effects plugin, network streaming (YouTube, Twitch, HLS, tcp://) with proxy support, and seven languages.
 
 ## Download
 
 | File | Description |
 |---|---|
-| `UVE-Player-1.0.1-setup.exe` | Installer for the current user (no administrator rights), Start menu, optional desktop icon and "Open with" |
-| `UVE-Player-1.0.1-portable.exe` | Single EXE that runs without installation; settings are stored in the `UVE Player Data` folder next to it |
-| `UVE-Player-1.0.1-portable.zip` | Portable folder to extract (data in `.\data`) |
-| `SHA256SUMS.txt` | Checksums |
+| `UVE-Player-1.0.1-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, and "Open with" integration |
+| `UVE-Player-1.0.1-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
+| `UVE-Player-1.0.1-portable.zip` | Portable folder archive (data stored in `.\data`) |
+| `SHA256SUMS.txt` | SHA-256 checksums |
 
-All variants include libmpv, yt-dlp and 7zr – nothing else needs to be installed.
-Requirements: Windows 10/11 x64 with an up-to-date graphics driver (libmpv needs `vulkan-1.dll` from the driver).
+All versions include libmpv, yt-dlp, and 7zr – no additional software installation is required.
+
+**Requirements:** Windows 10/11 x64 with an up-to-date graphics driver (libmpv requires `vulkan-1.dll` provided by the driver).
 
 ## Features
 
-- **Playback:** almost every format via libmpv/FFmpeg, hardware decoding, playlist (M3U/PLS, folders, search,
-  drag & drop), resume at the last position, audio/subtitle tracks and delay, A-B loop, frame step,
-  speed, screenshot, diagnostics overlay, media info
-- **Controls:** click = pause, double-click = fullscreen, mouse wheel = volume, right-click menu, editable shortcuts
-- **Window:** position, size and maximized state are remembered between sessions
-- **Network:** YouTube/Twitch (yt-dlp), HTTP(S), HLS, DASH, tcp/udp/rtmp/rtsp/srt; automatic update check for yt-dlp and libmpv
-- **Proxy:** none / Windows system / manual (HTTP or SOCKS5, optionally with authentication) – applies to streams, yt-dlp and downloads
-- **Ultimate Video Enhancer:** color grading, sharpness (SL/SR unsharp mask, detail sharpening), Teal & Orange split toning,
-  HDR-like, film grain, edges, BL/WL; presets, before/after, undo; import/export UVE profiles; **example profile and LUT packages
-  straight from GitHub**; **LUT gallery** with previews on the current video frame; `.cube` 3D LUTs
-- **Languages:** English (default), Deutsch, Español, Italiano, Polski, Ελληνικά, Türkçe – switchable under
-  *Settings → General*; custom languages: [lang/README.md](lang/README.md)
-- **Plugins:** versioned plugin API with manifest validation and safe mode ([docs/PLUGIN_API.md](docs/PLUGIN_API.md))
-- **Privacy:** no telemetry
+- **Playback:** Supports nearly all media formats through libmpv/FFmpeg, hardware decoding, playlist management (M3U/PLS, folders, search, drag & drop), resume playback from the last position, audio/subtitle tracks and delay adjustment, A-B looping, frame stepping, playback speed control, screenshots, diagnostic overlay, and media information.
+- **Controls:** Single-click to pause, double-click for fullscreen, mouse wheel for volume adjustment, right-click context menu, and customizable keyboard shortcuts.
+- **Window:** Position, size, and maximized state are remembered between sessions.
+- **Network Streaming:** YouTube/Twitch (via yt-dlp), HTTP(S), HLS, DASH, TCP/UDP/RTMP/RTSP/SRT; automatic update checks for yt-dlp and libmpv.
+- **Proxy Support:** None / Windows System / Manual (HTTP or SOCKS5, optional authentication) – applies to streams, yt-dlp, and downloads.
+- **Ultimate Video Enhancer:** Color correction, sharpening (SL/SR unsharp mask, detail sharpening), Teal & Orange split toning, HDR-like enhancement, film grain, edge enhancement, BL/WL controls; presets, before/after comparison, undo support; UVE profile import/export; **example profiles and LUT packages downloaded directly from GitHub**; **LUT Gallery** with previews based on the current video frame; `.cube` 3D LUT support.
+- **Languages:** English (default), Deutsch, Español, Italiano, Polski, Ελληνικά, Türkçe – switch languages under *Settings → General*; add custom languages using [lang/README.md](lang/README.md).
+- **Plugins:** Versioned Plugin API with manifest validation and Safe Mode ([docs/PLUGIN_API.md](docs/PLUGIN_API.md)).
+- **Privacy:** No telemetry.
 
-## Quick reference
+## Quick Controls
 
 | Key | Action | Key | Action |
 |---|---|---|---|
-| Space | Play/pause | F / double-click | Fullscreen |
-| ← / → | Seek | ↑ / ↓ | Volume |
-| N / P | Next / previous item | V / B | Subtitle / audio track |
-| Ctrl+Alt+E | Effects on/off | Ctrl+Alt+U | Before/after |
-| Ctrl+L | Sidebar | F1 | Edit shortcuts |
+| Space | Play/Pause | F / Double-click | Fullscreen |
+| ← / → | Seek backward/forward | ↑ / ↓ | Volume |
+| N / P | Next/Previous track | V / B | Subtitle/Audio track |
+| Ctrl+Alt+E | Toggle effects | Ctrl+Alt+U | Before/After comparison |
+| Ctrl+L | Toggle sidebar | F1 | Customize keyboard shortcuts |
 
-## Data
+## Application Data
 
-Settings, logs, presets and user language files: `%APPDATA%\nextscript\UVE Player\`
-(portable: next to the EXE). Start without plugins: `UVEPlayer.exe --safe-mode`.
+User settings, logs, presets, and language files are stored in:
 
-## Building
+`%APPDATA%\nextscript\UVE Player\`
 
-Short version (details: [docs/BUILD.md](docs/BUILD.md)):
+For portable versions, data is stored alongside the executable.
+
+**Launch without plugins (Safe Mode):**
+
+`UVEPlayer.exe --safe-mode`
+
+## Build from Source
+
+Quick instructions (see [docs/BUILD.md](docs/BUILD.md) for details):
 
 ```powershell
 cmake -S . -B build -G "Visual Studio 18 2026" -A x64 -DCMAKE_PREFIX_PATH=M:/LAPS/Qt/6.12.0/msvc2022_64
 cmake --build build --config Release --parallel
 ctest --test-dir build -C Release
-powershell -ExecutionPolicy Bypass -File scripts\package.ps1     # setup, portable EXE, ZIP → release\
+powershell -ExecutionPolicy Bypass -File scripts\package.ps1     # Setup, portable EXE, ZIP → release\
 ```
 
 ## Documentation
 
-[ARCHITECTURE](docs/ARCHITECTURE.md) · [PLUGIN_API](docs/PLUGIN_API.md) · [BUILD](docs/BUILD.md) ·
-[TEST_REPORT](docs/TEST_REPORT.md) · [UVE_PARITY_MATRIX](docs/UVE_PARITY_MATRIX.md) · [FEATURE_COMPARISON](docs/FEATURE_COMPARISON.md) ·
-[REA_ANALYSIS](docs/REA_ANALYSIS.md) · [REA_LIMITATIONS](docs/REA_LIMITATIONS.md) · [THIRD_PARTY_LICENSES](docs/THIRD_PARTY_LICENSES.md) ·
-[CHANGELOG](CHANGELOG.md)
+[ARCHITECTURE](docs/ARCHITECTURE.md) · [PLUGIN_API](docs/PLUGIN_API.md) · [BUILD](docs/BUILD.md) · [TEST_REPORT](docs/TEST_REPORT.md) · [UVE_PARITY_MATRIX](docs/UVE_PARITY_MATRIX.md) · [FEATURE_COMPARISON](docs/FEATURE_COMPARISON.md) · [REA_ANALYSIS](docs/REA_ANALYSIS.md) · [REA_LIMITATIONS](docs/REA_LIMITATIONS.md) · [THIRD_PARTY_LICENSES](docs/THIRD_PARTY_LICENSES.md) · [CHANGELOG](CHANGELOG.md)
 
-## Requirements – summary
+## Requirements – Final Implementation Status
 
-| Requirement | Implemented | Tested | Limitation | Reference |
+| Requirement | Implemented | Tested | Limitations | Reference |
 |---|---|---|---|---|
-| C++20 + Qt 6 (QML) + libmpv, CMake | yes | yes (build, 7 CTest suites) | only Windows x64 built locally | ARCHITECTURE.md, BUILD.md |
-| Local playback (MKV/AVI/MP4, HEVC 10-bit, AC3) incl. hardware decoding | yes | yes (NVDEC) | AMD/Intel not tested | TEST_REPORT.md |
-| Playlist, double-click, context menu, resume | yes | yes (UI self-test, tst_playlist) | – | app/qml/PlaylistPanel.qml |
-| Menus File … Help, settings (11 pages), shortcuts with conflict warning | yes | yes (tst_hotkeys, UI) | – | SettingsDialog.qml |
-| Audio/subtitle tracks, delay, diagnostics (decoder, VO, FPS, drops, A/V, shaders) | yes | yes | – | DiagnosticsOverlay.qml |
-| Network streams YouTube/Twitch/HLS/tcp | yes | yes (real sources) | YouTube formats depend on yt-dlp | TEST_REPORT.md |
-| Proxy (HTTP/SOCKS5, system) for streams, yt-dlp, downloads | yes | yes (live SOCKS5, local test server) | udp/rtp/rtmp/rtsp/srt not proxied | src/services/Proxy*.cpp |
-| Native UVE effects (GLSL), presets, undo, before/after, preset per file, default preset | yes | yes (formulas exact, effect measured in the image) | auto scene match, scopes, custom filter codes not ported | UVE_PARITY_MATRIX.md |
-| UVE profiles, example profile + LUT packages from GitHub, LUT gallery | yes | yes (real download, 83 profiles) | SR is a radius approximation | UVE_PARITY_MATRIX.md |
-| Shader errors → fallback instead of black image | yes | yes (ShaderChain) | – | src/rendering/ShaderChain.cpp |
-| Plugin API (manifest, lifecycle, safe mode, error log) | yes | yes (tst_manifest, self-test) | native plugins are trusted code, no signature | PLUGIN_API.md |
-| Multiple languages (en default, de, es, it, pl, el, tr) + custom languages | yes | yes (tst_i18n, UI en/el) | translations machine-generated, native-speaker review pending | lang/README.md |
-| Tool updater (yt-dlp, libmpv) with checksums | yes | partially (check; libmpv update installation not end-to-end) | update takes effect after restart | ToolUpdater.cpp |
-| Setup + portable EXE + ZIP with all tools | yes | yes (packaging, start from staging) | setup not verified on a fresh system | scripts/package.ps1 |
-| REA analysis (vlc.exe, libmpv, Electron predecessor) | yes | – | no deep provider (Ghidra/IDA) available | REA_ANALYSIS.md, REA_LIMITATIONS.md |
-| Telemetry off, no unsolicited downloads, no DRM circumvention | yes | code review | – | THIRD_PARTY_LICENSES.md |
+| C++20 + Qt 6 (QML) + libmpv, CMake | Yes | Yes (build, 7 CTest suites) | Built for Windows x64 only | ARCHITECTURE.md, BUILD.md |
+| Local playback (MKV/AVI/MP4, HEVC 10-bit, AC3), including hardware decoding | Yes | Yes (NVDEC) | AMD/Intel not tested | TEST_REPORT.md |
+| Playlist, double-click playback, context menu, resume playback | Yes | Yes (UI self-test, tst_playlist) | None | app/qml/PlaylistPanel.qml |
+| File through Help menus, settings (11 pages), customizable hotkeys with conflict warnings | Yes | Yes (tst_hotkeys, UI) | None | SettingsDialog.qml |
+| Audio/subtitle tracks, delay adjustment, diagnostics (decoder, VO, FPS, dropped frames, A/V sync, shaders) | Yes | Yes | None | DiagnosticsOverlay.qml |
+| Network streaming: YouTube/Twitch/HLS/TCP | Yes | Yes (live sources) | YouTube format availability depends on yt-dlp | TEST_REPORT.md |
+| Proxy (HTTP/SOCKS5, System) for streams, yt-dlp, and downloads | Yes | Yes (live SOCKS5, local test server) | UDP/RTP/RTMP/RTSP/SRT are not routed through the proxy | src/services/Proxy*.cpp |
+| Native UVE effects (GLSL), presets, undo, before/after, per-file presets, default presets | Yes | Yes (exact formulas, visually measured effects) | Auto Scene Match, Scopes, and custom filter codes not ported | UVE_PARITY_MATRIX.md |
+| UVE profiles, example profile and LUT packages from GitHub, LUT Gallery | Yes | Yes (real downloads, 83 profiles) | SR uses a radius-based approximation | UVE_PARITY_MATRIX.md |
+| Shader error handling with fallback instead of black screen | Yes | Yes (ShaderChain) | None | src/rendering/ShaderChain.cpp |
+| Plugin API (manifest, lifecycle, Safe Mode, error logging) | Yes | Yes (tst_manifest, self-test) | Native plugins execute trusted code; no digital signature verification | PLUGIN_API.md |
+| Multilingual support (English default, German, Spanish, Italian, Polish, Greek, Turkish) and custom languages | Yes | Yes (tst_i18n, English/Greek UI) | Machine-generated translations; native-speaker review pending | lang/README.md |
+| Tool updater (yt-dlp, libmpv) with checksum verification | Yes | Partially (checks verified; libmpv update installation not tested end-to-end) | Updates take effect after restarting | ToolUpdater.cpp |
+| Installer, portable EXE, and ZIP with all required tools | Yes | Yes (package build, launch from staging) | Installer not tested on a clean system | scripts/package.ps1 |
+| REA analysis (vlc.exe, libmpv, previous Electron version) | Yes | N/A | No deep-analysis provider (Ghidra/IDA) available | REA_ANALYSIS.md, REA_LIMITATIONS.md |
+| No telemetry, no unsolicited downloads, no DRM circumvention | Yes | Code review | None | THIRD_PARTY_LICENSES.md |
 
 ## Licenses
 
-Third-party components (Qt LGPLv3, mpv/libmpv/FFmpeg GPL/LGPL depending on the build, yt-dlp Unlicense, 7-Zip LGPL):
-[docs/THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md). Ultimate Video Enhancer © Freak288 / nextscript.
+Third-party components (Qt LGPLv3, mpv/libmpv/FFmpeg GPL/LGPL depending on build configuration, yt-dlp Unlicense, 7-Zip LGPL):
+
+[docs/THIRD_PARTY_LICENSES.md](docs/THIRD_PARTY_LICENSES.md)
+
+Ultimate Video Enhancer © Freak288 / nextscript.
