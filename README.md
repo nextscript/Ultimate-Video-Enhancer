@@ -1,17 +1,16 @@
 <img src="https://raw.githubusercontent.com/nextscript/Ultimate-Video-Enhancer/refs/heads/main/demo.gif">
 
-<a href="https://greasyfork.org/en/scripts/561189-ultimate-video-enhancer-sharpen-hdr-color-boost?locale_override=1" target="_blank">Ultimate Video Enhancer (Sharpen, HDR, Color Boost)</a>
+<a href="https://greasyfork.org/en/scripts/561189-ultimate-video-enhancer-sharpen-hdr-color-boost?locale_override=1" target="_blank">Ultimate Video Enhancer &#40;Sharpen, HDR, Color Boost&#41;</a>
 
 <hr>
 
 <h2>🔥 Make Every Video Look Better — Instantly</h2>
 <hr>
 
-<b>This script improves every video on any website.</b><br>
-Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR-like look — in real-time.
+<b>This script improves every video on any website\.</b><br>
+Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR\-like look — in real\-time\.
 
-
-<b>No setup. No config. Just install and press a hotkey.</b>
+<b>No setup\. No config\. Just install and press a hotkey\.</b>
 
 <hr>
 <h2>🖥️ NEW: UVE Manager –  Desktop App</h2>
@@ -67,6 +66,34 @@ and the result is encoded into a <b>new</b> file. Your source video is never mod
 <li>Pick codec, quality and resolution in <b>Output Settings</b></li>
 <li>Click <b>Render Video</b> (or <b>Ctrl + R</b>) – done ✅</li>
 </ul>
+
+<hr>
+<h2>🎬 NEW: UVE Player – Native Media Player</h2>
+<hr>
+
+<p>
+<b>Play local videos and network streams in a native Windows player with Ultimate Video Enhancer built in.</b><br>
+UVE Player is built with C++20, Qt 6 and libmpv. It combines media playback, streaming and UVE picture controls in one app.
+</p>
+
+<ul>
+<li><b>Local playback:</b> broad format support, hardware decoding, playlists, resume playback, audio and subtitle tracks, playback speed, frame stepping and A–B looping</li>
+<li><b>Network streams:</b> YouTube and Twitch via yt-dlp, plus HTTP(S), HLS, DASH, TCP, UDP, RTMP, RTSP and SRT</li>
+<li><b>Proxy:</b> Windows system proxy or manual HTTP / SOCKS5, including optional authentication</li>
+<li><b>Built-in UVE effects:</b> color correction, sharpening, HDR-like enhancement, noise reduction, film grain, presets, undo and Before / After comparison</li>
+<li><b>Profiles and LUTs:</b> import / export UVE profiles, browse LUT previews against the current frame, and load .cube 3D LUTs</li>
+<li><b>Extensible and localized:</b> versioned plugin API with manifest validation and Safe Mode; English, German, Spanish, Italian, Polish, Greek and Turkish</li>
+<li><b>Installer and portable builds:</b> per-user setup or portable EXE / ZIP; no administrator rights required</li>
+</ul>
+
+<p>
+<b>Download:</b> <a href="https://github.com/nextscript/Ultimate-Video-Enhancer/releases" target="_blank">UVE Player releases</a> ·
+<b>Requirements:</b> Windows 10 / 11 x64 and an up-to-date graphics driver.
+</p>
+
+<p>
+<i>UVE Player includes the core UVE effect controls. Auto-Scene-Match, Scopes and custom filter codes from the browser script / Manager are not currently ported.</i>
+</p>
 
 <hr>
 <h2>⚡ Why you need this</h2>
@@ -187,8 +214,8 @@ Some example presets require LUTs (color grading files).
 <h2>🎮 Keyboard Shortcuts</h2>
 <hr>
 
-<b>All shortcuts: CTRL + ALT + key</b><br>
-<i>On macOS, use CONTROL + OPTION + key (⌃ + ⌥ + key). CMD is not used.</i>
+<b>All shortcuts: CTRL \+ ALT \+ key</b><br>
+<i>On macOS, use CONTROL \+ OPTION \+ key &#40;⌃ \+ ⌥ \+ key&#41;\. CMD is not used\.</i>
 
 <ul>
 <li>B → Base Tone</li>
@@ -208,13 +235,13 @@ Some example presets require LUTs (color grading files).
 <li>U → Before / After slider</li>
 </ul>
 
-<b>ESC</b> closes the Before / After slider.
+<b>ESC</b> closes the Before / After slider\.
 
 <hr>
 <h2>🆚 Before / After Slider</h2>
 <hr>
 
-See exactly what the script does to your video — side by side, on the live picture.
+See exactly what the script does to your video — side by side, on the live picture\.
 
 <ul>
 <li>Press <b>CTRL + ALT + U</b> to toggle the slider</li>
@@ -233,7 +260,7 @@ See exactly what the script does to your video — side by side, on the live pic
 <h2>🔥 Custom Filters (SVG / GLSL)</h2>
 <hr>
 
-Add your own filters without editing the script.
+Add your own filters without editing the script\.
 
 <ul>
 <li>Create custom sharpening or color effects</li>
@@ -261,6 +288,7 @@ Add your own filters without editing the script.
 <hr>
 
 <b>Chrome / Edge:</b>
+
 <ul>
 <li>Enable Developer Mode: chrome://extensions</li>
 <li>Enable "Allow User Scripts" in Tampermonkey</li>
