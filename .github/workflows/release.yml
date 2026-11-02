@@ -1,7 +1,7 @@
 name: Release
 
 # Builds UVE Player for Windows, Linux and macOS and publishes the GitHub release
-# "UVE Player <version>" (tag v<version>, version taken from CMakeLists.txt).
+# "UVE Player <version>" (tag uve-player-v<version>, version taken from CMakeLists.txt).
 on:
   push:
     branches: [uve-player]
@@ -164,11 +164,11 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ needs.version.outputs.version }}
+          tag_name: uve-player-v${{ needs.version.outputs.version }}
           target_commitish: ${{ github.sha }}
           name: UVE Player ${{ needs.version.outputs.version }}
           body_path: CHANGELOG.md
-          make_latest: true
+          make_latest: false   # the repository also hosts UVE Manager releases
           files: |
             dist/UVE-Player-*
             dist/SHA256SUMS.txt
