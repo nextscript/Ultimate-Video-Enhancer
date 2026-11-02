@@ -4,6 +4,7 @@
 #include <QFileInfo>
 #include <QObject>
 #include <QQuickWindow>
+#include <QRect>
 #include <QTimer>
 #include <QUrl>
 #include <QVariantMap>
@@ -120,7 +121,7 @@ public:
     Q_INVOKABLE QString selftestPath(const QString &name) const { return QFileInfo(m_selftestOut).absoluteDir().filePath(name); }
     Q_INVOKABLE bool saveWindowShot(const QString &file) const { return m_window && !m_selftestOut.isEmpty() && m_window->grabWindow().save(file); }
     Q_INVOKABLE QVariantMap sampleWindow(qreal x, qreal y, qreal w, qreal h) const;
-    void setWindow(QQuickWindow *w) { m_window = w; }
+    void setWindow(QQuickWindow *w);   // stellt Fensterposition/-größe wieder her und zeigt das Fenster
     bool selftestUiMode() const { return m_selftestUiMode; }
     Q_PROPERTY(bool selftestUiMode READ selftestUiMode CONSTANT)
     Q_INVOKABLE QString formatTime(double seconds) const;
@@ -205,5 +206,10 @@ private:
     QVariantMap m_selftestUi;
     bool m_selftestUiMode = false;
     QQuickWindow *m_window = nullptr;
+    QRect m_normalGeometry;          // letzte Geometrie im Fenstermodus (ohne Maximiert/Vollbild)
+    bool m_windowMaximized = false;
+    QTimer m_geometryTimer;
+    void captureWindowGeometry();
+    void saveWindowGeometry();
     void finishSelftest();
 };

@@ -11,7 +11,7 @@ ApplicationWindow {
     height: 780
     minimumWidth: 640
     minimumHeight: 400
-    visible: true
+    visible: false   // wird von PlayerApp::setWindow() mit gespeicherter Position/Größe angezeigt
     title: (player.mediaTitle ? player.mediaTitle + " – " : "") + qsTr("UVE Player")
     color: theme.bg
 

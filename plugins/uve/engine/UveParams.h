@@ -24,11 +24,11 @@ struct Params
     bool vibrantSat = false;   // "vibrantSat"
     QString profile = "off";   // off | film | anime | gaming | eyecare | user
 
-    double sl = 0;    // Schärfe (−2 … 2)
-    double sr = 0;    // Schärfe-Radius (−2 … 2), UVE-SVG-Pfad: Radius der Unschärfemaske (|SR|, min. 0.1)
+    double sl = 0;    // Schärfe (−2 … 2): Unschärfemaske wie im UVE-SVG-Pfad (positiv = schärfer, negativ = weicher)
+    double sr = 0;    // Schärfe-Radius (−2 … 2): Radius der Unschärfemaske und der Detailschärfe
     double bl = 0;    // Schwarzpegel (−2 … 2), UVE-SVG-Pfad: Versatz −BL·0.04 (höher = tiefere Schwarztöne)
     double wl = 0;    // Weißpegel (−2 … 2), UVE-SVG-Pfad: Lichterkurve ab Knie 0.78, Stärke WL·0.06
-    double dn = 0;    // Denoise/Textur (−1.5 … 1.5); im GPU-Pfad nur negative Werte = Korn
+    double dn = 0;    // Denoise/Textur (−1.5 … 1.5); nur für den Profil-Roundtrip, ohne Wirkung im Player
     double hdr = 0;   // HDR-like (−1 … 2); im GPU-Pfad wirken nur Werte > 0
     double edge = 0;  // Kanten (0 … 1)
 
@@ -38,7 +38,7 @@ struct Params
     int rGain = 128, gGain = 128, bGain = 128; // 0 … 255
 
     // Erweiterungen des nativen Players
-    bool gpuBase = true;       // Bilateral-Rauschfilter + CAS (im UVE-GPU-Modus immer aktiv)
+    bool gpuBase = false;      // früher Bilateral-Rauschfilter + CAS; entfernt, nur noch für den Profil-Roundtrip
     QString lutFile;           // .cube-Datei
     QString lutProfile;        // UVE-LUT-Profil (Matrix) "Gruppe||Name", leer = keins
     double lutStrength = 1.0;  // 0 … 1
@@ -56,7 +56,11 @@ struct ShaderValues
     double inBlack = 0, inWhite = 1, outBlack = 0, outWhite = 1;
     double levelBlackOffset = 0;   // BL (SVG-Kette): additiver Versatz
     double levelWhiteAdj = 0;      // WL (SVG-Kette): Lichteranhebung
-    double sharpenRadius = 1;      // SR: Abtastradius der Detailschärfe in Pixeln (≥ 1)
+    double sharpenRadius = 1;      // SR: Abtastradius der Detailschärfe in Pixeln (1 … 2)
+    double usmAmount = 0;          // SL > 0: Stärke der Unschärfemaske (out = src + A·(src − blur))
+    double usmBlur = 0;            // SL < 0: Anteil des weichgezeichneten Bildes (0 … 1)
+    double usmSigma = 0.7;         // SR: Gauß-Sigma der Unschärfemaske in Pixeln (0.7 … 2.0)
+    bool tealOrange = false;       // Split-Toning: Schatten → Petrol, Lichter → Orange
     double contrastCurve = 0, satCurve = 0, grainCurve = 0, hueDeg = 0, cosHue = 1, sinHue = 0;
 };
 

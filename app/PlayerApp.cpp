@@ -34,6 +34,7 @@
 #include <QProcess>
 #include <QQuickWindow>
 #include <QSaveFile>
+#include <QScreen>
 #include <QStandardPaths>
 
 using namespace uve;
@@ -607,8 +608,62 @@ void PlayerApp::saveSession()
     m_settings->setValue("sessionIndex", m_playlist->currentIndex());
 }
 
+void PlayerApp::setWindow(QQuickWindow *w)
+{
+    m_window = w;
+    if (!w) return;
+    // Gespeicherte Geometrie nur übernehmen, wenn die Titelleiste auf einem vorhandenen Bildschirm liegt
+    const QJsonObject g = m_settings->object(QStringLiteral("window"));
+    const QRect r(g.value("x").toInt(), g.value("y").toInt(), g.value("width").toInt(), g.value("height").toInt());
+    if (r.width() >= w->minimumWidth() && r.height() >= w->minimumHeight()) {
+        bool onScreen = false;
+        for (QScreen *sc : QGuiApplication::screens()) {
+            const QRect hit = sc->availableGeometry().intersected(QRect(r.x(), r.y(), r.width(), 30));
+            if (hit.width() >= 100 && hit.height() >= 20) { onScreen = true; break; }
+        }
+        if (onScreen) w->setGeometry(r);
+        else w->resize(r.size());
+    }
+    m_windowMaximized = g.value("maximized").toBool();
+    m_normalGeometry = w->geometry();
+
+    // Geometrie verzögert übernehmen: beim Maximieren kommen Größenänderungen vor dem Zustandswechsel
+    m_geometryTimer.setSingleShot(true);
+    m_geometryTimer.setInterval(300);
+    connect(&m_geometryTimer, &QTimer::timeout, this, &PlayerApp::captureWindowGeometry);
+    auto schedule = [this] { m_geometryTimer.start(); };
+    connect(w, &QWindow::xChanged, this, schedule);
+    connect(w, &QWindow::yChanged, this, schedule);
+    connect(w, &QWindow::widthChanged, this, schedule);
+    connect(w, &QWindow::heightChanged, this, schedule);
+    connect(w, &QWindow::windowStateChanged, this, schedule);
+
+    if (m_windowMaximized) w->showMaximized();
+    else w->show();
+}
+
+void PlayerApp::captureWindowGeometry()
+{
+    if (!m_window || !m_window->isVisible()) return;
+    const Qt::WindowStates st = m_window->windowStates();
+    if (st & (Qt::WindowFullScreen | Qt::WindowMinimized)) return;   // Zustand vor dem Vollbild bleibt erhalten
+    m_windowMaximized = st & Qt::WindowMaximized;
+    if (st == Qt::WindowNoState) m_normalGeometry = m_window->geometry();
+}
+
+void PlayerApp::saveWindowGeometry()
+{
+    if (!m_window || !m_normalGeometry.isValid()) return;
+    if (m_geometryTimer.isActive()) { m_geometryTimer.stop(); captureWindowGeometry(); }
+    m_settings->setObject(QStringLiteral("window"), QJsonObject{
+        {"x", m_normalGeometry.x()}, {"y", m_normalGeometry.y()},
+        {"width", m_normalGeometry.width()}, {"height", m_normalGeometry.height()},
+        {"maximized", m_windowMaximized}});
+}
+
 void PlayerApp::shutdown()
 {
+    saveWindowGeometry();
     saveResume();
     saveSession();
     if (m_plugins) m_plugins->shutdown();

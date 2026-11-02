@@ -10,9 +10,9 @@ namespace uve::fx {
 // Erzeugt die mpv-Benutzer-Shader-Datei (//!HOOK MAIN) für die aktuellen Parameter.
 // Pässe (in dieser Reihenfolge):
 //   1. Original sichern (UVEORIG) – nur für den Vorher/Nachher-Vergleich
-//   2. Bilateral-Rauschfilter + CAS (UVE-GPU-Basisfilter)            [optional, gpuBase]
+//   2. Unschärfemaske SL/SR (separierbarer Gauß, 2 Pässe)             [nur wenn SL ≠ 0]
 //   3. Farbkorrektur (Grading, HDR-like, Korn) – Formeln aus dem UVE-WebGL-Shader
-//   4. Detail (Schärfe-Kurve), Kanten, 3D-LUT, Vorher/Nachher-Split
+//   4. Detail-Schärfe, Kanten, 3D-LUT, Vorher/Nachher-Split
 // Konstanten werden direkt eingesetzt (keine //!PARAM-Abhängigkeit vom Renderer).
 struct ShaderBuildInput
 {

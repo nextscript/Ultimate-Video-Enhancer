@@ -79,9 +79,20 @@ private slots:
         p.hdr = -0.5;
         QVERIFY(computeShaderValues(p).hdr < 0);    // negativ: im GPU-Shader ohne Wirkung (clamp 0..1)
         p = Params(); p.sl = 1.0; p.sharpen = 2;
-        QVERIFY(std::fabs(computeShaderValues(p).sharpen - (0.3 + 0.2)) < 1e-12);
+        s = computeShaderValues(p);
+        QVERIFY(std::fabs(s.sharpen - 0.3) < 1e-12);       // Detail-Schärfe: 0.15 je Schritt
+        QCOMPARE(s.usmAmount, 1.0);                         // SL > 0: Unschärfemaske
+        QCOMPARE(s.usmBlur, 0.0);
+        p.sl = -0.5;
+        s = computeShaderValues(p);
+        QCOMPARE(s.usmAmount, 0.0);
+        QCOMPARE(s.usmBlur, 0.5);                           // SL < 0: weichzeichnen
         p = Params(); p.tealOrange = true;
-        QCOMPARE(computeShaderValues(p).hueDeg, -5.0);
+        s = computeShaderValues(p);
+        QCOMPARE(s.hueDeg, 0.0);                            // kein Farbton-Trick mehr, echtes Split-Toning
+        QVERIFY(s.tealOrange);
+        QVERIFY(buildShader({p, nullptr}).contains("float tsh"));
+        QVERIFY(!buildShader({}).contains("float tsh"));
         p = Params(); p.black = 5; p.white = -5;
         s = computeShaderValues(p);
         QVERIFY(std::fabs(s.inBlack - 0.06) < 1e-12);
@@ -155,12 +166,18 @@ private slots:
     {
         ShaderBuildInput in;
         QString s = buildShader(in);
-        QCOMPARE(s.count("//!HOOK MAIN"), 3);           // CAS + Grading + Detail (kein Vergleich)
+        QCOMPARE(s.count("//!HOOK MAIN"), 2);           // Grading + Detail (kein Vergleich, SL = 0)
         QVERIFY(s.contains("//!DESC org.nextscript.ultimate-video-enhancer:"));
         QVERIFY(!s.contains("nan") && !s.contains("inf"));
         QVERIFY(!s.contains("UVEORIG"));
+        QVERIFY(!s.contains("UVEBLUR"));
+        in.params.sl = 1.5;
+        s = buildShader(in);
+        QCOMPARE(s.count("//!HOOK MAIN"), 4);           // Unschärfemaske (2 Pässe) + Grading + Detail
+        QVERIFY(s.contains("//!SAVE UVEBLUR") && s.contains("UVEBLUR_texOff"));
+        QVERIFY(s.contains("src.rgb + 1.500000 * (src.rgb - bl.rgb)"));
+        in.params.sl = 0;
         in.params.compare = true;
-        in.params.gpuBase = false;
         s = buildShader(in);
         QCOMPARE(s.count("//!HOOK MAIN"), 3);           // Original + Grading + Detail
         QVERIFY(s.contains("//!SAVE UVEORIG"));
@@ -276,7 +293,8 @@ private slots:
         const auto s = computeShaderValues(r.params);
         QVERIFY(std::fabs(s.levelBlackOffset - (-0.028)) < 1e-12);   // −0.7·0.04
         QVERIFY(std::fabs(s.levelWhiteAdj - 0.012) < 1e-12);         // 0.2·0.06
-        QVERIFY(std::fabs(s.sharpenRadius - 1.1) < 1e-12);
+        QVERIFY(std::fabs(s.sharpenRadius - 1.55) < 1e-12);         // 1 + |SR|·0.5
+        QVERIFY(std::fabs(s.usmSigma - (0.7 + 1.1 * 0.65)) < 1e-12);
         const auto t = whiteLevelTable(s.levelWhiteAdj);
         QCOMPARE(t.size(), 17);
         QCOMPARE(t[12], 0.75);                                       // unterhalb des Knies 0.78 unverändert
@@ -285,7 +303,7 @@ private slots:
         const QString sh = buildShader({r.params, nullptr});
         QVERIFY(sh.contains("color = clamp(color + vec3(-0.028000), 0.0, 1.0);"));
         QVERIFY(sh.contains("const float WLT[17]"));
-        QVERIFY(sh.contains("float sr = 1.100000;"));
+        QVERIFY(sh.contains("//!SAVE UVEBLUR"));                     // SL 1.2 → Unschärfemaske
         // Neutral: keine Pegel-Blöcke
         const QString neutral = buildShader({});
         QVERIFY(!neutral.contains("WLT") && !neutral.contains("color + vec3("));
@@ -293,7 +311,7 @@ private slots:
 
     void neutralBlocksAreOmitted()
     {
-        Params p; p.baseTone = false; p.gpuBase = false;
+        Params p; p.baseTone = false;
         const QString s = buildShader({p, nullptr});
         QVERIFY(!s.contains("applyHueRotate(color,"));  // Farbton 0 → kein Rotationsaufruf
         QVERIFY(!s.contains("tonemapACES(lin)"));       // HDR 0 → kein HDR-Block

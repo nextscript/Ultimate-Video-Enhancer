@@ -13,7 +13,6 @@ namespace {
 struct { double brightness = 1.02, contrast = 1.05, saturation = 1.15; } constexpr BASE;
 struct { double gpuBrightness = 0.96, gpuSaturation = 0.92; } constexpr MOODY;
 constexpr double VIBRANT_SATURATION = 1.35;
-constexpr double TEAL_GPU_HUE_SHIFT = -5.0;
 constexpr double HDR_GPU_MAX_SINGLE = 0.65;
 struct Factor { double perStep, min, max; };
 constexpr Factor CONTRAST{0.04, 0.60, 1.60};
@@ -26,7 +25,7 @@ constexpr Offset WHITE{0.012, 0.12};
 struct Curve { double perStep, power, threshold, cap; };
 constexpr Curve HIGHLIGHTS{0.010, 3, 0.0, 0.40};  // cap = maxDarken
 constexpr Curve SHADOWS{0.010, 3, 1.0, 0.40};     // cap = maxBrighten
-constexpr double SHARPEN_WEBGL_PER_STEP = 0.1;
+constexpr double SHARPEN_PER_STEP = 0.15;   // Detail-Schärfe: ±10 → ±1.5
 constexpr double GRAIN_PER_STEP = 0.01;
 constexpr double HUE_PER_STEP = 3.0, HUE_MAX_DEGREES = 30.0;
 
@@ -152,19 +151,17 @@ ShaderValues computeShaderValues(const Params &p)
     if (p.darkMoody) { saturation *= MOODY.gpuSaturation; brightness *= MOODY.gpuBrightness; }
     if (p.vibrantSat) saturation *= VIBRANT_SATURATION;
 
-    const double sharpen = std::fmax(0.0, normSL(p.sl) * 0.3) + normU(p.sharpen) * SHARPEN_WEBGL_PER_STEP;
-    const double grain = std::fmax(0.0, -normDN(p.dn) * 0.2);
-    double hue = userHueDegrees(p.hue);
-    if (p.tealOrange) hue += TEAL_GPU_HUE_SHIFT;
+    const double sharpen = normU(p.sharpen) * SHARPEN_PER_STEP;
+    const double hue = userHueDegrees(p.hue);
     double hdr = clamp(normHDR(p.hdr), -1.0, 2.0);
     if (hdr > 0) hdr = std::fmin(hdr, HDR_GPU_MAX_SINGLE);
 
     s.contrast = clamp(contrast, 0.5, 2.0);
     s.saturation = clamp(saturation, 0.0, 3.0);
     s.brightness = clamp(brightness, 0.5, 2.0);
-    s.sharpen = clamp(sharpen, -1.0, 2.0);
+    s.sharpen = clamp(sharpen, -1.5, 1.5);
     s.gamma = clamp(userGammaValue(p.gamma), 0.5, 2.0);
-    s.grain = clamp(grain, 0.0, 0.5);
+    s.grain = 0;   // DN (Korn) entfernt
     s.vibrance = clamp(userVibranceAmount(p.vibrance), -1.0, 1.0);
     s.hdr = hdr;
     s.edge = clamp(normEDGE(p.edge), 0.0, 1.0);
@@ -186,7 +183,14 @@ ShaderValues computeShaderValues(const Params &p)
     const double BL = jsRound(normBL(p.bl) * 10) / 10, WL = jsRound(normWL(p.wl) * 10) / 10;
     s.levelBlackOffset = blackToOffset(BL);
     s.levelWhiteAdj = whiteToHiAdj(WL);
-    s.sharpenRadius = std::fmax(1.0, std::fmax(0.1, std::fabs(jsRound(normSR(p.sr) * 10) / 10)));
+    // SL/SR: Unschärfemaske wie im UVE-SVG-Pfad (feGaussianBlur + feComposite k2 = 1 + A, k3 = −A).
+    // Abweichung: Sigma mindestens 0.7 px, damit SL auch bei SR = 0 sichtbar wirkt (UVE: 0.1 px ≈ wirkungslos).
+    const double SL = normSL(p.sl), SR = std::fabs(normSR(p.sr));
+    s.usmAmount = std::fmax(0.0, SL);
+    s.usmBlur = clamp(-SL, 0.0, 1.0);
+    s.usmSigma = 0.7 + SR * 0.65;
+    s.sharpenRadius = 1.0 + SR * 0.5;
+    s.tealOrange = p.tealOrange;
     s.cosHue = std::cos(hue * kPi / 180.0);
     s.sinHue = std::sin(hue * kPi / 180.0);
     return s;

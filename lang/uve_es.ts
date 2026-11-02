@@ -237,10 +237,6 @@
         <translation>HDR-like</translation>
     </message>
     <message>
-        <source>Denoise</source>
-        <translation>Reducción de ruido</translation>
-    </message>
-    <message>
         <source>LUT</source>
         <translation>LUT</translation>
     </message>
@@ -2629,8 +2625,20 @@
         <translation>Teal &amp; Orange</translation>
     </message>
     <message>
-        <source>GPU-Pfad: Farbton −5°</source>
-        <translation>Ruta de GPU: tono −5°</translation>
+        <source>Schatten → Petrol, Lichter → Orange</source>
+        <translation>Sombras → verde azulado, luces → naranja</translation>
+    </message>
+    <message>
+        <source>Unschärfemaske: positiv = schärfer, negativ = weicher</source>
+        <translation>Máscara de enfoque: positivo = más nítido, negativo = más suave</translation>
+    </message>
+    <message>
+        <source>Radius von SL und Detail-Schärfe (|SR|)</source>
+        <translation>Radio de SL y de la nitidez de detalle (|SR|)</translation>
+    </message>
+    <message>
+        <source>Unschärfemaske</source>
+        <translation>Máscara de enfoque</translation>
     </message>
     <message>
         <source>Kräftige Farben</source>
@@ -2645,16 +2653,8 @@
         <translation>SL – nitidez</translation>
     </message>
     <message>
-        <source>UVE-Hauptregler</source>
-        <translation>Control principal de UVE</translation>
-    </message>
-    <message>
         <source>SR – Radius</source>
         <translation>SR – radio</translation>
-    </message>
-    <message>
-        <source>Radius der Detailschärfe (|SR|, mindestens 1 Pixel)</source>
-        <translation>Radio de la nitidez de detalle (|SR|, mínimo 1 píxel)</translation>
     </message>
     <message>
         <source>Detail-Schärfe</source>
@@ -2675,22 +2675,6 @@
     <message>
         <source>wirkt bei Werten &gt; 0, max. 0.65</source>
         <translation>actúa con valores &gt; 0, máx. 0.65</translation>
-    </message>
-    <message>
-        <source>Rauschfilter + CAS</source>
-        <translation>Filtro de ruido + CAS</translation>
-    </message>
-    <message>
-        <source>Bilateral 3×3 + Contrast-Adaptive Sharpening</source>
-        <translation>Bilateral 3×3 + Contrast-Adaptive Sharpening</translation>
-    </message>
-    <message>
-        <source>Korn (DN negativ)</source>
-        <translation>Grano (DN negativo)</translation>
-    </message>
-    <message>
-        <source>nur negative Werte wirken (Korn)</source>
-        <translation>solo actúan los valores negativos (grano)</translation>
     </message>
     <message>
         <source>Filmkorn</source>
@@ -2735,10 +2719,6 @@
     <message>
         <source>Original sichern</source>
         <translation>Guardar original</translation>
-    </message>
-    <message>
-        <source>Rauschfilter+CAS</source>
-        <translation>Filtro de ruido+CAS</translation>
     </message>
     <message>
         <source>Farbkorrektur</source>

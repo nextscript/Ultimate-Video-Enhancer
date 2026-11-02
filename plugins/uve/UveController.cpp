@@ -18,6 +18,7 @@
 #include <QUrl>
 #include <QtConcurrent>
 #include <QElapsedTimer>
+#include <cmath>
 #include <functional>
 
 namespace uve::fx {
@@ -115,16 +116,14 @@ QVariantList UveController::controls() const
         control("gGain", tr("Grün"), "Farbe", 0, 255, 1, 128),
         control("bGain", tr("Blau"), "Farbe", 0, 255, 1, 128),
         toggle("darkMoody", tr("Dark & Moody"), "Farbe", false),
-        toggle("tealOrange", tr("Teal & Orange"), "Farbe", false, tr("GPU-Pfad: Farbton −5°")),
+        toggle("tealOrange", tr("Teal & Orange"), "Farbe", false, tr("Schatten → Petrol, Lichter → Orange")),
         toggle("vibrantSat", tr("Kräftige Farben"), "Farbe", false, tr("Sättigung ×1.35")),
-        control("sl", tr("SL – Schärfe"), "Schärfe", -2, 2, 0.01, 0, tr("UVE-Hauptregler")),
-        control("sr", tr("SR – Radius"), "Schärfe", -2, 2, 0.01, 0, tr("Radius der Detailschärfe (|SR|, mindestens 1 Pixel)")),
+        control("sl", tr("SL – Schärfe"), "Schärfe", -2, 2, 0.01, 0, tr("Unschärfemaske: positiv = schärfer, negativ = weicher")),
+        control("sr", tr("SR – Radius"), "Schärfe", -2, 2, 0.01, 0, tr("Radius von SL und Detail-Schärfe (|SR|)")),
         control("sharpen", tr("Detail-Schärfe"), "Schärfe", -10, 10, 0.1, 0, tr("negativ = weicher")),
         control("edge", tr("Kanten betonen"), "Schärfe", 0, 1, 0.01, 0),
+        control("grain", tr("Filmkorn"), "Schärfe", -10, 10, 0.1, 0),
         control("hdr", tr("HDR-like"), "HDR-like", -1, 2, 0.01, 0, tr("wirkt bei Werten > 0, max. 0.65")),
-        toggle("gpuBase", tr("Rauschfilter + CAS"), "Denoise", true, tr("Bilateral 3×3 + Contrast-Adaptive Sharpening")),
-        control("dn", tr("Korn (DN negativ)"), "Denoise", -1.5, 1.5, 0.01, 0, tr("nur negative Werte wirken (Korn)")),
-        control("grain", tr("Filmkorn"), "Denoise", -10, 10, 0.1, 0),
         control("lutStrength", tr("LUT-Stärke"), "LUT", 0, 1, 0.01, 1),
     };
 }
@@ -343,7 +342,7 @@ QString UveController::pipelineInfo() const
     if (!m_params.enabled) return tr("Aus – Originalbild");
     QStringList parts;
     if (m_params.compare) parts << tr("Original sichern");
-    if (m_params.gpuBase) parts << tr("Rauschfilter+CAS");
+    if (std::fabs(m_params.sl) > 0.005) parts << tr("Unschärfemaske");
     parts << tr("Farbkorrektur");
     parts << tr("Detail/Kanten");
     if (m_lut) parts << tr("3D-LUT %1³").arg(m_lut->size);

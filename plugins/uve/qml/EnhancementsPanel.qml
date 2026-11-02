@@ -18,7 +18,7 @@ Item {
     readonly property color panel2: theme ? theme.panel2 : "#1b1f26"
 
     // Schlüssel (auch in C++ verwendet) – Anzeige über qsTr(modelData)
-    readonly property var sections: [QT_TR_NOOP("Basis"), QT_TR_NOOP("Farbe"), QT_TR_NOOP("Schärfe"), QT_TR_NOOP("HDR-like"), QT_TR_NOOP("Denoise"), QT_TR_NOOP("LUT")]
+    readonly property var sections: [QT_TR_NOOP("Basis"), QT_TR_NOOP("Farbe"), QT_TR_NOOP("Schärfe"), QT_TR_NOOP("HDR-like"), QT_TR_NOOP("LUT")]
     property var collapsed: ({})
 
     component IconBtn: AbstractButton {

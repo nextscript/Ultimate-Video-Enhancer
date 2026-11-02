@@ -1,6 +1,7 @@
 #include "ShaderBuilder.h"
 
 #include <QStringList>
+#include <algorithm>
 #include <cmath>
 
 namespace uve::fx {
@@ -29,44 +30,41 @@ QString passOriginal()
     return header("Original sichern", {"HOOKED"}, "UVEORIG") + "vec4 hook() { return HOOKED_tex(HOOKED_pos); }\n\n";
 }
 
-// Bilateral-Rauschfilter + CAS (Konstanten aus dem UVE-WebGL-Shader).
-// Abweichung: läuft hier VOR dem Grading auf der Quelle (UVE sampelt die ungegradete Quelle,
-// mischt dabei aber das bereits gegradete Zentrum hinein – siehe Parity-Matrix).
-QString passDenoiseCas()
+// SL/SR: Unschärfemaske (UVE-SVG-Pfad: feGaussianBlur σ = Radius, feComposite k2 = 1 + A, k3 = −A).
+// Separierbarer Gauß in zwei Pässen; läuft wie in UVE zuerst, auf dem ungegradeten Bild.
+QVector<double> gaussWeights(double sigma)
 {
-    return header("Rauschfilter + CAS", {"HOOKED"}) + QStringLiteral(R"GLSL(
-vec4 hook() {
-    const float SIGMA_S = 1.2;
-    const float SIGMA_R = 0.12;
-    const float CAS_STR = 0.8;
-    vec4 tex = HOOKED_tex(HOOKED_pos);
-    vec3 center = tex.rgb;
-    vec3 bsum = vec3(0.0);
-    float bwSum = 0.0;
-    for (int bdx = -1; bdx <= 1; bdx++) {
-        for (int bdy = -1; bdy <= 1; bdy++) {
-            vec3 bn = HOOKED_texOff(vec2(float(bdx), float(bdy))).rgb;
-            float bsw = exp(-float(bdx * bdx + bdy * bdy) / (2.0 * SIGMA_S * SIGMA_S));
-            float bcd = length(bn - center);
-            float bcw = exp(-(bcd * bcd) / (2.0 * SIGMA_R * SIGMA_R));
-            bsum += bn * (bsw * bcw);
-            bwSum += bsw * bcw;
-        }
-    }
-    vec3 denoised = bsum / bwSum;
-    vec3 cn = HOOKED_texOff(vec2(0.0, -1.0)).rgb;
-    vec3 cs = HOOKED_texOff(vec2(0.0, 1.0)).rgb;
-    vec3 ce = HOOKED_texOff(vec2(1.0, 0.0)).rgb;
-    vec3 cw = HOOKED_texOff(vec2(-1.0, 0.0)).rgb;
-    vec3 minRGB = min(denoised, min(min(cn, cs), min(ce, cw)));
-    vec3 maxRGB = max(denoised, max(max(cn, cs), max(ce, cw)));
-    vec3 rcp = -1.0 / (sqrt(minRGB / (maxRGB + 1e-4)) + 1.0);
-    vec3 amp = clamp(min(minRGB, 2.0 - maxRGB) * rcp, -0.125, 0.0) * CAS_STR;
-    float rcpW = 1.0 / (1.0 + 4.0 * amp.x);
-    return vec4(clamp((denoised + (cn + cs + ce + cw) * amp) * rcpW, 0.0, 1.0), tex.a);
+    const int n = std::clamp(int(std::ceil(sigma * 3.0)), 1, 6);
+    QVector<double> w(n + 1);
+    double sum = 0;
+    for (int i = 0; i <= n; ++i) { w[i] = std::exp(-(i * i) / (2.0 * sigma * sigma)); sum += i ? 2 * w[i] : w[i]; }
+    for (auto &v : w) v /= sum;
+    return w;
 }
 
-)GLSL");
+QString passUnsharp(const ShaderValues &s)
+{
+    const auto w = gaussWeights(s.usmSigma);
+    QStringList ws;
+    for (double v : w) ws << f(v);
+    const QString n = QString::number(w.size() - 1);
+    const QString weights = QStringLiteral("    const float W[%1] = float[%1](%2);\n").arg(w.size()).arg(ws.join(", "));
+    QString b = header("Unsharp mask (horizontal)", {"HOOKED"}, "UVEBLUR");
+    b += "vec4 hook() {\n" + weights;
+    b += "    vec4 c = HOOKED_tex(HOOKED_pos) * W[0];\n";
+    b += "    for (int i = 1; i <= " + n + "; i++) c += (HOOKED_texOff(vec2(float(i), 0.0)) + HOOKED_texOff(vec2(-float(i), 0.0))) * W[i];\n";
+    b += "    return c;\n}\n\n";
+    b += header("Unsharp mask", {"HOOKED", "UVEBLUR"});
+    b += "vec4 hook() {\n" + weights;
+    b += "    vec4 bl = UVEBLUR_tex(UVEBLUR_pos) * W[0];\n";
+    b += "    for (int i = 1; i <= " + n + "; i++) bl += (UVEBLUR_texOff(vec2(0.0, float(i))) + UVEBLUR_texOff(vec2(0.0, -float(i)))) * W[i];\n";
+    b += "    vec4 src = HOOKED_tex(HOOKED_pos);\n";
+    if (s.usmAmount > 0.0001)
+        b += QStringLiteral("    vec3 o = src.rgb + %1 * (src.rgb - bl.rgb);\n").arg(f(s.usmAmount));
+    else
+        b += QStringLiteral("    vec3 o = mix(src.rgb, bl.rgb, %1);\n").arg(f(s.usmBlur));
+    b += "    return vec4(clamp(o, 0.0, 1.0), src.a);\n}\n\n";
+    return b;
 }
 
 QString passGrading(const ShaderValues &s, const CurveConstants &k)
@@ -184,6 +182,17 @@ vec4 hook() {
     if (active(s.highlights))
         b += QStringLiteral("    { vec3 hc = clamp((clamp(color, 0.0, 1.0) - %1) / %2, 0.0, 1.0); color += %3 * %4 * pow(max(hc, vec3(0.0001)), vec3(%5)) * (1.0 - hc); }\n")
                  .arg(f(k.highlightsThreshold), f(1.0 - k.highlightsThreshold), f(s.highlights), f(1.0 / k.highlightsPeak), f(k.highlightsPower));
+    if (s.tealOrange)   // Split-Toning: Schatten Richtung Petrol, Lichter Richtung Orange, Haut geschont
+        b += R"GLSL(    {
+        float tl = pow(clamp(dot(color, LUMA), 0.0, 1.0), 2.2);   // Zonen im Ausgaberaum, Mitteltöne bleiben neutral
+        float tsh = 1.0 - smoothstep(0.02, 0.45, tl);
+        float thi = smoothstep(0.55, 0.98, tl);
+        color += vec3(-0.070, 0.012, 0.055) * tsh * (1.0 - 0.6 * uveSkin(color));
+        color += vec3(0.045, 0.004, -0.050) * thi;
+        float tls = dot(color, LUMA);
+        color = tls + (color - tls) * 1.08;
+    }
+)GLSL";
     // Gamma (Mitteltöne; Schwarz/Weiß fix) mit Begrenzung der Schattensteilheit
     b += QStringLiteral("    { vec3 gIn = max(color, vec3(0.0)); color = pow(max(gIn, vec3(0.0001)), vec3(%1));%2 }\n")
              .arg(f(1.0 / std::fmin(std::fmax(s.gamma, 0.5), 2.0)),
@@ -231,23 +240,30 @@ QString passDetailLutCompare(const ShaderValues &s, const CurveConstants &k, con
     b += "float uveSkin(vec3 c) { return clamp((c.r - c.g) * 8.0, 0.0, 1.0) * clamp((c.g - c.b) * 8.0, 0.0, 1.0); }\n";
     b += "vec4 hook() {\n    vec4 tex = HOOKED_tex(HOOKED_pos);\n    vec3 color = tex.rgb;\n";
     if (active(s.sharpen)) {
-        // Luma-Detailkurve (SL + Grading-Schärfe): Rauschschwelle, weiche Begrenzung, Halo-Balance, Hautschutz
-        const double maxChange = std::fmax(0.001, k.sharpenMaxChange);
-        const QString gate = k.sharpenNoiseThreshold > 0 ? QStringLiteral("smoothstep(0.0, %1, abs(sd))").arg(f(2 * k.sharpenNoiseThreshold)) : QStringLiteral("1.0");
+        // Detail-Schärfe auf der Luma (3×3-Gauß im Abstand SR): positiv mit Rauschschwelle, weicher Begrenzung,
+        // Halo-Balance und Hautschutz; negativ = Weichzeichnen
         b += QStringLiteral(R"GLSL(    {
-        float lc = uveLuma(color);
-        float sr = %8; // Radius (SR)
-        float lavg = (uveLuma(HOOKED_texOff(vec2(0.0, -sr)).rgb) + uveLuma(HOOKED_texOff(vec2(0.0, sr)).rgb)
-                    + uveLuma(HOOKED_texOff(vec2(-sr, 0.0)).rgb) + uveLuma(HOOKED_texOff(vec2(sr, 0.0)).rgb)) * 0.25;
-        float sd = lc - lavg;
-        float sgate = %1;
-        float sy = sd * sgate * %2 * %3 / %4;
+        float sr = %1; // Radius (SR)
+        vec3 dc = (HOOKED_texOff(vec2(0.0, -sr)).rgb + HOOKED_texOff(vec2(0.0, sr)).rgb
+                 + HOOKED_texOff(vec2(-sr, 0.0)).rgb + HOOKED_texOff(vec2(sr, 0.0)).rgb) * 2.0;
+        vec3 dd = HOOKED_texOff(vec2(-sr, -sr)).rgb + HOOKED_texOff(vec2(sr, -sr)).rgb
+                + HOOKED_texOff(vec2(-sr, sr)).rgb + HOOKED_texOff(vec2(sr, sr)).rgb;
+        vec3 dblur = (color * 4.0 + dc + dd) / 16.0;
+)GLSL").arg(f(s.sharpenRadius));
+        if (s.sharpen > 0) {
+            const double maxChange = std::fmax(0.001, k.sharpenMaxChange);
+            const QString gate = k.sharpenNoiseThreshold > 0 ? QStringLiteral("smoothstep(0.0, %1, abs(sd))").arg(f(k.sharpenNoiseThreshold)) : QStringLiteral("1.0");
+            b += QStringLiteral(R"GLSL(        float sd = uveLuma(color) - uveLuma(dblur);
+        float sy = sd * %1 * %2 * %3 / %4;
         float lumaDelta = %4 * sy / sqrt(1.0 + sy * sy);
         lumaDelta *= lumaDelta > 0.0 ? %5 : %6;
         lumaDelta *= 1.0 - %7 * uveSkin(color);
         color = clamp(color + vec3(lumaDelta), 0.0, 1.0);
     }
-)GLSL").arg(gate, f(s.sharpen), f(k.sharpenMaxAmount), f(maxChange), f(k.sharpenLightHalo), f(k.sharpenDarkHalo), f(k.sharpenSkin), f(s.sharpenRadius));
+)GLSL").arg(gate, f(s.sharpen), f(k.sharpenMaxAmount), f(maxChange), f(k.sharpenLightHalo), f(k.sharpenDarkHalo), f(k.sharpenSkin));
+        } else {
+            b += QStringLiteral("        color = mix(color, dblur, %1);\n    }\n").arg(f(std::fmin(1.0, -s.sharpen / 1.5)));
+        }
     }
     if (s.edge > 0.0001) {
         b += QStringLiteral(R"GLSL(    {
@@ -329,7 +345,7 @@ QString buildShader(const ShaderBuildInput &in)
     QString out = QStringLiteral("// UVE Player – Ultimate Video Enhancer (nativer Port), automatisch erzeugt\n\n");
     const CubeLut *lut = (in.lut && in.lut->isValid()) ? in.lut : nullptr;
     if (p.compare) out += passOriginal();
-    if (p.gpuBase) out += passDenoiseCas();
+    if (s.usmAmount > 0.0001 || s.usmBlur > 0.0001) out += passUnsharp(s);
     out += passGrading(s, k);
     const QVector<double> *mx = (in.lutMatrix && in.lutMatrix->size() == 20) ? in.lutMatrix : nullptr;
     out += passDetailLutCompare(s, k, p, lut, mx);

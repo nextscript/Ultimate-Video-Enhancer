@@ -1,39 +1,59 @@
 # Changelog
 
+## 1.0.1 – 2026-11-02
+
+### Ultimate Video Enhancer
+- **SL – Sharpness** now works as a real unsharp mask, like the UVE SVG path (separable Gaussian, two passes, applied
+  before grading): positive = sharper, negative = softer. Previously SL had only a very weak effect and negative values were ignored.
+- **SR – Radius** now controls the radius of the unsharp mask (σ 0.7–2.0 px) and of detail sharpening across the whole range.
+  Previously it only had an effect for |SR| > 1.
+- **Detail sharpening** is clearly visible (3×3 Gaussian detail at radius SR, 0.15 per step); negative values soften the image.
+- **Teal & Orange** is now a real split toning: shadows → teal, highlights → orange, midtones stay neutral, skin tones
+  are protected. Previously it was only a −5° hue rotation that was barely visible.
+- **Denoise section removed** (bilateral noise filter + CAS and the DN grain slider). The noise filter visibly weakened
+  the sharpening controls. *Film grain* moved to the *Sharpness* section. Profiles keep `dn`/`gpuBase` for compatibility.
+
+### User interface
+- The **window position and size** are saved and restored on the next start, including the maximized state
+  (restored only if the window is visible on a connected screen).
+
+### Other
+- Translations for all languages updated
+
 ## 1.0.0 – 2026-11-02
 
-Erste Version des nativen Players (C++20 · Qt 6.12 · libmpv). Die bisherige Electron-Fassung liegt unverändert in `legacy-electron/`.
+First release of the native player (C++20 · Qt 6.12 · libmpv). The previous Electron version is kept unchanged in `legacy-electron/`.
 
-### Wiedergabe
-- libmpv (Client- und Render-API, OpenGL) in Qt Quick, Hardware-Dekodierung (`auto-safe`, NVDEC/D3D11VA/DXVA2/Vulkan wählbar)
-- Wiedergabeliste: M3U/PLS, Ordner, Suche, Mehrfachauswahl, Doppelklick spielt ab, Kontextmenü, Zufall/Wiederholen, Fortsetzen
-- Audio-/Untertitelspuren, Verzögerung, A-B-Schleife, Einzelbild, Geschwindigkeit, Seitenverhältnis, Bildschirmfoto
-- Bedienung wie gewohnt: Klick = Pause, Doppelklick = Vollbild, Rad = Lautstärke, Rechtsklick-Menü; 34 editierbare Tastenkürzel mit Konfliktwarnung
-- Netzwerkstreams: HTTP(S), HLS, DASH, tcp/udp/rtmp/rtsp/srt, YouTube/Twitch über mitgeliefertes yt-dlp
-- **Proxy:** kein / System / manuell (HTTP, SOCKS5 mit Anmeldung). SOCKS5 für mpv über lokale Brücke (nur 127.0.0.1,
-  Zufallszugang, Namensauflösung am Proxy), `tcp://` über Weiterleitung, yt-dlp und eigene Downloads ebenfalls; Passwort per DPAPI
-- Diagnose-Overlay (Decoder, VO, FPS, verworfene Frames, A/V, Shader-Kette), Medieninformationen
+### Playback
+- libmpv (client and render API, OpenGL) in Qt Quick, hardware decoding (`auto-safe`; NVDEC/D3D11VA/DXVA2/Vulkan selectable)
+- Playlist: M3U/PLS, folders, search, multi-selection, double-click to play, context menu, shuffle/repeat, resume
+- Audio/subtitle tracks, delay, A-B loop, frame step, speed, aspect ratio, screenshot
+- Familiar controls: click = pause, double-click = fullscreen, wheel = volume, right-click menu; 34 editable shortcuts with conflict warning
+- Network streams: HTTP(S), HLS, DASH, tcp/udp/rtmp/rtsp/srt, YouTube/Twitch via bundled yt-dlp
+- **Proxy:** none / system / manual (HTTP, SOCKS5 with authentication). SOCKS5 for mpv via a local bridge (127.0.0.1 only,
+  random access token, name resolution at the proxy), `tcp://` via forwarding, yt-dlp and own downloads as well; password protected with DPAPI
+- Diagnostics overlay (decoder, VO, FPS, dropped frames, A/V, shader chain), media information
 
-### Ultimate Video Enhancer (Plugin)
-- Nativer Port der UVE-Effekte als mpv-GPU-Shader (Grading, Schärfe, HDR-like, Rauschfilter/CAS, Korn, Kanten)
-- UVE-Hauptregler **SL/SR/BL/WL** aus der SVG-Kette (BL/WL exakt, SR als Radius-Näherung)
-- Presets, Undo/Redo, Zurücksetzen je Regler/Abschnitt, Vorher/Nachher-Split, Preset pro Datei, globales Standard-Preset
-- Import/Export von UVE-Profilen (`gvf-settings` 1.10), **Beispielprofil My_Profile.json von GitHub**
-- **UVE-LUT-Profile** (4×5-Matrix) und **LUT-Paket-Download von GitHub** (neuestes `LUTsProfiles_v*.zip`, aktuell v3.0 mit 83 Profilen),
-  Prüfsummen, ETag-Cache und jsDelivr-Ersatz bei GitHub-Limit
-- **LUT-Galerie:** aktuelles Videobild mit jedem LUT-Profil als Vorschau
-- 3D-LUT `.cube` (echte 3D-Textur); Shaderfehler deaktivieren nur die Effektstufe, kein schwarzes Bild
+### Ultimate Video Enhancer (plugin)
+- Native port of the UVE effects as mpv GPU shaders (grading, sharpness, HDR-like, noise filter/CAS, grain, edges)
+- UVE main controls **SL/SR/BL/WL** from the SVG chain (BL/WL exact, SR as radius approximation)
+- Presets, undo/redo, reset per control/section, before/after split, preset per file, global default preset
+- Import/export of UVE profiles (`gvf-settings` 1.10), **example profile My_Profile.json from GitHub**
+- **UVE LUT profiles** (4×5 matrix) and **LUT package download from GitHub** (latest `LUTsProfiles_v*.zip`, currently v3.0 with 83 profiles),
+  checksums, ETag cache and jsDelivr fallback when the GitHub rate limit is hit
+- **LUT gallery:** the current video frame previewed with every LUT profile
+- 3D LUT `.cube` (real 3D texture); shader errors only disable the effect stage, no black image
 
-### Oberfläche und Sprachen
-- Qt Quick, dunkles/helles Schema, Steuerleiste im Stil der Vorgängerversion
-- **Sprachen:** Englisch (Voreinstellung), Deutsch, Spanisch, Italienisch, Polnisch, Griechisch, Türkisch – Qt-Übersetzungen
-  (`lang/uve_*.ts` → `.qm`), Umschaltung ohne Neustart, eigene Sprachen über Qt Linguist (Anleitung `lang/README.md`)
+### User interface and languages
+- Qt Quick, dark/light theme, control bar in the style of the previous version
+- **Languages:** English (default), German, Spanish, Italian, Polish, Greek, Turkish – Qt translations
+  (`lang/uve_*.ts` → `.qm`), switching without restart, custom languages via Qt Linguist (guide: `lang/README.md`)
 
-### Plugin-System
-- Versionierte Plugin-API (v1) mit Manifest-Prüfung vor dem Laden, Lebenszyklus, Laufzeit-Aktivierung, Safe Mode nach Abstürzen, Fehlerprotokoll
-- Beispiel-Plugin Einschlaf-Timer
+### Plugin system
+- Versioned plugin API (v1) with manifest validation before loading, lifecycle, runtime activation, safe mode after crashes, error log
+- Example plugin: sleep timer
 
-### Werkzeuge, Installation
-- Update-Prüfung für yt-dlp und libmpv beim Start (Dialog, SHA-256-Prüfung, Überspringen)
-- Setup (benutzerbezogen, „Öffnen mit“), portable EXE und portables ZIP – yt-dlp, libmpv und 7zr sind enthalten
-- Keine Telemetrie
+### Tools, installation
+- Update check for yt-dlp and libmpv at startup (dialog, SHA-256 verification, skip)
+- Setup (per user, "Open with"), portable EXE and portable ZIP – yt-dlp, libmpv and 7zr included
+- No telemetry

@@ -237,10 +237,6 @@
         <translation>HDR-like</translation>
     </message>
     <message>
-        <source>Denoise</source>
-        <translation>Odszumianie</translation>
-    </message>
-    <message>
         <source>LUT</source>
         <translation>LUT</translation>
     </message>
@@ -2629,8 +2625,20 @@
         <translation>Teal &amp; Orange</translation>
     </message>
     <message>
-        <source>GPU-Pfad: Farbton −5°</source>
-        <translation>Ścieżka GPU: odcień −5°</translation>
+        <source>Schatten → Petrol, Lichter → Orange</source>
+        <translation>Cienie → morski, światła → pomarańczowy</translation>
+    </message>
+    <message>
+        <source>Unschärfemaske: positiv = schärfer, negativ = weicher</source>
+        <translation>Maska wyostrzająca: dodatnie = ostrzej, ujemne = łagodniej</translation>
+    </message>
+    <message>
+        <source>Radius von SL und Detail-Schärfe (|SR|)</source>
+        <translation>Promień SL i wyostrzania detali (|SR|)</translation>
+    </message>
+    <message>
+        <source>Unschärfemaske</source>
+        <translation>Maska wyostrzająca</translation>
     </message>
     <message>
         <source>Kräftige Farben</source>
@@ -2645,16 +2653,8 @@
         <translation>SL – ostrość</translation>
     </message>
     <message>
-        <source>UVE-Hauptregler</source>
-        <translation>Główny regulator UVE</translation>
-    </message>
-    <message>
         <source>SR – Radius</source>
         <translation>SR – promień</translation>
-    </message>
-    <message>
-        <source>Radius der Detailschärfe (|SR|, mindestens 1 Pixel)</source>
-        <translation>Promień wyostrzania detali (|SR|, co najmniej 1 piksel)</translation>
     </message>
     <message>
         <source>Detail-Schärfe</source>
@@ -2675,22 +2675,6 @@
     <message>
         <source>wirkt bei Werten &gt; 0, max. 0.65</source>
         <translation>działa dla wartości &gt; 0, maks. 0.65</translation>
-    </message>
-    <message>
-        <source>Rauschfilter + CAS</source>
-        <translation>Odszumianie + CAS</translation>
-    </message>
-    <message>
-        <source>Bilateral 3×3 + Contrast-Adaptive Sharpening</source>
-        <translation>Bilateral 3×3 + Contrast-Adaptive Sharpening</translation>
-    </message>
-    <message>
-        <source>Korn (DN negativ)</source>
-        <translation>Ziarno (DN ujemne)</translation>
-    </message>
-    <message>
-        <source>nur negative Werte wirken (Korn)</source>
-        <translation>działają tylko wartości ujemne (ziarno)</translation>
     </message>
     <message>
         <source>Filmkorn</source>
@@ -2735,10 +2719,6 @@
     <message>
         <source>Original sichern</source>
         <translation>Zachowaj oryginał</translation>
-    </message>
-    <message>
-        <source>Rauschfilter+CAS</source>
-        <translation>Odszumianie+CAS</translation>
     </message>
     <message>
         <source>Farbkorrektur</source>

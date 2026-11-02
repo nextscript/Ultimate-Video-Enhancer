@@ -237,10 +237,6 @@
         <translation>HDR-like</translation>
     </message>
     <message>
-        <source>Denoise</source>
-        <translation>Denoise</translation>
-    </message>
-    <message>
         <source>LUT</source>
         <translation>LUT</translation>
     </message>
@@ -2629,8 +2625,20 @@
         <translation>Teal &amp; Orange</translation>
     </message>
     <message>
-        <source>GPU-Pfad: Farbton −5°</source>
-        <translation>Διαδρομή GPU: απόχρωση −5°</translation>
+        <source>Schatten → Petrol, Lichter → Orange</source>
+        <translation>Σκιές → πετρόλ, φωτεινά → πορτοκαλί</translation>
+    </message>
+    <message>
+        <source>Unschärfemaske: positiv = schärfer, negativ = weicher</source>
+        <translation>Μάσκα όξυνσης: θετικό = πιο οξύ, αρνητικό = πιο μαλακό</translation>
+    </message>
+    <message>
+        <source>Radius von SL und Detail-Schärfe (|SR|)</source>
+        <translation>Ακτίνα του SL και της όξυνσης λεπτομερειών (|SR|)</translation>
+    </message>
+    <message>
+        <source>Unschärfemaske</source>
+        <translation>Μάσκα όξυνσης</translation>
     </message>
     <message>
         <source>Kräftige Farben</source>
@@ -2645,16 +2653,8 @@
         <translation>SL – οξύτητα</translation>
     </message>
     <message>
-        <source>UVE-Hauptregler</source>
-        <translation>Κύριο χειριστήριο UVE</translation>
-    </message>
-    <message>
         <source>SR – Radius</source>
         <translation>SR – ακτίνα</translation>
-    </message>
-    <message>
-        <source>Radius der Detailschärfe (|SR|, mindestens 1 Pixel)</source>
-        <translation>Ακτίνα οξύτητας λεπτομερειών (|SR|, τουλάχιστον 1 εικονοστοιχείο)</translation>
     </message>
     <message>
         <source>Detail-Schärfe</source>
@@ -2675,22 +2675,6 @@
     <message>
         <source>wirkt bei Werten &gt; 0, max. 0.65</source>
         <translation>ισχύει για τιμές &gt; 0, μέγ. 0.65</translation>
-    </message>
-    <message>
-        <source>Rauschfilter + CAS</source>
-        <translation>Φίλτρο θορύβου + CAS</translation>
-    </message>
-    <message>
-        <source>Bilateral 3×3 + Contrast-Adaptive Sharpening</source>
-        <translation>Bilateral 3×3 + Contrast-Adaptive Sharpening</translation>
-    </message>
-    <message>
-        <source>Korn (DN negativ)</source>
-        <translation>Κόκκος (DN αρνητικό)</translation>
-    </message>
-    <message>
-        <source>nur negative Werte wirken (Korn)</source>
-        <translation>ισχύουν μόνο αρνητικές τιμές (κόκκος)</translation>
     </message>
     <message>
         <source>Filmkorn</source>
@@ -2735,10 +2719,6 @@
     <message>
         <source>Original sichern</source>
         <translation>Διατήρηση πρωτοτύπου</translation>
-    </message>
-    <message>
-        <source>Rauschfilter+CAS</source>
-        <translation>Φίλτρο θορύβου+CAS</translation>
     </message>
     <message>
         <source>Farbkorrektur</source>

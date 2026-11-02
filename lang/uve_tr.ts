@@ -237,10 +237,6 @@
         <translation>HDR-like</translation>
     </message>
     <message>
-        <source>Denoise</source>
-        <translation>Gürültü giderme</translation>
-    </message>
-    <message>
         <source>LUT</source>
         <translation>LUT</translation>
     </message>
@@ -2629,8 +2625,20 @@
         <translation>Teal &amp; Orange</translation>
     </message>
     <message>
-        <source>GPU-Pfad: Farbton −5°</source>
-        <translation>GPU yolu: renk tonu −5°</translation>
+        <source>Schatten → Petrol, Lichter → Orange</source>
+        <translation>Gölgeler → camgöbeği, parlak alanlar → turuncu</translation>
+    </message>
+    <message>
+        <source>Unschärfemaske: positiv = schärfer, negativ = weicher</source>
+        <translation>Keskinlik maskesi: pozitif = daha keskin, negatif = daha yumuşak</translation>
+    </message>
+    <message>
+        <source>Radius von SL und Detail-Schärfe (|SR|)</source>
+        <translation>SL ve detay keskinliği yarıçapı (|SR|)</translation>
+    </message>
+    <message>
+        <source>Unschärfemaske</source>
+        <translation>Keskinlik maskesi</translation>
     </message>
     <message>
         <source>Kräftige Farben</source>
@@ -2645,16 +2653,8 @@
         <translation>SL – keskinlik</translation>
     </message>
     <message>
-        <source>UVE-Hauptregler</source>
-        <translation>UVE ana ayarı</translation>
-    </message>
-    <message>
         <source>SR – Radius</source>
         <translation>SR – yarıçap</translation>
-    </message>
-    <message>
-        <source>Radius der Detailschärfe (|SR|, mindestens 1 Pixel)</source>
-        <translation>Ayrıntı keskinleştirme yarıçapı (|SR|, en az 1 piksel)</translation>
     </message>
     <message>
         <source>Detail-Schärfe</source>
@@ -2675,22 +2675,6 @@
     <message>
         <source>wirkt bei Werten &gt; 0, max. 0.65</source>
         <translation>&gt; 0 değerlerinde etkili, maks. 0.65</translation>
-    </message>
-    <message>
-        <source>Rauschfilter + CAS</source>
-        <translation>Gürültü filtresi + CAS</translation>
-    </message>
-    <message>
-        <source>Bilateral 3×3 + Contrast-Adaptive Sharpening</source>
-        <translation>Bilateral 3×3 + Contrast-Adaptive Sharpening</translation>
-    </message>
-    <message>
-        <source>Korn (DN negativ)</source>
-        <translation>Gren (DN negatif)</translation>
-    </message>
-    <message>
-        <source>nur negative Werte wirken (Korn)</source>
-        <translation>yalnızca negatif değerler etkilidir (gren)</translation>
     </message>
     <message>
         <source>Filmkorn</source>
@@ -2735,10 +2719,6 @@
     <message>
         <source>Original sichern</source>
         <translation>Orijinali kaydet</translation>
-    </message>
-    <message>
-        <source>Rauschfilter+CAS</source>
-        <translation>Gürültü filtresi+CAS</translation>
     </message>
     <message>
         <source>Farbkorrektur</source>
