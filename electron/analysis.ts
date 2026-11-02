@@ -11,7 +11,12 @@ import { cacheDir } from './store';
 import { capabilities } from './tools';
 
 const LUMA_LEN = Math.ceil(ANALYSIS_W / 2) * Math.ceil(ANALYSIS_H / 2);
-const running = new Map<string, { promise: Promise<AnalysisResult>; kill: () => void }>();
+/**
+ * One decode per file. Every caller that asks for the same file while it runs (the editor's own analysis and
+ * render jobs, e.g. a Sofort-Render started right after opening the file) shares it and gets its progress –
+ * v1.1.2: before, only the first caller got progress and a waiting render job sat on 0 %.
+ */
+const running = new Map<string, { promise: Promise<AnalysisResult>; kill: () => void; listeners: Set<(pct: number) => void>; pct: number }>();
 
 export function analysisKey(media: MediaInfo) {
     return createHash('sha1').update(`v2|${media.path}|${media.size}|${media.mtimeMs}|${media.video?.index}`).digest('hex').slice(0, 20);
@@ -44,11 +49,21 @@ export function cancelAnalysis(key: string) { running.get(key)?.kill(); }
 export function analyze(media: MediaInfo, onProgress: (pct: number) => void): Promise<AnalysisResult> {
     const key = analysisKey(media);
     const cur = running.get(key);
-    if (cur) return cur.promise;
+    if (cur) {
+        cur.listeners.add(onProgress);
+        onProgress(cur.pct);
+        return cur.promise;
+    }
     let killFn = () => { /* set below */ };
+    const listeners = new Set<(pct: number) => void>([onProgress]);
+    const entry = { promise: null as unknown as Promise<AnalysisResult>, kill: () => killFn(), listeners, pct: 0 };
+    const report = (pct: number) => {
+        entry.pct = pct;
+        for (const l of listeners) { try { l(pct); } catch { /* a closed window must not stop the analysis */ } }
+    };
     const promise = (async () => {
         const cached = await loadCached(key);
-        if (cached) { onProgress(1); return cached; }
+        if (cached) { report(1); return cached; }
         const caps = await capabilities();
         if (!caps.ok || !media.video) throw new Error(caps.error || 'No video stream');
         const vf = await decodeFilter(media.video, ANALYSIS_W, ANALYSIS_H, 'rgb24', `fps=${ANALYSIS_FPS}:round=down`);
@@ -71,7 +86,7 @@ export function analyze(media: MediaInfo, onProgress: (pct: number) => void): Pr
                     lumaChunks.push(motionLuma(frame));
                     pending = pending.subarray(frameBytes);
                 }
-                onProgress(Math.min(0.999, lumaChunks.length / expected));
+                report(Math.min(0.999, lumaChunks.length / expected));
             });
             p.stderr.on('data', d => { err += d; });
             p.on('error', reject);
@@ -82,10 +97,11 @@ export function analyze(media: MediaInfo, onProgress: (pct: number) => void): Pr
         lumaChunks.forEach((c, i) => luma.set(c, i * LUMA_LEN));
         const res: AnalysisResult = { key, t0: 0, count, stats: new Float32Array(statsList), luma };
         await saveCached(res).catch(() => undefined);
-        onProgress(1);
+        report(1);
         return res;
     })();
-    running.set(key, { promise, kill: () => killFn() });
+    entry.promise = promise;
+    running.set(key, entry);
     promise.finally(() => running.delete(key)).catch(() => undefined);
     return promise;
 }

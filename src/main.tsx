@@ -15,7 +15,7 @@ import './ui/styles.css';
     seek: (t: number) => player.seek(t),
     time: () => getState().time,
     quickRender: () => quickRender(),
-    jobs: () => getState().jobs.map(j => ({ status: j.status, output: j.output, error: (j as { error?: string }).error })),
+    jobs: () => getState().jobs.map(j => ({ status: j.status, progress: +j.progress.toFixed(4), output: j.output, error: (j as { error?: string }).error })),
     /** v1.1.2: state of the live sound streams (AC3 / DTS preview sound) */
     sound: () => [...AudioSidecar.live].map(a => ({ src: a.el.src, t: a.el.currentTime, paused: a.el.paused, muted: a.el.muted, rate: a.el.playbackRate, ready: a.el.readyState, bytes: (a.el as HTMLMediaElement & { webkitAudioDecodedByteCount?: number }).webkitAudioDecodedByteCount ?? 0 })),
     view: (v: View) => setState({ view: v }),

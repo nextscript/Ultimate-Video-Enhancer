@@ -25,6 +25,11 @@ one-click **Sofort-Render** (Raw + Filter).
 - **Crackling sound with 5.1 / 7.1 sources** (preview and export). The stereo fold mixed both surround channels
   into both sides and was not normalized, so loud scenes summed far above full scale and clipped. Each surround now
   feeds only its own side and every fold is normalized like FFmpeg's own stereo down-mix – no more clipping.
+- **A render job stuck on "Analyzing 0 %"** when it was started while the editor was still running its own
+  Auto-Scene-Match analysis of the same file (e.g. Sofort-Render right after opening a film). The job waited for
+  that shared analysis but never received its progress. Every waiting job now shows the live progress and continues
+  automatically when the analysis is done (a full 92-min 1080p HEVC film takes about 3–4 minutes; the result is
+  cached, later renders of the same file start at once).
 - The preview sound no longer adjusts its speed in tiny steps to stay in sync (that is audible as crackling); it is
   corrected only by a single jump when picture and sound really drift apart (e.g. a seek while playing).
 
