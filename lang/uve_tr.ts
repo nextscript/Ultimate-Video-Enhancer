@@ -37,7 +37,7 @@
     </message>
     <message>
         <source>Wiedergabe-Engine: mpv/libmpv (LGPL/GPL, je nach Build), FFmpeg-Bibliotheken in libmpv enthalten. Oberfläche: Qt 6 (LGPLv3). </source>
-        <translation>Oynatma motoru: mpv/libmpv (derlemeye bağlı olarak LGPL/GPL), FFmpeg kitaplıkları libmpv'ye dahildir. Arayüz: Qt 6 (LGPLv3). </translation>
+        <translation>Oynatma motoru: mpv/libmpv (derlemeye bağlı olarak LGPL/GPL), FFmpeg kitaplıkları libmpv&apos;ye dahildir. Arayüz: Qt 6 (LGPLv3). </translation>
     </message>
     <message>
         <source>Ultimate Video Enhancer: Freak288 / nextscript – nativer Port der WebGL-Effekte. Lizenzübersicht: docs/THIRD_PARTY_LICENSES.md. </source>
@@ -159,7 +159,7 @@
     </message>
     <message>
         <source> (Render-API, OpenGL)</source>
-        <translation> (render API'si, OpenGL)</translation>
+        <translation> (render API&apos;si, OpenGL)</translation>
     </message>
     <message>
         <source>Video:             </source>
@@ -290,7 +290,7 @@
     </message>
     <message>
         <source>LUT-Paket von GitHub laden</source>
-        <translation>LUT paketini GitHub'dan indir</translation>
+        <translation>LUT paketini GitHub&apos;dan indir</translation>
     </message>
     <message>
         <source>Alle Gruppen</source>
@@ -310,7 +310,7 @@
     </message>
     <message>
         <source>Original (ohne LUT)</source>
-        <translation>Orijinal (LUT'suz)</translation>
+        <translation>Orijinal (LUT&apos;suz)</translation>
     </message>
     <message>
         <source>Klick: anwenden · Doppelklick: anwenden und schließen</source>
@@ -362,7 +362,7 @@
     </message>
     <message>
         <source>Beispielprofil von GitHub laden (My_Profile.json)</source>
-        <translation>Örnek profili GitHub'dan indir (My_Profile.json)</translation>
+        <translation>Örnek profili GitHub&apos;dan indir (My_Profile.json)</translation>
     </message>
     <message>
         <source>Speichern…</source>
@@ -418,7 +418,7 @@
     </message>
     <message>
         <source>LUT-Paket von GitHub laden (neuestes LUTsProfiles_v*.zip)</source>
-        <translation>LUT paketini GitHub'dan indir (en yeni LUTsProfiles_v*.zip)</translation>
+        <translation>LUT paketini GitHub&apos;dan indir (en yeni LUTsProfiles_v*.zip)</translation>
     </message>
     <message>
         <source>LUT-Galerie – aktuelles Bild mit allen LUT-Profilen</source>
@@ -717,11 +717,11 @@
     </message>
     <message>
         <source>Beispielprofil von GitHub laden (My_Profile.json)</source>
-        <translation>Örnek profili GitHub'dan indir (My_Profile.json)</translation>
+        <translation>Örnek profili GitHub&apos;dan indir (My_Profile.json)</translation>
     </message>
     <message>
         <source>LUT-Paket von GitHub laden</source>
-        <translation>LUT paketini GitHub'dan indir</translation>
+        <translation>LUT paketini GitHub&apos;dan indir</translation>
     </message>
     <message>
         <source>Ultimate Video Enhancer aktiv</source>
@@ -931,7 +931,7 @@
     </message>
     <message>
         <source>HLS, DASH und direkte Medien-URLs</source>
-        <translation>HLS, DASH ve doğrudan medya URL'leri</translation>
+        <translation>HLS, DASH ve doğrudan medya URL&apos;leri</translation>
     </message>
     <message>
         <source>Zugangs- oder Werbeschutzsysteme werden nicht umgangen; DRM-geschützte Inhalte sind nicht abspielbar.</source>
@@ -940,6 +940,14 @@
 </context>
 <context>
     <name>PlayerApp</name>
+    <message>
+        <source>Auflösung: %1</source>
+        <translation>Çözünürlük: %1</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>En iyi (otomatik)</translation>
+    </message>
     <message>
         <source>direkte Verbindung</source>
         <translation>doğrudan bağlantı</translation>
@@ -1038,7 +1046,7 @@
     </message>
     <message>
         <source>Video-Codec</source>
-        <translation>Video codec'i</translation>
+        <translation>Video codec&apos;i</translation>
     </message>
     <message>
         <source>Auflösung</source>
@@ -1066,7 +1074,7 @@
     </message>
     <message>
         <source>Audio-Codec</source>
-        <translation>Ses codec'i</translation>
+        <translation>Ses codec&apos;i</translation>
     </message>
     <message>
         <source>Audio</source>
@@ -1086,7 +1094,7 @@
     </message>
     <message>
         <source>Aktive Shader</source>
-        <translation>Etkin shader'lar</translation>
+        <translation>Etkin shader&apos;lar</translation>
     </message>
     <message>
         <source>Gemerkte Positionen gelöscht</source>
@@ -1193,7 +1201,7 @@
     </message>
     <message>
         <source>Im Explorer zeigen</source>
-        <translation>Dosya Gezgini'nde göster</translation>
+        <translation>Dosya Gezgini&apos;nde göster</translation>
     </message>
     <message>
         <source>Pfade kopieren</source>
@@ -1227,36 +1235,36 @@
 <context>
     <name>PluginManifest</name>
     <message>
-        <source>Feld 'id' fehlt</source>
-        <translation>'id' alanı eksik</translation>
+        <source>Feld &apos;id&apos; fehlt</source>
+        <translation>&apos;id&apos; alanı eksik</translation>
     </message>
     <message>
-        <source>Ungültige id '%1' (erwartet z. B. org.firma.plugin)</source>
-        <translation>Geçersiz id '%1' (beklenen ör. org.firma.plugin)</translation>
+        <source>Ungültige id &apos;%1&apos; (erwartet z. B. org.firma.plugin)</source>
+        <translation>Geçersiz id &apos;%1&apos; (beklenen ör. org.firma.plugin)</translation>
     </message>
     <message>
-        <source>Feld 'name' fehlt</source>
-        <translation>'name' alanı eksik</translation>
+        <source>Feld &apos;name&apos; fehlt</source>
+        <translation>&apos;name&apos; alanı eksik</translation>
     </message>
     <message>
-        <source>Ungültige Plugin-Version '%1'</source>
-        <translation>Geçersiz eklenti sürümü '%1'</translation>
+        <source>Ungültige Plugin-Version &apos;%1&apos;</source>
+        <translation>Geçersiz eklenti sürümü &apos;%1&apos;</translation>
     </message>
     <message>
         <source>Inkompatible apiVersion %1 (Host unterstützt %2)</source>
         <translation>Uyumsuz apiVersion %1 (ana uygulama %2 destekliyor)</translation>
     </message>
     <message>
-        <source>Ungültige minHostVersion '%1'</source>
-        <translation>Geçersiz minHostVersion '%1'</translation>
+        <source>Ungültige minHostVersion &apos;%1&apos;</source>
+        <translation>Geçersiz minHostVersion &apos;%1&apos;</translation>
     </message>
     <message>
         <source>Benötigt Host ≥ %1 (vorhanden %2)</source>
         <translation>Ana uygulama ≥ %1 gerekli (yüklü: %2)</translation>
     </message>
     <message>
-        <source>Plattform '%1' nicht unterstützt (%2)</source>
-        <translation>'%1' platformu desteklenmiyor (%2)</translation>
+        <source>Plattform &apos;%1&apos; nicht unterstützt (%2)</source>
+        <translation>&apos;%1&apos; platformu desteklenmiyor (%2)</translation>
     </message>
     <message>
         <source>Benötigtes Backend fehlt: %1</source>
@@ -1480,7 +1488,7 @@
     </message>
     <message>
         <source>Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)</source>
-        <translation>Başlangıçta yt-dlp ve libmpv güncellemelerini denetle (GitHub'a ağ erişimi)</translation>
+        <translation>Başlangıçta yt-dlp ve libmpv güncellemelerini denetle (GitHub&apos;a ağ erişimi)</translation>
     </message>
     <message>
         <source>Jetzt nach Updates suchen</source>
@@ -1497,6 +1505,10 @@
     <message>
         <source>Maximale Auflösung für YouTube/Twitch</source>
         <translation>YouTube/Twitch için en yüksek çözünürlük</translation>
+    </message>
+    <message>
+        <source>Beste</source>
+        <translation>En iyi</translation>
     </message>
     <message>
         <source>Hardware-Dekodierung</source>
@@ -1544,7 +1556,7 @@
     </message>
     <message>
         <source>Die Videoausgabe läuft über die libmpv-Render-API (OpenGL); Effekt-Shader nutzen die mpv-Benutzer-Shader.</source>
-        <translation>Video çıkışı libmpv render API'si (OpenGL) üzerinden çalışır; efekt shader'ları mpv kullanıcı shader'larını kullanır.</translation>
+        <translation>Video çıkışı libmpv render API&apos;si (OpenGL) üzerinden çalışır; efekt shader&apos;ları mpv kullanıcı shader&apos;larını kullanır.</translation>
     </message>
     <message>
         <source>Audiogerät</source>
@@ -1616,7 +1628,7 @@
     </message>
     <message>
         <source>Der Player sendet keine Telemetrie. Netzwerkzugriffe erfolgen nur für geöffnete Streams und – falls aktiviert – für die Update-Prüfung bei GitHub.</source>
-        <translation>Oynatıcı telemetri göndermez. Ağ erişimi yalnızca açılan akışlar ve – etkinleştirilmişse – GitHub'daki güncelleme denetimi için gerçekleşir.</translation>
+        <translation>Oynatıcı telemetri göndermez. Ağ erişimi yalnızca açılan akışlar ve – etkinleştirilmişse – GitHub&apos;daki güncelleme denetimi için gerçekleşir.</translation>
     </message>
     <message>
         <source>Verlauf (zuletzt geöffnet) speichern</source>
@@ -1648,7 +1660,7 @@
     </message>
     <message>
         <source>Systemproxy von Windows verwenden (</source>
-        <translation>Windows sistem proxy'sini kullan (</translation>
+        <translation>Windows sistem proxy&apos;sini kullan (</translation>
     </message>
     <message>
         <source>Manuell</source>
@@ -1712,7 +1724,7 @@
     </message>
     <message>
         <source>SOCKS5 wird für mpv über eine lokale Brücke (nur 127.0.0.1) bereitgestellt; Hostnamen werden am Proxy aufgelöst. </source>
-        <translation>SOCKS5, mpv için yerel bir köprü (yalnızca 127.0.0.1) üzerinden sağlanır; ana bilgisayar adları proxy'de çözümlenir. </translation>
+        <translation>SOCKS5, mpv için yerel bir köprü (yalnızca 127.0.0.1) üzerinden sağlanır; ana bilgisayar adları proxy&apos;de çözümlenir. </translation>
     </message>
     <message>
         <source>Nicht über Proxys möglich: udp://, rtp://, rtmp://, rtsp:// und srt://. Das Passwort wird mit Windows-DPAPI verschlüsselt gespeichert.</source>
@@ -1736,7 +1748,7 @@
     </message>
     <message>
         <source>Start ohne Plugins: UVEPlayer.exe --safe-mode. Portables Profil: Datei „portable.txt“ neben die EXE legen (Daten in ./data).</source>
-        <translation>Eklentisiz başlatma: UVEPlayer.exe --safe-mode. Taşınabilir profil: EXE'nin yanına “portable.txt” adlı bir dosya koyun (veriler ./data içinde).</translation>
+        <translation>Eklentisiz başlatma: UVEPlayer.exe --safe-mode. Taşınabilir profil: EXE&apos;nin yanına “portable.txt” adlı bir dosya koyun (veriler ./data içinde).</translation>
     </message>
 </context>
 <context>
@@ -1747,7 +1759,7 @@
     </message>
     <message>
         <source>Beispiel-Plugin für die Plugin-API: pausiert die Wiedergabe nach Ablauf der Zeit.</source>
-        <translation>Eklenti API'si için örnek eklenti: süre dolunca oynatmayı duraklatır.</translation>
+        <translation>Eklenti API&apos;si için örnek eklenti: süre dolunca oynatmayı duraklatır.</translation>
     </message>
     <message>
         <source>Minuten</source>
@@ -1836,7 +1848,7 @@
     <name>UvePlugin</name>
     <message>
         <source>Host-API nicht kompatibel</source>
-        <translation>Ana uygulama API'si uyumlu değil</translation>
+        <translation>Ana uygulama API&apos;si uyumlu değil</translation>
     </message>
     <message>
         <source>Effekte</source>
@@ -1912,6 +1924,18 @@
     <message>
         <source>Verzögerung +50 ms</source>
         <translation>Gecikme +50 ms</translation>
+    </message>
+    <message>
+        <source>Auflösung</source>
+        <translation>Çözünürlük</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>En iyi (otomatik)</translation>
+    </message>
+    <message>
+        <source>Auflösungen werden ermittelt…</source>
+        <translation>Çözünürlükler belirleniyor…</translation>
     </message>
     <message>
         <source>Geschwindigkeit (</source>
@@ -2057,7 +2081,7 @@
     </message>
     <message>
         <source>1D-LUTs werden nicht unterstützt (nur LUT_3D_SIZE)</source>
-        <translation>1D LUT'lar desteklenmiyor (yalnızca LUT_3D_SIZE)</translation>
+        <translation>1D LUT&apos;lar desteklenmiyor (yalnızca LUT_3D_SIZE)</translation>
     </message>
     <message>
         <source>Ungültige LUT_3D_SIZE in Zeile %1</source>
@@ -2072,8 +2096,8 @@
         <translation>Satır %1: 3 değer bekleniyor</translation>
     </message>
     <message>
-        <source>Zeile %1: ungültige Zahl '%2'</source>
-        <translation>Satır %1: geçersiz sayı '%2'</translation>
+        <source>Zeile %1: ungültige Zahl &apos;%2&apos;</source>
+        <translation>Satır %1: geçersiz sayı &apos;%2&apos;</translation>
     </message>
     <message>
         <source>DOMAIN_MAX muss größer als DOMAIN_MIN sein</source>
@@ -2128,8 +2152,8 @@
         <translation>Sağlama toplamı yanlış: </translation>
     </message>
     <message>
-        <source>'%1' ist keine Zahl</source>
-        <translation>'%1' bir sayı değil</translation>
+        <source>&apos;%1&apos; ist keine Zahl</source>
+        <translation>&apos;%1&apos; bir sayı değil</translation>
     </message>
 </context>
 <context>
@@ -2411,7 +2435,7 @@
     </message>
     <message>
         <source>GitHub-API nicht erreichbar</source>
-        <translation>GitHub API'sine ulaşılamıyor</translation>
+        <translation>GitHub API&apos;sine ulaşılamıyor</translation>
     </message>
     <message>
         <source> – nutze jsDelivr-Spiegel …</source>
@@ -2530,7 +2554,7 @@
     </message>
     <message>
         <source>UVE-Hauptregler: hebt/senkt die Lichter ab 78 %</source>
-        <translation>UVE ana ayarı: yüzde 78'in üzerindeki parlak alanları yükseltir/düşürür</translation>
+        <translation>UVE ana ayarı: yüzde 78&apos;in üzerindeki parlak alanları yükseltir/düşürür</translation>
     </message>
     <message>
         <source>Kontrast</source>
@@ -2698,7 +2722,7 @@
     </message>
     <message>
         <source>LUT-Shader nicht schreibbar: </source>
-        <translation>LUT shader'ına yazılamıyor: </translation>
+        <translation>LUT shader&apos;ına yazılamıyor: </translation>
     </message>
     <message>
         <source>Shaderfehler – Effekte vorübergehend deaktiviert, Wiedergabe läuft weiter: </source>
@@ -2786,7 +2810,7 @@
     </message>
     <message>
         <source>Noch keine LUT-Profile – „LUT-Paket von GitHub“ laden.</source>
-        <translation>Henüz LUT profili yok – “GitHub'dan LUT paketi” indirin.</translation>
+        <translation>Henüz LUT profili yok – “GitHub&apos;dan LUT paketi” indirin.</translation>
     </message>
     <message>
         <source>Zieldatei nicht beschreibbar</source>

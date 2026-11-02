@@ -113,7 +113,7 @@ QVariant PlayerApp::setting(const QString &key, const QVariant &def) const { ret
 void PlayerApp::setSetting(const QString &key, const QVariant &value)
 {
     m_settings->setValue(key, value);
-    if (key == "streamMaxHeight") applyYtdlOptions();
+    if (key == "streamQualityLimit") applyYtdlOptions();
     if (key == "subAuto") m_player->setProperty("sub-auto", value.toBool() ? "fuzzy" : "no");
     if (key == "subFontSize") m_player->setProperty("sub-font-size", value.toInt());
     if (key == "subLanguages") m_player->setProperty("slang", value.toString());
@@ -156,10 +156,113 @@ void PlayerApp::applyYtdlOptions()
     // yt-dlp: neueste vorhandene Version (Update im Benutzerordner oder mitgeliefert)
     const QString ytdlp = ToolUpdater::preferredYtdlp(QCoreApplication::applicationDirPath(), m_settings->dataDir());
     if (!ytdlp.isEmpty()) m_player->setProperty("script-opts", QStringLiteral("ytdl_hook-ytdl_path=%1").arg(ytdlp));
-    const int h = m_settings->value("streamMaxHeight", 1080).toInt();
-    // H.264/AAC bevorzugt, Auflösung begrenzt; Fallback auf beste verfügbare Variante
-    m_player->setProperty("ytdl-format",
-                          QStringLiteral("bv*[height<=?%1][vcodec^=avc1]+ba[acodec^=mp4a]/bv*[height<=?%1]+ba/b[height<=?%1]/b").arg(h));
+    // Standard: immer die beste Qualität (bestes Video + bestes Audio); optional begrenzt (Einstellungen)
+    const int h = m_settings->value("streamQualityLimit", 0).toInt();
+    m_player->setProperty("ytdl-format", h > 0
+        ? QStringLiteral("bv*[height<=?%1]+ba/b[height<=?%1]/bv*+ba/b").arg(h)
+        : QStringLiteral("bv*+ba/b"));
+}
+
+// ---------------------------------------------------------------- Stream-Auflösung
+static bool isYtdlStream(const QString &path)
+{
+    const QUrl u(path);
+    if (u.scheme() != QLatin1String("http") && u.scheme() != QLatin1String("https")) return false;
+    const QString h = u.host().toLower();
+    for (const char *d : {"youtube.com", "youtu.be", "twitch.tv"})
+        if (h == QLatin1String(d) || h.endsWith(QLatin1Char('.') + QLatin1String(d))) return true;
+    return false;
+}
+
+QString PlayerApp::ytdlFormatFor(const QString &id) const
+{
+    for (const auto &v : m_streamQualities) {
+        const auto q = v.toMap();
+        if (q.value("id").toString() == id) return q.value("format").toString();
+    }
+    return {};
+}
+
+void PlayerApp::loadPath(const QString &path, double start, bool paused)
+{
+    prepareStreamQualities(path);
+    QStringList fileOpts;
+    if (!m_streamQuality.isEmpty()) {
+        const QString f = ytdlFormatFor(m_streamQuality);
+        if (!f.isEmpty()) fileOpts << QStringLiteral("ytdl-format=") + f;
+    }
+    m_player->load(routeThroughProxy(path), start, paused, fileOpts);
+}
+
+void PlayerApp::prepareStreamQualities(const QString &path)
+{
+    if (path == m_qualityUrl) return;              // gleicher Stream: Liste und Auswahl behalten
+    if (m_formatProc) { m_formatProc->disconnect(this); m_formatProc->kill(); m_formatProc->deleteLater(); m_formatProc = nullptr; }
+    m_qualityUrl = path;
+    m_streamQuality.clear();
+    m_streamQualities.clear();
+    if (!isYtdlStream(path)) { emit streamQualitiesChanged(); return; }
+    const QString ytdlp = ToolUpdater::preferredYtdlp(QCoreApplication::applicationDirPath(), m_settings->dataDir());
+    if (ytdlp.isEmpty()) { emit streamQualitiesChanged(); return; }
+
+    QStringList args{"-J", "--no-playlist", "--no-warnings"};
+    if (!m_ytdlProxy.isEmpty()) args << "--proxy" << m_ytdlProxy;
+    args << path;
+    auto *p = new QProcess(this);
+    m_formatProc = p;
+    connect(p, &QProcess::finished, this, [this, p, path](int code, QProcess::ExitStatus st) {
+        p->deleteLater();
+        if (m_formatProc != p) return;
+        m_formatProc = nullptr;
+        const auto info = QJsonDocument::fromJson(p->readAllStandardOutput()).object();
+        if (st != QProcess::NormalExit || code != 0 || info.isEmpty())
+            Logger::write("ytdl", "Formatliste nicht ermittelbar: " + QString::fromUtf8(p->readAllStandardError()).trimmed().left(300));
+        // je Auflösung + Bildrate die Variante mit der höchsten Bitrate
+        struct Q { int h = 0; int fps = 0; double tbr = -1; QString id; bool hasAudio = false; };
+        QMap<QPair<int, int>, Q> best;
+        for (const auto &v : info.value("formats").toArray()) {
+            const auto f = v.toObject();
+            const int h = f.value("height").toInt();
+            if (h <= 0 || f.value("vcodec").toString() == QLatin1String("none")) continue;
+            if (f.value("format_note").toString().contains(QLatin1String("storyboard"), Qt::CaseInsensitive)) continue;
+            const int fps = qRound(f.value("fps").toDouble());
+            const QPair<int, int> key{h, fps > 30 ? fps : 30};
+            const double tbr = f.value("tbr").toDouble();
+            auto &b = best[key];
+            if (tbr > b.tbr) {
+                const QString ac = f.value("acodec").toString();
+                b = Q{h, fps, tbr, f.value("format_id").toString(), !ac.isEmpty() && ac != QLatin1String("none")};
+            }
+        }
+        QVariantList list;
+        for (auto it = best.constEnd(); it != best.constBegin();) {
+            --it;
+            const Q &q = it.value();
+            if (q.id.isEmpty() || q.id.contains(QLatin1Char(','))) continue;
+            QString label = QString::number(q.h) + QLatin1Char('p');
+            if (q.fps > 30) label += QString::number(q.fps);
+            list << QVariantMap{{"id", label}, {"label", label}, {"height", q.h},
+                                {"format", q.hasAudio ? q.id : q.id + QStringLiteral("+ba/") + q.id}};
+        }
+        m_streamQualities = list;
+        Logger::write("ytdl", QStringLiteral("%1 Auflösungen für %2").arg(list.size()).arg(path));
+        emit streamQualitiesChanged();
+    });
+    emit streamQualitiesChanged();
+    p->start(ytdlp, args);
+}
+
+void PlayerApp::setStreamQuality(const QString &id)
+{
+    if (id == m_streamQuality || m_qualityUrl.isEmpty()) return;
+    m_streamQuality = id;
+    emit streamQualitiesChanged();
+    // an der aktuellen Stelle neu laden (Livestreams ohne Dauer: live bleiben)
+    const double dur = m_player->duration();
+    const double pos = dur > 0 ? m_player->position() : 0;
+    const bool paused = m_player->paused();
+    loadPath(m_qualityUrl, pos > 1 ? pos : 0, paused);
+    showOsd(tr("Auflösung: %1").arg(id.isEmpty() ? tr("Beste (automatisch)") : id), 2000);
 }
 
 // ---------------------------------------------------------------- Proxy
@@ -239,6 +342,7 @@ void PlayerApp::applyProxy()
     if (!mpvProxy.isEmpty()) raw.insert("proxy", mpvProxy);
     else if (eff.active()) raw.insert("proxy", eff.url()); // Notfall: Brücke nicht startbar
     m_player->setProperty("ytdl-raw-options", raw);
+    m_ytdlProxy = raw.value("proxy").toString();
 
     updateProxyStatus();
     Logger::write("proxy", m_proxyStatus); // ohne Zugangsdaten
@@ -374,7 +478,7 @@ void PlayerApp::restoreSessionAndOpen(const QStringList &args)
         // Sitzung pausiert an der gemerkten Position wiederherstellen
         const QString path = m_playlist->pathAt(idx);
         const double pos = m_settings->value("resumePlayback", true).toBool() ? m_settings->resumePosition(path) : 0;
-        m_player->load(routeThroughProxy(path), pos, true);
+        loadPath(path, pos, true);
     }
 }
 
@@ -430,7 +534,7 @@ void PlayerApp::playIndex(int index, double startAt)
             else start = 0;
         }
     }
-    m_player->load(routeThroughProxy(path), start, false);
+    loadPath(path, start, false);
     saveSession();
 }
 

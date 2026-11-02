@@ -33,14 +33,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: ${{ env.QT_VERSION }}
-          arch: win64_msvc2022_64
-          modules: qtimageformats qtshadertools
-          cache: true
-
       - name: Fetch libmpv, yt-dlp, 7zr and NSIS
         shell: pwsh
         run: |
@@ -53,12 +45,28 @@ jobs:
           $yt = Get-Content deps/tools/yt-dlp/version.json | ConvertFrom-Json
           $base = "https://github.com/yt-dlp/yt-dlp/releases/download/$($yt.version)"
           Invoke-WebRequest "$base/yt-dlp.exe" -OutFile deps/tools/yt-dlp/yt-dlp.exe
-          $sums = (Invoke-WebRequest "$base/SHA2-256SUMS").Content -split "`n"
-          $expected = ($sums | Where-Object { $_ -match '\s\*?yt-dlp\.exe\s*$' }) -replace '\s.*$', ''
-          if ((Get-FileHash deps/tools/yt-dlp/yt-dlp.exe).Hash -ne $expected.ToUpper()) { throw "yt-dlp checksum mismatch" }
+          Invoke-WebRequest "$base/SHA2-256SUMS" -OutFile yt-dlp-sums.txt
+          $expected = ((Get-Content yt-dlp-sums.txt | Where-Object { $_ -match '\s\*?yt-dlp\.exe\s*$' }) -split '\s+')[0]
+          if ((Get-FileHash deps/tools/yt-dlp/yt-dlp.exe).Hash -ne $expected) { throw "yt-dlp checksum mismatch" }
 
           Invoke-WebRequest "https://github.com/ip7z/7zip/releases/download/26.05/7zr.exe" -OutFile deps/tools/7zr.exe
           choco install nsis -y --no-progress
+
+      # aqtinstall 3.3 does not understand the per-architecture repository layout Qt uses for Windows
+      # since 6.12 -> fetch Qt with scripts/fetch-qt.py (official Qt repository, SHA-1 verified)
+      - name: Cache Qt
+        id: qtcache
+        uses: actions/cache@v4
+        with:
+          path: C:\Qt
+          key: qt-${{ env.QT_VERSION }}-win64_msvc2022_64-${{ hashFiles('scripts/fetch-qt.py') }}
+
+      - name: Install Qt
+        shell: pwsh
+        run: |
+          if ("${{ steps.qtcache.outputs.cache-hit }}" -ne "true") { python -I scripts/fetch-qt.py $env:QT_VERSION C:/Qt }
+          if ($LASTEXITCODE) { throw "Qt download failed" }
+          "QT_ROOT_DIR=C:\Qt\$env:QT_VERSION\msvc2022_64" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
 
       - name: Build, test and package
         shell: pwsh
@@ -169,6 +177,7 @@ jobs:
           name: UVE Player ${{ needs.version.outputs.version }}
           body_path: CHANGELOG.md
           make_latest: false   # the repository also hosts UVE Manager releases
+          overwrite_files: true   # a new run replaces the assets of the same version
           files: |
             dist/UVE-Player-*
             dist/SHA256SUMS.txt

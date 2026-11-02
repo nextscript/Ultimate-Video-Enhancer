@@ -91,10 +91,12 @@ Dialog {
                     SpinBox { from: 1; to: 600; value: app.setting("seekStep", 10); editable: true; onValueModified: app.setSetting("seekStep", value) } }
                 Row2 { Label { text: qsTr("Maximale Auflösung für YouTube/Twitch"); color: theme.text; Layout.fillWidth: true }
                     ComboBox {
-                        model: [480, 720, 1080, 1440, 2160]
-                        currentIndex: Math.max(0, model.indexOf(app.setting("streamMaxHeight", 1080)))
-                        displayText: currentValue + "p"
-                        onActivated: (i) => app.setSetting("streamMaxHeight", model[i])
+                        model: [0, 2160, 1440, 1080, 720, 480]
+                        currentIndex: Math.max(0, model.indexOf(app.setting("streamQualityLimit", 0)))
+                        displayText: currentValue > 0 ? currentValue + "p" : qsTr("Beste")
+                        delegate: ItemDelegate { required property int modelData; required property int index; width: ListView.view ? ListView.view.width : 120
+                            text: modelData > 0 ? modelData + "p" : qsTr("Beste") }
+                        onActivated: (i) => app.setSetting("streamQualityLimit", model[i])
                     } }
                 Item { Layout.fillHeight: true }
             }

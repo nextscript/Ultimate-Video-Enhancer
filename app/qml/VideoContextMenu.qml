@@ -76,6 +76,33 @@ Menu {
         }
     }
 
+    // YouTube/Twitch: verfügbare Auflösungen (über yt-dlp ermittelt)
+    Menu {
+        id: qualityMenu
+        title: qsTr("Auflösung") + (app.streamQuality !== "" ? " (" + app.streamQuality + ")" : "")
+        enabled: menu.hasMedia && (app.streamQualities.length > 0 || app.streamQualitiesLoading)
+        MenuItem {
+            text: qsTr("Beste (automatisch)")
+            checkable: true
+            checked: app.streamQuality === ""
+            onTriggered: app.setStreamQuality("")
+        }
+        MenuSeparator {}
+        Instantiator {
+            model: app.streamQualities
+            delegate: MenuItem {
+                required property var modelData
+                text: modelData.label
+                checkable: true
+                checked: app.streamQuality === modelData.id
+                onTriggered: app.setStreamQuality(modelData.id)
+            }
+            onObjectAdded: (i, o) => qualityMenu.insertItem(i + 2, o)
+            onObjectRemoved: (i, o) => qualityMenu.removeItem(o)
+        }
+        MenuItem { text: qsTr("Auflösungen werden ermittelt…"); enabled: false; visible: app.streamQualitiesLoading; height: visible ? implicitHeight : 0 }
+    }
+
     Menu {
         id: speedMenu
         title: qsTr("Geschwindigkeit (") + (menu.player ? menu.player.speed.toFixed(2) : "1.00") + "×)"

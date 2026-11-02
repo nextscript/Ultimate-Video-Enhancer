@@ -25,7 +25,7 @@ static QJsonObject defaults()
         {"shuffle", false},
         {"showSidebar", true},
         {"checkToolUpdates", true},
-        {"streamMaxHeight", 1080},
+        {"streamQualityLimit", 0},   // 0 = immer beste Qualität
         {"subAuto", true},
         {"keepAspect", "fit"},
         {"plugins", QJsonObject()},

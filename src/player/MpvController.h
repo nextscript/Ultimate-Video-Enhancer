@@ -79,6 +79,8 @@ public:
 
     // Befehle (alle aus QML aufrufbar)
     Q_INVOKABLE void load(const QString &url, double startSeconds = 0, bool startPaused = false);
+    // wie load(), mit zusätzlichen Datei-Optionen (z. B. "ytdl-format=137+ba/137"); Werte ohne Komma
+    void load(const QString &url, double startSeconds, bool startPaused, const QStringList &fileOptions);
     Q_INVOKABLE void stop();
     Q_INVOKABLE void setPaused(bool p);
     Q_INVOKABLE void togglePause();

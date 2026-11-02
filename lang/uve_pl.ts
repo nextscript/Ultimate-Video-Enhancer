@@ -941,6 +941,14 @@
 <context>
     <name>PlayerApp</name>
     <message>
+        <source>Auflösung: %1</source>
+        <translation>Rozdzielczość: %1</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>Najlepsza (automatycznie)</translation>
+    </message>
+    <message>
         <source>direkte Verbindung</source>
         <translation>połączenie bezpośrednie</translation>
     </message>
@@ -1227,36 +1235,36 @@
 <context>
     <name>PluginManifest</name>
     <message>
-        <source>Feld 'id' fehlt</source>
-        <translation>Brak pola 'id'</translation>
+        <source>Feld &apos;id&apos; fehlt</source>
+        <translation>Brak pola &apos;id&apos;</translation>
     </message>
     <message>
-        <source>Ungültige id '%1' (erwartet z. B. org.firma.plugin)</source>
-        <translation>Nieprawidłowy id '%1' (oczekiwano np. org.firma.plugin)</translation>
+        <source>Ungültige id &apos;%1&apos; (erwartet z. B. org.firma.plugin)</source>
+        <translation>Nieprawidłowy id &apos;%1&apos; (oczekiwano np. org.firma.plugin)</translation>
     </message>
     <message>
-        <source>Feld 'name' fehlt</source>
-        <translation>Brak pola 'name'</translation>
+        <source>Feld &apos;name&apos; fehlt</source>
+        <translation>Brak pola &apos;name&apos;</translation>
     </message>
     <message>
-        <source>Ungültige Plugin-Version '%1'</source>
-        <translation>Nieprawidłowa wersja wtyczki '%1'</translation>
+        <source>Ungültige Plugin-Version &apos;%1&apos;</source>
+        <translation>Nieprawidłowa wersja wtyczki &apos;%1&apos;</translation>
     </message>
     <message>
         <source>Inkompatible apiVersion %1 (Host unterstützt %2)</source>
         <translation>Niezgodna apiVersion %1 (host obsługuje %2)</translation>
     </message>
     <message>
-        <source>Ungültige minHostVersion '%1'</source>
-        <translation>Nieprawidłowa minHostVersion '%1'</translation>
+        <source>Ungültige minHostVersion &apos;%1&apos;</source>
+        <translation>Nieprawidłowa minHostVersion &apos;%1&apos;</translation>
     </message>
     <message>
         <source>Benötigt Host ≥ %1 (vorhanden %2)</source>
         <translation>Wymaga hosta ≥ %1 (zainstalowany %2)</translation>
     </message>
     <message>
-        <source>Plattform '%1' nicht unterstützt (%2)</source>
-        <translation>Platforma '%1' nie jest obsługiwana (%2)</translation>
+        <source>Plattform &apos;%1&apos; nicht unterstützt (%2)</source>
+        <translation>Platforma &apos;%1&apos; nie jest obsługiwana (%2)</translation>
     </message>
     <message>
         <source>Benötigtes Backend fehlt: %1</source>
@@ -1497,6 +1505,10 @@
     <message>
         <source>Maximale Auflösung für YouTube/Twitch</source>
         <translation>Maksymalna rozdzielczość dla YouTube/Twitch</translation>
+    </message>
+    <message>
+        <source>Beste</source>
+        <translation>Najlepsza</translation>
     </message>
     <message>
         <source>Hardware-Dekodierung</source>
@@ -1914,6 +1926,18 @@
         <translation>Opóźnienie +50 ms</translation>
     </message>
     <message>
+        <source>Auflösung</source>
+        <translation>Rozdzielczość</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>Najlepsza (automatycznie)</translation>
+    </message>
+    <message>
+        <source>Auflösungen werden ermittelt…</source>
+        <translation>Wykrywanie rozdzielczości…</translation>
+    </message>
+    <message>
         <source>Geschwindigkeit (</source>
         <translation>Prędkość (</translation>
     </message>
@@ -2072,8 +2096,8 @@
         <translation>Wiersz %1: oczekiwano 3 wartości</translation>
     </message>
     <message>
-        <source>Zeile %1: ungültige Zahl '%2'</source>
-        <translation>Wiersz %1: nieprawidłowa liczba '%2'</translation>
+        <source>Zeile %1: ungültige Zahl &apos;%2&apos;</source>
+        <translation>Wiersz %1: nieprawidłowa liczba &apos;%2&apos;</translation>
     </message>
     <message>
         <source>DOMAIN_MAX muss größer als DOMAIN_MIN sein</source>
@@ -2128,8 +2152,8 @@
         <translation>Nieprawidłowa suma kontrolna: </translation>
     </message>
     <message>
-        <source>'%1' ist keine Zahl</source>
-        <translation>'%1' nie jest liczbą</translation>
+        <source>&apos;%1&apos; ist keine Zahl</source>
+        <translation>&apos;%1&apos; nie jest liczbą</translation>
     </message>
 </context>
 <context>

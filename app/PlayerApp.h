@@ -1,4 +1,5 @@
 #pragma once
+#include <QProcess>
 #include <QDir>
 #include <QFileInfo>
 #include <QObject>
@@ -49,6 +50,10 @@ class PlayerApp : public QObject
     Q_PROPERTY(QString proxyStatus READ proxyStatus NOTIFY proxyChanged)
     Q_PROPERTY(QString language READ language NOTIFY languageChanged)
     Q_PROPERTY(QVariantList languages READ languages NOTIFY languageChanged)
+    // Auflösungen des aktuellen YouTube-/Twitch-Streams (über yt-dlp ermittelt): [{id, label, height, format}]
+    Q_PROPERTY(QVariantList streamQualities READ streamQualities NOTIFY streamQualitiesChanged)
+    Q_PROPERTY(QString streamQuality READ streamQuality NOTIFY streamQualitiesChanged)      // "" = beste (automatisch)
+    Q_PROPERTY(bool streamQualitiesLoading READ streamQualitiesLoading NOTIFY streamQualitiesChanged)
 
 public:
     PlayerApp(uve::AppSettings *settings, uve::SafeMode *safe, const QString &mpvLibrary, QObject *parent = nullptr);
@@ -134,6 +139,10 @@ public:
     Q_INVOKABLE QString setProxy(const QVariantMap &settings);  // "" = übernommen, sonst Fehlertext
     Q_INVOKABLE void testProxy(const QVariantMap &settings);    // Ergebnis: proxyTestFinished
     Q_INVOKABLE QVariantMap proxyStats() const;
+    QVariantList streamQualities() const { return m_streamQualities; }
+    QString streamQuality() const { return m_streamQuality; }
+    bool streamQualitiesLoading() const { return m_formatProc != nullptr; }
+    Q_INVOKABLE void setStreamQuality(const QString &id);       // "" = beste; lädt den Stream an der aktuellen Stelle neu
 
 signals:
     void osd(const QString &text, int ms);
@@ -146,6 +155,7 @@ signals:
     void proxyChanged();
     void languageChanged();
     void proxyTestFinished(bool ok, const QString &message);
+    void streamQualitiesChanged();
 
 private:
     void onFileLoaded();
@@ -153,6 +163,9 @@ private:
     void saveResume();
     void saveSession();
     void applyYtdlOptions();
+    void loadPath(const QString &path, double start, bool paused); // inkl. gewählter Stream-Auflösung
+    void prepareStreamQualities(const QString &path);
+    QString ytdlFormatFor(const QString &id) const;
     void applyProxy();
     uve::ProxyConfig proxyFromMap(const QVariantMap &m) const;
     QString routeThroughProxy(const QString &url);             // tcp:// → lokale Weiterleitung
@@ -167,6 +180,11 @@ private:
     QQmlEngine *m_engine = nullptr;
     void updateProxyStatus();
     QString m_proxyStatus;
+    QString m_ytdlProxy;                                         // Proxy-URL für eigene yt-dlp-Aufrufe
+    QVariantList m_streamQualities;
+    QString m_streamQuality;
+    QString m_qualityUrl;                                        // Stream, zu dem Liste/Auswahl gehören
+    QProcess *m_formatProc = nullptr;
     QHash<QString, QString> m_proxiedOriginal;                  // lokale URL → Original
     uve::MpvController *m_player = nullptr;
     uve::ShaderChain *m_shaders = nullptr;

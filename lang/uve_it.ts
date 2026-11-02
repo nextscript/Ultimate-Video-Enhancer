@@ -318,7 +318,7 @@
     </message>
     <message>
         <source>Keine LUT-Profile vorhanden. Das Download-Symbol oben lädt das aktuelle LUTsProfiles-Paket aus dem UVE-Repository.</source>
-        <translation>Nessun profilo LUT disponibile. L'icona di download in alto scarica il pacchetto LUTsProfiles attuale dal repository UVE.</translation>
+        <translation>Nessun profilo LUT disponibile. L&apos;icona di download in alto scarica il pacchetto LUTsProfiles attuale dal repository UVE.</translation>
     </message>
     <message>
         <source>Effekte an</source>
@@ -935,11 +935,19 @@
     </message>
     <message>
         <source>Zugangs- oder Werbeschutzsysteme werden nicht umgangen; DRM-geschützte Inhalte sind nicht abspielbar.</source>
-        <translation>I sistemi di controllo dell'accesso o di protezione pubblicitaria non vengono aggirati; i contenuti protetti da DRM non possono essere riprodotti.</translation>
+        <translation>I sistemi di controllo dell&apos;accesso o di protezione pubblicitaria non vengono aggirati; i contenuti protetti da DRM non possono essere riprodotti.</translation>
     </message>
 </context>
 <context>
     <name>PlayerApp</name>
+    <message>
+        <source>Auflösung: %1</source>
+        <translation>Risoluzione: %1</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>Migliore (automatica)</translation>
+    </message>
     <message>
         <source>direkte Verbindung</source>
         <translation>connessione diretta</translation>
@@ -990,7 +998,7 @@
     </message>
     <message>
         <source>Adresse muss mit einem Schema beginnen (z. B. https://, tcp://)</source>
-        <translation>L'indirizzo deve iniziare con uno schema (ad es. https://, tcp://)</translation>
+        <translation>L&apos;indirizzo deve iniziare con uno schema (ad es. https://, tcp://)</translation>
     </message>
     <message>
         <source>Nicht unterstütztes Adressformat oder fehlender Host</source>
@@ -1185,7 +1193,7 @@
     </message>
     <message>
         <source>An den Anfang</source>
-        <translation>Sposta all'inizio</translation>
+        <translation>Sposta all&apos;inizio</translation>
     </message>
     <message>
         <source>Ans Ende</source>
@@ -1227,36 +1235,36 @@
 <context>
     <name>PluginManifest</name>
     <message>
-        <source>Feld 'id' fehlt</source>
-        <translation>Campo 'id' mancante</translation>
+        <source>Feld &apos;id&apos; fehlt</source>
+        <translation>Campo &apos;id&apos; mancante</translation>
     </message>
     <message>
-        <source>Ungültige id '%1' (erwartet z. B. org.firma.plugin)</source>
-        <translation>id '%1' non valido (previsto ad es. org.azienda.plugin)</translation>
+        <source>Ungültige id &apos;%1&apos; (erwartet z. B. org.firma.plugin)</source>
+        <translation>id &apos;%1&apos; non valido (previsto ad es. org.azienda.plugin)</translation>
     </message>
     <message>
-        <source>Feld 'name' fehlt</source>
-        <translation>Campo 'name' mancante</translation>
+        <source>Feld &apos;name&apos; fehlt</source>
+        <translation>Campo &apos;name&apos; mancante</translation>
     </message>
     <message>
-        <source>Ungültige Plugin-Version '%1'</source>
-        <translation>Versione plugin '%1' non valida</translation>
+        <source>Ungültige Plugin-Version &apos;%1&apos;</source>
+        <translation>Versione plugin &apos;%1&apos; non valida</translation>
     </message>
     <message>
         <source>Inkompatible apiVersion %1 (Host unterstützt %2)</source>
-        <translation>apiVersion %1 incompatibile (l'host supporta %2)</translation>
+        <translation>apiVersion %1 incompatibile (l&apos;host supporta %2)</translation>
     </message>
     <message>
-        <source>Ungültige minHostVersion '%1'</source>
-        <translation>minHostVersion '%1' non valida</translation>
+        <source>Ungültige minHostVersion &apos;%1&apos;</source>
+        <translation>minHostVersion &apos;%1&apos; non valida</translation>
     </message>
     <message>
         <source>Benötigt Host ≥ %1 (vorhanden %2)</source>
         <translation>Richiede host ≥ %1 (installato %2)</translation>
     </message>
     <message>
-        <source>Plattform '%1' nicht unterstützt (%2)</source>
-        <translation>Piattaforma '%1' non supportata (%2)</translation>
+        <source>Plattform &apos;%1&apos; nicht unterstützt (%2)</source>
+        <translation>Piattaforma &apos;%1&apos; non supportata (%2)</translation>
     </message>
     <message>
         <source>Benötigtes Backend fehlt: %1</source>
@@ -1476,11 +1484,11 @@
     </message>
     <message>
         <source>Letzte Wiedergabeliste beim Start wiederherstellen</source>
-        <translation>Ripristina l'ultima playlist all'avvio</translation>
+        <translation>Ripristina l&apos;ultima playlist all&apos;avvio</translation>
     </message>
     <message>
         <source>Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)</source>
-        <translation>Cerca aggiornamenti di yt-dlp e libmpv all'avvio (accesso di rete a GitHub)</translation>
+        <translation>Cerca aggiornamenti di yt-dlp e libmpv all&apos;avvio (accesso di rete a GitHub)</translation>
     </message>
     <message>
         <source>Jetzt nach Updates suchen</source>
@@ -1488,7 +1496,7 @@
     </message>
     <message>
         <source>Wiedergabe an der letzten Position fortsetzen</source>
-        <translation>Riprendi la riproduzione dall'ultima posizione</translation>
+        <translation>Riprendi la riproduzione dall&apos;ultima posizione</translation>
     </message>
     <message>
         <source>Sprungweite Pfeiltasten (Sekunden)</source>
@@ -1497,6 +1505,10 @@
     <message>
         <source>Maximale Auflösung für YouTube/Twitch</source>
         <translation>Risoluzione massima per YouTube/Twitch</translation>
+    </message>
+    <message>
+        <source>Beste</source>
+        <translation>Migliore</translation>
     </message>
     <message>
         <source>Hardware-Dekodierung</source>
@@ -1540,11 +1552,11 @@
     </message>
     <message>
         <source>. Bei Bildfehlern auf „mit Kopie“ oder „Aus“ wechseln. </source>
-        <translation>. In caso di errori nell'immagine, passa a “con copia” o “Disattivato”. </translation>
+        <translation>. In caso di errori nell&apos;immagine, passa a “con copia” o “Disattivato”. </translation>
     </message>
     <message>
         <source>Die Videoausgabe läuft über die libmpv-Render-API (OpenGL); Effekt-Shader nutzen die mpv-Benutzer-Shader.</source>
-        <translation>L'uscita video usa l'API di rendering di libmpv (OpenGL); gli shader degli effetti usano gli shader utente di mpv.</translation>
+        <translation>L&apos;uscita video usa l&apos;API di rendering di libmpv (OpenGL); gli shader degli effetti usano gli shader utente di mpv.</translation>
     </message>
     <message>
         <source>Audiogerät</source>
@@ -1612,11 +1624,11 @@
     </message>
     <message>
         <source>“ zugewiesen. Erneut drücken, um es zu übernehmen (die andere Aktion verliert die Belegung).</source>
-        <translation>”. Premi di nuovo per applicarlo (l'altra azione perde la scorciatoia).</translation>
+        <translation>”. Premi di nuovo per applicarlo (l&apos;altra azione perde la scorciatoia).</translation>
     </message>
     <message>
         <source>Der Player sendet keine Telemetrie. Netzwerkzugriffe erfolgen nur für geöffnete Streams und – falls aktiviert – für die Update-Prüfung bei GitHub.</source>
-        <translation>Il lettore non invia telemetria. L'accesso alla rete avviene solo per gli stream aperti e – se attivato – per il controllo degli aggiornamenti su GitHub.</translation>
+        <translation>Il lettore non invia telemetria. L&apos;accesso alla rete avviene solo per gli stream aperti e – se attivato – per il controllo degli aggiornamenti su GitHub.</translation>
     </message>
     <message>
         <source>Verlauf (zuletzt geöffnet) speichern</source>
@@ -1736,7 +1748,7 @@
     </message>
     <message>
         <source>Start ohne Plugins: UVEPlayer.exe --safe-mode. Portables Profil: Datei „portable.txt“ neben die EXE legen (Daten in ./data).</source>
-        <translation>Avvio senza plugin: UVEPlayer.exe --safe-mode. Profilo portatile: metti un file “portable.txt” accanto all'EXE (dati in ./data).</translation>
+        <translation>Avvio senza plugin: UVEPlayer.exe --safe-mode. Profilo portatile: metti un file “portable.txt” accanto all&apos;EXE (dati in ./data).</translation>
     </message>
 </context>
 <context>
@@ -1747,7 +1759,7 @@
     </message>
     <message>
         <source>Beispiel-Plugin für die Plugin-API: pausiert die Wiedergabe nach Ablauf der Zeit.</source>
-        <translation>Plugin di esempio per l'API dei plugin: mette in pausa la riproduzione allo scadere del tempo.</translation>
+        <translation>Plugin di esempio per l&apos;API dei plugin: mette in pausa la riproduzione allo scadere del tempo.</translation>
     </message>
     <message>
         <source>Minuten</source>
@@ -1914,6 +1926,18 @@
         <translation>Ritardo +50 ms</translation>
     </message>
     <message>
+        <source>Auflösung</source>
+        <translation>Risoluzione</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>Migliore (automatica)</translation>
+    </message>
+    <message>
+        <source>Auflösungen werden ermittelt…</source>
+        <translation>Rilevamento risoluzioni…</translation>
+    </message>
+    <message>
         <source>Geschwindigkeit (</source>
         <translation>Velocità (</translation>
     </message>
@@ -2042,7 +2066,7 @@
     </message>
     <message>
         <source>Die Oberfläche konnte nicht geladen werden (siehe Protokoll).</source>
-        <translation>Impossibile caricare l'interfaccia (vedi log).</translation>
+        <translation>Impossibile caricare l&apos;interfaccia (vedi log).</translation>
     </message>
 </context>
 <context>
@@ -2072,8 +2096,8 @@
         <translation>Riga %1: previsti 3 valori</translation>
     </message>
     <message>
-        <source>Zeile %1: ungültige Zahl '%2'</source>
-        <translation>Riga %1: numero non valido '%2'</translation>
+        <source>Zeile %1: ungültige Zahl &apos;%2&apos;</source>
+        <translation>Riga %1: numero non valido &apos;%2&apos;</translation>
     </message>
     <message>
         <source>DOMAIN_MAX muss größer als DOMAIN_MIN sein</source>
@@ -2089,7 +2113,7 @@
     </message>
     <message>
         <source>matrix4x5-Wert außerhalb des zulässigen Bereichs</source>
-        <translation>Valore matrix4x5 fuori dall'intervallo consentito</translation>
+        <translation>Valore matrix4x5 fuori dall&apos;intervallo consentito</translation>
     </message>
     <message>
         <source>kein gültiges JSON</source>
@@ -2128,8 +2152,8 @@
         <translation>Checksum errato: </translation>
     </message>
     <message>
-        <source>'%1' ist keine Zahl</source>
-        <translation>'%1' non è un numero</translation>
+        <source>&apos;%1&apos; ist keine Zahl</source>
+        <translation>&apos;%1&apos; non è un numero</translation>
     </message>
 </context>
 <context>
@@ -2364,7 +2388,7 @@
     </message>
     <message>
         <source>libmpv-2.dll nicht im Archiv gefunden</source>
-        <translation>libmpv-2.dll non trovato nell'archivio</translation>
+        <translation>libmpv-2.dll non trovato nell&apos;archivio</translation>
     </message>
     <message>
         <source>libmpv-Build </source>

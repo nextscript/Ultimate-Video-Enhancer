@@ -941,6 +941,14 @@
 <context>
     <name>PlayerApp</name>
     <message>
+        <source>Auflösung: %1</source>
+        <translation>Resolution: %1</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>Best (automatic)</translation>
+    </message>
+    <message>
         <source>direkte Verbindung</source>
         <translation>direct connection</translation>
     </message>
@@ -1227,36 +1235,36 @@
 <context>
     <name>PluginManifest</name>
     <message>
-        <source>Feld 'id' fehlt</source>
-        <translation>Field 'id' is missing</translation>
+        <source>Feld &apos;id&apos; fehlt</source>
+        <translation>Field &apos;id&apos; is missing</translation>
     </message>
     <message>
-        <source>Ungültige id '%1' (erwartet z. B. org.firma.plugin)</source>
-        <translation>Invalid id '%1' (expected e.g. org.company.plugin)</translation>
+        <source>Ungültige id &apos;%1&apos; (erwartet z. B. org.firma.plugin)</source>
+        <translation>Invalid id &apos;%1&apos; (expected e.g. org.company.plugin)</translation>
     </message>
     <message>
-        <source>Feld 'name' fehlt</source>
-        <translation>Field 'name' is missing</translation>
+        <source>Feld &apos;name&apos; fehlt</source>
+        <translation>Field &apos;name&apos; is missing</translation>
     </message>
     <message>
-        <source>Ungültige Plugin-Version '%1'</source>
-        <translation>Invalid plugin version '%1'</translation>
+        <source>Ungültige Plugin-Version &apos;%1&apos;</source>
+        <translation>Invalid plugin version &apos;%1&apos;</translation>
     </message>
     <message>
         <source>Inkompatible apiVersion %1 (Host unterstützt %2)</source>
         <translation>Incompatible apiVersion %1 (host supports %2)</translation>
     </message>
     <message>
-        <source>Ungültige minHostVersion '%1'</source>
-        <translation>Invalid minHostVersion '%1'</translation>
+        <source>Ungültige minHostVersion &apos;%1&apos;</source>
+        <translation>Invalid minHostVersion &apos;%1&apos;</translation>
     </message>
     <message>
         <source>Benötigt Host ≥ %1 (vorhanden %2)</source>
         <translation>Requires host ≥ %1 (installed %2)</translation>
     </message>
     <message>
-        <source>Plattform '%1' nicht unterstützt (%2)</source>
-        <translation>Platform '%1' not supported (%2)</translation>
+        <source>Plattform &apos;%1&apos; nicht unterstützt (%2)</source>
+        <translation>Platform &apos;%1&apos; not supported (%2)</translation>
     </message>
     <message>
         <source>Benötigtes Backend fehlt: %1</source>
@@ -1497,6 +1505,10 @@
     <message>
         <source>Maximale Auflösung für YouTube/Twitch</source>
         <translation>Maximum resolution for YouTube/Twitch</translation>
+    </message>
+    <message>
+        <source>Beste</source>
+        <translation>Best</translation>
     </message>
     <message>
         <source>Hardware-Dekodierung</source>
@@ -1914,6 +1926,18 @@
         <translation>Delay +50 ms</translation>
     </message>
     <message>
+        <source>Auflösung</source>
+        <translation>Resolution</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>Best (automatic)</translation>
+    </message>
+    <message>
+        <source>Auflösungen werden ermittelt…</source>
+        <translation>Detecting resolutions…</translation>
+    </message>
+    <message>
         <source>Geschwindigkeit (</source>
         <translation>Speed (</translation>
     </message>
@@ -2072,8 +2096,8 @@
         <translation>Line %1: expected 3 values</translation>
     </message>
     <message>
-        <source>Zeile %1: ungültige Zahl '%2'</source>
-        <translation>Line %1: invalid number '%2'</translation>
+        <source>Zeile %1: ungültige Zahl &apos;%2&apos;</source>
+        <translation>Line %1: invalid number &apos;%2&apos;</translation>
     </message>
     <message>
         <source>DOMAIN_MAX muss größer als DOMAIN_MIN sein</source>
@@ -2128,8 +2152,8 @@
         <translation>Checksum wrong: </translation>
     </message>
     <message>
-        <source>'%1' ist keine Zahl</source>
-        <translation>'%1' is not a number</translation>
+        <source>&apos;%1&apos; ist keine Zahl</source>
+        <translation>&apos;%1&apos; is not a number</translation>
     </message>
 </context>
 <context>

@@ -941,6 +941,14 @@
 <context>
     <name>PlayerApp</name>
     <message>
+        <source>Auflösung: %1</source>
+        <translation>Resolución: %1</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>Mejor (automática)</translation>
+    </message>
+    <message>
         <source>direkte Verbindung</source>
         <translation>conexión directa</translation>
     </message>
@@ -1227,36 +1235,36 @@
 <context>
     <name>PluginManifest</name>
     <message>
-        <source>Feld 'id' fehlt</source>
-        <translation>Falta el campo 'id'</translation>
+        <source>Feld &apos;id&apos; fehlt</source>
+        <translation>Falta el campo &apos;id&apos;</translation>
     </message>
     <message>
-        <source>Ungültige id '%1' (erwartet z. B. org.firma.plugin)</source>
-        <translation>id '%1' no válido (se esperaba p. ej. org.empresa.plugin)</translation>
+        <source>Ungültige id &apos;%1&apos; (erwartet z. B. org.firma.plugin)</source>
+        <translation>id &apos;%1&apos; no válido (se esperaba p. ej. org.empresa.plugin)</translation>
     </message>
     <message>
-        <source>Feld 'name' fehlt</source>
-        <translation>Falta el campo 'name'</translation>
+        <source>Feld &apos;name&apos; fehlt</source>
+        <translation>Falta el campo &apos;name&apos;</translation>
     </message>
     <message>
-        <source>Ungültige Plugin-Version '%1'</source>
-        <translation>Versión de plugin '%1' no válida</translation>
+        <source>Ungültige Plugin-Version &apos;%1&apos;</source>
+        <translation>Versión de plugin &apos;%1&apos; no válida</translation>
     </message>
     <message>
         <source>Inkompatible apiVersion %1 (Host unterstützt %2)</source>
         <translation>apiVersion %1 incompatible (el host admite %2)</translation>
     </message>
     <message>
-        <source>Ungültige minHostVersion '%1'</source>
-        <translation>minHostVersion '%1' no válida</translation>
+        <source>Ungültige minHostVersion &apos;%1&apos;</source>
+        <translation>minHostVersion &apos;%1&apos; no válida</translation>
     </message>
     <message>
         <source>Benötigt Host ≥ %1 (vorhanden %2)</source>
         <translation>Requiere host ≥ %1 (instalado %2)</translation>
     </message>
     <message>
-        <source>Plattform '%1' nicht unterstützt (%2)</source>
-        <translation>Plataforma '%1' no admitida (%2)</translation>
+        <source>Plattform &apos;%1&apos; nicht unterstützt (%2)</source>
+        <translation>Plataforma &apos;%1&apos; no admitida (%2)</translation>
     </message>
     <message>
         <source>Benötigtes Backend fehlt: %1</source>
@@ -1497,6 +1505,10 @@
     <message>
         <source>Maximale Auflösung für YouTube/Twitch</source>
         <translation>Resolución máxima para YouTube/Twitch</translation>
+    </message>
+    <message>
+        <source>Beste</source>
+        <translation>Mejor</translation>
     </message>
     <message>
         <source>Hardware-Dekodierung</source>
@@ -1914,6 +1926,18 @@
         <translation>Retardo +50 ms</translation>
     </message>
     <message>
+        <source>Auflösung</source>
+        <translation>Resolución</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>Mejor (automática)</translation>
+    </message>
+    <message>
+        <source>Auflösungen werden ermittelt…</source>
+        <translation>Detectando resoluciones…</translation>
+    </message>
+    <message>
         <source>Geschwindigkeit (</source>
         <translation>Velocidad (</translation>
     </message>
@@ -2072,8 +2096,8 @@
         <translation>Línea %1: se esperaban 3 valores</translation>
     </message>
     <message>
-        <source>Zeile %1: ungültige Zahl '%2'</source>
-        <translation>Línea %1: número no válido '%2'</translation>
+        <source>Zeile %1: ungültige Zahl &apos;%2&apos;</source>
+        <translation>Línea %1: número no válido &apos;%2&apos;</translation>
     </message>
     <message>
         <source>DOMAIN_MAX muss größer als DOMAIN_MIN sein</source>
@@ -2128,8 +2152,8 @@
         <translation>Suma de comprobación incorrecta: </translation>
     </message>
     <message>
-        <source>'%1' ist keine Zahl</source>
-        <translation>'%1' no es un número</translation>
+        <source>&apos;%1&apos; ist keine Zahl</source>
+        <translation>&apos;%1&apos; no es un número</translation>
     </message>
 </context>
 <context>

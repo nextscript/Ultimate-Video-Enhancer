@@ -405,7 +405,12 @@ bool MpvController::command(const QStringList &args)
 
 void MpvController::load(const QString &url, double startSeconds, bool startPaused)
 {
-    QStringList opts;
+    load(url, startSeconds, startPaused, QStringList{});
+}
+
+void MpvController::load(const QString &url, double startSeconds, bool startPaused, const QStringList &fileOptions)
+{
+    QStringList opts = fileOptions;
     if (startSeconds > 1) opts << QStringLiteral("start=%1").arg(startSeconds, 0, 'f', 3);
     opts << QStringLiteral("pause=%1").arg(startPaused ? "yes" : "no");
     m_abA = m_abB = -1;

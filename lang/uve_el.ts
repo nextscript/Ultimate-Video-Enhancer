@@ -941,6 +941,14 @@
 <context>
     <name>PlayerApp</name>
     <message>
+        <source>Auflösung: %1</source>
+        <translation>Ανάλυση: %1</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>Καλύτερη (αυτόματα)</translation>
+    </message>
+    <message>
         <source>direkte Verbindung</source>
         <translation>απευθείας σύνδεση</translation>
     </message>
@@ -1227,36 +1235,36 @@
 <context>
     <name>PluginManifest</name>
     <message>
-        <source>Feld 'id' fehlt</source>
-        <translation>Λείπει το πεδίο 'id'</translation>
+        <source>Feld &apos;id&apos; fehlt</source>
+        <translation>Λείπει το πεδίο &apos;id&apos;</translation>
     </message>
     <message>
-        <source>Ungültige id '%1' (erwartet z. B. org.firma.plugin)</source>
-        <translation>Μη έγκυρο id '%1' (αναμένεται π.χ. org.company.plugin)</translation>
+        <source>Ungültige id &apos;%1&apos; (erwartet z. B. org.firma.plugin)</source>
+        <translation>Μη έγκυρο id &apos;%1&apos; (αναμένεται π.χ. org.company.plugin)</translation>
     </message>
     <message>
-        <source>Feld 'name' fehlt</source>
-        <translation>Λείπει το πεδίο 'name'</translation>
+        <source>Feld &apos;name&apos; fehlt</source>
+        <translation>Λείπει το πεδίο &apos;name&apos;</translation>
     </message>
     <message>
-        <source>Ungültige Plugin-Version '%1'</source>
-        <translation>Μη έγκυρη έκδοση προσθέτου '%1'</translation>
+        <source>Ungültige Plugin-Version &apos;%1&apos;</source>
+        <translation>Μη έγκυρη έκδοση προσθέτου &apos;%1&apos;</translation>
     </message>
     <message>
         <source>Inkompatible apiVersion %1 (Host unterstützt %2)</source>
         <translation>Μη συμβατό apiVersion %1 (ο κεντρικός υπολογιστής υποστηρίζει %2)</translation>
     </message>
     <message>
-        <source>Ungültige minHostVersion '%1'</source>
-        <translation>Μη έγκυρο minHostVersion '%1'</translation>
+        <source>Ungültige minHostVersion &apos;%1&apos;</source>
+        <translation>Μη έγκυρο minHostVersion &apos;%1&apos;</translation>
     </message>
     <message>
         <source>Benötigt Host ≥ %1 (vorhanden %2)</source>
         <translation>Απαιτείται κεντρικός υπολογιστής ≥ %1 (υπάρχει %2)</translation>
     </message>
     <message>
-        <source>Plattform '%1' nicht unterstützt (%2)</source>
-        <translation>Η πλατφόρμα '%1' δεν υποστηρίζεται (%2)</translation>
+        <source>Plattform &apos;%1&apos; nicht unterstützt (%2)</source>
+        <translation>Η πλατφόρμα &apos;%1&apos; δεν υποστηρίζεται (%2)</translation>
     </message>
     <message>
         <source>Benötigtes Backend fehlt: %1</source>
@@ -1497,6 +1505,10 @@
     <message>
         <source>Maximale Auflösung für YouTube/Twitch</source>
         <translation>Μέγιστη ανάλυση για YouTube/Twitch</translation>
+    </message>
+    <message>
+        <source>Beste</source>
+        <translation>Καλύτερη</translation>
     </message>
     <message>
         <source>Hardware-Dekodierung</source>
@@ -1914,6 +1926,18 @@
         <translation>Καθυστέρηση +50 ms</translation>
     </message>
     <message>
+        <source>Auflösung</source>
+        <translation>Ανάλυση</translation>
+    </message>
+    <message>
+        <source>Beste (automatisch)</source>
+        <translation>Καλύτερη (αυτόματα)</translation>
+    </message>
+    <message>
+        <source>Auflösungen werden ermittelt…</source>
+        <translation>Εντοπισμός αναλύσεων…</translation>
+    </message>
+    <message>
         <source>Geschwindigkeit (</source>
         <translation>Ταχύτητα (</translation>
     </message>
@@ -2072,8 +2096,8 @@
         <translation>Γραμμή %1: αναμένονται 3 τιμές</translation>
     </message>
     <message>
-        <source>Zeile %1: ungültige Zahl '%2'</source>
-        <translation>Γραμμή %1: μη έγκυρος αριθμός '%2'</translation>
+        <source>Zeile %1: ungültige Zahl &apos;%2&apos;</source>
+        <translation>Γραμμή %1: μη έγκυρος αριθμός &apos;%2&apos;</translation>
     </message>
     <message>
         <source>DOMAIN_MAX muss größer als DOMAIN_MIN sein</source>
@@ -2128,8 +2152,8 @@
         <translation>Λανθασμένο άθροισμα ελέγχου: </translation>
     </message>
     <message>
-        <source>'%1' ist keine Zahl</source>
-        <translation>Το '%1' δεν είναι αριθμός</translation>
+        <source>&apos;%1&apos; ist keine Zahl</source>
+        <translation>Το &apos;%1&apos; δεν είναι αριθμός</translation>
     </message>
 </context>
 <context>

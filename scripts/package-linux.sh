@@ -26,7 +26,9 @@ cp docs/*.md "$BIN/docs/"
 cp README.md CHANGELOG.md "$BIN/"
 
 # yt-dlp (standalone Linux build) with checksum verification
-YTDLP_TAG=$(curl -fsSL https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest | sed -n 's/.*"tag_name": *"\([^"]*\)".*/\1/p' | head -1)
+# version from the redirect of releases/latest (the REST API is rate-limited on shared CI runners)
+YTDLP_TAG=$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/yt-dlp/yt-dlp/releases/latest | sed 's,.*/tag/,,')
+[ -n "$YTDLP_TAG" ] || { echo "yt-dlp version not found"; exit 1; }
 curl -fsSL -o "$BIN/tools/yt-dlp/yt-dlp" "https://github.com/yt-dlp/yt-dlp/releases/download/$YTDLP_TAG/yt-dlp_linux"
 curl -fsSL -o /tmp/yt-dlp-sums "https://github.com/yt-dlp/yt-dlp/releases/download/$YTDLP_TAG/SHA2-256SUMS"
 EXPECTED=$(awk '$2=="yt-dlp_linux"{print $1}' /tmp/yt-dlp-sums)
