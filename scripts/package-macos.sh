@@ -47,6 +47,13 @@ DMGDIR="$OUT/dmg"
 rm -rf "$DMGDIR"; mkdir -p "$DMGDIR"
 cp -R "$APP" "$DMGDIR/UVE Player.app"
 ln -s /Applications "$DMGDIR/Applications"
-hdiutil create -volname "UVE Player $VERSION" -srcfolder "$DMGDIR" -ov -format UDZO "$OUT/UVE-Player-$VERSION-macos-$ARCH.dmg"
+# hdiutil fails now and then with "Resource busy" on CI runners (background services hold the image) → retry
+DMG="$OUT/UVE-Player-$VERSION-macos-$ARCH.dmg"
+for attempt in 1 2 3 4 5; do
+    if hdiutil create -volname "UVE Player $VERSION" -srcfolder "$DMGDIR" -ov -format UDZO "$DMG"; then break; fi
+    if [ "$attempt" -eq 5 ]; then echo "hdiutil failed 5 times"; exit 1; fi
+    echo "hdiutil failed (attempt $attempt), retrying in $((attempt * 10)) s ..."
+    sleep $((attempt * 10))
+done
 rm -rf "$DMGDIR"
 ls -la "$OUT"
