@@ -1,4 +1,4 @@
-# UVE Player 1.0.5
+# UVE Player 1.0.6
 
 Native media player for Windows built with **C++20, Qt 6, and libmpv** – featuring **Ultimate Video Enhancer** as a GPU effects plugin, network streaming (YouTube, Twitch, HLS, tcp://) with proxy support, and seven languages.
 
@@ -6,9 +6,9 @@ Native media player for Windows built with **C++20, Qt 6, and libmpv** – featu
 
 | File | Description |
 |---|---|
-| `UVE-Player-1.0.5-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
-| `UVE-Player-1.0.5-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
-| `UVE-Player-1.0.5-portable.zip` | Portable folder archive (data stored in `.\data`) |
+| `UVE-Player-1.0.6-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
+| `UVE-Player-1.0.6-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
+| `UVE-Player-1.0.6-portable.zip` | Portable folder archive (data stored in `.\data`) |
 | `SHA256SUMS.txt` | SHA-256 checksums |
 
 All versions include libmpv, yt-dlp, and 7zr – no additional software installation is required.
@@ -24,7 +24,7 @@ All versions include libmpv, yt-dlp, and 7zr – no additional software installa
 - **Proxy Support:** None / Windows System / Manual (HTTP or SOCKS5, optional authentication) – applies to streams, yt-dlp, and downloads.
 - **Ultimate Video Enhancer:** Color correction, sharpening (SL/SR unsharp mask, detail sharpening), Teal & Orange split toning, HDR-like enhancement, film grain, edge enhancement, BL/WL controls; **Auto Scene Match** (Ctrl+Alt+A); **Expert Settings** for every grading curve; presets, before/after comparison with a draggable on-video divider (Ctrl+Alt+U), undo support; UVE profile import/export; **example profiles and LUT packages downloaded directly from GitHub**; **LUT Gallery** with previews based on the current video frame; `.cube` 3D LUT support.
 - **Languages:** English (default), Deutsch, Español, Italiano, Polski, Ελληνικά, Türkçe – switch languages under *Settings → General*; add custom languages using [lang/README.md](lang/README.md).
-- **Plugins:** Versioned Plugin API with manifest validation and Safe Mode ([docs/PLUGIN_API.md](docs/PLUGIN_API.md)).
+- **Plugins:** Versioned Plugin API with manifest validation and Safe Mode; plugins extend the player without player updates – own pages, menu entries, hotkeys, translations, URL handlers, pure QML plugins and ZIP installation ([docs/PLUGIN_API.md](docs/PLUGIN_API.md)).
 - **Privacy:** No telemetry.
 
 ## Quick Controls

@@ -9,6 +9,16 @@
 //
 // Plugins erhalten ausschließlich die Host-Dienste aus IPlayerHost – keinen direkten Zugriff auf
 // mpv- oder GUI-Objekte. Native Plugins laufen im Hauptprozess und sind daher Vertrauenscode.
+//
+// Erweiterungsmodell (seit 1.0.6) – damit neue Plugins KEIN neues Player-Update brauchen:
+//   • Ereignisse:  Host → Plugin über IPluginEvents::onEvent(name, data)        (z. B. "media.loaded")
+//   • Befehle:     Plugin → Host über IPlayerHost::call(pluginId, name, args)   (z. B. "player.load")
+//   Beide sind über Namen + QVariantMap erweiterbar; neue Ereignisse/Befehle ändern die Schnittstelle nicht.
+//   Mit hasCommand() prüft ein Plugin, ob der laufende Player einen Befehl kennt.
+//   • Beiträge im Manifest ("contributes"): Seiten/Panels, Menüeinträge, Tastenkürzel, Sprachdateien,
+//     Adressmuster (URL-Handler). Der Host bindet sie ohne Code ein.
+//   • Plugin-Ordner: plugins/<name>/manifest.json + Bibliothek ("library") oder reines QML ("main").
+//   Vollständige Liste der Ereignisse und Befehle: docs/PLUGIN_API.md
 
 #include <QImage>
 #include <QJsonObject>
@@ -16,6 +26,8 @@
 #include <QString>
 #include <QStringList>
 #include <QUrl>
+#include <QVariant>
+#include <QVariantMap>
 #include <QtPlugin>
 
 namespace uve {
@@ -63,6 +75,17 @@ public:
     // Seit 1.0.2: kleine Bildprobe (96×54) der Videoausgabe – so wie sie angezeigt wird (mit Equalizer und Effekten).
     // Blockiert nicht: fordert eine neue Probe an und liefert die zuletzt fertige (leer, solange keine vorliegt).
     virtual QImage sampleDisplayFrame() { return {}; }
+
+    // Seit 1.0.6: allgemeine Befehle (Liste: docs/PLUGIN_API.md). Unbekannter Befehl → ungültiges QVariant,
+    // *error gesetzt. Nur auf dem Hauptthread aufrufen.
+    virtual QVariant call(const QString &pluginId, const QString &command, const QVariantMap &args = {}, QString *error = nullptr)
+    {
+        Q_UNUSED(pluginId); Q_UNUSED(command); Q_UNUSED(args);
+        if (error) *error = QStringLiteral("unknown command");
+        return {};
+    }
+    virtual bool hasCommand(const QString &command) const { Q_UNUSED(command); return false; }
+    virtual QStringList commands() const { return {}; }
 };
 
 // Vom Plugin implementiert
@@ -88,7 +111,18 @@ public:
     virtual void onShaderError(const QString &message) { Q_UNUSED(message); }
 };
 
+// Optional (seit 1.0.6), zusätzlich zu IPlayerPlugin implementiert und mit Q_INTERFACES angemeldet:
+// Ereignisse des Players (Liste: docs/PLUGIN_API.md). Unbekannte Ereignisse einfach ignorieren.
+class IPluginEvents
+{
+public:
+    virtual ~IPluginEvents() = default;
+    virtual void onEvent(const QString &name, const QVariantMap &data) = 0;
+};
+
 } // namespace uve
 
 #define UVE_PLAYER_PLUGIN_IID "org.nextscript.uveplayer.IPlayerPlugin/1"
 Q_DECLARE_INTERFACE(uve::IPlayerPlugin, UVE_PLAYER_PLUGIN_IID)
+#define UVE_PLAYER_EVENTS_IID "org.nextscript.uveplayer.IPluginEvents/1"
+Q_DECLARE_INTERFACE(uve::IPluginEvents, UVE_PLAYER_EVENTS_IID)

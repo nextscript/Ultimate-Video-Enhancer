@@ -1064,6 +1064,14 @@
         <translation>Failed via %1: %2</translation>
     </message>
     <message>
+        <source>keine Antwort (Zeitüberschreitung)</source>
+        <translation>no response (timeout)</translation>
+    </message>
+    <message>
+        <source>Plugin</source>
+        <translation>Plugin</translation>
+    </message>
+    <message>
         <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
         <translation>Safe mode ended – plugins will be loaded on next start</translation>
     </message>
@@ -1449,6 +1457,14 @@
         <translation>after repeated crashes the player starts in safe mode (also via --safe-mode).</translation>
     </message>
     <message>
+        <source>Plugin installieren …</source>
+        <translation>Install plugin …</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (.zip mit manifest.json) in den Benutzerordner installieren</source>
+        <translation>Install a plugin package (.zip with manifest.json) into the user folder</translation>
+    </message>
+    <message>
         <source>Fehlerprotokoll</source>
         <translation>Error log</translation>
     </message>
@@ -1467,6 +1483,26 @@
     <message>
         <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
         <translation>Open the user folder for additional plugins (takes precedence)</translation>
+    </message>
+    <message>
+        <source>Plugin installieren</source>
+        <translation>Install plugin</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (*.zip)</source>
+        <translation>Plugin package (*.zip)</translation>
+    </message>
+    <message>
+        <source>Plugin-Manifest (manifest.json)</source>
+        <translation>Plugin manifest (manifest.json)</translation>
+    </message>
+    <message>
+        <source>Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.</source>
+        <translation>The plugin will be installed the next time the player starts. Please restart the player.</translation>
+    </message>
+    <message>
+        <source>Installation fehlgeschlagen: </source>
+        <translation>Installation failed: </translation>
     </message>
 </context>
 <context>
@@ -2451,6 +2487,42 @@
         <translation>Shader error, stage disabled: </translation>
     </message>
     <message>
+        <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
+        <translation>Installation failed: folder %1 is locked</translation>
+    </message>
+    <message>
+        <source>manifest.json fehlerhaft: %1</source>
+        <translation>manifest.json is invalid: %1</translation>
+    </message>
+    <message>
+        <source>Bibliothek %1 fehlt</source>
+        <translation>Library %1 is missing</translation>
+    </message>
+    <message>
+        <source>%1 ist kein UVE-Player-Plugin</source>
+        <translation>%1 is not a UVE Player plugin</translation>
+    </message>
+    <message>
+        <source>QML-Datei %1 fehlt</source>
+        <translation>QML file %1 is missing</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
+        <translation>manifest.json needs "library" or "main"</translation>
+    </message>
+    <message>
+        <source>Ungültiges URL-Muster: %1</source>
+        <translation>Invalid URL pattern: %1</translation>
+    </message>
+    <message>
+        <source>Keine QML-Umgebung für QML-Plugins</source>
+        <translation>No QML environment for QML plugins</translation>
+    </message>
+    <message>
+        <source>QML-Fehler: </source>
+        <translation>QML error: </translation>
+    </message>
+    <message>
         <source>Laden fehlgeschlagen: </source>
         <translation>Loading failed: </translation>
     </message>
@@ -2467,8 +2539,48 @@
         <translation>Initialization failed: </translation>
     </message>
     <message>
+        <source>Ausnahme beim Aktivieren</source>
+        <translation>Exception while activating</translation>
+    </message>
+    <message>
+        <source>Sprachdatei fehlerhaft: %1</source>
+        <translation>Language file is invalid: %1</translation>
+    </message>
+    <message>
+        <source>Ausnahme in onEvent(%1)</source>
+        <translation>Exception in onEvent(%1)</translation>
+    </message>
+    <message>
         <source>Ausnahme in onMediaChanged</source>
         <translation>Exception in onMediaChanged</translation>
+    </message>
+    <message>
+        <source>Kein Benutzer-Plugin-Ordner</source>
+        <translation>No user plugin folder</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar: %1</source>
+        <translation>File not readable: %1</translation>
+    </message>
+    <message>
+        <source>ZIP-Datei fehlerhaft: %1</source>
+        <translation>ZIP file is invalid: %1</translation>
+    </message>
+    <message>
+        <source>Bitte eine .zip-Datei oder einen Ordner mit manifest.json wählen</source>
+        <translation>Please choose a .zip file or a folder with manifest.json</translation>
+    </message>
+    <message>
+        <source>Keine manifest.json im Paket gefunden</source>
+        <translation>No manifest.json found in the package</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Paket: %1</source>
+        <translation>Invalid path in the package: %1</translation>
+    </message>
+    <message>
+        <source>Schreiben fehlgeschlagen: %1</source>
+        <translation>Writing failed: %1</translation>
     </message>
 </context>
 <context>

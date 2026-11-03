@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.0.6 – 2026-11-03
+
+### Plugin system: extensions without player updates
+New plugins can now extend the player without needing a new player version. The plugin API stays at version 1;
+existing plugins keep working.
+- **Events and commands by name:** the player sends events (`media.loading`, `media.loaded`, `media.ended`,
+  `player.stopped`, `playback.paused`, `language.changed`, `action.triggered`, `app.quit`, …) and plugins call
+  commands (`player.load`, `player.state`, `player.seek`, `playlist.add`, `osd.show`, `panel.open`, `mpv.get/set/command`,
+  …). New events and commands can be added later without changing the interface; `hasCommand()` lets a plugin check
+  what the running player supports.
+- **Contributions in `manifest.json`:** pages in the sidebar or as settings pages in the plugin manager, entries in the
+  *Plugins* menu, hotkeys (editable under *Settings → Shortcuts*), the plugin's own translations (`lang/*.qm`, switched
+  with the player language) and URL handlers (a plugin can take over matching addresses before they are loaded, e.g.
+  turn a Twitch link into a `tcp://` stream).
+- **Plugin folders** (`plugins/<name>/manifest.json` + library or QML, translations, pages, images) and **pure QML
+  plugins** that need no compiler.
+- **Install plugin …** in the plugin manager: installs a `.zip` package (also created by Windows PowerShell) or a
+  folder; checked for a valid manifest and safe paths, applied on the next start.
+- Documentation: `docs/PLUGIN_API.md` lists all events, commands and manifest fields.
+
 ## 1.0.5 – 2026-11-03
 
 ### Fixes

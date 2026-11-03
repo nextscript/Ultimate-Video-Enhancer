@@ -38,6 +38,9 @@ PluginManifest PluginManifest::fromJson(const QJsonObject &o)
     m.requiredBackends = toStringList(o.value("requiredBackends"));
     m.permissions = toStringList(o.value("permissions"));
     m.configurationSchema = o.value("configurationSchema").toObject();
+    m.library = o.value("library").toString();
+    m.main = o.value("main").toString();
+    m.contributes = o.value("contributes").toObject();
     return m;
 }
 
@@ -52,7 +55,18 @@ QJsonObject PluginManifest::toJson() const
         {"requiredBackends", fromStringList(requiredBackends)},
         {"permissions", fromStringList(permissions)},
         {"configurationSchema", configurationSchema},
+        {"library", library}, {"main", main}, {"contributes", contributes},
     };
+}
+
+QString localizedText(const QJsonValue &v, const QString &language)
+{
+    if (v.isString()) return v.toString();
+    const QJsonObject o = v.toObject();
+    if (o.isEmpty()) return {};
+    for (const QString &k : {language, language.section('_', 0, 0), QStringLiteral("en"), QStringLiteral("de")})
+        if (!k.isEmpty() && o.contains(k)) return o.value(k).toString();
+    return o.begin().value().toString();
 }
 
 int compareVersions(const QString &a, const QString &b)

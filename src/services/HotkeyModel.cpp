@@ -1,4 +1,6 @@
 #include "HotkeyModel.h"
+
+#include <algorithm>
 #include "../core/AppSettings.h"
 
 #include <QJsonObject>
@@ -77,7 +79,7 @@ QString HotkeyModel::shortcut(const QString &id) const
 
 QString HotkeyModel::labelFor(const QString &id) const
 {
-    for (const auto &a : m_actions) if (a.id == id) return tr(a.label.toUtf8().constData());
+    for (const auto &a : m_actions) if (a.id == id) return a.external ? a.label : tr(a.label.toUtf8().constData());
     return id;
 }
 
@@ -94,7 +96,8 @@ QVariantList HotkeyModel::items() const
     QVariantList out;
     for (const auto &a : m_actions) {
         const QString cur = shortcut(a.id);
-        out << QVariantMap{{"id", a.id}, {"label", tr(a.label.toUtf8().constData())}, {"category", tr(a.category.toUtf8().constData())},
+        out << QVariantMap{{"id", a.id}, {"label", a.external ? a.label : tr(a.label.toUtf8().constData())},
+                           {"category", a.external ? a.category : tr(a.category.toUtf8().constData())},
                            {"shortcut", cur}, {"defaultShortcut", a.defaultSeq},
                            {"nativeText", QKeySequence(cur, QKeySequence::PortableText).toString(QKeySequence::NativeText)},
                            {"modified", m_overrides.contains(a.id)}};
@@ -135,6 +138,20 @@ void HotkeyModel::resetAll()
 {
     m_overrides.clear();
     save();
+}
+
+void HotkeyModel::setExtraActions(const QVariantList &actions)
+{
+    m_actions.erase(std::remove_if(m_actions.begin(), m_actions.end(), [](const Action &a) { return a.external; }), m_actions.end());
+    for (const auto &v : actions) {
+        const QVariantMap m = v.toMap();
+        Action a{m.value("id").toString(), m.value("label").toString(), m.value("category").toString(),
+                 normalize(m.value("defaultSeq").toString()), true};
+        if (a.id.isEmpty()) continue;
+        if (!a.defaultSeq.isEmpty() && !conflictFor(a.id, a.defaultSeq).isEmpty()) a.defaultSeq.clear();
+        m_actions << a;
+    }
+    emit changed();
 }
 
 void HotkeyModel::save()

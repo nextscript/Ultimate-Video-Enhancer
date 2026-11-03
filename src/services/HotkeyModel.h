@@ -13,7 +13,8 @@ class HotkeyModel : public QObject
     Q_OBJECT
     Q_PROPERTY(QVariantList items READ items NOTIFY changed)
 public:
-    struct Action { QString id; QString label; QString category; QString defaultSeq; };
+    // external = von einem Plugin (Texte kommen schon übersetzt, nicht über tr())
+    struct Action { QString id; QString label; QString category; QString defaultSeq; bool external = false; };
 
     explicit HotkeyModel(AppSettings *settings, QObject *parent = nullptr);
 
@@ -31,6 +32,9 @@ public:
     Q_INVOKABLE QString sequenceFromKey(int key, int modifiers) const;
 
     void notifyLanguageChanged() { emit changed(); }
+    // Tastenkürzel aktiver Plugins: [{id: "plugin:<id>:<eintrag>", label, category, defaultSeq}]. Ein Standardkürzel,
+    // das schon belegt ist, wird nicht übernommen (der Nutzer kann es in den Einstellungen selbst setzen).
+    void setExtraActions(const QVariantList &actions);
 
 signals:
     void changed();

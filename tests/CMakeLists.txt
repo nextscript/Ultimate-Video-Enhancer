@@ -21,6 +21,7 @@ function(uve_add_test name)
 endfunction()
 
 uve_add_test(tst_manifest SOURCES unit/tst_manifest.cpp LIBS uvecore)
+uve_add_test(tst_plugins SOURCES unit/tst_plugins.cpp LIBS uvecore)
 uve_add_test(tst_playlist SOURCES unit/tst_playlist.cpp LIBS uvecore)
 uve_add_test(tst_hotkeys SOURCES unit/tst_hotkeys.cpp LIBS uvecore)
 uve_add_test(tst_proxy SOURCES unit/tst_proxy.cpp LIBS uvecore)

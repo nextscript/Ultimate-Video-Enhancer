@@ -1064,6 +1064,14 @@
         <translation>Αποτυχία μέσω %1: %2</translation>
     </message>
     <message>
+        <source>keine Antwort (Zeitüberschreitung)</source>
+        <translation>καμία απόκριση (λήξη χρόνου)</translation>
+    </message>
+    <message>
+        <source>Plugin</source>
+        <translation>Πρόσθετο</translation>
+    </message>
+    <message>
         <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
         <translation>Η ασφαλής λειτουργία τερματίστηκε – τα πρόσθετα θα φορτωθούν στην επόμενη εκκίνηση</translation>
     </message>
@@ -1449,6 +1457,14 @@
         <translation>μετά από επανειλημμένα σφάλματα, το πρόγραμμα ξεκινά σε ασφαλή λειτουργία (και με --safe-mode).</translation>
     </message>
     <message>
+        <source>Plugin installieren …</source>
+        <translation>Εγκατάσταση πρόσθετου …</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (.zip mit manifest.json) in den Benutzerordner installieren</source>
+        <translation>Εγκατάσταση πακέτου πρόσθετου (.zip με manifest.json) στον φάκελο χρήστη</translation>
+    </message>
+    <message>
         <source>Fehlerprotokoll</source>
         <translation>Αρχείο καταγραφής σφαλμάτων</translation>
     </message>
@@ -1467,6 +1483,26 @@
     <message>
         <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
         <translation>Άνοιγμα φακέλου χρήστη για επιπλέον πρόσθετα (έχει προτεραιότητα)</translation>
+    </message>
+    <message>
+        <source>Plugin installieren</source>
+        <translation>Εγκατάσταση πρόσθετου</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (*.zip)</source>
+        <translation>Πακέτο πρόσθετου (*.zip)</translation>
+    </message>
+    <message>
+        <source>Plugin-Manifest (manifest.json)</source>
+        <translation>Δήλωση πρόσθετου (manifest.json)</translation>
+    </message>
+    <message>
+        <source>Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.</source>
+        <translation>Το πρόσθετο θα εγκατασταθεί στην επόμενη εκκίνηση της εφαρμογής. Επανεκκίνησε την εφαρμογή.</translation>
+    </message>
+    <message>
+        <source>Installation fehlgeschlagen: </source>
+        <translation>Η εγκατάσταση απέτυχε: </translation>
     </message>
 </context>
 <context>
@@ -2451,6 +2487,42 @@
         <translation>Σφάλμα shader, το στάδιο απενεργοποιήθηκε: </translation>
     </message>
     <message>
+        <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
+        <translation>Η εγκατάσταση απέτυχε: ο φάκελος %1 είναι κλειδωμένος</translation>
+    </message>
+    <message>
+        <source>manifest.json fehlerhaft: %1</source>
+        <translation>Το manifest.json δεν είναι έγκυρο: %1</translation>
+    </message>
+    <message>
+        <source>Bibliothek %1 fehlt</source>
+        <translation>Λείπει η βιβλιοθήκη %1</translation>
+    </message>
+    <message>
+        <source>%1 ist kein UVE-Player-Plugin</source>
+        <translation>Το %1 δεν είναι πρόσθετο του UVE Player</translation>
+    </message>
+    <message>
+        <source>QML-Datei %1 fehlt</source>
+        <translation>Λείπει το αρχείο QML %1</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
+        <translation>Το manifest.json χρειάζεται "library" ή "main"</translation>
+    </message>
+    <message>
+        <source>Ungültiges URL-Muster: %1</source>
+        <translation>Μη έγκυρο μοτίβο URL: %1</translation>
+    </message>
+    <message>
+        <source>Keine QML-Umgebung für QML-Plugins</source>
+        <translation>Δεν υπάρχει περιβάλλον QML για πρόσθετα QML</translation>
+    </message>
+    <message>
+        <source>QML-Fehler: </source>
+        <translation>Σφάλμα QML: </translation>
+    </message>
+    <message>
         <source>Laden fehlgeschlagen: </source>
         <translation>Η φόρτωση απέτυχε: </translation>
     </message>
@@ -2467,8 +2539,48 @@
         <translation>Η αρχικοποίηση απέτυχε: </translation>
     </message>
     <message>
+        <source>Ausnahme beim Aktivieren</source>
+        <translation>Εξαίρεση κατά την ενεργοποίηση</translation>
+    </message>
+    <message>
+        <source>Sprachdatei fehlerhaft: %1</source>
+        <translation>Μη έγκυρο αρχείο γλώσσας: %1</translation>
+    </message>
+    <message>
+        <source>Ausnahme in onEvent(%1)</source>
+        <translation>Εξαίρεση στο onEvent(%1)</translation>
+    </message>
+    <message>
         <source>Ausnahme in onMediaChanged</source>
         <translation>Εξαίρεση στο onMediaChanged</translation>
+    </message>
+    <message>
+        <source>Kein Benutzer-Plugin-Ordner</source>
+        <translation>Δεν υπάρχει φάκελος πρόσθετων χρήστη</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar: %1</source>
+        <translation>Το αρχείο δεν είναι αναγνώσιμο: %1</translation>
+    </message>
+    <message>
+        <source>ZIP-Datei fehlerhaft: %1</source>
+        <translation>Μη έγκυρο αρχείο ZIP: %1</translation>
+    </message>
+    <message>
+        <source>Bitte eine .zip-Datei oder einen Ordner mit manifest.json wählen</source>
+        <translation>Επίλεξε ένα αρχείο .zip ή έναν φάκελο με manifest.json</translation>
+    </message>
+    <message>
+        <source>Keine manifest.json im Paket gefunden</source>
+        <translation>Δεν βρέθηκε manifest.json στο πακέτο</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Paket: %1</source>
+        <translation>Μη έγκυρη διαδρομή στο πακέτο: %1</translation>
+    </message>
+    <message>
+        <source>Schreiben fehlgeschlagen: %1</source>
+        <translation>Η εγγραφή απέτυχε: %1</translation>
     </message>
 </context>
 <context>

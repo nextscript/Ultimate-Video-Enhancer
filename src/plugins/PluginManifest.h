@@ -23,6 +23,10 @@ struct PluginManifest
     QStringList requiredBackends;   // eigene Konvention, z. B. "mpv-user-shaders"
     QStringList permissions;
     QJsonObject configurationSchema;
+    // Seit 1.0.6 – Plugin-Ordner (plugins/<name>/manifest.json):
+    QString library;            // Bibliothek im Ordner (z. B. "beispiel.dll"); leer bei reinen QML-Plugins
+    QString main;               // QML-Datei der Plugin-Logik (reine QML-Plugins), relativ zum Ordner
+    QJsonObject contributes;    // panels, menu, hotkeys, translations, urlHandlers (siehe docs/PLUGIN_API.md)
 
     static PluginManifest fromJson(const QJsonObject &o);
     QJsonObject toJson() const;
@@ -35,6 +39,9 @@ struct ManifestCheck
 };
 
 // Prüft Pflichtfelder und Kompatibilität mit diesem Host (ohne die Bibliothek zu laden)
+// Text aus dem Manifest: Zeichenkette oder {"de": "…", "en": "…"} → passende Sprache (Rückfall en, de, erste)
+QString localizedText(const QJsonValue &v, const QString &language);
+
 ManifestCheck validateManifest(const PluginManifest &m, const QString &hostVersion, int hostApiVersion,
                                const QString &platform, const QStringList &availableBackends);
 

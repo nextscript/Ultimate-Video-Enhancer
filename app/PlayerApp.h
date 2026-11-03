@@ -169,6 +169,7 @@ signals:
     void languageChanged();
     void proxyTestFinished(bool ok, const QString &message);
     void streamQualitiesChanged();
+    void pluginPanelRequested(const QString &panelKey);   // Plugin-Befehl "panel.open"
 
 private:
     void onFileLoaded();
@@ -178,6 +179,10 @@ private:
     void applyYtdlOptions();
     void loadPath(const QString &path, double start, bool paused); // inkl. gewählter Stream-Auflösung
     void prepareStreamQualities(const QString &path);
+    void clearStreamQualities(const QString &path);
+    void onMediaResolved(quint64 requestId, const QString &resolvedUrl, const QString &error, const QString &pluginName);
+    void cancelPendingResolve();
+    void registerPluginCommands();   // player.* / playlist.* für Plugins (docs/PLUGIN_API.md)
     QString ytdlFormatFor(const QString &id) const;
     void applyProxy();
     uve::ProxyConfig proxyFromMap(const QVariantMap &m) const;
@@ -196,6 +201,12 @@ private:
     QString m_ytdlProxy;                                         // Proxy-URL für eigene yt-dlp-Aufrufe
     QVariantList m_streamQualities;
     QString m_streamQuality;
+    // Adressauflösung durch ein Plugin (z. B. Twitch → tcp://): wartender Ladevorgang
+    struct PendingResolve { quint64 id = 0; QString path; double start = 0; bool paused = false; };
+    PendingResolve m_resolve;
+    quint64 m_resolveSeq = 0;
+    QString m_sourcePath;            // vom Nutzer gewählte Adresse (vor einer Plugin-Auflösung)
+    QTimer m_resolveTimeout;
     QString m_qualityUrl;                                        // Stream, zu dem Liste/Auswahl gehören
     QProcess *m_formatProc = nullptr;
     QHash<QString, QString> m_proxiedOriginal;                  // lokale URL → Original

@@ -1064,6 +1064,14 @@
         <translation>Non riuscito tramite %1: %2</translation>
     </message>
     <message>
+        <source>keine Antwort (Zeitüberschreitung)</source>
+        <translation>nessuna risposta (timeout)</translation>
+    </message>
+    <message>
+        <source>Plugin</source>
+        <translation>Plugin</translation>
+    </message>
+    <message>
         <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
         <translation>Modalità provvisoria terminata – i plugin verranno caricati al prossimo avvio</translation>
     </message>
@@ -1093,7 +1101,7 @@
     </message>
     <message>
         <source>Netzlaufwerk antwortet noch nicht – neuer Versuch (%1/%2) …</source>
-        <translation>L'unità di rete non risponde ancora – nuovo tentativo (%1/%2) …</translation>
+        <translation>L&apos;unità di rete non risponde ancora – nuovo tentativo (%1/%2) …</translation>
     </message>
     <message>
         <source>Nicht abspielbar: %1 (%2)</source>
@@ -1449,6 +1457,14 @@
         <translation>dopo arresti anomali ripetuti il lettore si avvia in modalità provvisoria (anche con --safe-mode).</translation>
     </message>
     <message>
+        <source>Plugin installieren …</source>
+        <translation>Installa plugin …</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (.zip mit manifest.json) in den Benutzerordner installieren</source>
+        <translation>Installa un pacchetto plugin (.zip con manifest.json) nella cartella utente</translation>
+    </message>
+    <message>
         <source>Fehlerprotokoll</source>
         <translation>Log errori</translation>
     </message>
@@ -1467,6 +1483,26 @@
     <message>
         <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
         <translation>Apri la cartella utente per plugin aggiuntivi (ha la precedenza)</translation>
+    </message>
+    <message>
+        <source>Plugin installieren</source>
+        <translation>Installa plugin</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (*.zip)</source>
+        <translation>Pacchetto plugin (*.zip)</translation>
+    </message>
+    <message>
+        <source>Plugin-Manifest (manifest.json)</source>
+        <translation>Manifest del plugin (manifest.json)</translation>
+    </message>
+    <message>
+        <source>Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.</source>
+        <translation>Il plugin verrà installato al prossimo avvio del lettore. Riavvia il lettore.</translation>
+    </message>
+    <message>
+        <source>Installation fehlgeschlagen: </source>
+        <translation>Installazione non riuscita: </translation>
     </message>
 </context>
 <context>
@@ -2451,6 +2487,42 @@
         <translation>Errore shader, stadio disattivato: </translation>
     </message>
     <message>
+        <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
+        <translation>Installazione non riuscita: la cartella %1 è bloccata</translation>
+    </message>
+    <message>
+        <source>manifest.json fehlerhaft: %1</source>
+        <translation>manifest.json non valido: %1</translation>
+    </message>
+    <message>
+        <source>Bibliothek %1 fehlt</source>
+        <translation>Libreria %1 mancante</translation>
+    </message>
+    <message>
+        <source>%1 ist kein UVE-Player-Plugin</source>
+        <translation>%1 non è un plugin di UVE Player</translation>
+    </message>
+    <message>
+        <source>QML-Datei %1 fehlt</source>
+        <translation>File QML %1 mancante</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
+        <translation>manifest.json richiede "library" o "main"</translation>
+    </message>
+    <message>
+        <source>Ungültiges URL-Muster: %1</source>
+        <translation>Modello URL non valido: %1</translation>
+    </message>
+    <message>
+        <source>Keine QML-Umgebung für QML-Plugins</source>
+        <translation>Nessun ambiente QML per i plugin QML</translation>
+    </message>
+    <message>
+        <source>QML-Fehler: </source>
+        <translation>Errore QML: </translation>
+    </message>
+    <message>
         <source>Laden fehlgeschlagen: </source>
         <translation>Caricamento non riuscito: </translation>
     </message>
@@ -2467,8 +2539,48 @@
         <translation>Inizializzazione non riuscita: </translation>
     </message>
     <message>
+        <source>Ausnahme beim Aktivieren</source>
+        <translation>Eccezione durante l'attivazione</translation>
+    </message>
+    <message>
+        <source>Sprachdatei fehlerhaft: %1</source>
+        <translation>File di lingua non valido: %1</translation>
+    </message>
+    <message>
+        <source>Ausnahme in onEvent(%1)</source>
+        <translation>Eccezione in onEvent(%1)</translation>
+    </message>
+    <message>
         <source>Ausnahme in onMediaChanged</source>
         <translation>Eccezione in onMediaChanged</translation>
+    </message>
+    <message>
+        <source>Kein Benutzer-Plugin-Ordner</source>
+        <translation>Nessuna cartella plugin utente</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar: %1</source>
+        <translation>File non leggibile: %1</translation>
+    </message>
+    <message>
+        <source>ZIP-Datei fehlerhaft: %1</source>
+        <translation>File ZIP non valido: %1</translation>
+    </message>
+    <message>
+        <source>Bitte eine .zip-Datei oder einen Ordner mit manifest.json wählen</source>
+        <translation>Scegli un file .zip o una cartella con manifest.json</translation>
+    </message>
+    <message>
+        <source>Keine manifest.json im Paket gefunden</source>
+        <translation>Nessun manifest.json trovato nel pacchetto</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Paket: %1</source>
+        <translation>Percorso non valido nel pacchetto: %1</translation>
+    </message>
+    <message>
+        <source>Schreiben fehlgeschlagen: %1</source>
+        <translation>Scrittura non riuscita: %1</translation>
     </message>
 </context>
 <context>

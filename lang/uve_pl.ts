@@ -1064,6 +1064,14 @@
         <translation>Niepowodzenie przez %1: %2</translation>
     </message>
     <message>
+        <source>keine Antwort (Zeitüberschreitung)</source>
+        <translation>brak odpowiedzi (przekroczono czas)</translation>
+    </message>
+    <message>
+        <source>Plugin</source>
+        <translation>Wtyczka</translation>
+    </message>
+    <message>
         <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
         <translation>Zakończono tryb awaryjny – wtyczki zostaną wczytane przy następnym uruchomieniu</translation>
     </message>
@@ -1449,6 +1457,14 @@
         <translation>po powtarzających się awariach odtwarzacz uruchamia się w trybie awaryjnym (także przez --safe-mode).</translation>
     </message>
     <message>
+        <source>Plugin installieren …</source>
+        <translation>Zainstaluj wtyczkę …</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (.zip mit manifest.json) in den Benutzerordner installieren</source>
+        <translation>Zainstaluj pakiet wtyczki (.zip z manifest.json) w folderze użytkownika</translation>
+    </message>
+    <message>
         <source>Fehlerprotokoll</source>
         <translation>Dziennik błędów</translation>
     </message>
@@ -1467,6 +1483,26 @@
     <message>
         <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
         <translation>Otwórz folder użytkownika na dodatkowe wtyczki (ma pierwszeństwo)</translation>
+    </message>
+    <message>
+        <source>Plugin installieren</source>
+        <translation>Zainstaluj wtyczkę</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (*.zip)</source>
+        <translation>Pakiet wtyczki (*.zip)</translation>
+    </message>
+    <message>
+        <source>Plugin-Manifest (manifest.json)</source>
+        <translation>Manifest wtyczki (manifest.json)</translation>
+    </message>
+    <message>
+        <source>Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.</source>
+        <translation>Wtyczka zostanie zainstalowana przy następnym uruchomieniu odtwarzacza. Uruchom odtwarzacz ponownie.</translation>
+    </message>
+    <message>
+        <source>Installation fehlgeschlagen: </source>
+        <translation>Instalacja nie powiodła się: </translation>
     </message>
 </context>
 <context>
@@ -2451,6 +2487,42 @@
         <translation>Błąd shadera, etap wyłączony: </translation>
     </message>
     <message>
+        <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
+        <translation>Instalacja nie powiodła się: folder %1 jest zablokowany</translation>
+    </message>
+    <message>
+        <source>manifest.json fehlerhaft: %1</source>
+        <translation>Nieprawidłowy plik manifest.json: %1</translation>
+    </message>
+    <message>
+        <source>Bibliothek %1 fehlt</source>
+        <translation>Brak biblioteki %1</translation>
+    </message>
+    <message>
+        <source>%1 ist kein UVE-Player-Plugin</source>
+        <translation>%1 nie jest wtyczką UVE Player</translation>
+    </message>
+    <message>
+        <source>QML-Datei %1 fehlt</source>
+        <translation>Brak pliku QML %1</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
+        <translation>manifest.json wymaga "library" lub "main"</translation>
+    </message>
+    <message>
+        <source>Ungültiges URL-Muster: %1</source>
+        <translation>Nieprawidłowy wzorzec URL: %1</translation>
+    </message>
+    <message>
+        <source>Keine QML-Umgebung für QML-Plugins</source>
+        <translation>Brak środowiska QML dla wtyczek QML</translation>
+    </message>
+    <message>
+        <source>QML-Fehler: </source>
+        <translation>Błąd QML: </translation>
+    </message>
+    <message>
         <source>Laden fehlgeschlagen: </source>
         <translation>Wczytywanie nie powiodło się: </translation>
     </message>
@@ -2467,8 +2539,48 @@
         <translation>Inicjalizacja nie powiodła się: </translation>
     </message>
     <message>
+        <source>Ausnahme beim Aktivieren</source>
+        <translation>Wyjątek podczas aktywacji</translation>
+    </message>
+    <message>
+        <source>Sprachdatei fehlerhaft: %1</source>
+        <translation>Nieprawidłowy plik językowy: %1</translation>
+    </message>
+    <message>
+        <source>Ausnahme in onEvent(%1)</source>
+        <translation>Wyjątek w onEvent(%1)</translation>
+    </message>
+    <message>
         <source>Ausnahme in onMediaChanged</source>
         <translation>Wyjątek w onMediaChanged</translation>
+    </message>
+    <message>
+        <source>Kein Benutzer-Plugin-Ordner</source>
+        <translation>Brak folderu wtyczek użytkownika</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar: %1</source>
+        <translation>Nie można odczytać pliku: %1</translation>
+    </message>
+    <message>
+        <source>ZIP-Datei fehlerhaft: %1</source>
+        <translation>Nieprawidłowy plik ZIP: %1</translation>
+    </message>
+    <message>
+        <source>Bitte eine .zip-Datei oder einen Ordner mit manifest.json wählen</source>
+        <translation>Wybierz plik .zip lub folder z manifest.json</translation>
+    </message>
+    <message>
+        <source>Keine manifest.json im Paket gefunden</source>
+        <translation>Nie znaleziono manifest.json w pakiecie</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Paket: %1</source>
+        <translation>Nieprawidłowa ścieżka w pakiecie: %1</translation>
+    </message>
+    <message>
+        <source>Schreiben fehlgeschlagen: %1</source>
+        <translation>Zapis nie powiódł się: %1</translation>
     </message>
 </context>
 <context>

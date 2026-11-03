@@ -1064,6 +1064,14 @@
         <translation>%1 üzerinden başarısız: %2</translation>
     </message>
     <message>
+        <source>keine Antwort (Zeitüberschreitung)</source>
+        <translation>yanıt yok (zaman aşımı)</translation>
+    </message>
+    <message>
+        <source>Plugin</source>
+        <translation>Eklenti</translation>
+    </message>
+    <message>
         <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
         <translation>Güvenli moddan çıkıldı – eklentiler bir sonraki başlatmada yüklenecek</translation>
     </message>
@@ -1449,6 +1457,14 @@
         <translation>tekrarlanan çökmelerden sonra oynatıcı güvenli modda başlar (--safe-mode ile de).</translation>
     </message>
     <message>
+        <source>Plugin installieren …</source>
+        <translation>Eklenti yükle …</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (.zip mit manifest.json) in den Benutzerordner installieren</source>
+        <translation>Bir eklenti paketini (manifest.json içeren .zip) kullanıcı klasörüne yükle</translation>
+    </message>
+    <message>
         <source>Fehlerprotokoll</source>
         <translation>Hata günlüğü</translation>
     </message>
@@ -1467,6 +1483,26 @@
     <message>
         <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
         <translation>Ek eklentiler için kullanıcı klasörünü aç (önceliklidir)</translation>
+    </message>
+    <message>
+        <source>Plugin installieren</source>
+        <translation>Eklenti yükle</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (*.zip)</source>
+        <translation>Eklenti paketi (*.zip)</translation>
+    </message>
+    <message>
+        <source>Plugin-Manifest (manifest.json)</source>
+        <translation>Eklenti bildirimi (manifest.json)</translation>
+    </message>
+    <message>
+        <source>Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.</source>
+        <translation>Eklenti, oynatıcı bir sonraki açılışında yüklenecek. Lütfen oynatıcıyı yeniden başlat.</translation>
+    </message>
+    <message>
+        <source>Installation fehlgeschlagen: </source>
+        <translation>Yükleme başarısız: </translation>
     </message>
 </context>
 <context>
@@ -2451,6 +2487,42 @@
         <translation>Shader hatası, aşama devre dışı: </translation>
     </message>
     <message>
+        <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
+        <translation>Yükleme başarısız: %1 klasörü kilitli</translation>
+    </message>
+    <message>
+        <source>manifest.json fehlerhaft: %1</source>
+        <translation>manifest.json hatalı: %1</translation>
+    </message>
+    <message>
+        <source>Bibliothek %1 fehlt</source>
+        <translation>%1 kitaplığı eksik</translation>
+    </message>
+    <message>
+        <source>%1 ist kein UVE-Player-Plugin</source>
+        <translation>%1 bir UVE Player eklentisi değil</translation>
+    </message>
+    <message>
+        <source>QML-Datei %1 fehlt</source>
+        <translation>%1 QML dosyası eksik</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
+        <translation>manifest.json için "library" veya "main" gerekli</translation>
+    </message>
+    <message>
+        <source>Ungültiges URL-Muster: %1</source>
+        <translation>Geçersiz URL kalıbı: %1</translation>
+    </message>
+    <message>
+        <source>Keine QML-Umgebung für QML-Plugins</source>
+        <translation>QML eklentileri için QML ortamı yok</translation>
+    </message>
+    <message>
+        <source>QML-Fehler: </source>
+        <translation>QML hatası: </translation>
+    </message>
+    <message>
         <source>Laden fehlgeschlagen: </source>
         <translation>Yükleme başarısız: </translation>
     </message>
@@ -2467,8 +2539,48 @@
         <translation>Başlatma başarısız: </translation>
     </message>
     <message>
+        <source>Ausnahme beim Aktivieren</source>
+        <translation>Etkinleştirme sırasında istisna</translation>
+    </message>
+    <message>
+        <source>Sprachdatei fehlerhaft: %1</source>
+        <translation>Dil dosyası hatalı: %1</translation>
+    </message>
+    <message>
+        <source>Ausnahme in onEvent(%1)</source>
+        <translation>onEvent(%1) içinde istisna</translation>
+    </message>
+    <message>
         <source>Ausnahme in onMediaChanged</source>
         <translation>onMediaChanged içinde özel durum</translation>
+    </message>
+    <message>
+        <source>Kein Benutzer-Plugin-Ordner</source>
+        <translation>Kullanıcı eklenti klasörü yok</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar: %1</source>
+        <translation>Dosya okunamıyor: %1</translation>
+    </message>
+    <message>
+        <source>ZIP-Datei fehlerhaft: %1</source>
+        <translation>ZIP dosyası hatalı: %1</translation>
+    </message>
+    <message>
+        <source>Bitte eine .zip-Datei oder einen Ordner mit manifest.json wählen</source>
+        <translation>Lütfen bir .zip dosyası veya manifest.json içeren bir klasör seç</translation>
+    </message>
+    <message>
+        <source>Keine manifest.json im Paket gefunden</source>
+        <translation>Pakette manifest.json bulunamadı</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Paket: %1</source>
+        <translation>Pakette geçersiz yol: %1</translation>
+    </message>
+    <message>
+        <source>Schreiben fehlgeschlagen: %1</source>
+        <translation>Yazma başarısız: %1</translation>
     </message>
 </context>
 <context>

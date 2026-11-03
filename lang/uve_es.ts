@@ -1064,6 +1064,14 @@
         <translation>Error mediante %1: %2</translation>
     </message>
     <message>
+        <source>keine Antwort (Zeitüberschreitung)</source>
+        <translation>sin respuesta (tiempo agotado)</translation>
+    </message>
+    <message>
+        <source>Plugin</source>
+        <translation>Complemento</translation>
+    </message>
+    <message>
         <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
         <translation>Modo seguro finalizado – los plugins se cargarán en el próximo inicio</translation>
     </message>
@@ -1449,6 +1457,14 @@
         <translation>tras varios bloqueos, el reproductor se inicia en modo seguro (también con --safe-mode).</translation>
     </message>
     <message>
+        <source>Plugin installieren …</source>
+        <translation>Instalar complemento …</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (.zip mit manifest.json) in den Benutzerordner installieren</source>
+        <translation>Instalar un paquete de complemento (.zip con manifest.json) en la carpeta del usuario</translation>
+    </message>
+    <message>
         <source>Fehlerprotokoll</source>
         <translation>Registro de errores</translation>
     </message>
@@ -1467,6 +1483,26 @@
     <message>
         <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
         <translation>Abrir la carpeta de usuario para plugins adicionales (tiene prioridad)</translation>
+    </message>
+    <message>
+        <source>Plugin installieren</source>
+        <translation>Instalar complemento</translation>
+    </message>
+    <message>
+        <source>Plugin-Paket (*.zip)</source>
+        <translation>Paquete de complemento (*.zip)</translation>
+    </message>
+    <message>
+        <source>Plugin-Manifest (manifest.json)</source>
+        <translation>Manifiesto del complemento (manifest.json)</translation>
+    </message>
+    <message>
+        <source>Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.</source>
+        <translation>El complemento se instalará la próxima vez que se inicie el reproductor. Reinicia el reproductor.</translation>
+    </message>
+    <message>
+        <source>Installation fehlgeschlagen: </source>
+        <translation>Error en la instalación: </translation>
     </message>
 </context>
 <context>
@@ -2176,7 +2212,7 @@
     <name>uve</name>
     <message>
         <source>Datei nicht lesbar: %1</source>
-        <translation>Archivo no legible: %1</translation>
+        <translation>No se puede leer el archivo: %1</translation>
     </message>
     <message>
         <source>LUT-Datei zu groß</source>
@@ -2451,6 +2487,42 @@
         <translation>Error de shader, etapa desactivada: </translation>
     </message>
     <message>
+        <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
+        <translation>Error en la instalación: la carpeta %1 está bloqueada</translation>
+    </message>
+    <message>
+        <source>manifest.json fehlerhaft: %1</source>
+        <translation>manifest.json no es válido: %1</translation>
+    </message>
+    <message>
+        <source>Bibliothek %1 fehlt</source>
+        <translation>Falta la biblioteca %1</translation>
+    </message>
+    <message>
+        <source>%1 ist kein UVE-Player-Plugin</source>
+        <translation>%1 no es un complemento de UVE Player</translation>
+    </message>
+    <message>
+        <source>QML-Datei %1 fehlt</source>
+        <translation>Falta el archivo QML %1</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
+        <translation>manifest.json necesita "library" o "main"</translation>
+    </message>
+    <message>
+        <source>Ungültiges URL-Muster: %1</source>
+        <translation>Patrón de URL no válido: %1</translation>
+    </message>
+    <message>
+        <source>Keine QML-Umgebung für QML-Plugins</source>
+        <translation>No hay entorno QML para complementos QML</translation>
+    </message>
+    <message>
+        <source>QML-Fehler: </source>
+        <translation>Error de QML: </translation>
+    </message>
+    <message>
         <source>Laden fehlgeschlagen: </source>
         <translation>Error al cargar: </translation>
     </message>
@@ -2467,8 +2539,48 @@
         <translation>Error de inicialización: </translation>
     </message>
     <message>
+        <source>Ausnahme beim Aktivieren</source>
+        <translation>Excepción al activar</translation>
+    </message>
+    <message>
+        <source>Sprachdatei fehlerhaft: %1</source>
+        <translation>Archivo de idioma no válido: %1</translation>
+    </message>
+    <message>
+        <source>Ausnahme in onEvent(%1)</source>
+        <translation>Excepción en onEvent(%1)</translation>
+    </message>
+    <message>
         <source>Ausnahme in onMediaChanged</source>
         <translation>Excepción en onMediaChanged</translation>
+    </message>
+    <message>
+        <source>Kein Benutzer-Plugin-Ordner</source>
+        <translation>No hay carpeta de complementos del usuario</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar: %1</source>
+        <translation>No se puede leer el archivo: %1</translation>
+    </message>
+    <message>
+        <source>ZIP-Datei fehlerhaft: %1</source>
+        <translation>Archivo ZIP no válido: %1</translation>
+    </message>
+    <message>
+        <source>Bitte eine .zip-Datei oder einen Ordner mit manifest.json wählen</source>
+        <translation>Elige un archivo .zip o una carpeta con manifest.json</translation>
+    </message>
+    <message>
+        <source>Keine manifest.json im Paket gefunden</source>
+        <translation>No se encontró manifest.json en el paquete</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Paket: %1</source>
+        <translation>Ruta no válida en el paquete: %1</translation>
+    </message>
+    <message>
+        <source>Schreiben fehlgeschlagen: %1</source>
+        <translation>Error al escribir: %1</translation>
     </message>
 </context>
 <context>

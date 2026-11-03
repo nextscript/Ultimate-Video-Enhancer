@@ -115,6 +115,9 @@ ApplicationWindow {
         case "settings": settingsDialog.open(); break
         case "quit": Qt.quit(); break
         case "minimal": minimal = !minimal; break
+        default:
+            // Menüeinträge und Tastenkürzel von Plugins: "plugin:<plugin-id>:<eintrag>"
+            if (String(id).indexOf("plugin:") === 0 && app.plugins) app.plugins.triggerAction(id)
         }
     }
 
@@ -230,8 +233,17 @@ ApplicationWindow {
             MenuItem { text: win.effects ? qsTr("Ultimate Video Enhancer aktiv") : qsTr("Ultimate Video Enhancer nicht aktiv"); enabled: false }
         }
         Menu {
+            id: pluginsMenu
             title: qsTr("&Plugins")
             MenuItem { text: qsTr("Plugins verwalten…"); onTriggered: pluginsDialog.open() }
+            MenuSeparator { visible: pluginMenuItems.count > 0; height: visible ? implicitHeight : 0 }
+            Instantiator {
+                id: pluginMenuItems
+                model: app.plugins ? app.plugins.menuItems : []
+                delegate: MenuItem { required property var modelData; text: modelData.title; onTriggered: app.plugins.triggerAction(modelData.actionId) }
+                onObjectAdded: (i, o) => pluginsMenu.insertItem(2 + i, o)
+                onObjectRemoved: (i, o) => pluginsMenu.removeItem(o)
+            }
             MenuItem { text: qsTr("Safe Mode beenden"); visible: app.safeMode; height: visible ? implicitHeight : 0; onTriggered: app.resetSafeMode() }
         }
         Menu {
@@ -548,7 +560,7 @@ ApplicationWindow {
             anchors { right: parent.right; top: safeBanner.bottom; bottom: parent.bottom }
             color: theme.panel
             Rectangle { width: 1; height: parent.height; color: theme.line }
-            readonly property var panels: (app.plugins ? app.plugins.plugins : []).filter(p => p.panelUrl && String(p.panelUrl).length > 0)
+            readonly property var panels: (app.plugins ? app.plugins.panels : []).filter(p => p.location === "sidebar")
 
             ColumnLayout {
                 anchors.fill: parent
@@ -560,14 +572,20 @@ ApplicationWindow {
                     function selectTab(name) {
                         if (name === "Effekte") {
                             for (var i = 0; i < sidebar.panels.length; ++i)
-                                if (sidebar.panels[i].id === "org.nextscript.ultimate-video-enhancer") { currentIndex = i + 1; return }
+                                if (sidebar.panels[i].pluginId === "org.nextscript.ultimate-video-enhancer") { currentIndex = i + 1; return }
                         }
                         currentIndex = 0
+                    }
+                    // Plugin-Befehl "panel.open": Schlüssel "<plugin-id>/<panel-id>"
+                    function selectPanel(key) {
+                        for (var i = 0; i < sidebar.panels.length; ++i)
+                            if (sidebar.panels[i].key === key) { currentIndex = i + 1; return true }
+                        return false
                     }
                     TabButton { text: qsTr("Wiedergabeliste") }
                     Repeater {
                         model: sidebar.panels
-                        TabButton { required property var modelData; text: modelData.panelTitle }
+                        TabButton { required property var modelData; text: modelData.title }
                     }
                 }
                 StackLayout {
@@ -587,8 +605,14 @@ ApplicationWindow {
                         model: sidebar.panels
                         delegate: Loader {
                             required property var modelData
-                            source: modelData.panelUrl
-                            onLoaded: { item.theme = theme; item.host = app; item.controller = modelData.controller }
+                            source: modelData.url
+                            onLoaded: {
+                                // Seiten bekommen theme, host (= app), controller und – falls deklariert – plugin (Befehle/Ereignisse)
+                                if ("theme" in item) item.theme = theme
+                                if ("host" in item) item.host = app
+                                if ("controller" in item) item.controller = modelData.controller
+                                if ("plugin" in item) item.plugin = modelData.plugin
+                            }
                             Label {
                                 visible: parent.status === Loader.Error
                                 anchors.centerIn: parent
@@ -742,6 +766,11 @@ ApplicationWindow {
         function onOsd(text, ms) { win.osd(text, ms) }
         function onToolUpdatesAvailable(updates) { updateDialog.show(updates) }
         function onRequestRaise() { win.raise(); win.requestActivate() }
+        function onPluginPanelRequested(key) {
+            // Seitenleisten-Seite eines Plugins zeigen, sonst dessen Einstellungsseite in der Plugin-Verwaltung
+            if (tabs.selectPanel(key)) { win.sidebarVisible = true; app.setSetting("showSidebar", true) }
+            else pluginsDialog.openSettings(key)
+        }
     }
     Component.onCompleted: {
         player.setAspect(aspect)

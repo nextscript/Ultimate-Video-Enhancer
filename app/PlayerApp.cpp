@@ -186,6 +186,23 @@ QString PlayerApp::ytdlFormatFor(const QString &id) const
 
 void PlayerApp::loadPath(const QString &path, double start, bool paused)
 {
+    cancelPendingResolve();
+    if (m_plugins) {
+        m_sourcePath = path;
+        m_plugins->emitEvent(QStringLiteral("media.loading"), {{"url", path}});
+        // Plugins dürfen die Adresse vorher übernehmen (contributes.urlHandlers, z. B. Link eines Webdienstes → tcp://-Stream)
+        const quint64 id = ++m_resolveSeq;
+        m_resolve = {id, path, start, paused};
+        if (!path.isEmpty() && m_plugins->resolveMedia(id, path)) {
+            clearStreamQualities(path);   // Auflösungen bestimmt dann das Plugin, nicht yt-dlp
+            if (m_resolve.id == id) {     // Plugin hat nicht schon synchron geantwortet
+                m_player->stop();
+                m_resolveTimeout.start(90000);
+            }
+            return;
+        }
+        m_resolve = {};
+    }
     prepareStreamQualities(path);
     QStringList fileOpts;
     if (!m_streamQuality.isEmpty()) {
@@ -193,6 +210,86 @@ void PlayerApp::loadPath(const QString &path, double start, bool paused)
         if (!f.isEmpty()) fileOpts << QStringLiteral("ytdl-format=") + f;
     }
     m_player->load(routeThroughProxy(path), start, paused, fileOpts);
+}
+
+void PlayerApp::clearStreamQualities(const QString &path)
+{
+    if (m_formatProc) { m_formatProc->disconnect(this); m_formatProc->kill(); m_formatProc->deleteLater(); m_formatProc = nullptr; }
+    m_qualityUrl = path;
+    m_streamQuality.clear();
+    m_streamQualities.clear();
+    emit streamQualitiesChanged();
+}
+
+void PlayerApp::cancelPendingResolve()
+{
+    if (!m_resolve.id) return;
+    m_resolveTimeout.stop();
+    if (m_plugins) m_plugins->cancelResolve(m_resolve.id);
+    m_resolve = {};
+}
+
+void PlayerApp::registerPluginCommands()
+{
+    using Args = QVariantMap;
+    auto reg = [this](const char *name, PluginManager::Command fn) { m_plugins->registerCommand(QString::fromLatin1(name), std::move(fn)); };
+    reg("player.state", [this](const QString &, const Args &, QString *) {
+        return QVariant(QVariantMap{{"path", m_loadedPath}, {"source", m_sourcePath}, {"title", m_player->mediaTitle()},
+                                    {"position", m_player->position()}, {"duration", m_player->duration()},
+                                    {"paused", m_player->paused()}, {"state", int(m_player->state())},
+                                    {"playlistIndex", m_playlist->currentIndex()}});
+    });
+    reg("player.load", [this](const QString &, const Args &a, QString *error) {
+        const QStringList urls = a.contains("urls") ? a.value("urls").toStringList() : QStringList{a.value("url").toString()};
+        if (urls.isEmpty() || urls.first().isEmpty()) { if (error) *error = QStringLiteral("url missing"); return QVariant(false); }
+        openPaths(urls, true, a.value("next").toBool());
+        return QVariant(true);
+    });
+    reg("playlist.add", [this](const QString &, const Args &a, QString *) {
+        openPaths(a.value("urls").toStringList(), a.value("play").toBool(), a.value("next").toBool());
+        return QVariant(m_playlist->count());
+    });
+    reg("playlist.items", [this](const QString &, const Args &, QString *) {
+        QVariantList l;
+        for (int i = 0; i < m_playlist->count(); ++i)
+            l << QVariantMap{{"path", m_playlist->pathAt(i)}, {"title", m_playlist->titleAt(i)}, {"current", i == m_playlist->currentIndex()}};
+        return QVariant(l);
+    });
+    reg("playlist.play", [this](const QString &, const Args &a, QString *) { playIndex(a.value("index").toInt()); return QVariant(true); });
+    reg("player.pause", [this](const QString &, const Args &a, QString *) {
+        m_player->setPaused(a.contains("paused") ? a.value("paused").toBool() : !m_player->paused());
+        return QVariant(m_player->paused());
+    });
+    reg("player.stop", [this](const QString &, const Args &, QString *) { stop(); return QVariant(true); });
+    reg("player.next", [this](const QString &, const Args &, QString *) { next(); return QVariant(true); });
+    reg("player.previous", [this](const QString &, const Args &, QString *) { previous(); return QVariant(true); });
+    reg("player.seek", [this](const QString &, const Args &a, QString *) {
+        const double s = a.value("seconds").toDouble();
+        if (a.value("relative").toBool()) m_player->seekRelative(s); else m_player->seek(s);
+        return QVariant(true);
+    });
+    reg("player.reload", [this](const QString &, const Args &, QString *) {
+        const int i = m_playlist->currentIndex();
+        if (i >= 0) playIndex(i);
+        return QVariant(i >= 0);
+    });
+}
+
+void PlayerApp::onMediaResolved(quint64 requestId, const QString &resolvedUrl, const QString &error, const QString &pluginName)
+{
+    if (requestId != m_resolve.id) return;   // veraltet (inzwischen anderes Medium gewählt)
+    m_resolveTimeout.stop();
+    const PendingResolve r = m_resolve;
+    m_resolve = {};
+    if (resolvedUrl.isEmpty()) {
+        const int i = m_playlist->currentIndex();
+        if (i >= 0) m_playlist->setError(i, true);
+        showOsd(QStringLiteral("%1: %2").arg(pluginName, error), 6000);
+        Logger::write("plugin", QStringLiteral("%1: %2 – %3").arg(pluginName, r.path, error));
+        return;
+    }
+    Logger::write("plugin", QStringLiteral("%1: %2 → %3").arg(pluginName, r.path, resolvedUrl));
+    m_player->load(routeThroughProxy(resolvedUrl), r.start, r.paused, {});
 }
 
 void PlayerApp::prepareStreamQualities(const QString &path)
@@ -374,11 +471,11 @@ QString PlayerApp::setLanguage(const QString &code)
     QString err;
     const bool ok = m_languages->apply(code, &err);
     if (ok) m_settings->setValue("language", code);
+    if (m_plugins) m_plugins->setLanguage(m_languages->current());
     // Oberfläche neu übersetzen: QML-Bindungen mit qsTr() und C++-Texte (Signale)
     if (m_engine) m_engine->retranslate();
     updateProxyStatus();
     m_hotkeys->notifyLanguageChanged();
-    if (m_plugins) emit m_plugins->pluginsChanged();   // Panel-Titel der Plugins
     emit languageChanged();
     return ok ? QString() : err;
 }
@@ -446,6 +543,19 @@ void PlayerApp::startPlugins()
     };
     m_plugins = new PluginManager(m_settings, m_player, m_shaders, dirs, m_safe->active(), this);
     connect(m_plugins, &PluginManager::osdRequested, this, &PlayerApp::osd);
+    connect(m_plugins, &PluginManager::mediaResolved, this, &PlayerApp::onMediaResolved);
+    connect(m_plugins, &PluginManager::panelRequested, this, &PlayerApp::pluginPanelRequested);
+    connect(m_plugins, &PluginManager::hotkeysChanged, this, [this] { m_hotkeys->setExtraActions(m_plugins->hotkeyActions()); });
+    m_plugins->setQmlEngine(m_engine);
+    m_plugins->setLanguage(language());
+    registerPluginCommands();
+    m_resolveTimeout.setSingleShot(true);
+    connect(&m_resolveTimeout, &QTimer::timeout, this, [this] {
+        if (!m_resolve.id) return;
+        const quint64 id = m_resolve.id;
+        if (m_plugins) m_plugins->cancelResolve(id);   // Plugin-Antwort kommt danach nicht mehr an
+        onMediaResolved(id, QString(), tr("keine Antwort (Zeitüberschreitung)"), tr("Plugin"));
+    });
     if (!m_safe->active()) m_safe->markPluginsLoading();
     m_plugins->discoverAndStart();
     // Nach 10 s stabiler Laufzeit gilt der Plugin-Start als erfolgreich (Absturzerkennung)
@@ -556,6 +666,8 @@ void PlayerApp::previous()
 
 void PlayerApp::stop()
 {
+    cancelPendingResolve();
+    if (m_plugins) m_plugins->emitEvent(QStringLiteral("player.stopped"), {{"path", m_loadedPath}});
     saveResume();
     m_stoppedByUser = true;
     m_player->stop();
@@ -575,13 +687,19 @@ void PlayerApp::onFileLoaded()
     QTimer::singleShot(1500, this, [this, i] { if (m_player->duration() > 0) m_playlist->setDuration(i, m_player->duration()); });
     m_settings->addRecentFile(m_playlist->pathAt(i));
     emit recentFilesChanged();
-    if (m_plugins) m_plugins->notifyMediaChanged(m_loadedPath);
+    if (m_plugins) {
+        m_plugins->notifyMediaChanged(m_loadedPath);
+        m_plugins->emitEvent(QStringLiteral("media.loaded"), {{"path", m_loadedPath}, {"source", m_playlist->pathAt(i)},
+                                                             {"title", m_player->mediaTitle()}, {"duration", m_player->duration()}});
+    }
     Logger::write("play", "geladen: " + m_loadedPath);
 }
 
 void PlayerApp::onEndOfFile(const QString &reason)
 {
     const int i = m_playlist->currentIndex();
+    if (m_plugins) m_plugins->emitEvent(QStringLiteral("media.ended"), {{"reason", reason}, {"path", m_loadedPath},
+                                                                        {"source", m_playlist->pathAt(i)}, {"error", reason == QLatin1String("error") ? m_player->errorString() : QString()}});
     if (reason == "error") {
         // Netzlaufwerk: erneut versuchen (1, 2, 3, 4, dann alle 5 s – insgesamt gut eine Minute)
         static constexpr int kDelaysMs[] = {1000, 2000, 3000, 4000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000};
