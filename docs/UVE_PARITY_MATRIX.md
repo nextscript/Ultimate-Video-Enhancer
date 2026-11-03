@@ -37,7 +37,8 @@ Farbraum-Konvention: UVE rechnet im Browser auf sRGB-kodierten Canvas-Werten. De
 | BL – Schwarzpegel | Z. 9322, 9533, `mkOffsetCT` 18803, `buildFilter` 19397 | SVG: Versatz −BL·0.04 (BL auf 1 Stelle gerundet) | identisch, am Anfang des Grading-Passes | **portiert** | exakt (−0.028 bei 0.7) |
 | WL – Weißpegel | Z. 9323, 9534, `mkHighlightsTableCT` 18813, 19402 | SVG: 17-Punkt-Tabelle, Knie 0.78, WL·0.06 | identische Tabelle (toFixed(4)), lineare Interpolation | **portiert** | Tabellenwerte exakt |
 | SR – Radius | Z. 9321, 9532, `buildFilter` 19368 ff. | SVG: Gauß-Radius der Unschärfemaske (|SR|, min. 0.1) | Gauß-σ der Unschärfemaske (0.7 + |SR|·0.65) und Radius der Detail-Schärfe | **Näherung** | Shaderwert |
-| Auto-Scene-Match / Auto-Weißabgleich | `uAutoMatrix`, AUTO_* | Bildstatistik per Canvas | – | **nicht portiert** (eigene GPU-Statistik nötig) | – |
+| Auto-Scene-Match / Auto-Weißabgleich | `uAutoMatrix`, AUTO_* (Z. 11072–11760) | Bildstatistik per Canvas 96×54, 2–10 fps | Statistik auf 96×54-Probe der Videoausgabe (GPU-Rücklesen, eigener Equalizer herausgerechnet – enthält aber die übrigen UVE-Effekte), gleiche Formeln/Schwellen; Matrix über mpv-Equalizer (früh, im Rohbild) statt Shader-Uniform (ab 1.0.2) | **portiert** (Sättigung/Farbton nur bei YUV-Quellen) | tst_uve auto* |
+| Expert Settings | `GVF_EXPERT_TARGETS`, `GVF_EXPERT_UI` (Z. 5132–5242, 15875–16020) | 11 Grading-Blöcke, nur Abweichungen gespeichert, Export `gvf-expert-settings` | Einstellungen → Expert Settings, gleiche Schlüssel/Bereiche/Exportformat; SVG-only-Werte nur für den Roundtrip (ab 1.0.2) | **portiert** | tst_uve expert* |
 | Scopes-HUD | `SCOPES` Z. 17354 | Canvas-Readback | – | **nicht portiert** | – |
 | Eigene SVG/GLSL/Canvas-Filtercodes | Z. 3886 ff. | Benutzer-Code im Browser | – | **nicht portiert** (keine Ausführung fremder Codes) | – |
 | Farbsehschwäche-Filter | `CB_FILTER` | SVG-Matrizen | – | **nicht portiert** | – |

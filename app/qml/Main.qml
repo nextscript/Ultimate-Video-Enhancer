@@ -27,6 +27,13 @@ ApplicationWindow {
     property int wasVisibility: Window.Windowed
     readonly property bool overlayControls: fullscreen || minimal
     readonly property bool textEditing: activeFocusItem !== null && activeFocusItem.cursorVisible !== undefined
+    // Vergleichsansicht (Strg+Alt+U): UVE-Shader liefert ein doppelt breites Bild, splitComposite setzt es zusammen
+    // Umschalten erst, wenn das Plugin den doppelt breiten Shader wirklich gesetzt hat (compareActive), nicht schon beim Wunsch
+    readonly property bool splitView: effects !== null && effects.compareActive && effects.enabled && player.hasVideo
+    onSplitViewChanged: { player.setSplitView(splitView); transitionFreeze.settled() }
+    // Wunsch (Strg+Alt+U, Menü, Panel): sofort Standbild halten, bevor sich irgendetwas am Bild ändert
+    readonly property bool splitWanted: effects !== null && effects.compare && effects.enabled && player.hasVideo
+    onSplitWantedChanged: transitionFreeze.begin()
     readonly property var effects: {
         var ps = app.plugins ? app.plugins.plugins : []
         for (var i = 0; i < ps.length; ++i)
@@ -97,6 +104,7 @@ ApplicationWindow {
         case "diagnostics": diagnosticsVisible = !diagnosticsVisible; break
         case "effects.toggle": if (effects) effects.toggleEnabled(); else osd(qsTr("Effekt-Plugin nicht aktiv")); break
         case "effects.compare": if (effects) effects.toggleCompare(); else osd(qsTr("Effekt-Plugin nicht aktiv")); break
+        case "effects.auto": if (effects) effects.toggleAuto(); else osd(qsTr("Effekt-Plugin nicht aktiv")); break
         case "effects.panel": sidebarVisible = true; app.setSetting("showSidebar", true); tabs.selectTab("Effekte"); break
         case "open.file": openFileDialog.open(); break
         case "open.folder": openFolderDialog.open(); break
@@ -214,6 +222,7 @@ ApplicationWindow {
             title: qsTr("&Effekte")
             MenuItem { text: qsTr("Effekte an"); enabled: win.effects !== null; checkable: true; checked: win.effects ? win.effects.enabled : false; onTriggered: act("effects.toggle") }
             MenuItem { text: qsTr("Vorher/Nachher-Vergleich"); enabled: win.effects !== null; checkable: true; checked: win.effects ? win.effects.compare : false; onTriggered: act("effects.compare") }
+            MenuItem { text: qsTr("Auto-Scene-Match"); enabled: win.effects !== null; checkable: true; checked: win.effects ? win.effects.autoOn : false; onTriggered: act("effects.auto") }
             MenuItem { text: qsTr("Effekt-Panel öffnen"); enabled: win.effects !== null; onTriggered: act("effects.panel") }
             MenuItem { text: qsTr("LUT-Galerie…"); enabled: win.effects !== null; onTriggered: { act("effects.panel"); win.effects.requestGallery() } }
             MenuItem { text: qsTr("Beispielprofil von GitHub laden (My_Profile.json)"); enabled: win.effects !== null; onTriggered: win.effects.loadExampleProfile() }
@@ -267,16 +276,92 @@ ApplicationWindow {
                       right: sidebar.visible ? sidebar.left : parent.right }
             Rectangle { anchors.fill: parent; color: "black" }
 
-            MpvVideo {
-                id: video
-                controller: app.player
+            // Sichtbare Videofläche (Bezug für Maus, Startbildschirm, Overlays)
+            Item {
+                id: videoArea
                 anchors { left: parent.left; right: parent.right; top: parent.top; bottom: parent.bottom
                           bottomMargin: win.overlayControls ? 0 : controls.height }
             }
 
+            // Videoebene: mpv-Bild + Vorher/Nachher-Zusammensetzung (Quelle für das Übergangs-Standbild)
+            Item {
+                id: videoLayer
+                anchors.fill: videoArea
+
+            // Nur das Videobild zuschneiden (im Vergleichsmodus ist die mpv-Ausgabe doppelt so breit) –
+            // nicht die ganze Bühne, sonst wird die überstehende Steuerleiste (Play-Knopf) im Vollbild abgeschnitten
+            Item {
+                id: videoClip
+                anchors.fill: parent
+                clip: true
+                MpvVideo {
+                    id: video
+                    controller: app.player
+                    anchors { left: parent.left; top: parent.top; bottom: parent.bottom }
+                    // Vergleich (Strg+Alt+U): mpv rendert links Original | rechts Effekte nebeneinander
+                    width: win.splitView ? videoArea.width * 2 : videoArea.width
+                }
+            }
+
+            // Vorher/Nachher zusammensetzen: je Bildpunkt die passende Hälfte – der Schieber ist nur ein Uniform,
+            // mpv bleibt beim Ziehen unverändert (sonst baut mpv bei jeder Änderung seine Render-Kette neu auf → Ruckeln)
+            ShaderEffect {
+                id: splitComposite
+                anchors.fill: parent
+                visible: win.splitView
+                readonly property var dims: player.osdDimensions
+                property variant source: video
+                property real split: compareOverlay.shown
+                property real flipY: 0
+                readonly property var veq: player.videoEq
+                property vector4d eq: Qt.vector4d((veq.brightness || 0) / 100, (veq.contrast || 0) / 100,
+                                                  (veq.saturation || 0) / 100, (veq.hue || 0) / 100)
+                // doppelt breites Bild in der mpv-Ausgabe (normiert)
+                property rect combRect: dims && dims.w > 0 && dims.h > 0
+                    ? Qt.rect((dims.ml || 0) / dims.w, (dims.mt || 0) / dims.h,
+                              (dims.w - (dims.ml || 0) - (dims.mr || 0)) / dims.w, (dims.h - (dims.mt || 0) - (dims.mb || 0)) / dims.h)
+                    : Qt.rect(0, 0, 1, 1)
+                // Videofläche in der Anzeige (normiert): eine Hälfte, horizontal zentriert
+                property rect normRect: Qt.rect((1 - combRect.width) / 2, combRect.y, combRect.width, combRect.height)
+                fragmentShader: "qrc:/uve/shaders/splitview.frag.qsb"
+            }
+            }
+
+            // Übergang Vergleich an/aus: Beim Umschalten ändern sich Shader (mpv baut neu auf), Seitenverhältnis und
+            // Layout nicht im selben Frame – dazwischen wären kurz zwei Bilder zu sehen. Daher das letzte Bild als
+            // Standbild halten, bis mpv das neue Bild liefert, und dann sanft ausblenden.
+            // Die Quelle läuft ständig mit (fast unsichtbar), damit beim Umschalten sofort das zuletzt gezeigte Bild
+            // vorliegt: einfrieren (live = false) und im selben Frame voll zeigen – kein Einblenden, durch das der
+            // Zwischenzustand durchscheinen würde. Ausblenden erst, wenn mpv das neue Bild liefert.
+            ShaderEffectSource {
+                id: transitionFreeze
+                anchors.fill: videoArea
+                sourceItem: videoLayer
+                live: true
+                property bool frozen: false
+                opacity: 0.002
+                NumberAnimation { id: freezeFade; target: transitionFreeze; property: "opacity"; to: 0.002; duration: 160
+                                  onFinished: { transitionFreeze.frozen = false; transitionFreeze.live = true } }
+                function begin() {
+                    if (frozen) { freezeHold.restart(); return }   // schon eingefroren: nur verlängern
+                    freezeFade.stop()
+                    live = false                                   // letztes gezeigtes Bild festhalten
+                    frozen = true
+                    opacity = 1
+                    freezeHold.interval = 1000                     // Sicherheitsgrenze, falls nichts umschaltet
+                    freezeHold.restart()
+                }
+                function settled() {
+                    if (!frozen) return
+                    freezeHold.interval = 400                      // mpv-Neuaufbau + neues Bild abwarten
+                    freezeHold.restart()
+                }
+                Timer { id: freezeHold; onTriggered: freezeFade.restart() }
+            }
+
             // Audio ohne Bild
             Column {
-                anchors.centerIn: video
+                anchors.centerIn: videoArea
                 visible: player.state !== 0 && !player.hasVideo
                 spacing: 14
                 Label { text: "♪"; font.pixelSize: 96; color: theme.accent; anchors.horizontalCenter: parent.horizontalCenter }
@@ -285,7 +370,7 @@ ApplicationWindow {
 
             // Startbildschirm
             Rectangle {
-                anchors.fill: video
+                anchors.fill: videoArea
                 visible: player.state === 0
                 gradient: Gradient {
                     GradientStop { position: 0; color: theme.dark ? "#1a1f27" : "#e9ebef" }
@@ -314,7 +399,7 @@ ApplicationWindow {
             // Maus: Klick = Pause, Doppelklick = Vollbild, Rechtsklick = Kontextmenü, Rad = Lautstärke
             MouseArea {
                 id: stageMouse
-                anchors.fill: video
+                anchors.fill: videoArea
                 acceptedButtons: Qt.LeftButton | Qt.RightButton
                 hoverEnabled: true
                 cursorShape: win.overlayControls && !win.controlsVisible ? Qt.BlankCursor : Qt.ArrowCursor
@@ -329,6 +414,72 @@ ApplicationWindow {
                     id: clickTimer
                     interval: 230
                     onTriggered: { player.togglePause(); Qt.callLater(() => win.osd(player.paused ? qsTr("❚❚ Pause") : qsTr("▶ Wiedergabe"), 900)) }
+                }
+            }
+
+            // Vorher/Nachher-Trenner (Strg+Alt+U) wie im UVE-Userscript: ziehbarer Knopf ◀▶ über dem Video,
+            // links Original, rechts mit Effekten. Die Position steuert nur die Zusammensetzung (splitComposite).
+            Item {
+                id: compareOverlay
+                readonly property var dims: player.osdDimensions
+                readonly property real dw: dims && dims.w > 0 ? dims.w : 0
+                readonly property real dh: dims && dims.h > 0 ? dims.h : 0
+                // Videofläche ohne schwarze Ränder (osd-dimensions in Ausgabepixeln → Item-Koordinaten);
+                // im Vergleichsmodus die zusammengesetzte Fläche (eine Hälfte, zentriert)
+                x: win.splitView ? videoArea.x + splitComposite.normRect.x * videoArea.width
+                                 : videoArea.x + (dw > 0 ? (dims.ml || 0) / dw * video.width : 0)
+                y: win.splitView ? videoArea.y + splitComposite.normRect.y * videoArea.height
+                                 : videoArea.y + (dh > 0 ? (dims.mt || 0) / dh * video.height : 0)
+                width: win.splitView ? splitComposite.normRect.width * videoArea.width
+                                     : (dw > 0 ? video.width * (dw - (dims.ml || 0) - (dims.mr || 0)) / dw : video.width)
+                height: win.splitView ? splitComposite.normRect.height * videoArea.height
+                                      : (dh > 0 ? video.height * (dh - (dims.mt || 0) - (dims.mb || 0)) / dh : video.height)
+                visible: win.effects !== null && win.effects.compare && player.state !== 0 && player.hasVideo
+                property real split: win.effects ? win.effects.values.compareSplit : 0.5
+                property real dragSplit: -1
+                readonly property real shown: dragSplit >= 0 ? dragSplit : split
+
+                Rectangle {
+                    x: Math.round(compareOverlay.shown * compareOverlay.width) - 1
+                    width: 2; height: parent.height
+                    color: "white"
+                    layer.enabled: false
+                }
+                Repeater {
+                    model: [{ t: qsTr("VORHER"), left: true }, { t: qsTr("NACHHER"), left: false }]
+                    delegate: Rectangle {
+                        required property var modelData
+                        x: modelData.left ? 10 : compareOverlay.width - width - 10
+                        y: 10
+                        width: lbl.implicitWidth + 16; height: lbl.implicitHeight + 6
+                        radius: 4; color: "#a6000000"
+                        Label { id: lbl; anchors.centerIn: parent; text: parent.modelData.t; color: "white"; font.bold: true; font.pixelSize: 12 }
+                    }
+                }
+                Rectangle {
+                    id: compareKnob
+                    width: 36; height: 36; radius: 18
+                    x: compareOverlay.shown * compareOverlay.width - width / 2
+                    y: compareOverlay.height / 2 - height / 2
+                    color: "white"
+                    border.color: "#55000000"; border.width: 1
+                    Label { anchors.centerIn: parent; text: "◀▶"; color: "#222"; font.bold: true; font.pixelSize: 10 }
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -8
+                        cursorShape: Qt.SizeHorCursor
+                        preventStealing: true
+                        onPressed: (m) => { m.accepted = true; compareOverlay.dragSplit = compareOverlay.split }
+                        onPositionChanged: (m) => {
+                            if (!pressed || compareOverlay.width <= 0) return
+                            var p = mapToItem(compareOverlay, m.x, m.y)
+                            compareOverlay.dragSplit = Math.max(0, Math.min(1, p.x / compareOverlay.width))
+                            win.effects.setCompareSplit(compareOverlay.dragSplit)
+                        }
+                        onReleased: compareOverlay.dragSplit = -1
+                        onCanceled: compareOverlay.dragSplit = -1
+                        onDoubleClicked: win.effects.setCompareSplit(0.5)
+                    }
                 }
             }
 
@@ -549,6 +700,7 @@ ApplicationWindow {
     SettingsDialog {
         id: settingsDialog
         theme: theme
+        effects: win.effects
         onOpened: win.modalCount++
         onClosed: win.modalCount = Math.max(0, win.modalCount - 1)
         onOpenPlugins: { close(); pluginsDialog.open() }
@@ -599,9 +751,10 @@ ApplicationWindow {
     // Selbsttest der Oberfläche. Im UI-Modus (UVE_SELFTEST_UI=1) werden echte Mausereignisse an das Fenster
     // gesendet: Doppelklick in der Wiedergabeliste, Klick/Doppelklick/Rechtsklick auf das Bild, Effekt-Vergleich.
     property var stUi: ({})
+    property var stLeftRect: ({})
     property int stStep: 0
     function videoCenter() { return stageMouse.mapToItem(null, stageMouse.width / 2, stageMouse.height / 2) }
-    function videoRect() { var p = video.mapToItem(null, video.width * 0.2, video.height * 0.25); return { x: p.x, y: p.y, w: video.width * 0.6, h: video.height * 0.5 } }
+    function videoRect() { var p = videoArea.mapToItem(null, videoArea.width * 0.2, videoArea.height * 0.25); return { x: p.x, y: p.y, w: videoArea.width * 0.6, h: videoArea.height * 0.5 } }
     Timer {
         id: selftestUi
         interval: 6000
@@ -642,8 +795,15 @@ ApplicationWindow {
             case 4:
                 ui.dblclickFullscreen = win.fullscreen
                 ui.dblclickKeepsPlaying = player.paused === false
+                win.poke()                              // Steuerleiste im Vollbild einblenden
+                interval = 700; win.stStep = 299; break   // danach ++ → 300
+            case 300:
+                app.saveWindowShot(app.selftestPath("fullscreen-controls.png"))
+                // Steuerleiste vollständig im Fenster (Play-Knopf nicht abgeschnitten)
+                var cb = controls.mapToItem(null, 0, 0)
+                ui.fullscreenBarInside = cb.y + controls.height <= win.height + 0.5 && controls.height >= controls.implicitHeight - 0.5
                 if (win.fullscreen) win.toggleFullscreen()
-                interval = 900; break
+                interval = 900; win.stStep = 4; break
             case 5:
                 var c5 = win.videoCenter()
                 app.simulateClick(c5.x, c5.y, 2, false)             // Rechtsklick → Kontextmenü
@@ -714,12 +874,102 @@ ApplicationWindow {
                 settingsDialog.close()
                 interval = 400; break
             case 16:
+                settingsDialog.open(); settingsDialog.page = 11         // Einstellungen → Expert Settings
+                interval = 900; break
+            case 17:
+                app.saveWindowShot(app.selftestPath("settings-expert.png"))
+                ui.expertBlocks = win.effects ? win.effects.expertBlocks.length : 0
+                settingsDialog.close()
+                app.simulateClick(6, 60, 1, false)   // LUT-Galerie (modal) durch Klick außerhalb schließen
+                // Vorher/Nachher-Trenner (Strg+Alt+U) und Auto-Scene-Match während der Wiedergabe
+                player.setProperty("loop-file", "inf"); player.seek(0); player.setPaused(false)
+                if (win.effects) { win.effects.setAutoOn(true); win.effects.setCompare(true); win.effects.setCompareSplit(0.3) }
+                interval = 3000; break
+            case 18:
+                // Vergleichsbasis: 3 s ohne Ziehen (gleiche Quelle, Vergleich an); Anfang, damit keine Schleife dazwischenkommt
+                player.seek(0)
+                ui.idleBefore = { delayed: player.getProperty("vo-delayed-frame-count"), dropped: player.getProperty("frame-drop-count") }
+                interval = 3000; win.stStep = 99; break   // danach ++ → 100
+            case 100:
+                ui.idleDroppedFrames = player.getProperty("frame-drop-count") - ui.idleBefore.dropped
+                ui.idleDelayedFrames = player.getProperty("vo-delayed-frame-count") - ui.idleBefore.delayed
+                // Schieber ziehen wie mit der Maus: 3 s lang alle 40 ms eine neue Position, Ruckler zählen
+                ui.dragBefore = { delayed: player.getProperty("vo-delayed-frame-count"), dropped: player.getProperty("frame-drop-count") }
+                dragSweep.n = 0; dragSweep.start()
+                interval = 3600; win.stStep = 18; break
+            case 19:
+                ui.dragAfter = { delayed: player.getProperty("vo-delayed-frame-count"), dropped: player.getProperty("frame-drop-count") }
+                ui.dragDelayedFrames = ui.dragAfter.delayed - ui.dragBefore.delayed
+                ui.dragDroppedFrames = ui.dragAfter.dropped - ui.dragBefore.dropped
+                // Hälften prüfen: rechts (mit Effekten) stark entsättigt, links Original
+                if (win.effects) { win.effects.setCompareSplit(0.5); win.effects.setValue("saturation", -10); win.effects.setValue("baseTone", false) }
+                interval = 3000; break
+            case 20:
+                app.saveWindowShot(app.selftestPath("compare-auto.png"))
+                var cr = compareOverlay.mapToItem(null, 0, 0)
+                ui.splitLeft = app.sampleWindow(cr.x + compareOverlay.width * 0.05, cr.y + compareOverlay.height * 0.2, compareOverlay.width * 0.4, compareOverlay.height * 0.6)
+                ui.splitRight = app.sampleWindow(cr.x + compareOverlay.width * 0.55, cr.y + compareOverlay.height * 0.2, compareOverlay.width * 0.4, compareOverlay.height * 0.6)
+                ui.splitHalvesOk = !!ui.splitLeft && !!ui.splitRight && ui.splitRight.chroma < ui.splitLeft.chroma * 0.8
+                // Seitenverhältnis: zusammengesetzte Fläche wie das Video (Testvideo 16:9)
+                ui.splitAspect = compareOverlay.width / compareOverlay.height
+                ui.compareOverlay = compareOverlay.visible && Math.abs(compareOverlay.shown - 0.5) < 0.01
+                if (win.effects) { win.effects.setValue("saturation", 0); win.effects.setValue("baseTone", true); win.effects.setCompareSplit(0.3) }
+                ui.autoInfo = win.effects ? win.effects.autoInfo : ""
+                ui.autoEq = { brightness: player.getProperty("brightness"), contrast: player.getProperty("contrast"),
+                              saturation: player.getProperty("saturation"), hue: player.getProperty("hue") }
+                // VORHER muss das echte Original sein: Standbild, deutlicher Equalizer, linke Hälfte messen …
+                player.setPaused(true)
+                if (win.effects) win.effects.setAutoOn(false)
+                interval = 800; win.stStep = 199; break
+            case 200:
+                player.setProperty("brightness", 5); player.setProperty("contrast", -20)   // ohne Abschneiden (5 … 85 %)
+                interval = 1200; break
+            case 201:
+                var lr = compareOverlay.mapToItem(null, 0, 0)
+                win.stLeftRect = { x: lr.x + compareOverlay.width * 0.03, y: lr.y + compareOverlay.height * 0.2, w: compareOverlay.width * 0.22, h: compareOverlay.height * 0.6 }   // links vom Schieber (0.3)
+                ui.leftInCompare = app.sampleWindow(win.stLeftRect.x, win.stLeftRect.y, win.stLeftRect.w, win.stLeftRect.h)
+                // Gegenprobe: ohne Effekte, Equalizer noch aktiv (so sähe VORHER ohne Rückrechnung aus)
+                if (win.effects) win.effects.setEnabled(false)
+                interval = 1500; win.stStep = 202; break   // danach ++ → 203
+            case 203:
+                ui.leftWithEqOnly = app.sampleWindow(win.stLeftRect.x, win.stLeftRect.y, win.stLeftRect.w, win.stLeftRect.h)
+                // … dann ohne Equalizer an derselben Stelle: das echte Original
+                player.setProperty("brightness", 0); player.setProperty("contrast", 0)
+                interval = 1200; win.stStep = 201; break
+            case 202:
+                ui.leftOriginal = app.sampleWindow(win.stLeftRect.x, win.stLeftRect.y, win.stLeftRect.w, win.stLeftRect.h)
+                ui.leftDiff = ui.leftInCompare && ui.leftOriginal
+                    ? Math.max(Math.abs(ui.leftInCompare.r - ui.leftOriginal.r), Math.abs(ui.leftInCompare.g - ui.leftOriginal.g), Math.abs(ui.leftInCompare.b - ui.leftOriginal.b)) : 1
+                ui.leftIsOriginal = ui.leftDiff < 0.02
+                if (win.effects) { win.effects.setEnabled(true); win.effects.setCompare(false); win.effects.setAutoOn(false)
+                                   win.effects.setValue("saturation", -10); win.effects.setValue("baseTone", false); win.effects.setCompareSplit(0.5) }
+                interval = 1500; win.stStep = 399; break
+            case 400:
+                // Übergang Vergleich AN: Bilder in schneller Folge aufnehmen (Auswertung: kein Doppelbild)
+                app.saveWindowShotAsync(app.selftestPath("tr-on-before.png"))
+                if (win.effects) win.effects.setCompare(true)
+                trBurst.start("tr-on-")
+                interval = 1800; break
+            case 401:
+                app.saveWindowShotAsync(app.selftestPath("tr-on-after.png"))
+                ui.trOnShots = trBurst.n
+                if (win.effects) win.effects.setCompare(false)
+                trBurst.start("tr-off-")
+                interval = 1800; break
+            case 402:
+                app.saveWindowShotAsync(app.selftestPath("tr-off-after.png"))
+                ui.trOffShots = trBurst.n
+                if (win.effects) { win.effects.setValue("saturation", 0); win.effects.setValue("baseTone", true); win.effects.setAutoOn(true) }
+                player.setPaused(false)
+                interval = 400; win.stStep = 20; break
+            case 21:
                 ui.shaderError = app.shaders.lastError
                 ui.activeShaders = app.shaders.activeShaders.length
                 ui.ok = ui.firstPlaying && ui.dblclickPlaylistPlays && ui.clickPauses && ui.clickResumes
                         && ui.dblclickFullscreen && ui.dblclickKeepsPlaying && ui.rightClickMenu
                         && ui.effectsPluginActive && ui.effectsTabShown && !ui.shaderError && ui.fxVisible
                         && ui.exampleLoaded && ui.exampleBasisOk && !ui.exampleShaderError && ui.lutVisible && ui.galleryCount >= 83
+                        && ui.expertBlocks === 11 && ui.compareOverlay && ui.autoInfo.length > 0 && ui.splitHalvesOk && ui.leftIsOriginal && ui.fullscreenBarInside
                 ui.done = true
                 app.reportSelftestUi(ui)
                 return
@@ -727,6 +977,30 @@ ApplicationWindow {
             win.stUi = ui
             win.stStep++
             restart()
+        }
+    }
+    // Selbsttest: Bildfolge während eines Übergangs aufnehmen (ca. 1 s)
+    Timer {
+        id: trBurst
+        property int n: 0
+        property string prefix: ""
+        property double t0: 0
+        interval: 1; repeat: true
+        function start(p) { prefix = p; n = 0; t0 = Date.now(); restart() }
+        onTriggered: {
+            if (Date.now() - t0 > 1100) { stop(); return }
+            app.saveWindowShotAsync(app.selftestPath(prefix + (n < 10 ? "0" : "") + n + ".png"))
+            n++
+        }
+    }
+    // Selbsttest: Ziehen des Vorher/Nachher-Schiebers nachstellen (75 Positionen in 3 s)
+    Timer {
+        id: dragSweep
+        property int n: 0
+        interval: 40; repeat: true
+        onTriggered: {
+            if (!win.effects || ++n > 75) { stop(); return }
+            win.effects.setCompareSplit(0.1 + 0.8 * (n % 25) / 25)
         }
     }
 }

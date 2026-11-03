@@ -241,6 +241,10 @@
         <translation>LUT</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Αυτόματο</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>Φόρτωση 3D LUT (.cube)</translation>
     </message>
@@ -397,6 +401,10 @@
         <translation>Επαναφορά ενότητας</translation>
     </message>
     <message>
+        <source>wartet auf Wiedergabe …</source>
+        <translation>αναμονή για αναπαραγωγή …</translation>
+    </message>
+    <message>
         <source>Laden…</source>
         <translation>Φόρτωση…</translation>
     </message>
@@ -435,6 +443,73 @@
     <message>
         <source>Alles zurücksetzen</source>
         <translation>Επαναφορά όλων</translation>
+    </message>
+</context>
+<context>
+    <name>ExpertSettingsPage</name>
+    <message>
+        <source>Expert Settings (*.json)</source>
+        <translation>Ρυθμίσεις ειδικών (*.json)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>Όλα τα αρχεία (*)</translation>
+    </message>
+    <message>
+        <source>🧪 Expert Settings</source>
+        <translation>🧪 Ρυθμίσεις ειδικών</translation>
+    </message>
+    <message>
+        <source>Feinabstimmung aller Kurven der Grading-Regler (Effekte → Basis/Farbe/Schärfe). Änderungen wirken sofort und werden automatisch gespeichert.</source>
+        <translation>Λεπτομερής ρύθμιση όλων των καμπυλών των ρυθμιστών χρωματικής διόρθωσης (Εφέ → Βάση/Χρώμα/Οξύτητα). Οι αλλαγές εφαρμόζονται αμέσως και αποθηκεύονται αυτόματα.</translation>
+    </message>
+    <message>
+        <source>🔍 Einstellungen suchen …</source>
+        <translation>🔍 Αναζήτηση ρυθμίσεων …</translation>
+    </message>
+    <message>
+        <source>%1 Werte geändert</source>
+        <translation>%1 τιμές άλλαξαν</translation>
+    </message>
+    <message>
+        <source>Alle Werte auf Standard</source>
+        <translation>Όλες οι τιμές στις προεπιλογές</translation>
+    </message>
+    <message>
+        <source>Importieren …</source>
+        <translation>Εισαγωγή …</translation>
+    </message>
+    <message>
+        <source>Exportieren …</source>
+        <translation>Εξαγωγή …</translation>
+    </message>
+    <message>
+        <source>Alle zurücksetzen</source>
+        <translation>Επαναφορά όλων</translation>
+    </message>
+    <message>
+        <source>Das Ultimate-Video-Enhancer-Plugin ist nicht aktiv (Einstellungen → Plugins).</source>
+        <translation>Το πρόσθετο Ultimate Video Enhancer δεν είναι ενεργό (Ρυθμίσεις → Πρόσθετα).</translation>
+    </message>
+    <message>
+        <source>Block auf Standard zurücksetzen</source>
+        <translation>Επαναφορά ενότητας</translation>
+    </message>
+    <message>
+        <source>Std. %1</source>
+        <translation>Προεπ. %1</translation>
+    </message>
+    <message>
+        <source>an</source>
+        <translation>ναι</translation>
+    </message>
+    <message>
+        <source>aus</source>
+        <translation>όχι</translation>
+    </message>
+    <message>
+        <source>Auf Standard zurücksetzen</source>
+        <translation>Επαναφορά προεπιλογής</translation>
     </message>
 </context>
 <context>
@@ -704,6 +779,10 @@
         <translation>Σύγκριση πριν/μετά</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Αυτόματη προσαρμογή σκηνής</translation>
+    </message>
+    <message>
         <source>Effekt-Panel öffnen</source>
         <translation>Άνοιγμα πίνακα εφέ</translation>
     </message>
@@ -814,6 +893,14 @@
     <message>
         <source>▶ Wiedergabe</source>
         <translation>▶ Αναπαραγωγή</translation>
+    </message>
+    <message>
+        <source>VORHER</source>
+        <translation>ΠΡΙΝ</translation>
+    </message>
+    <message>
+        <source>NACHHER</source>
+        <translation>ΜΕΤΑ</translation>
     </message>
     <message>
         <source>Zum Abspielen loslassen</source>
@@ -1365,6 +1452,18 @@
         <source>Plugin-Ordner</source>
         <translation>Φάκελος προσθέτων</translation>
     </message>
+    <message>
+        <source>Ordner mit den installierten Plugins öffnen</source>
+        <translation>Άνοιγμα φακέλου εγκατεστημένων προσθέτων</translation>
+    </message>
+    <message>
+        <source>Eigene Plugins</source>
+        <translation>Δικά μου πρόσθετα</translation>
+    </message>
+    <message>
+        <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
+        <translation>Άνοιγμα φακέλου χρήστη για επιπλέον πρόσθετα (έχει προτεραιότητα)</translation>
+    </message>
 </context>
 <context>
     <name>ProxyConfig</name>
@@ -1453,6 +1552,10 @@
     <message>
         <source>Erweitert</source>
         <translation>Για προχωρημένους</translation>
+    </message>
+    <message>
+        <source>Expert Settings</source>
+        <translation>Ρυθμίσεις ειδικών</translation>
     </message>
     <message>
         <source>Sprache</source>
@@ -2279,6 +2382,10 @@
         <translation>Σύγκριση πριν/μετά</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match an/aus</source>
+        <translation>Αυτόματη προσαρμογή σκηνής ναι/όχι</translation>
+    </message>
+    <message>
         <source>Datei öffnen…</source>
         <translation>Άνοιγμα αρχείου…</translation>
     </message>
@@ -2635,6 +2742,510 @@
     <message>
         <source>Radius von SL und Detail-Schärfe (|SR|)</source>
         <translation>Ακτίνα του SL και της όξυνσης λεπτομερειών (|SR|)</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Αυτόματη προσαρμογή σκηνής</translation>
+    </message>
+    <message>
+        <source>Analysiert das Bild (2–10 fps, adaptiv) und gleicht Helligkeit, Kontrast, Sättigung und Weißabgleich je Szene an (Strg+Alt+A)</source>
+        <translation>Αναλύει την εικόνα (2–10 fps, προσαρμοστικά) και προσαρμόζει φωτεινότητα, αντίθεση, κορεσμό και ισορροπία λευκού ανά σκηνή (Ctrl+Alt+A)</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Ένταση</translation>
+    </message>
+    <message>
+        <source>Weißabgleich nachführen</source>
+        <translation>Παρακολούθηση ισορροπίας λευκού</translation>
+    </message>
+    <message>
+        <source>korrigiert Rot-/Blaustiche über den Farbton</source>
+        <translation>διορθώνει κόκκινες/μπλε αποχρώσεις μέσω της απόχρωσης</translation>
+    </message>
+    <message>
+        <source>Schwarzwert</source>
+        <translation>Στάθμη μαύρου</translation>
+    </message>
+    <message>
+        <source>Weißwert</source>
+        <translation>Στάθμη λευκού</translation>
+    </message>
+    <message>
+        <source>Gamma</source>
+        <translation>Γάμμα</translation>
+    </message>
+    <message>
+        <source>Filmkorn (Banding)</source>
+        <translation>Κόκκος (banding)</translation>
+    </message>
+    <message>
+        <source>Farbton-Korrektur</source>
+        <translation>Διόρθωση απόχρωσης</translation>
+    </message>
+    <message>
+        <source>S-Kurve um einen Drehpunkt. Schwarz, Weiß und der Drehpunkt bleiben fest, nichts wird abgeschnitten.</source>
+        <translation>Καμπύλη S γύρω από έναν τόνο άξονα. Μαύρο, λευκό και άξονας μένουν σταθερά, τίποτα δεν αποκόπτεται.</translation>
+    </message>
+    <message>
+        <source>Schwarzpunkt wie bei einer Tonwertkorrektur: Schwarztöne vertiefen oder anheben.</source>
+        <translation>Σημείο μαύρου όπως στα επίπεδα: βάθυνση ή ανύψωση των μαύρων.</translation>
+    </message>
+    <message>
+        <source>Weißpunkt wie bei einer Tonwertkorrektur: Weißtöne aufhellen oder absenken.</source>
+        <translation>Σημείο λευκού όπως στα επίπεδα: φωτεινότερα ή χαμηλότερα λευκά.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für helle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Τονική καμπύλη μόνο για φωτεινούς τόνους. Μαύρο και λευκό μένουν σταθερά.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für dunkle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Τονική καμπύλη μόνο για σκοτεινούς τόνους. Μαύρο και λευκό μένουν σταθερά.</translation>
+    </message>
+    <message>
+        <source>Sättigungskurve: blasse Farben erhalten die volle Verstärkung, kräftige weniger – nichts läuft aus.</source>
+        <translation>Καμπύλη κορεσμού: τα θαμπά χρώματα παίρνουν πλήρη ενίσχυση, τα έντονα λιγότερη – τίποτα δεν ξεχειλίζει.</translation>
+    </message>
+    <message>
+        <source>Verstärkt vor allem blasse Farben; kräftige Farben und Hauttöne bleiben natürlich.</source>
+        <translation>Ενισχύει κυρίως τα θαμπά χρώματα· τα έντονα χρώματα και οι τόνοι δέρματος μένουν φυσικοί.</translation>
+    </message>
+    <message>
+        <source>Hellt die Mitteltöne auf oder dunkelt sie ab. Schwarz und Weiß bleiben fest.</source>
+        <translation>Φωτίζει ή σκουραίνει τους μεσαίους τόνους. Μαύρο και λευκό μένουν σταθερά.</translation>
+    </message>
+    <message>
+        <source>Detailkurve auf der Helligkeit: echte Details werden schärfer, Rauschen und Säume bleiben gering.</source>
+        <translation>Καμπύλη λεπτομέρειας στη φωτεινότητα: οι πραγματικές λεπτομέρειες γίνονται πιο οξείες, ο θόρυβος και τα φωτοστέφανα μένουν χαμηλά.</translation>
+    </message>
+    <message>
+        <source>Feines Rauschen gegen Farbabrisse (Banding). Schwarz und Weiß bleiben sauber.</source>
+        <translation>Λεπτός θόρυβος που κρύβει το banding. Μαύρο και λευκό μένουν καθαρά.</translation>
+    </message>
+    <message>
+        <source>Dreht alle Farbtöne, die Helligkeit bleibt exakt gleich. Hilft gegen Farbstiche.</source>
+        <translation>Περιστρέφει όλες τις αποχρώσεις ενώ η φωτεινότητα μένει ίδια. Χρήσιμο κατά των χρωματικών αποχρώσεων.</translation>
+    </message>
+    <message>
+        <source>Reglerrichtung. Aus kehrt den Regler um.</source>
+        <translation>Κατεύθυνση ρυθμιστή. Όταν είναι ανενεργό, αντιστρέφεται.</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Kontrast</source>
+        <translation>Υψηλότερο = περισσότερη αντίθεση</translation>
+    </message>
+    <message>
+        <source>Höher = tiefere Schwarztöne</source>
+        <translation>Υψηλότερο = βαθύτερα μαύρα</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Weißtöne</source>
+        <translation>Υψηλότερο = φωτεινότερα λευκά</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Lichter</source>
+        <translation>Υψηλότερο = φωτεινότερα highlights</translation>
+    </message>
+    <message>
+        <source>Höher = dunklere Schatten</source>
+        <translation>Υψηλότερο = σκοτεινότερες σκιές</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Farbe</source>
+        <translation>Υψηλότερο = περισσότερο χρώμα</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Dynamik</source>
+        <translation>Υψηλότερο = περισσότερη ζωντάνια</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Mitteltöne</source>
+        <translation>Υψηλότερο = φωτεινότεροι μεσαίοι τόνοι</translation>
+    </message>
+    <message>
+        <source>Höher = schärfer</source>
+        <translation>Υψηλότερο = πιο οξύ</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Korn</source>
+        <translation>Υψηλότερο = περισσότερος κόκκος</translation>
+    </message>
+    <message>
+        <source>Richtung umkehren</source>
+        <translation>Αντιστροφή κατεύθυνσης</translation>
+    </message>
+    <message>
+        <source>An: der Regler dreht den Farbton in die andere Richtung.</source>
+        <translation>Ενεργό: ο ρυθμιστής περιστρέφει την απόχρωση αντίστροφα.</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt</source>
+        <translation>Ένταση ανά βήμα</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt den Kontrast ändert.</source>
+        <translation>Πόσο αλλάζει την αντίθεση κάθε βήμα του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Verschiebung je Schritt</source>
+        <translation>Μετατόπιση ανά βήμα</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Schwarzpunkt verschiebt.</source>
+        <translation>Πόσο μετακινεί το σημείο μαύρου κάθε βήμα του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Weißpunkt verschiebt.</source>
+        <translation>Πόσο μετακινεί το σημείο λευκού κάθε βήμα του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Lichter aufhellt oder abdunkelt.</source>
+        <translation>Πόσο φωτίζει ή σκουραίνει τα highlights κάθε βήμα του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Schatten abdunkelt oder anhebt.</source>
+        <translation>Πόσο σκουραίνει ή ανυψώνει τις σκιές κάθε βήμα του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Farbstärke ändert.</source>
+        <translation>Πόσο αλλάζει την ένταση χρώματος κάθε βήμα του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die blassen Farben ändert.</source>
+        <translation>Πόσο αλλάζει τα θαμπά χρώματα κάθε βήμα του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Mitteltöne ändert.</source>
+        <translation>Πόσο αλλάζει τους μεσαίους τόνους κάθε βήμα του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Menge je Schritt</source>
+        <translation>Ποσότητα ανά βήμα</translation>
+    </message>
+    <message>
+        <source>Wie viel Korn jeder Reglerschritt hinzufügt.</source>
+        <translation>Πόσο κόκκο προσθέτει κάθε βήμα του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Grad je Schritt</source>
+        <translation>Μοίρες ανά βήμα</translation>
+    </message>
+    <message>
+        <source>Farbtondrehung je Reglerschritt.</source>
+        <translation>Περιστροφή απόχρωσης ανά βήμα του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Geringster Kontrast</source>
+        <translation>Ελάχιστη αντίθεση</translation>
+    </message>
+    <message>
+        <source>Grenze für die flachste Kurve (Regler ganz unten).</source>
+        <translation>Όριο για την πιο επίπεδη καμπύλη (ρυθμιστής στο ελάχιστο).</translation>
+    </message>
+    <message>
+        <source>Höchster Kontrast</source>
+        <translation>Μέγιστη αντίθεση</translation>
+    </message>
+    <message>
+        <source>Grenze für die steilste Kurve (Regler ganz oben).</source>
+        <translation>Όριο για την πιο απότομη καμπύλη (ρυθμιστής στο μέγιστο).</translation>
+    </message>
+    <message>
+        <source>Drehpunkt</source>
+        <translation>Τόνος άξονα</translation>
+    </message>
+    <message>
+        <source>Ton, der fest bleibt. Niedriger = Kontrast dreht sich um dunklere Töne (gut für dunkle Videos).</source>
+        <translation>Τόνος που μένει σταθερός. Χαμηλότερο = η αντίθεση περιστρέφεται γύρω από σκοτεινότερους τόνους (καλό για σκοτεινά βίντεο).</translation>
+    </message>
+    <message>
+        <source>Max. Verschiebung</source>
+        <translation>Μέγ. μετατόπιση</translation>
+    </message>
+    <message>
+        <source>Grenze der Schwarzpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Όριο μετατόπισης του σημείου μαύρου και προς τις δύο κατευθύνσεις.</translation>
+    </message>
+    <message>
+        <source>Grenze der Weißpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Όριο μετατόπισης του σημείου λευκού και προς τις δύο κατευθύνσεις.</translation>
+    </message>
+    <message>
+        <source>Weichheit</source>
+        <translation>Απαλότητα</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Schwarz statt harter Kante. 0 = hart.</source>
+        <translation>Ομαλή μετάβαση στο μαύρο αντί για απότομη αποκοπή. 0 = απότομη.</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Weiß statt harter Kante. 0 = hart.</source>
+        <translation>Ομαλή μετάβαση στο λευκό αντί για απότομη αποκοπή. 0 = απότομη.</translation>
+    </message>
+    <message>
+        <source>Fokus</source>
+        <translation>Εστίαση</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerhellsten Töne werden verändert.</source>
+        <translation>Υψηλότερο = επηρεάζονται μόνο οι πιο φωτεινοί τόνοι.</translation>
+    </message>
+    <message>
+        <source>Startton</source>
+        <translation>Τόνος έναρξης</translation>
+    </message>
+    <message>
+        <source>Töne darunter bleiben völlig unverändert. 0 = ganzer Bereich.</source>
+        <translation>Οι τόνοι από κάτω μένουν ανέγγιχτοι. 0 = όλο το εύρος.</translation>
+    </message>
+    <message>
+        <source>Max. Abdunklung</source>
+        <translation>Μέγ. σκούρυνση</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Abdunklung der Lichter.</source>
+        <translation>Μέγιστη επιτρεπτή σκούρυνση των highlights.</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerdunkelsten Töne werden verändert.</source>
+        <translation>Υψηλότερο = επηρεάζονται μόνο οι πιο σκοτεινοί τόνοι.</translation>
+    </message>
+    <message>
+        <source>Endton</source>
+        <translation>Τόνος τέλους</translation>
+    </message>
+    <message>
+        <source>Töne darüber bleiben völlig unverändert. 1 = ganzer Bereich.</source>
+        <translation>Οι τόνοι από πάνω μένουν ανέγγιχτοι. 1 = όλο το εύρος.</translation>
+    </message>
+    <message>
+        <source>Max. Anhebung</source>
+        <translation>Μέγ. ανύψωση</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Anhebung der Schatten.</source>
+        <translation>Μέγιστη επιτρεπτή ανύψωση των σκιών.</translation>
+    </message>
+    <message>
+        <source>Geringste Sättigung</source>
+        <translation>Ελάχιστος κορεσμός</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren. 0 = bis ganz grau.</source>
+        <translation>Όριο κατά τη μείωση. 0 = έως πλήρως γκρι.</translation>
+    </message>
+    <message>
+        <source>Höchste Sättigung</source>
+        <translation>Μέγιστος κορεσμός</translation>
+    </message>
+    <message>
+        <source>Grenze der Verstärkung für blasse Farben.</source>
+        <translation>Όριο ενίσχυσης για θαμπά χρώματα.</translation>
+    </message>
+    <message>
+        <source>Schutz kräftiger Farben</source>
+        <translation>Προστασία έντονων χρωμάτων</translation>
+    </message>
+    <message>
+        <source>0 = alle Farben gleich (kann auslaufen). Höher = kräftige Farben werden stärker geschützt.</source>
+        <translation>0 = όλα τα χρώματα εξίσου (μπορεί να ξεχειλίσει). Υψηλότερο = τα έντονα χρώματα προστατεύονται περισσότερο.</translation>
+    </message>
+    <message>
+        <source>Gleichmäßig entsättigen</source>
+        <translation>Ομοιόμορφος αποκορεσμός</translation>
+    </message>
+    <message>
+        <source>An: Absenken nimmt allen Farben gleich viel Farbe. Aus: kräftige Farben behalten mehr.</source>
+        <translation>Ενεργό: η μείωση αφαιρεί χρώμα εξίσου από όλα. Ανενεργό: τα έντονα χρώματα κρατούν περισσότερο.</translation>
+    </message>
+    <message>
+        <source>Geringste Dynamik</source>
+        <translation>Ελάχιστη ζωντάνια</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren der Dynamik.</source>
+        <translation>Όριο κατά τη μείωση της ζωντάνιας.</translation>
+    </message>
+    <message>
+        <source>Höchste Dynamik</source>
+        <translation>Μέγιστη ζωντάνια</translation>
+    </message>
+    <message>
+        <source>Fokus auf blasse Farben</source>
+        <translation>Εστίαση στα θαμπά χρώματα</translation>
+    </message>
+    <message>
+        <source>Höher = nur die blassesten Farben werden verstärkt.</source>
+        <translation>Υψηλότερο = ενισχύονται μόνο τα πιο θαμπά χρώματα.</translation>
+    </message>
+    <message>
+        <source>Hautschutz</source>
+        <translation>Προστασία δέρματος</translation>
+    </message>
+    <message>
+        <source>Weniger Schärfe auf Haut (Poren, Unreinheiten). 0 = aus.</source>
+        <translation>Λιγότερη όξυνση στο δέρμα (πόροι, ατέλειες). 0 = ανενεργό.</translation>
+    </message>
+    <message>
+        <source>Hauttöne behalten ihren Farbton. 0 = aus, 1 = voller Schutz.</source>
+        <translation>Οι τόνοι δέρματος κρατούν την απόχρωσή τους. 0 = ανενεργό, 1 = πλήρης προστασία.</translation>
+    </message>
+    <message>
+        <source>0 = aus, 1 = Hauttöne werden gar nicht verändert.</source>
+        <translation>0 = ανενεργό, 1 = οι τόνοι δέρματος δεν αλλάζουν καθόλου.</translation>
+    </message>
+    <message>
+        <source>Dunkelste Mitteltöne</source>
+        <translation>Σκοτεινότεροι μεσαίοι τόνοι</translation>
+    </message>
+    <message>
+        <source>Untergrenze des Gammawerts.</source>
+        <translation>Κάτω όριο της τιμής γάμμα.</translation>
+    </message>
+    <message>
+        <source>Hellste Mitteltöne</source>
+        <translation>Φωτεινότεροι μεσαίοι τόνοι</translation>
+    </message>
+    <message>
+        <source>Obergrenze des Gammawerts.</source>
+        <translation>Άνω όριο της τιμής γάμμα.</translation>
+    </message>
+    <message>
+        <source>Rauschschutz in den Schatten</source>
+        <translation>Προστασία θορύβου στις σκιές</translation>
+    </message>
+    <message>
+        <source>Begrenzt, wie stark fast schwarze Töne angehoben werden (weniger sichtbares Rauschen). 0 = aus.</source>
+        <translation>Περιορίζει πόσο ανυψώνονται οι σχεδόν μαύροι τόνοι (λιγότερος ορατός θόρυβος). 0 = ανενεργό.</translation>
+    </message>
+    <message>
+        <source>Stärke bei +10</source>
+        <translation>Ένταση στο +10</translation>
+    </message>
+    <message>
+        <source>Kantenverstärkung beim höchsten Reglerwert.</source>
+        <translation>Ενίσχυση ακμών στη μέγιστη τιμή του ρυθμιστή.</translation>
+    </message>
+    <message>
+        <source>Helle Säume</source>
+        <translation>Φωτεινά φωτοστέφανα</translation>
+    </message>
+    <message>
+        <source>Stärke der aufhellenden Kantenseite. Niedriger = weniger helle Säume.</source>
+        <translation>Ένταση της φωτεινής πλευράς των ακμών. Χαμηλότερο = λιγότερα φωτεινά φωτοστέφανα.</translation>
+    </message>
+    <message>
+        <source>Dunkle Säume</source>
+        <translation>Σκοτεινά φωτοστέφανα</translation>
+    </message>
+    <message>
+        <source>Stärke der abdunkelnden Kantenseite. Niedriger = weniger dunkle Umrisse.</source>
+        <translation>Ένταση της σκοτεινής πλευράς των ακμών. Χαμηλότερο = λιγότερα σκοτεινά περιγράμματα.</translation>
+    </message>
+    <message>
+        <source>Rauschschwelle</source>
+        <translation>Κατώφλι θορύβου</translation>
+    </message>
+    <message>
+        <source>Kleinere Details werden nicht geschärft (Rauschen, Kompression). 0 = aus.</source>
+        <translation>Μικρότερες λεπτομέρειες δεν οξύνονται (θόρυβος, συμπίεση). 0 = ανενεργό.</translation>
+    </message>
+    <message>
+        <source>Max. Änderung</source>
+        <translation>Μέγ. αλλαγή</translation>
+    </message>
+    <message>
+        <source>Weiche Grenze der Helligkeitsänderung je Pixel (verhindert Säume).</source>
+        <translation>Ήπιο όριο αλλαγής φωτεινότητας ανά pixel (αποτρέπει φωτοστέφανα).</translation>
+    </message>
+    <message>
+        <source>Detailradius (SVG)</source>
+        <translation>Ακτίνα λεπτομέρειας (SVG)</translation>
+    </message>
+    <message>
+        <source>Nur SVG-Modus des Userscripts – im Player ohne Wirkung, bleibt für Export/Import erhalten.</source>
+        <translation>Μόνο λειτουργία SVG του userscript – χωρίς επίδραση στο πρόγραμμα, διατηρείται για εξαγωγή/εισαγωγή.</translation>
+    </message>
+    <message>
+        <source>Weichzeichnen-Radius (SVG)</source>
+        <translation>Ακτίνα θόλωσης (SVG)</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt (GPU)</source>
+        <translation>Ένταση ανά βήμα (GPU)</translation>
+    </message>
+    <message>
+        <source>Schärfe je Reglerschritt (Player: ×1.5).</source>
+        <translation>Όξυνση ανά βήμα ρυθμιστή (πρόγραμμα: ×1.5).</translation>
+    </message>
+    <message>
+        <source>Höher = Korn nur um den Spitzenton. 0 = gleichmäßig auf allen Tönen.</source>
+        <translation>Υψηλότερο = κόκκος μόνο γύρω από τον τόνο κορυφής. 0 = ομοιόμορφα σε όλους τους τόνους.</translation>
+    </message>
+    <message>
+        <source>Spitzenton</source>
+        <translation>Τόνος κορυφής</translation>
+    </message>
+    <message>
+        <source>Helligkeit mit dem stärksten Korn. Niedriger = mehr Korn in den Schatten.</source>
+        <translation>Φωτεινότητα με τον ισχυρότερο κόκκο. Χαμηλότερο = περισσότερος κόκκος στις σκιές.</translation>
+    </message>
+    <message>
+        <source>Farbkorn</source>
+        <translation>Χρωματικός κόκκος</translation>
+    </message>
+    <message>
+        <source>0 = graues Korn, 1 = volles Farbkorn wie bei Film.</source>
+        <translation>0 = γκρι κόκκος, 1 = πλήρης χρωματικός κόκκος όπως στο φιλμ.</translation>
+    </message>
+    <message>
+        <source>Stärke (SVG)</source>
+        <translation>Ένταση (SVG)</translation>
+    </message>
+    <message>
+        <source>Feinheit (SVG)</source>
+        <translation>Λεπτότητα (SVG)</translation>
+    </message>
+    <message>
+        <source>Max. Drehung</source>
+        <translation>Μέγ. περιστροφή</translation>
+    </message>
+    <message>
+        <source>Grenze der Drehung in beide Richtungen, in Grad.</source>
+        <translation>Όριο περιστροφής και προς τις δύο κατευθύνσεις, σε μοίρες.</translation>
+    </message>
+    <message>
+        <source>Export fehlgeschlagen: </source>
+        <translation>Η εξαγωγή απέτυχε: </translation>
+    </message>
+    <message>
+        <source>Exportiert: %1</source>
+        <translation>Εξήχθη: %1</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar</source>
+        <translation>Το αρχείο δεν είναι αναγνώσιμο</translation>
+    </message>
+    <message>
+        <source>Keine Expert-Settings-Datei (erwartet type &quot;gvf-expert-settings&quot;)</source>
+        <translation>Δεν είναι αρχείο ρυθμίσεων ειδικών (αναμενόταν type &quot;gvf-expert-settings&quot;)</translation>
+    </message>
+    <message>
+        <source>Importiert: %1 Blöcke</source>
+        <translation>Εισήχθησαν: %1 ενότητες</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match an</source>
+        <translation>Αυτόματη προσαρμογή σκηνής ενεργή</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match aus</source>
+        <translation>Αυτόματη προσαρμογή σκηνής ανενεργή</translation>
+    </message>
+    <message>
+        <source>Helligkeit ×%1 · Kontrast ×%2 · Sättigung ×%3 · Farbton %4° · %5 fps</source>
+        <translation>Φωτεινότητα ×%1 · Αντίθεση ×%2 · Κορεσμός ×%3 · Απόχρωση %4° · %5 fps</translation>
     </message>
     <message>
         <source>Unschärfemaske</source>

@@ -48,6 +48,8 @@ const QList<Field> &fields()
         NUM(saturation), NUM(vibrance), NUM(sharpen), NUM(gamma), NUM(grain), NUM(hue),
         INT(rGain), INT(gGain), INT(bGain),
         BOOL(gpuBase), NUM(lutStrength),
+        BOOL(autoOn), BOOL(autoLockWB),
+        Field{"autoStrength", [](const Params &p) { return QVariant(p.autoStrength); }, [](Params &p, const QVariant &v) { p.autoStrength = qBound(0.0, v.toDouble(), 1.0); }},
     };
     return f;
 }
@@ -71,6 +73,9 @@ UveController::UveController(IPlayerHost *host, const QString &pluginId, QObject
     m_shaderTimer.setSingleShot(true);
     m_shaderTimer.setInterval(40);
     connect(&m_shaderTimer, &QTimer::timeout, this, &UveController::writeShader);
+    m_clock.start();
+    m_autoTimer.setSingleShot(true);
+    connect(&m_autoTimer, &QTimer::timeout, this, &UveController::autoTick);
     m_library = new LutLibrary(m_host->pluginDataDir(m_id), this);
     connect(m_library, &LutLibrary::changed, this, [this] { emit libraryChanged(); emit valuesChanged(); scheduleShader(); });
     connect(m_library, &LutLibrary::busyChanged, this, &UveController::libraryStatusChanged);
@@ -125,6 +130,10 @@ QVariantList UveController::controls() const
         control("grain", tr("Filmkorn"), "Schärfe", -10, 10, 0.1, 0),
         control("hdr", tr("HDR-like"), "HDR-like", -1, 2, 0.01, 0, tr("wirkt bei Werten > 0, max. 0.65")),
         control("lutStrength", tr("LUT-Stärke"), "LUT", 0, 1, 0.01, 1),
+        toggle("autoOn", tr("Auto-Scene-Match"), "Auto", true,
+               tr("Analysiert das Bild (2–10 fps, adaptiv) und gleicht Helligkeit, Kontrast, Sättigung und Weißabgleich je Szene an (Strg+Alt+A)")),
+        control("autoStrength", tr("Stärke"), "Auto", 0, 1, 0.01, 0.65),
+        toggle("autoLockWB", tr("Weißabgleich nachführen"), "Auto", true, tr("korrigiert Rot-/Blaustiche über den Farbton")),
     };
 }
 
@@ -234,6 +243,7 @@ void UveController::changed(bool recordUndo)
     emit valuesChanged();
     scheduleShader();
     persist();
+    updateAutoLoop();
 }
 
 void UveController::setEnabled(bool on)
@@ -262,8 +272,7 @@ void UveController::setCompareSplit(double split)
     split = qBound(0.0, split, 1.0);
     if (qFuzzyCompare(split + 1, m_params.compareSplit + 1)) return;
     m_params.compareSplit = split;
-    emit valuesChanged();
-    scheduleShader();
+    emit valuesChanged();   // nur die Anzeige – der Shader ist von der Position unabhängig (kein Ruckeln)
 }
 
 // ---------------------------------------------------------------- Shader
@@ -271,18 +280,319 @@ void UveController::setActive(bool active)
 {
     m_active = active;
     if (active) writeShader();
-    else m_host->setShaderStage(m_id, QString());
+    else { m_host->setShaderStage(m_id, QString()); setCompareActive(false); }
+    updateAutoLoop();
+}
+
+// ---------------------------------------------------------------- Expert Settings
+namespace {
+struct ExpertText { const char *block, *key; const char *label, *desc; };
+
+// Beschriftungen nach GVF_EXPERT_UI (uve.user.js Z. 15877–16020)
+QString expertBlockTitle(const QString &b)
+{
+    if (b == "GVF_CONTRAST_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Kontrast");
+    if (b == "GVF_BLACK_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Schwarzwert");
+    if (b == "GVF_WHITE_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Weißwert");
+    if (b == "GVF_HIGHLIGHTS_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Lichter");
+    if (b == "GVF_SHADOWS_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Schatten");
+    if (b == "GVF_SATURATION_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Sättigung");
+    if (b == "GVF_VIBRANCE_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Dynamik (Vibrance)");
+    if (b == "GVF_GAMMA_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Gamma");
+    if (b == "GVF_SHARPEN_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Detail-Schärfe");
+    if (b == "GVF_GRAIN_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Filmkorn (Banding)");
+    if (b == "GVF_HUE_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Farbton-Korrektur");
+    return b;
+}
+QString expertBlockDesc(const QString &b)
+{
+    if (b == "GVF_CONTRAST_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "S-Kurve um einen Drehpunkt. Schwarz, Weiß und der Drehpunkt bleiben fest, nichts wird abgeschnitten.");
+    if (b == "GVF_BLACK_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Schwarzpunkt wie bei einer Tonwertkorrektur: Schwarztöne vertiefen oder anheben.");
+    if (b == "GVF_WHITE_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Weißpunkt wie bei einer Tonwertkorrektur: Weißtöne aufhellen oder absenken.");
+    if (b == "GVF_HIGHLIGHTS_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Tonkurve nur für helle Töne. Schwarz und Weiß bleiben fest.");
+    if (b == "GVF_SHADOWS_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Tonkurve nur für dunkle Töne. Schwarz und Weiß bleiben fest.");
+    if (b == "GVF_SATURATION_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Sättigungskurve: blasse Farben erhalten die volle Verstärkung, kräftige weniger – nichts läuft aus.");
+    if (b == "GVF_VIBRANCE_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Verstärkt vor allem blasse Farben; kräftige Farben und Hauttöne bleiben natürlich.");
+    if (b == "GVF_GAMMA_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Hellt die Mitteltöne auf oder dunkelt sie ab. Schwarz und Weiß bleiben fest.");
+    if (b == "GVF_SHARPEN_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Detailkurve auf der Helligkeit: echte Details werden schärfer, Rauschen und Säume bleiben gering.");
+    if (b == "GVF_GRAIN_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Feines Rauschen gegen Farbabrisse (Banding). Schwarz und Weiß bleiben sauber.");
+    if (b == "GVF_HUE_SETTINGS") return QCoreApplication::translate("uve::fx::UveController", "Dreht alle Farbtöne, die Helligkeit bleibt exakt gleich. Hilft gegen Farbstiche.");
+    return {};
+}
+QPair<QString, QString> expertFieldText(const QString &b, const QString &k)
+{
+    const QString dirDesc = QCoreApplication::translate("uve::fx::UveController", "Reglerrichtung. Aus kehrt den Regler um.");
+    if (k == "higherIsMore" || k == "higherIsDarker" || k == "higherIsBrighter" || k == "higherIsSharper") {
+        if (b == "GVF_CONTRAST_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Höher = mehr Kontrast"), dirDesc};
+        if (b == "GVF_BLACK_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Höher = tiefere Schwarztöne"), dirDesc};
+        if (b == "GVF_WHITE_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Höher = hellere Weißtöne"), dirDesc};
+        if (b == "GVF_HIGHLIGHTS_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Höher = hellere Lichter"), dirDesc};
+        if (b == "GVF_SHADOWS_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Höher = dunklere Schatten"), dirDesc};
+        if (b == "GVF_SATURATION_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Höher = mehr Farbe"), dirDesc};
+        if (b == "GVF_VIBRANCE_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Höher = mehr Dynamik"), dirDesc};
+        if (b == "GVF_GAMMA_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Höher = hellere Mitteltöne"), dirDesc};
+        if (b == "GVF_SHARPEN_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Höher = schärfer"), dirDesc};
+        if (b == "GVF_GRAIN_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Höher = mehr Korn"), dirDesc};
+    }
+    if (k == "reverse") return {QCoreApplication::translate("uve::fx::UveController", "Richtung umkehren"), QCoreApplication::translate("uve::fx::UveController", "An: der Regler dreht den Farbton in die andere Richtung.")};
+    if (k == "perStep") {
+        if (b == "GVF_CONTRAST_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Stärke je Schritt"), QCoreApplication::translate("uve::fx::UveController", "Wie stark jeder Reglerschritt den Kontrast ändert.")};
+        if (b == "GVF_BLACK_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Verschiebung je Schritt"), QCoreApplication::translate("uve::fx::UveController", "Wie weit jeder Reglerschritt den Schwarzpunkt verschiebt.")};
+        if (b == "GVF_WHITE_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Verschiebung je Schritt"), QCoreApplication::translate("uve::fx::UveController", "Wie weit jeder Reglerschritt den Weißpunkt verschiebt.")};
+        if (b == "GVF_HIGHLIGHTS_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Stärke je Schritt"), QCoreApplication::translate("uve::fx::UveController", "Wie stark jeder Reglerschritt die Lichter aufhellt oder abdunkelt.")};
+        if (b == "GVF_SHADOWS_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Stärke je Schritt"), QCoreApplication::translate("uve::fx::UveController", "Wie stark jeder Reglerschritt die Schatten abdunkelt oder anhebt.")};
+        if (b == "GVF_SATURATION_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Stärke je Schritt"), QCoreApplication::translate("uve::fx::UveController", "Wie stark jeder Reglerschritt die Farbstärke ändert.")};
+        if (b == "GVF_VIBRANCE_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Stärke je Schritt"), QCoreApplication::translate("uve::fx::UveController", "Wie stark jeder Reglerschritt die blassen Farben ändert.")};
+        if (b == "GVF_GAMMA_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Stärke je Schritt"), QCoreApplication::translate("uve::fx::UveController", "Wie stark jeder Reglerschritt die Mitteltöne ändert.")};
+        if (b == "GVF_GRAIN_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Menge je Schritt"), QCoreApplication::translate("uve::fx::UveController", "Wie viel Korn jeder Reglerschritt hinzufügt.")};
+        if (b == "GVF_HUE_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Grad je Schritt"), QCoreApplication::translate("uve::fx::UveController", "Farbtondrehung je Reglerschritt.")};
+    }
+    if (b == "GVF_CONTRAST_SETTINGS") {
+        if (k == "min") return {QCoreApplication::translate("uve::fx::UveController", "Geringster Kontrast"), QCoreApplication::translate("uve::fx::UveController", "Grenze für die flachste Kurve (Regler ganz unten).")};
+        if (k == "max") return {QCoreApplication::translate("uve::fx::UveController", "Höchster Kontrast"), QCoreApplication::translate("uve::fx::UveController", "Grenze für die steilste Kurve (Regler ganz oben).")};
+        if (k == "pivot") return {QCoreApplication::translate("uve::fx::UveController", "Drehpunkt"), QCoreApplication::translate("uve::fx::UveController", "Ton, der fest bleibt. Niedriger = Kontrast dreht sich um dunklere Töne (gut für dunkle Videos).")};
+    }
+    if (k == "maxOffset") return {QCoreApplication::translate("uve::fx::UveController", "Max. Verschiebung"), b == "GVF_BLACK_SETTINGS" ? QCoreApplication::translate("uve::fx::UveController", "Grenze der Schwarzpunkt-Verschiebung in beide Richtungen.") : QCoreApplication::translate("uve::fx::UveController", "Grenze der Weißpunkt-Verschiebung in beide Richtungen.")};
+    if (k == "softness") return {QCoreApplication::translate("uve::fx::UveController", "Weichheit"), b == "GVF_BLACK_SETTINGS" ? QCoreApplication::translate("uve::fx::UveController", "Weicher Übergang ins Schwarz statt harter Kante. 0 = hart.") : QCoreApplication::translate("uve::fx::UveController", "Weicher Übergang ins Weiß statt harter Kante. 0 = hart.")};
+    if (b == "GVF_HIGHLIGHTS_SETTINGS") {
+        if (k == "power") return {QCoreApplication::translate("uve::fx::UveController", "Fokus"), QCoreApplication::translate("uve::fx::UveController", "Höher = nur die allerhellsten Töne werden verändert.")};
+        if (k == "threshold") return {QCoreApplication::translate("uve::fx::UveController", "Startton"), QCoreApplication::translate("uve::fx::UveController", "Töne darunter bleiben völlig unverändert. 0 = ganzer Bereich.")};
+        if (k == "maxDarken") return {QCoreApplication::translate("uve::fx::UveController", "Max. Abdunklung"), QCoreApplication::translate("uve::fx::UveController", "Stärkste erlaubte Abdunklung der Lichter.")};
+    }
+    if (b == "GVF_SHADOWS_SETTINGS") {
+        if (k == "power") return {QCoreApplication::translate("uve::fx::UveController", "Fokus"), QCoreApplication::translate("uve::fx::UveController", "Höher = nur die allerdunkelsten Töne werden verändert.")};
+        if (k == "threshold") return {QCoreApplication::translate("uve::fx::UveController", "Endton"), QCoreApplication::translate("uve::fx::UveController", "Töne darüber bleiben völlig unverändert. 1 = ganzer Bereich.")};
+        if (k == "maxBrighten") return {QCoreApplication::translate("uve::fx::UveController", "Max. Anhebung"), QCoreApplication::translate("uve::fx::UveController", "Stärkste erlaubte Anhebung der Schatten.")};
+    }
+    if (b == "GVF_SATURATION_SETTINGS") {
+        if (k == "min") return {QCoreApplication::translate("uve::fx::UveController", "Geringste Sättigung"), QCoreApplication::translate("uve::fx::UveController", "Grenze beim Reduzieren. 0 = bis ganz grau.")};
+        if (k == "max") return {QCoreApplication::translate("uve::fx::UveController", "Höchste Sättigung"), QCoreApplication::translate("uve::fx::UveController", "Grenze der Verstärkung für blasse Farben.")};
+        if (k == "power") return {QCoreApplication::translate("uve::fx::UveController", "Schutz kräftiger Farben"), QCoreApplication::translate("uve::fx::UveController", "0 = alle Farben gleich (kann auslaufen). Höher = kräftige Farben werden stärker geschützt.")};
+        if (k == "desaturateEvenly") return {QCoreApplication::translate("uve::fx::UveController", "Gleichmäßig entsättigen"), QCoreApplication::translate("uve::fx::UveController", "An: Absenken nimmt allen Farben gleich viel Farbe. Aus: kräftige Farben behalten mehr.")};
+    }
+    if (b == "GVF_VIBRANCE_SETTINGS") {
+        if (k == "min") return {QCoreApplication::translate("uve::fx::UveController", "Geringste Dynamik"), QCoreApplication::translate("uve::fx::UveController", "Grenze beim Reduzieren der Dynamik.")};
+        if (k == "max") return {QCoreApplication::translate("uve::fx::UveController", "Höchste Dynamik"), QCoreApplication::translate("uve::fx::UveController", "Grenze der Verstärkung für blasse Farben.")};
+        if (k == "power") return {QCoreApplication::translate("uve::fx::UveController", "Fokus auf blasse Farben"), QCoreApplication::translate("uve::fx::UveController", "Höher = nur die blassesten Farben werden verstärkt.")};
+    }
+    if (k == "skinProtect") {
+        if (b == "GVF_SHARPEN_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Hautschutz"), QCoreApplication::translate("uve::fx::UveController", "Weniger Schärfe auf Haut (Poren, Unreinheiten). 0 = aus.")};
+        if (b == "GVF_HUE_SETTINGS") return {QCoreApplication::translate("uve::fx::UveController", "Hautschutz"), QCoreApplication::translate("uve::fx::UveController", "Hauttöne behalten ihren Farbton. 0 = aus, 1 = voller Schutz.")};
+        return {QCoreApplication::translate("uve::fx::UveController", "Hautschutz"), QCoreApplication::translate("uve::fx::UveController", "0 = aus, 1 = Hauttöne werden gar nicht verändert.")};
+    }
+    if (b == "GVF_GAMMA_SETTINGS") {
+        if (k == "min") return {QCoreApplication::translate("uve::fx::UveController", "Dunkelste Mitteltöne"), QCoreApplication::translate("uve::fx::UveController", "Untergrenze des Gammawerts.")};
+        if (k == "max") return {QCoreApplication::translate("uve::fx::UveController", "Hellste Mitteltöne"), QCoreApplication::translate("uve::fx::UveController", "Obergrenze des Gammawerts.")};
+        if (k == "maxShadowSlope") return {QCoreApplication::translate("uve::fx::UveController", "Rauschschutz in den Schatten"), QCoreApplication::translate("uve::fx::UveController", "Begrenzt, wie stark fast schwarze Töne angehoben werden (weniger sichtbares Rauschen). 0 = aus.")};
+    }
+    if (b == "GVF_SHARPEN_SETTINGS") {
+        if (k == "maxAmount") return {QCoreApplication::translate("uve::fx::UveController", "Stärke bei +10"), QCoreApplication::translate("uve::fx::UveController", "Kantenverstärkung beim höchsten Reglerwert.")};
+        if (k == "lightHalo") return {QCoreApplication::translate("uve::fx::UveController", "Helle Säume"), QCoreApplication::translate("uve::fx::UveController", "Stärke der aufhellenden Kantenseite. Niedriger = weniger helle Säume.")};
+        if (k == "darkHalo") return {QCoreApplication::translate("uve::fx::UveController", "Dunkle Säume"), QCoreApplication::translate("uve::fx::UveController", "Stärke der abdunkelnden Kantenseite. Niedriger = weniger dunkle Umrisse.")};
+        if (k == "noiseThreshold") return {QCoreApplication::translate("uve::fx::UveController", "Rauschschwelle"), QCoreApplication::translate("uve::fx::UveController", "Kleinere Details werden nicht geschärft (Rauschen, Kompression). 0 = aus.")};
+        if (k == "maxChange") return {QCoreApplication::translate("uve::fx::UveController", "Max. Änderung"), QCoreApplication::translate("uve::fx::UveController", "Weiche Grenze der Helligkeitsänderung je Pixel (verhindert Säume).")};
+        if (k == "svgRadius") return {QCoreApplication::translate("uve::fx::UveController", "Detailradius (SVG)"), QCoreApplication::translate("uve::fx::UveController", "Nur SVG-Modus des Userscripts – im Player ohne Wirkung, bleibt für Export/Import erhalten.")};
+        if (k == "svgMaxSoften") return {QCoreApplication::translate("uve::fx::UveController", "Weichzeichnen-Radius (SVG)"), QCoreApplication::translate("uve::fx::UveController", "Nur SVG-Modus des Userscripts – im Player ohne Wirkung, bleibt für Export/Import erhalten.")};
+        if (k == "webglPerStep") return {QCoreApplication::translate("uve::fx::UveController", "Stärke je Schritt (GPU)"), QCoreApplication::translate("uve::fx::UveController", "Schärfe je Reglerschritt (Player: ×1.5).")};
+    }
+    if (b == "GVF_GRAIN_SETTINGS") {
+        if (k == "power") return {QCoreApplication::translate("uve::fx::UveController", "Fokus"), QCoreApplication::translate("uve::fx::UveController", "Höher = Korn nur um den Spitzenton. 0 = gleichmäßig auf allen Tönen.")};
+        if (k == "peak") return {QCoreApplication::translate("uve::fx::UveController", "Spitzenton"), QCoreApplication::translate("uve::fx::UveController", "Helligkeit mit dem stärksten Korn. Niedriger = mehr Korn in den Schatten.")};
+        if (k == "colorAmount") return {QCoreApplication::translate("uve::fx::UveController", "Farbkorn"), QCoreApplication::translate("uve::fx::UveController", "0 = graues Korn, 1 = volles Farbkorn wie bei Film.")};
+        if (k == "svgStrength") return {QCoreApplication::translate("uve::fx::UveController", "Stärke (SVG)"), QCoreApplication::translate("uve::fx::UveController", "Nur SVG-Modus des Userscripts – im Player ohne Wirkung, bleibt für Export/Import erhalten.")};
+        if (k == "svgFrequency") return {QCoreApplication::translate("uve::fx::UveController", "Feinheit (SVG)"), QCoreApplication::translate("uve::fx::UveController", "Nur SVG-Modus des Userscripts – im Player ohne Wirkung, bleibt für Export/Import erhalten.")};
+    }
+    if (b == "GVF_HUE_SETTINGS" && k == "maxDegrees") return {QCoreApplication::translate("uve::fx::UveController", "Max. Drehung"), QCoreApplication::translate("uve::fx::UveController", "Grenze der Drehung in beide Richtungen, in Grad.")};
+    return {k, QString()};
+}
+} // namespace
+
+QVariantList UveController::expertBlocks() const
+{
+    const ExpertSettings def;
+    QVariantList blocks;
+    QVariantMap cur;
+    QVariantList fields;
+    QString curName;
+    auto flush = [&] {
+        if (curName.isEmpty()) return;
+        bool changed = false;
+        for (const auto &f : fields) changed = changed || f.toMap().value("changed").toBool();
+        cur.insert("fields", fields);
+        cur.insert("changed", changed);
+        blocks << cur;
+    };
+    for (const auto &f : expertFields()) {
+        const QString b = QLatin1String(f.block);
+        if (b != curName) {
+            flush();
+            curName = b;
+            fields.clear();
+            cur = QVariantMap{{"name", b}, {"title", expertBlockTitle(b)}, {"desc", expertBlockDesc(b)}};
+        }
+        const auto text = expertFieldText(b, QLatin1String(f.key));
+        const QVariant v = uve::fx::expertValue(m_expert, f.block, f.key);
+        const QVariant d = uve::fx::expertValue(def, f.block, f.key);
+        fields << QVariantMap{{"key", QLatin1String(f.key)}, {"label", text.first}, {"desc", text.second},
+                              {"type", f.isBool ? "bool" : "num"}, {"min", f.min}, {"max", f.max}, {"step", f.step},
+                              {"value", v}, {"def", d}, {"changed", v != d}, {"svgOnly", f.svgOnly}};
+    }
+    flush();
+    return blocks;
+}
+
+int UveController::expertChangedCount() const
+{
+    int n = 0;
+    const QJsonObject diff = expertDiff(m_expert);
+    for (auto it = diff.begin(); it != diff.end(); ++it) n += it.value().toObject().size();
+    return n;
+}
+
+void UveController::expertApplied()
+{
+    setExpert(m_expert);
+    emit expertChanged();
+    scheduleShader();
+    persist();
+}
+
+void UveController::setExpertValue(const QString &block, const QString &key, const QVariant &value)
+{
+    const QByteArray b = block.toLatin1(), k = key.toLatin1();
+    for (const auto &f : expertFields()) {
+        if (b != f.block || k != f.key) continue;
+        QVariant v = value;
+        if (!f.isBool) v = qBound(f.min, value.toDouble(), f.max);
+        if (uve::fx::expertValue(m_expert, f.block, f.key) == v) return;
+        if (uve::fx::setExpertValue(m_expert, f.block, f.key, v)) expertApplied();
+        return;
+    }
+}
+
+void UveController::resetExpert(const QString &block, const QString &key)
+{
+    const ExpertSettings def;
+    if (block.isEmpty()) { m_expert = def; expertApplied(); return; }
+    const QByteArray b = block.toLatin1(), k = key.toLatin1();
+    for (const auto &f : expertFields())
+        if (b == f.block && (key.isEmpty() || k == f.key))
+            uve::fx::setExpertValue(m_expert, f.block, f.key, uve::fx::expertValue(def, f.block, f.key));
+    expertApplied();
+}
+
+bool UveController::exportExpert(const QString &fileOrUrl)
+{
+    QSaveFile f(toLocal(fileOrUrl));
+    const QByteArray json = QJsonDocument(expertExport(m_expert, m_host->hostVersion())).toJson(QJsonDocument::Indented);
+    if (!f.open(QIODevice::WriteOnly) || f.write(json) < 0 || !f.commit()) {
+        emit expertMessage(tr("Export fehlgeschlagen: ") + f.fileName(), true);
+        return false;
+    }
+    emit expertMessage(tr("Exportiert: %1").arg(QFileInfo(f.fileName()).fileName()), false);
+    return true;
+}
+
+bool UveController::importExpert(const QString &fileOrUrl)
+{
+    QFile f(toLocal(fileOrUrl));
+    if (!f.open(QIODevice::ReadOnly)) { emit expertMessage(tr("Datei nicht lesbar"), true); return false; }
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    ExpertSettings next;
+    const int n = doc.isObject() ? expertImport(next, doc.object()) : -1;
+    if (n < 0) { emit expertMessage(tr("Keine Expert-Settings-Datei (erwartet type \"gvf-expert-settings\")"), true); return false; }
+    m_expert = next;
+    expertApplied();
+    emit expertMessage(tr("Importiert: %1 Blöcke").arg(n), false);
+    return true;
+}
+
+// ---------------------------------------------------------------- Auto-Scene-Match
+void UveController::setAutoOn(bool on)
+{
+    if (m_params.autoOn == on) return;
+    m_params.autoOn = on;
+    m_host->showOsd(on ? tr("Auto-Scene-Match an") : tr("Auto-Scene-Match aus"), 1200);
+    changed(false);
+}
+
+void UveController::toggleAuto() { setAutoOn(!m_params.autoOn); }
+
+void UveController::applyEq(const MpvEq &eq)
+{
+    if (m_eqKnown && eq == m_eqApplied) return;
+    m_eqApplied = eq;
+    m_eqKnown = true;
+    m_host->setVideoEqualizer(m_id, eq.brightness, eq.contrast, eq.saturation, eq.hue);
+}
+
+void UveController::updateAutoLoop()
+{
+    m_auto.strength = m_params.autoStrength;
+    m_auto.lockWB = m_params.autoLockWB;
+    const bool run = m_active && m_params.enabled && m_params.autoOn;
+    if (!run) {
+        m_autoTimer.stop();
+        m_auto = AutoSceneMatch();       // wie setAutoOn(false): Ziel und aktueller Wert neutral
+        m_auto.strength = m_params.autoStrength;
+        m_auto.lockWB = m_params.autoLockWB;
+        if (m_eqKnown && !(m_eqApplied == MpvEq())) applyEq(MpvEq());
+        if (!m_autoInfo.isEmpty()) { m_autoInfo.clear(); emit autoInfoChanged(); }
+        return;
+    }
+    if (!m_autoTimer.isActive()) {
+        m_auto.reset(m_clock.elapsed(), true);
+        m_autoTimer.start(200);
+    }
+}
+
+void UveController::autoTick()
+{
+    if (!(m_active && m_params.enabled && m_params.autoOn)) return;
+    if (m_host->currentMediaPath().isEmpty() || m_host->isPaused()) {
+        // Pausiert/kein Video: Auto-Matrix bleibt stehen, Analyse mit Mindestrate (wie im Userscript)
+        m_auto.idle(m_host->currentMediaPath().isEmpty());
+        m_autoTimer.start(m_auto.nextIntervalMs());
+        return;
+    }
+    // Bildprobe der Videoausgabe (GPU, 96×54, asynchron) – kein mpv screenshot-raw: der blockierte den mpv-Kern
+    // je Analyse 7–20 ms (1080p/4K, mit Hardware-Decoding mehr) und ließ das Video ruckeln.
+    // Die Probe enthält den eigenen Equalizer → vor der Statistik wieder herausrechnen (keine Rückkopplung).
+    const QImage sample = m_host->sampleDisplayFrame();
+    autoFrameReady(sample.isNull() ? QImage() : AutoSceneMatch::removeEq(sample, m_eqApplied));
+}
+
+void UveController::autoFrameReady(const QImage &frame)
+{
+    if (!(m_active && m_params.enabled && m_params.autoOn)) return;
+    const qint64 now = m_clock.elapsed();
+    if (frame.isNull()) {
+        m_auto.idle(false);   // noch keine Probe (erster Frame) – gleich erneut versuchen
+    } else if (m_auto.step(frame, now)) {
+        // UVE setAutoMatrixAndApply: höchstens alle 300 ms übernehmen
+        if (now - m_lastEqMs >= 300 || !m_eqKnown) {
+            m_lastEqMs = now;
+            applyEq(AutoSceneMatch::toMpvEq(m_auto.current()));
+        }
+    }
+    const auto &g = m_auto.current();
+    const QString info = tr("Helligkeit ×%1 · Kontrast ×%2 · Sättigung ×%3 · Farbton %4° · %5 fps")
+        .arg(g.br, 0, 'f', 2).arg(g.ct, 0, 'f', 2).arg(g.sat, 0, 'f', 2).arg(g.hue, 0, 'f', 1).arg(m_auto.adaptiveFps(), 0, 'f', 1);
+    if (info != m_autoInfo) { m_autoInfo = info; emit autoInfoChanged(); }
+    m_autoTimer.start(m_auto.nextIntervalMs());
 }
 
 void UveController::scheduleShader()
 {
-    if (m_active) m_shaderTimer.start();
+    // Drosseln statt Entprellen: beim Ziehen eines Reglers (z. B. Vorher/Nachher-Split) wird spätestens
+    // alle 40 ms ein neuer Shader geschrieben – ein Neustart bei jeder Bewegung verzögerte ihn bis zum Loslassen
+    if (m_active && !m_shaderTimer.isActive()) m_shaderTimer.start();
 }
 
 void UveController::writeShader()
 {
     if (!m_active) return;
-    if (!m_params.enabled) { m_host->setShaderStage(m_id, QString()); return; }
+    if (!m_params.enabled) { m_host->setShaderStage(m_id, QString()); setCompareActive(false); return; }
     ShaderBuildInput in;
     in.params = m_params;
     in.lut = m_lut.get();
@@ -318,6 +628,7 @@ void UveController::writeShader()
     files << file;
     // Mehrere Dateien einer Stufe: durch Zeilenumbruch getrennt (siehe PluginApi.h)
     m_host->setShaderStage(m_id, files.join('\n'));
+    setCompareActive(m_params.compare);   // Oberfläche erst jetzt umschalten (Shader und Layout gleichzeitig)
 
     // Ältere Dateien aufräumen (mpv hat sie bereits eingelesen bzw. nutzt sie nicht mehr)
     for (const auto &fi : dir.entryInfoList({QStringLiteral("uve-*.glsl")}, QDir::Files)) {
@@ -548,6 +859,7 @@ void UveController::setMediaPreset(bool on)
 void UveController::onMediaChanged(const QString &path)
 {
     m_mediaPath = path;
+    m_auto.reset(m_clock.elapsed(), true);   // neue Datei: Statistik neu, kurzer Boost (loadeddata/playing)
     const QString key = path.toLower();
     if (m_mediaPresets.contains(key)) applyPreset(m_mediaPresets.value(key).toString());
     else if (!m_defaultPreset.isEmpty() && m_activePreset != m_defaultPreset) applyPreset(m_defaultPreset);
@@ -696,7 +1008,8 @@ bool UveController::exportProfile(const QString &fileOrUrl)
 void UveController::persist()
 {
     QJsonObject o{{"params", paramsToJson(m_params)}, {"activePreset", m_activePreset}, {"defaultPreset", m_defaultPreset},
-                  {"mediaPresets", m_mediaPresets}, {"passthrough", m_passthrough}, {"schemaVersion", 1}};
+                  {"mediaPresets", m_mediaPresets}, {"passthrough", m_passthrough}, {"schemaVersion", 1},
+                  {"expert", expertDiff(m_expert)}};   // wie gvf_expert_settings: nur geänderte Werte
     m_host->savePluginSettings(m_id, o);
 }
 
@@ -711,6 +1024,9 @@ void UveController::loadState()
     m_defaultPreset = o.value("defaultPreset").toString();
     m_mediaPresets = o.value("mediaPresets").toObject();
     m_passthrough = o.value("passthrough").toObject();
+    m_expert = ExpertSettings();
+    expertMerge(m_expert, o.value("expert").toObject());
+    setExpert(m_expert);
     reloadLut();
 }
 

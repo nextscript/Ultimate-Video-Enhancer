@@ -18,7 +18,7 @@ Item {
     readonly property color panel2: theme ? theme.panel2 : "#1b1f26"
 
     // Schlüssel (auch in C++ verwendet) – Anzeige über qsTr(modelData)
-    readonly property var sections: [QT_TR_NOOP("Basis"), QT_TR_NOOP("Farbe"), QT_TR_NOOP("Schärfe"), QT_TR_NOOP("HDR-like"), QT_TR_NOOP("LUT")]
+    readonly property var sections: [QT_TR_NOOP("Basis"), QT_TR_NOOP("Auto"), QT_TR_NOOP("Farbe"), QT_TR_NOOP("Schärfe"), QT_TR_NOOP("HDR-like"), QT_TR_NOOP("LUT")]
     property var collapsed: ({})
 
     component IconBtn: AbstractButton {
@@ -349,6 +349,13 @@ Item {
                         }
                     }
 
+                    // Auto-Scene-Match: aktuelle Auto-Matrix (live)
+                    Label {
+                        visible: sec.open && sec.modelData === "Auto" && !!controller && controller.autoOn
+                        Layout.fillWidth: true; Layout.leftMargin: 10; Layout.rightMargin: 8
+                        text: controller && controller.autoInfo ? controller.autoInfo : qsTr("wartet auf Wiedergabe …")
+                        color: muted; wrapMode: Text.Wrap; font.pixelSize: 11
+                    }
                     // LUT-Zeile
                     RowLayout {
                         visible: sec.open && sec.modelData === "LUT"

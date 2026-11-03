@@ -20,7 +20,9 @@ Rectangle {
     signal openSpeedMenu(Item anchor)
 
     readonly property color iconColor: overlay ? "#f0f0f0" : theme.text
-    implicitHeight: col.implicitHeight + 16
+    // Höhe = Inhalt + Ränder; im Overlay (Vollbild) ist der obere Rand 22 statt 8 px (Platz für den Verlauf) –
+    // vorher fehlten diese 14 px, die Leiste wurde gestaucht und der Play-Knopf unten abgeschnitten
+    implicitHeight: col.implicitHeight + (overlay ? 30 : 16)
     color: overlay ? "transparent" : theme.panel
 
     Rectangle { visible: !bar.overlay; width: parent.width; height: 1; color: theme.line }

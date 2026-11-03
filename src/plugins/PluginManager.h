@@ -55,6 +55,8 @@ public:
     bool isPaused() const override;
     void setPaused(bool paused) override;
     QImage grabVideoFrame(int maxWidth) override;
+    void setVideoEqualizer(const QString &pluginId, double brightness, double contrast, double saturation, double hue) override;
+    QImage sampleDisplayFrame() override;
 
     QStringList availableBackends() const;
 

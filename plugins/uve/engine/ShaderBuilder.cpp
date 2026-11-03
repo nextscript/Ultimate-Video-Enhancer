@@ -233,10 +233,10 @@ vec4 hook() {
 
 QString passDetailLutCompare(const ShaderValues &s, const CurveConstants &k, const Params &p, const CubeLut *lut, const QVector<double> *mx)
 {
+    Q_UNUSED(p);
     QStringList binds{"HOOKED"};
-    if (p.compare) binds << "UVEORIG";
     if (lut) binds << "UVELUT";
-    QString b = header("Detail, LUT, Vergleich", binds) + kCommon;
+    QString b = header("Detail, LUT", binds) + kCommon;
     b += "float uveSkin(vec3 c) { return clamp((c.r - c.g) * 8.0, 0.0, 1.0) * clamp((c.g - c.b) * 8.0, 0.0, 1.0); }\n";
     b += "vec4 hook() {\n    vec4 tex = HOOKED_tex(HOOKED_pos);\n    vec3 color = tex.rgb;\n";
     if (active(s.sharpen)) {
@@ -309,15 +309,21 @@ QString passDetailLutCompare(const ShaderValues &s, const CurveConstants &k, con
                  .arg(f(m[10]), f(m[11]), f(m[12]), f(m[14]));
         b += QStringLiteral("        color = mix(color, clamp(lm, 0.0, 1.0), %1);\n    }\n").arg(f(st));
     }
-    b += "    vec4 outc = vec4(clamp(color, 0.0, 1.0), tex.a);\n";
-    if (p.compare) {
-        const double split = std::fmin(std::fmax(p.compareSplit, 0.0), 1.0);
-        b += QStringLiteral(R"GLSL(    if (HOOKED_pos.x < %1) outc = UVEORIG_tex(HOOKED_pos);
-    if (abs(HOOKED_pos.x - %1) < 1.5 * HOOKED_pt.x) outc = vec4(1.0, 0.54, 0.12, 1.0);
-)GLSL").arg(f(split));
-    }
-    b += "    return outc;\n}\n\n";
+    b += "    return vec4(clamp(color, 0.0, 1.0), tex.a);\n}\n\n";
     return b;
+}
+
+// Vorher/Nachher: doppelt breites Bild – links Original, rechts mit Effekten, je in voller Auflösung.
+// Die Schieberposition steckt bewusst NICHT im Shader: jede Shader-Änderung baut mpvs Render-Kette neu auf
+// (Ruckeln beim Ziehen). Der Player setzt die Hälften am Schieber zusammen (MpvController::setSplitView).
+QString passCompare()
+{
+    QString h = QStringLiteral("//!HOOK MAIN\n//!BIND HOOKED\n//!BIND UVEORIG\n//!WIDTH HOOKED.w 2 *\n//!HEIGHT HOOKED.h\n");
+    h += QStringLiteral("//!DESC %1 Vorher/Nachher (doppelt breit)\n").arg(QLatin1String(kShaderDescPrefix));
+    return h + QStringLiteral("vec4 hook() {\n"
+                              "    vec2 p = vec2(fract(HOOKED_pos.x * 2.0), HOOKED_pos.y);\n"
+                              "    return HOOKED_pos.x < 0.5 ? UVEORIG_tex(p) : HOOKED_tex(p);\n"
+                              "}\n\n");
 }
 
 QString lutTexture(const CubeLut &lut)
@@ -349,6 +355,7 @@ QString buildShader(const ShaderBuildInput &in)
     out += passGrading(s, k);
     const QVector<double> *mx = (in.lutMatrix && in.lutMatrix->size() == 20) ? in.lutMatrix : nullptr;
     out += passDetailLutCompare(s, k, p, lut, mx);
+    if (p.compare) out += passCompare();
     return out;
 }
 

@@ -5,6 +5,8 @@ add_library(uve_engine STATIC
     engine/ShaderBuilder.cpp engine/ShaderBuilder.h
     engine/LutProfile.cpp engine/LutProfile.h
     engine/MiniZip.cpp engine/MiniZip.h
+    engine/AutoSceneMatch.cpp engine/AutoSceneMatch.h
+    engine/ExpertSettings.cpp engine/ExpertSettings.h
     LutLibrary.cpp LutLibrary.h
 )
 target_include_directories(uve_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})

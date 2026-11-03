@@ -160,6 +160,8 @@ bool MpvController::initialize(const QVariantMap &options, QString *error)
         {"demuxer-cache-time", MPV_FORMAT_DOUBLE}, {"sub-delay", MPV_FORMAT_DOUBLE},
         {"audio-delay", MPV_FORMAT_DOUBLE}, {"eof-reached", MPV_FORMAT_FLAG},
         {"ab-loop-a", MPV_FORMAT_NODE}, {"ab-loop-b", MPV_FORMAT_NODE},
+        {"osd-dimensions", MPV_FORMAT_NODE}, {"video-dec-params/aspect", MPV_FORMAT_DOUBLE},
+        {"brightness", MPV_FORMAT_DOUBLE}, {"contrast", MPV_FORMAT_DOUBLE}, {"saturation", MPV_FORMAT_DOUBLE}, {"hue", MPV_FORMAT_DOUBLE},
     };
     for (const auto &p : props) mpv_observe_property(m_mpv, 0, p.name, p.fmt);
 
@@ -306,6 +308,26 @@ void MpvController::handlePropertyChange(const QString &name, const QVariant &v)
             setState(Ended);
             emit endOfFile(QStringLiteral("eof"));
         }
+    } else if (name == "brightness" || name == "contrast" || name == "saturation" || name == "hue") {
+        const double d = v.isValid() ? v.toDouble() : 0.0;
+        if (m_eq.value(name).toDouble() != d) { m_eq.insert(name, d); emit videoEqChanged(); }
+    } else if (name == "video-dec-params/aspect") {
+        if (m_splitView && v.toDouble() > 0) applyAspect();
+    } else if (name == "osd-dimensions") {
+        const QVariantMap m = v.toMap();
+        if (m != m_osdDims) {
+            m_osdDims = m;
+            const double w = m.value("w").toDouble(), hh = m.value("h").toDouble();
+            QRectF area(0, 0, 1, 1);
+            if (w > 0 && hh > 0) {
+                const double ml = m.value("ml").toDouble(), mr = m.value("mr").toDouble();
+                const double mt = m.value("mt").toDouble(), mb = m.value("mb").toDouble();
+                area = QRectF(ml / w, mt / hh, (w - ml - mr) / w, (hh - mt - mb) / hh);
+                if (area.width() <= 0 || area.height() <= 0) area = QRectF(0, 0, 1, 1);
+            }
+            { QMutexLocker l(&m_sampleLock); m_videoArea = area; }
+            emit osdDimensionsChanged();
+        }
     } else if (name == "ab-loop-a") {
         m_abA = v.typeId() == QMetaType::Double ? v.toDouble() : -1; emit abLoopChanged();
     } else if (name == "ab-loop-b") {
@@ -389,6 +411,13 @@ bool MpvController::setProperty(const QString &name, const QVariant &value)
     if (!m_mpv) return false;
     NodeBuilder nb(value);
     return mpv_set_property(m_mpv, name.toUtf8().constData(), MPV_FORMAT_NODE, &nb.node) >= 0;
+}
+
+void MpvController::setPropertyAsync(const QString &name, const QVariant &value)
+{
+    if (!m_mpv) return;
+    NodeBuilder nb(value);
+    mpv_set_property_async(m_mpv, 0, name.toUtf8().constData(), MPV_FORMAT_NODE, &nb.node);
 }
 
 bool MpvController::command(const QStringList &args)
@@ -480,11 +509,47 @@ QString MpvController::abLoopText() const
 
 void MpvController::setAspect(const QString &mode)
 {
+    m_aspectMode = mode;
+    applyAspect();
+}
+
+void MpvController::applyAspect()
+{
+    const QString &mode = m_aspectMode;
     // fit: Seitenverhältnis halten · fill: Füllen (Beschnitt) · stretch: Verzerren · feste Verhältnisse
-    if (mode == "fill") { setProperty("keepaspect", true); setProperty("panscan", 1.0); setProperty("video-aspect-override", "-1"); }
-    else if (mode == "stretch") { setProperty("keepaspect", false); setProperty("panscan", 0.0); setProperty("video-aspect-override", "-1"); }
-    else if (mode.contains(':')) { setProperty("keepaspect", true); setProperty("panscan", 0.0); setProperty("video-aspect-override", mode); }
-    else { setProperty("keepaspect", true); setProperty("panscan", 0.0); setProperty("video-aspect-override", "-1"); }
+    QString override = QStringLiteral("-1");
+    if (mode == "fill") { setProperty("keepaspect", true); setProperty("panscan", 1.0); }
+    else if (mode == "stretch") { setProperty("keepaspect", false); setProperty("panscan", 0.0); }
+    else if (mode.contains(':')) { setProperty("keepaspect", true); setProperty("panscan", 0.0); override = mode; }
+    else { setProperty("keepaspect", true); setProperty("panscan", 0.0); }
+    if (m_splitView && mode != "stretch") {
+        // Doppelt breites Bild: Seitenverhältnis verdoppeln, damit jede Hälfte wie gewohnt dargestellt wird
+        double ar = 0;
+        if (override.contains(':')) {
+            const auto parts = override.split(':');
+            if (parts.size() == 2 && parts[1].toDouble() > 0) ar = parts[0].toDouble() / parts[1].toDouble();
+        } else {
+            ar = getProperty(QStringLiteral("video-dec-params/aspect")).toDouble();   // ohne eigenen Override (sonst Rückkopplung)
+        }
+        if (ar > 0) override = QString::number(2.0 * ar, 'f', 6);
+    }
+    setProperty("video-aspect-override", override);
+}
+
+void MpvController::setSplitView(bool on)
+{
+    if (m_splitView == on) return;
+    m_splitView = on;
+    { QMutexLocker l(&m_sampleLock); m_sampleSplit = on; }
+    if (on) {
+        // Untertitel würden über der Mitte beider Hälften liegen → während des Vergleichs ausblenden
+        m_subVisibilityBeforeSplit = getProperty(QStringLiteral("sub-visibility"));
+        setProperty("sub-visibility", false);
+    } else if (m_subVisibilityBeforeSplit.isValid()) {
+        setProperty("sub-visibility", m_subVisibilityBeforeSplit.toBool());
+        m_subVisibilityBeforeSplit = {};
+    }
+    applyAspect();
 }
 
 QImage MpvController::grabFrame(int maxWidth) const
@@ -509,8 +574,11 @@ QImage MpvController::grabFrame(int maxWidth) const
         }
         if (data && w > 0 && h > 0 && stride >= w * 4 && qint64(data->size) >= stride * h && fmt == "bgra") {
             // Kopie, da mpv den Puffer mit mpv_free_node_contents freigibt
-            img = QImage(static_cast<const uchar *>(data->data), int(w), int(h), int(stride), QImage::Format_ARGB32).copy();
-            if (maxWidth > 0 && img.width() > maxWidth) img = img.scaledToWidth(maxWidth, Qt::SmoothTransformation);
+            // Ohne Vollbild-Kopie verkleinern: scaled() legt ein eigenes Bild an (wichtig bei 4K und
+            // häufigen Aufrufen, z. B. Auto-Scene-Match mit bis zu 10 Analysen pro Sekunde)
+            const QImage view(static_cast<const uchar *>(data->data), int(w), int(h), int(stride), QImage::Format_RGB32);
+            if (maxWidth > 0 && view.width() > maxWidth) img = view.scaledToWidth(maxWidth, Qt::SmoothTransformation);
+            else img = view.copy();
             img = img.convertToFormat(QImage::Format_RGB32);
         }
     }

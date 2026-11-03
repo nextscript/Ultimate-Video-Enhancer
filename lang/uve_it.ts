@@ -241,6 +241,10 @@
         <translation>LUT</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Auto</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>Carica LUT 3D (.cube)</translation>
     </message>
@@ -397,6 +401,10 @@
         <translation>Ripristina sezione</translation>
     </message>
     <message>
+        <source>wartet auf Wiedergabe …</source>
+        <translation>in attesa della riproduzione …</translation>
+    </message>
+    <message>
         <source>Laden…</source>
         <translation>Carica…</translation>
     </message>
@@ -435,6 +443,73 @@
     <message>
         <source>Alles zurücksetzen</source>
         <translation>Ripristina tutto</translation>
+    </message>
+</context>
+<context>
+    <name>ExpertSettingsPage</name>
+    <message>
+        <source>Expert Settings (*.json)</source>
+        <translation>Impostazioni esperte (*.json)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>Tutti i file (*)</translation>
+    </message>
+    <message>
+        <source>🧪 Expert Settings</source>
+        <translation>🧪 Impostazioni esperte</translation>
+    </message>
+    <message>
+        <source>Feinabstimmung aller Kurven der Grading-Regler (Effekte → Basis/Farbe/Schärfe). Änderungen wirken sofort und werden automatisch gespeichert.</source>
+        <translation>Regolazione fine di tutte le curve dei cursori di grading (Effetti → Base/Colore/Nitidezza). Le modifiche si applicano subito e vengono salvate automaticamente.</translation>
+    </message>
+    <message>
+        <source>🔍 Einstellungen suchen …</source>
+        <translation>🔍 Cerca impostazioni …</translation>
+    </message>
+    <message>
+        <source>%1 Werte geändert</source>
+        <translation>%1 valori modificati</translation>
+    </message>
+    <message>
+        <source>Alle Werte auf Standard</source>
+        <translation>Tutti i valori predefiniti</translation>
+    </message>
+    <message>
+        <source>Importieren …</source>
+        <translation>Importa …</translation>
+    </message>
+    <message>
+        <source>Exportieren …</source>
+        <translation>Esporta …</translation>
+    </message>
+    <message>
+        <source>Alle zurücksetzen</source>
+        <translation>Ripristina tutto</translation>
+    </message>
+    <message>
+        <source>Das Ultimate-Video-Enhancer-Plugin ist nicht aktiv (Einstellungen → Plugins).</source>
+        <translation>Il plugin Ultimate Video Enhancer non è attivo (Impostazioni → Plugin).</translation>
+    </message>
+    <message>
+        <source>Block auf Standard zurücksetzen</source>
+        <translation>Ripristina blocco</translation>
+    </message>
+    <message>
+        <source>Std. %1</source>
+        <translation>Pred. %1</translation>
+    </message>
+    <message>
+        <source>an</source>
+        <translation>on</translation>
+    </message>
+    <message>
+        <source>aus</source>
+        <translation>off</translation>
+    </message>
+    <message>
+        <source>Auf Standard zurücksetzen</source>
+        <translation>Ripristina valore</translation>
     </message>
 </context>
 <context>
@@ -704,6 +779,10 @@
         <translation>Confronto prima/dopo</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Adattamento automatico scena</translation>
+    </message>
+    <message>
         <source>Effekt-Panel öffnen</source>
         <translation>Apri pannello effetti</translation>
     </message>
@@ -814,6 +893,14 @@
     <message>
         <source>▶ Wiedergabe</source>
         <translation>▶ Riproduci</translation>
+    </message>
+    <message>
+        <source>VORHER</source>
+        <translation>PRIMA</translation>
+    </message>
+    <message>
+        <source>NACHHER</source>
+        <translation>DOPO</translation>
     </message>
     <message>
         <source>Zum Abspielen loslassen</source>
@@ -1365,6 +1452,18 @@
         <source>Plugin-Ordner</source>
         <translation>Cartella plugin</translation>
     </message>
+    <message>
+        <source>Ordner mit den installierten Plugins öffnen</source>
+        <translation>Apri la cartella dei plugin installati</translation>
+    </message>
+    <message>
+        <source>Eigene Plugins</source>
+        <translation>Plugin personali</translation>
+    </message>
+    <message>
+        <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
+        <translation>Apri la cartella utente per plugin aggiuntivi (ha la precedenza)</translation>
+    </message>
 </context>
 <context>
     <name>ProxyConfig</name>
@@ -1453,6 +1552,10 @@
     <message>
         <source>Erweitert</source>
         <translation>Avanzate</translation>
+    </message>
+    <message>
+        <source>Expert Settings</source>
+        <translation>Impostazioni esperte</translation>
     </message>
     <message>
         <source>Sprache</source>
@@ -2279,6 +2382,10 @@
         <translation>Confronto prima/dopo</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match an/aus</source>
+        <translation>Adattamento automatico scena on/off</translation>
+    </message>
+    <message>
         <source>Datei öffnen…</source>
         <translation>Apri file…</translation>
     </message>
@@ -2635,6 +2742,510 @@
     <message>
         <source>Radius von SL und Detail-Schärfe (|SR|)</source>
         <translation>Raggio di SL e della nitidezza dei dettagli (|SR|)</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Adattamento automatico scena</translation>
+    </message>
+    <message>
+        <source>Analysiert das Bild (2–10 fps, adaptiv) und gleicht Helligkeit, Kontrast, Sättigung und Weißabgleich je Szene an (Strg+Alt+A)</source>
+        <translation>Analizza l&apos;immagine (2–10 fps, adattivo) e adegua luminosità, contrasto, saturazione e bilanciamento del bianco per scena (Ctrl+Alt+A)</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Intensità</translation>
+    </message>
+    <message>
+        <source>Weißabgleich nachführen</source>
+        <translation>Segui bilanciamento del bianco</translation>
+    </message>
+    <message>
+        <source>korrigiert Rot-/Blaustiche über den Farbton</source>
+        <translation>corregge dominanti rosse/blu tramite la tinta</translation>
+    </message>
+    <message>
+        <source>Schwarzwert</source>
+        <translation>Livello del nero</translation>
+    </message>
+    <message>
+        <source>Weißwert</source>
+        <translation>Livello del bianco</translation>
+    </message>
+    <message>
+        <source>Gamma</source>
+        <translation>Gamma</translation>
+    </message>
+    <message>
+        <source>Filmkorn (Banding)</source>
+        <translation>Grana (banding)</translation>
+    </message>
+    <message>
+        <source>Farbton-Korrektur</source>
+        <translation>Correzione tinta</translation>
+    </message>
+    <message>
+        <source>S-Kurve um einen Drehpunkt. Schwarz, Weiß und der Drehpunkt bleiben fest, nichts wird abgeschnitten.</source>
+        <translation>Curva a S attorno a un tono pivot. Nero, bianco e pivot restano fissi, nulla viene tagliato.</translation>
+    </message>
+    <message>
+        <source>Schwarzpunkt wie bei einer Tonwertkorrektur: Schwarztöne vertiefen oder anheben.</source>
+        <translation>Punto del nero come nei livelli: approfondire o sollevare i neri.</translation>
+    </message>
+    <message>
+        <source>Weißpunkt wie bei einer Tonwertkorrektur: Weißtöne aufhellen oder absenken.</source>
+        <translation>Punto del bianco come nei livelli: schiarire o abbassare i bianchi.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für helle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Curva tonale solo per i toni chiari. Nero e bianco restano fissi.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für dunkle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Curva tonale solo per i toni scuri. Nero e bianco restano fissi.</translation>
+    </message>
+    <message>
+        <source>Sättigungskurve: blasse Farben erhalten die volle Verstärkung, kräftige weniger – nichts läuft aus.</source>
+        <translation>Curva di saturazione: i colori tenui ricevono il pieno potenziamento, quelli vivaci meno – nulla satura.</translation>
+    </message>
+    <message>
+        <source>Verstärkt vor allem blasse Farben; kräftige Farben und Hauttöne bleiben natürlich.</source>
+        <translation>Potenzia soprattutto i colori tenui; colori vivaci e incarnato restano naturali.</translation>
+    </message>
+    <message>
+        <source>Hellt die Mitteltöne auf oder dunkelt sie ab. Schwarz und Weiß bleiben fest.</source>
+        <translation>Schiarisce o scurisce i mezzitoni. Nero e bianco restano fissi.</translation>
+    </message>
+    <message>
+        <source>Detailkurve auf der Helligkeit: echte Details werden schärfer, Rauschen und Säume bleiben gering.</source>
+        <translation>Curva di dettaglio sulla luminosità: i dettagli reali diventano più nitidi, rumore e aloni restano bassi.</translation>
+    </message>
+    <message>
+        <source>Feines Rauschen gegen Farbabrisse (Banding). Schwarz und Weiß bleiben sauber.</source>
+        <translation>Rumore fine che nasconde il banding. Nero e bianco restano puliti.</translation>
+    </message>
+    <message>
+        <source>Dreht alle Farbtöne, die Helligkeit bleibt exakt gleich. Hilft gegen Farbstiche.</source>
+        <translation>Ruota tutte le tinte mentre la luminosità resta identica. Utile contro le dominanti.</translation>
+    </message>
+    <message>
+        <source>Reglerrichtung. Aus kehrt den Regler um.</source>
+        <translation>Direzione del cursore. Disattivato lo inverte.</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Kontrast</source>
+        <translation>Più alto = più contrasto</translation>
+    </message>
+    <message>
+        <source>Höher = tiefere Schwarztöne</source>
+        <translation>Più alto = neri più profondi</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Weißtöne</source>
+        <translation>Più alto = bianchi più luminosi</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Lichter</source>
+        <translation>Più alto = alte luci più chiare</translation>
+    </message>
+    <message>
+        <source>Höher = dunklere Schatten</source>
+        <translation>Più alto = ombre più scure</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Farbe</source>
+        <translation>Più alto = più colore</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Dynamik</source>
+        <translation>Più alto = più vividezza</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Mitteltöne</source>
+        <translation>Più alto = mezzitoni più chiari</translation>
+    </message>
+    <message>
+        <source>Höher = schärfer</source>
+        <translation>Più alto = più nitido</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Korn</source>
+        <translation>Più alto = più grana</translation>
+    </message>
+    <message>
+        <source>Richtung umkehren</source>
+        <translation>Inverti direzione</translation>
+    </message>
+    <message>
+        <source>An: der Regler dreht den Farbton in die andere Richtung.</source>
+        <translation>Attivo: il cursore ruota la tinta nell&apos;altra direzione.</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt</source>
+        <translation>Intensità per passo</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt den Kontrast ändert.</source>
+        <translation>Quanto ogni passo del cursore cambia il contrasto.</translation>
+    </message>
+    <message>
+        <source>Verschiebung je Schritt</source>
+        <translation>Spostamento per passo</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Schwarzpunkt verschiebt.</source>
+        <translation>Quanto ogni passo del cursore sposta il punto del nero.</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Weißpunkt verschiebt.</source>
+        <translation>Quanto ogni passo del cursore sposta il punto del bianco.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Lichter aufhellt oder abdunkelt.</source>
+        <translation>Quanto ogni passo del cursore schiarisce o scurisce le alte luci.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Schatten abdunkelt oder anhebt.</source>
+        <translation>Quanto ogni passo del cursore scurisce o solleva le ombre.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Farbstärke ändert.</source>
+        <translation>Quanto ogni passo del cursore cambia l&apos;intensità del colore.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die blassen Farben ändert.</source>
+        <translation>Quanto ogni passo del cursore cambia i colori tenui.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Mitteltöne ändert.</source>
+        <translation>Quanto ogni passo del cursore cambia i mezzitoni.</translation>
+    </message>
+    <message>
+        <source>Menge je Schritt</source>
+        <translation>Quantità per passo</translation>
+    </message>
+    <message>
+        <source>Wie viel Korn jeder Reglerschritt hinzufügt.</source>
+        <translation>Quanta grana aggiunge ogni passo del cursore.</translation>
+    </message>
+    <message>
+        <source>Grad je Schritt</source>
+        <translation>Gradi per passo</translation>
+    </message>
+    <message>
+        <source>Farbtondrehung je Reglerschritt.</source>
+        <translation>Rotazione della tinta per passo del cursore.</translation>
+    </message>
+    <message>
+        <source>Geringster Kontrast</source>
+        <translation>Contrasto minimo</translation>
+    </message>
+    <message>
+        <source>Grenze für die flachste Kurve (Regler ganz unten).</source>
+        <translation>Limite per la curva più piatta (cursore al minimo).</translation>
+    </message>
+    <message>
+        <source>Höchster Kontrast</source>
+        <translation>Contrasto massimo</translation>
+    </message>
+    <message>
+        <source>Grenze für die steilste Kurve (Regler ganz oben).</source>
+        <translation>Limite per la curva più ripida (cursore al massimo).</translation>
+    </message>
+    <message>
+        <source>Drehpunkt</source>
+        <translation>Tono pivot</translation>
+    </message>
+    <message>
+        <source>Ton, der fest bleibt. Niedriger = Kontrast dreht sich um dunklere Töne (gut für dunkle Videos).</source>
+        <translation>Tono che resta fisso. Più basso = il contrasto ruota attorno a toni più scuri (utile per video scuri).</translation>
+    </message>
+    <message>
+        <source>Max. Verschiebung</source>
+        <translation>Spostamento max</translation>
+    </message>
+    <message>
+        <source>Grenze der Schwarzpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Limite dello spostamento del punto del nero in entrambe le direzioni.</translation>
+    </message>
+    <message>
+        <source>Grenze der Weißpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Limite dello spostamento del punto del bianco in entrambe le direzioni.</translation>
+    </message>
+    <message>
+        <source>Weichheit</source>
+        <translation>Morbidezza</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Schwarz statt harter Kante. 0 = hart.</source>
+        <translation>Transizione morbida verso il nero invece di un taglio netto. 0 = netto.</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Weiß statt harter Kante. 0 = hart.</source>
+        <translation>Transizione morbida verso il bianco invece di un taglio netto. 0 = netto.</translation>
+    </message>
+    <message>
+        <source>Fokus</source>
+        <translation>Focus</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerhellsten Töne werden verändert.</source>
+        <translation>Più alto = cambiano solo i toni più chiari.</translation>
+    </message>
+    <message>
+        <source>Startton</source>
+        <translation>Tono iniziale</translation>
+    </message>
+    <message>
+        <source>Töne darunter bleiben völlig unverändert. 0 = ganzer Bereich.</source>
+        <translation>I toni sotto restano invariati. 0 = intera gamma.</translation>
+    </message>
+    <message>
+        <source>Max. Abdunklung</source>
+        <translation>Scurimento max</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Abdunklung der Lichter.</source>
+        <translation>Massimo scurimento consentito delle alte luci.</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerdunkelsten Töne werden verändert.</source>
+        <translation>Più alto = cambiano solo i toni più scuri.</translation>
+    </message>
+    <message>
+        <source>Endton</source>
+        <translation>Tono finale</translation>
+    </message>
+    <message>
+        <source>Töne darüber bleiben völlig unverändert. 1 = ganzer Bereich.</source>
+        <translation>I toni sopra restano invariati. 1 = intera gamma.</translation>
+    </message>
+    <message>
+        <source>Max. Anhebung</source>
+        <translation>Sollevamento max</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Anhebung der Schatten.</source>
+        <translation>Massimo sollevamento consentito delle ombre.</translation>
+    </message>
+    <message>
+        <source>Geringste Sättigung</source>
+        <translation>Saturazione minima</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren. 0 = bis ganz grau.</source>
+        <translation>Limite in riduzione. 0 = fino al grigio.</translation>
+    </message>
+    <message>
+        <source>Höchste Sättigung</source>
+        <translation>Saturazione massima</translation>
+    </message>
+    <message>
+        <source>Grenze der Verstärkung für blasse Farben.</source>
+        <translation>Limite del potenziamento per i colori tenui.</translation>
+    </message>
+    <message>
+        <source>Schutz kräftiger Farben</source>
+        <translation>Protezione colori vivaci</translation>
+    </message>
+    <message>
+        <source>0 = alle Farben gleich (kann auslaufen). Höher = kräftige Farben werden stärker geschützt.</source>
+        <translation>0 = tutti i colori allo stesso modo (può saturare). Più alto = i colori vivaci sono più protetti.</translation>
+    </message>
+    <message>
+        <source>Gleichmäßig entsättigen</source>
+        <translation>Desatura uniformemente</translation>
+    </message>
+    <message>
+        <source>An: Absenken nimmt allen Farben gleich viel Farbe. Aus: kräftige Farben behalten mehr.</source>
+        <translation>Attivo: abbassare toglie colore a tutti allo stesso modo. Disattivo: i colori vivaci ne mantengono di più.</translation>
+    </message>
+    <message>
+        <source>Geringste Dynamik</source>
+        <translation>Vividezza minima</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren der Dynamik.</source>
+        <translation>Limite nella riduzione della vividezza.</translation>
+    </message>
+    <message>
+        <source>Höchste Dynamik</source>
+        <translation>Vividezza massima</translation>
+    </message>
+    <message>
+        <source>Fokus auf blasse Farben</source>
+        <translation>Focus sui colori tenui</translation>
+    </message>
+    <message>
+        <source>Höher = nur die blassesten Farben werden verstärkt.</source>
+        <translation>Più alto = si potenziano solo i colori più tenui.</translation>
+    </message>
+    <message>
+        <source>Hautschutz</source>
+        <translation>Protezione pelle</translation>
+    </message>
+    <message>
+        <source>Weniger Schärfe auf Haut (Poren, Unreinheiten). 0 = aus.</source>
+        <translation>Meno nitidezza sulla pelle (pori, imperfezioni). 0 = disattivato.</translation>
+    </message>
+    <message>
+        <source>Hauttöne behalten ihren Farbton. 0 = aus, 1 = voller Schutz.</source>
+        <translation>L&apos;incarnato mantiene la sua tinta. 0 = disattivato, 1 = protezione totale.</translation>
+    </message>
+    <message>
+        <source>0 = aus, 1 = Hauttöne werden gar nicht verändert.</source>
+        <translation>0 = disattivato, 1 = l&apos;incarnato non cambia affatto.</translation>
+    </message>
+    <message>
+        <source>Dunkelste Mitteltöne</source>
+        <translation>Mezzitoni più scuri</translation>
+    </message>
+    <message>
+        <source>Untergrenze des Gammawerts.</source>
+        <translation>Limite inferiore del valore gamma.</translation>
+    </message>
+    <message>
+        <source>Hellste Mitteltöne</source>
+        <translation>Mezzitoni più chiari</translation>
+    </message>
+    <message>
+        <source>Obergrenze des Gammawerts.</source>
+        <translation>Limite superiore del valore gamma.</translation>
+    </message>
+    <message>
+        <source>Rauschschutz in den Schatten</source>
+        <translation>Protezione rumore nelle ombre</translation>
+    </message>
+    <message>
+        <source>Begrenzt, wie stark fast schwarze Töne angehoben werden (weniger sichtbares Rauschen). 0 = aus.</source>
+        <translation>Limita quanto vengono sollevati i toni quasi neri (meno rumore visibile). 0 = disattivato.</translation>
+    </message>
+    <message>
+        <source>Stärke bei +10</source>
+        <translation>Intensità a +10</translation>
+    </message>
+    <message>
+        <source>Kantenverstärkung beim höchsten Reglerwert.</source>
+        <translation>Potenziamento dei bordi al valore massimo.</translation>
+    </message>
+    <message>
+        <source>Helle Säume</source>
+        <translation>Aloni chiari</translation>
+    </message>
+    <message>
+        <source>Stärke der aufhellenden Kantenseite. Niedriger = weniger helle Säume.</source>
+        <translation>Intensità del lato schiarente dei bordi. Più basso = meno aloni chiari.</translation>
+    </message>
+    <message>
+        <source>Dunkle Säume</source>
+        <translation>Aloni scuri</translation>
+    </message>
+    <message>
+        <source>Stärke der abdunkelnden Kantenseite. Niedriger = weniger dunkle Umrisse.</source>
+        <translation>Intensità del lato scurente dei bordi. Più basso = meno contorni scuri.</translation>
+    </message>
+    <message>
+        <source>Rauschschwelle</source>
+        <translation>Soglia del rumore</translation>
+    </message>
+    <message>
+        <source>Kleinere Details werden nicht geschärft (Rauschen, Kompression). 0 = aus.</source>
+        <translation>I dettagli più piccoli non vengono resi nitidi (rumore, compressione). 0 = disattivato.</translation>
+    </message>
+    <message>
+        <source>Max. Änderung</source>
+        <translation>Variazione max</translation>
+    </message>
+    <message>
+        <source>Weiche Grenze der Helligkeitsänderung je Pixel (verhindert Säume).</source>
+        <translation>Limite morbido della variazione di luminosità per pixel (evita aloni).</translation>
+    </message>
+    <message>
+        <source>Detailradius (SVG)</source>
+        <translation>Raggio dettaglio (SVG)</translation>
+    </message>
+    <message>
+        <source>Nur SVG-Modus des Userscripts – im Player ohne Wirkung, bleibt für Export/Import erhalten.</source>
+        <translation>Solo modalità SVG dello userscript – nessun effetto nel player, conservato per esportazione/importazione.</translation>
+    </message>
+    <message>
+        <source>Weichzeichnen-Radius (SVG)</source>
+        <translation>Raggio sfocatura (SVG)</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt (GPU)</source>
+        <translation>Intensità per passo (GPU)</translation>
+    </message>
+    <message>
+        <source>Schärfe je Reglerschritt (Player: ×1.5).</source>
+        <translation>Nitidezza per passo del cursore (player: ×1.5).</translation>
+    </message>
+    <message>
+        <source>Höher = Korn nur um den Spitzenton. 0 = gleichmäßig auf allen Tönen.</source>
+        <translation>Più alto = grana solo attorno al tono di picco. 0 = uniforme su tutti i toni.</translation>
+    </message>
+    <message>
+        <source>Spitzenton</source>
+        <translation>Tono di picco</translation>
+    </message>
+    <message>
+        <source>Helligkeit mit dem stärksten Korn. Niedriger = mehr Korn in den Schatten.</source>
+        <translation>Luminosità con la grana più forte. Più basso = più grana nelle ombre.</translation>
+    </message>
+    <message>
+        <source>Farbkorn</source>
+        <translation>Grana colorata</translation>
+    </message>
+    <message>
+        <source>0 = graues Korn, 1 = volles Farbkorn wie bei Film.</source>
+        <translation>0 = grana grigia, 1 = grana a colori piena come la pellicola.</translation>
+    </message>
+    <message>
+        <source>Stärke (SVG)</source>
+        <translation>Intensità (SVG)</translation>
+    </message>
+    <message>
+        <source>Feinheit (SVG)</source>
+        <translation>Finezza (SVG)</translation>
+    </message>
+    <message>
+        <source>Max. Drehung</source>
+        <translation>Rotazione max</translation>
+    </message>
+    <message>
+        <source>Grenze der Drehung in beide Richtungen, in Grad.</source>
+        <translation>Limite della rotazione in entrambe le direzioni, in gradi.</translation>
+    </message>
+    <message>
+        <source>Export fehlgeschlagen: </source>
+        <translation>Esportazione non riuscita: </translation>
+    </message>
+    <message>
+        <source>Exportiert: %1</source>
+        <translation>Esportato: %1</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar</source>
+        <translation>File non leggibile</translation>
+    </message>
+    <message>
+        <source>Keine Expert-Settings-Datei (erwartet type &quot;gvf-expert-settings&quot;)</source>
+        <translation>Non è un file di impostazioni esperte (atteso type &quot;gvf-expert-settings&quot;)</translation>
+    </message>
+    <message>
+        <source>Importiert: %1 Blöcke</source>
+        <translation>Importati: %1 blocchi</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match an</source>
+        <translation>Adattamento automatico scena attivo</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match aus</source>
+        <translation>Adattamento automatico scena disattivo</translation>
+    </message>
+    <message>
+        <source>Helligkeit ×%1 · Kontrast ×%2 · Sättigung ×%3 · Farbton %4° · %5 fps</source>
+        <translation>Luminosità ×%1 · Contrasto ×%2 · Saturazione ×%3 · Tinta %4° · %5 fps</translation>
     </message>
     <message>
         <source>Unschärfemaske</source>

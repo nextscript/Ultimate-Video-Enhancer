@@ -1,4 +1,5 @@
 #include "UveParams.h"
+#include "ExpertSettings.h"
 #include <QCoreApplication>
 
 #include <QJsonValue>
@@ -14,20 +15,13 @@ struct { double brightness = 1.02, contrast = 1.05, saturation = 1.15; } constex
 struct { double gpuBrightness = 0.96, gpuSaturation = 0.92; } constexpr MOODY;
 constexpr double VIBRANT_SATURATION = 1.35;
 constexpr double HDR_GPU_MAX_SINGLE = 0.65;
+// Grading-Blöcke (Kontrast, Schwarz/Weiß, Lichter, Schatten, Sättigung, Dynamik, Gamma, Schärfe, Korn, Farbton)
+// kommen aus den Expert Settings (ExpertSettings.h, Standard = GVF_*_SETTINGS des Userscripts).
 struct Factor { double perStep, min, max; };
-constexpr Factor CONTRAST{0.04, 0.60, 1.60};
-constexpr Factor SATURATION{0.05, 0.40, 1.80};
-constexpr Factor VIBRANCE{0.05, 0.50, 1.50};
-constexpr Factor GAMMA{0.025, 0.60, 1.60};
 struct Offset { double perStep, maxOffset; };
-constexpr Offset BLACK{0.012, 0.12};
-constexpr Offset WHITE{0.012, 0.12};
-struct Curve { double perStep, power, threshold, cap; };
-constexpr Curve HIGHLIGHTS{0.010, 3, 0.0, 0.40};  // cap = maxDarken
-constexpr Curve SHADOWS{0.010, 3, 1.0, 0.40};     // cap = maxBrighten
-constexpr double SHARPEN_PER_STEP = 0.15;   // Detail-Schärfe: ±10 → ±1.5
-constexpr double GRAIN_PER_STEP = 0.01;
-constexpr double HUE_PER_STEP = 3.0, HUE_MAX_DEGREES = 30.0;
+// Detail-Schärfe des Players: webglPerStep × 1.5 (Standard 0.1 → 0.15 je Schritt, ±10 → ±1.5)
+constexpr double SHARPEN_PLAYER_FACTOR = 1.5;
+double dir(bool higherIsMore) { return higherIsMore ? 1.0 : -1.0; }
 
 constexpr double kPi = 3.14159265358979323846;
 double clamp(double x, double a, double b) { return std::fmin(std::fmax(x, a), b); }
@@ -39,42 +33,41 @@ double num(double v) { return std::isfinite(v) ? v : 0.0; }
 
 double curvePeak(double p) { return std::pow(p / (p + 1), p) / (p + 1); }
 
-double userFactor(double v, const Factor &f) { return clamp(1.0 + normU(v) * f.perStep, f.min, f.max); }
-double userOffset(double v, const Offset &o) { return clamp(normU(v) * o.perStep, -o.maxOffset, o.maxOffset); }
+double userFactor(double d, const Factor &f) { return clamp(1.0 + d * f.perStep, f.min, f.max); }
+double userOffset(double d, const Offset &o) { return clamp(d * o.perStep, -o.maxOffset, o.maxOffset); }
 
 } // namespace
 
 const CurveConstants &curveConstants()
 {
-    static const CurveConstants c = [] {
-        CurveConstants k{};
-        k.contrastPivotExp = std::log(0.5) / std::log(0.5);   // pivot 0.5 → 1
-        k.saturationPower = 1;
-        k.desaturateEvenly = true;
-        k.vibrancePower = 3;
-        k.vibranceSkin = 0.6;
-        k.hueSkin = 0.7;
-        k.blackSoftness = 0.05;
-        k.whiteSoftness = 0.05;
-        k.shadowsThreshold = clamp(SHADOWS.threshold, 0.1, 1);
-        k.shadowsPower = std::fmax(1, SHADOWS.power);
-        k.shadowsPeak = curvePeak(k.shadowsPower);
-        k.highlightsThreshold = clamp(HIGHLIGHTS.threshold, 0, 0.9);
-        k.highlightsPower = std::fmax(1, HIGHLIGHTS.power);
-        k.highlightsPeak = curvePeak(k.highlightsPower);
-        k.gammaShadowSlope = std::fmax(1.0, 2.0);
-        k.sharpenNoiseThreshold = 0.01;
-        k.sharpenMaxAmount = 1.5;
-        k.sharpenMaxChange = 0.15;
-        k.sharpenLightHalo = 0.6;
-        k.sharpenDarkHalo = 1.0;
-        k.sharpenSkin = 0.5;
-        k.grainPower = 1;
-        k.grainPeakExp = std::log(0.5) / std::log(clamp(0.35, 0.2, 0.8));
-        k.grainColorAmount = 0.3;
-        return k;
-    }();
-    return c;
+    // Aus den aktiven Expert Settings abgeleitet; Begrenzungen wie im Userscript (getFragmentShader)
+    static CurveConstants k{};
+    const ExpertSettings &e = expert();
+    k.contrastPivotExp = std::log(0.5) / std::log(clamp(e.contrast.pivot, 0.2, 0.8));
+    k.saturationPower = std::fmax(0.0, e.saturation.power);
+    k.desaturateEvenly = e.saturation.desaturateEvenly;
+    k.vibrancePower = std::fmax(0.0, e.vibrance.power);
+    k.vibranceSkin = clamp(e.vibrance.skinProtect, 0, 1);
+    k.hueSkin = clamp(e.hue.skinProtect, 0, 1);
+    k.blackSoftness = clamp(e.black.softness, 0, 0.3);
+    k.whiteSoftness = clamp(e.white.softness, 0, 0.3);
+    k.shadowsThreshold = clamp(e.shadows.threshold, 0.1, 1);
+    k.shadowsPower = std::fmax(1, e.shadows.power);
+    k.shadowsPeak = curvePeak(k.shadowsPower);
+    k.highlightsThreshold = clamp(e.highlights.threshold, 0, 0.9);
+    k.highlightsPower = std::fmax(1, e.highlights.power);
+    k.highlightsPeak = curvePeak(k.highlightsPower);
+    k.gammaShadowSlope = e.gamma.maxShadowSlope > 0 ? std::fmax(1.0, e.gamma.maxShadowSlope) : 0.0;   // 0 = aus
+    k.sharpenNoiseThreshold = std::fmax(0.0, e.sharpen.noiseThreshold);
+    k.sharpenMaxAmount = std::fmax(0.0, e.sharpen.maxAmount);
+    k.sharpenMaxChange = std::fmax(0.001, e.sharpen.maxChange);
+    k.sharpenLightHalo = clamp(e.sharpen.lightHalo, 0, 1);
+    k.sharpenDarkHalo = clamp(e.sharpen.darkHalo, 0, 1);
+    k.sharpenSkin = clamp(e.sharpen.skinProtect, 0, 1);
+    k.grainPower = std::fmax(0.0, e.grain.power);
+    k.grainPeakExp = std::log(0.5) / std::log(clamp(e.grain.peak, 0.2, 0.8));
+    k.grainColorAmount = clamp(e.grain.colorAmount, 0, 1);
+    return k;
 }
 
 double normU(double v) { return roundTo(clamp(num(v), -10, 10), 0.1); }
@@ -101,43 +94,78 @@ double normDN(double v) { return snap0(roundTo(clamp(num(v), -1.5, 1.5), 0.01), 
 double normHDR(double v) { return snap0(roundTo(clamp(num(v), -1.0, 2.0), 0.01), 0.005); }
 double normEDGE(double v) { return snap0(roundTo(clamp(num(v), 0, 1.0), 0.01), 0.005); }
 
-double userGammaValue(double v) { return clamp(1.0 + normU(v) * GAMMA.perStep, GAMMA.min, GAMMA.max); }
-double userContrastAmount(double v) { return clamp(userFactor(v, CONTRAST) - 1.0, -0.95, 0.95); }
-double userSaturationAmount(double v) { return clamp(userFactor(v, SATURATION) - 1.0, -1.0, 1.0); }
-double userVibranceAmount(double v) { return clamp(userFactor(v, VIBRANCE) - 1.0, -1.0, 1.0); }
-double userHueDegrees(double v) { return clamp(normU(v) * HUE_PER_STEP, -HUE_MAX_DEGREES, HUE_MAX_DEGREES); }
-double userGrainAmount(double v) { return std::fmax(0.0, normU(v) * GRAIN_PER_STEP); }
+double userGammaValue(double v)
+{
+    const auto &g = expert().gamma;
+    return clamp(1.0 + normU(v) * dir(g.higherIsBrighter) * g.perStep, g.min, g.max);
+}
+double userContrastAmount(double v)
+{
+    const auto &c = expert().contrast;
+    return clamp(userFactor(normU(v) * dir(c.higherIsMore), {c.perStep, c.min, c.max}) - 1.0, -0.95, 0.95);
+}
+double userSaturationAmount(double v)
+{
+    const auto &s = expert().saturation;
+    return clamp(userFactor(normU(v) * dir(s.higherIsMore), {s.perStep, s.min, s.max}) - 1.0, -1.0, 1.0);
+}
+double userVibranceAmount(double v)
+{
+    const auto &s = expert().vibrance;
+    return clamp(userFactor(normU(v) * dir(s.higherIsMore), {s.perStep, s.min, s.max}) - 1.0, -1.0, 1.0);
+}
+double userHueDegrees(double v)
+{
+    const auto &h = expert().hue;
+    const double m = std::fabs(h.maxDegrees);
+    return clamp(normU(v) * dir(!h.reverse) * h.perStep, -m, m);
+}
+double userGrainAmount(double v)
+{
+    const auto &g = expert().grain;
+    return std::fmax(0.0, normU(v) * dir(g.higherIsMore) * g.perStep);
+}
 
 double userHighlightsAmount(double v)
 {
     const auto &k = curveConstants();
-    const double d = normU(v); // higherIsBrighter: true
+    const auto &hs = expert().highlights;
+    const double d = normU(v) * dir(hs.higherIsBrighter);
     const double p = k.highlightsPower, range = 1 - k.highlightsThreshold, peak = k.highlightsPeak;
     double maxRise = 0; // steilster Anstieg von t^p * (1 - t)
     for (int i = 1; i < 200; ++i) {
         const double t = i / 200.0;
         maxRise = std::fmax(maxRise, p * std::pow(t, p - 1) - (p + 1) * std::pow(t, p));
     }
-    const double darkCap = std::fmin(std::fmax(0.0, HIGHLIGHTS.cap), 0.95 * peak * range / std::fmax(maxRise, 0.0001));
-    return clamp(d * HIGHLIGHTS.perStep, -darkCap, peak * range * 0.95);
+    const double darkCap = std::fmin(std::fmax(0.0, hs.maxDarken), 0.95 * peak * range / std::fmax(maxRise, 0.0001));
+    return clamp(d * hs.perStep, -darkCap, peak * range * 0.95);
 }
 
 double userShadowsAmount(double v)
 {
     const auto &k = curveConstants();
-    const double d = -normU(v); // higherIsDarker: true
+    const auto &ss = expert().shadows;
+    const double d = -normU(v) * dir(ss.higherIsDarker);
     const double p = k.shadowsPower, range = k.shadowsThreshold, peak = k.shadowsPeak;
     double maxFall = 0; // steilster Abfall von t * (1 - t)^p
     for (int i = 1; i < 200; ++i) {
         const double t = i / 200.0;
         maxFall = std::fmax(maxFall, -(std::pow(1 - t, p) - p * t * std::pow(1 - t, p - 1)));
     }
-    const double brightCap = std::fmin(std::fmax(0.0, SHADOWS.cap), 0.95 * peak * range / std::fmax(maxFall, 0.0001));
-    return clamp(d * SHADOWS.perStep, -peak * range * 0.95, brightCap);
+    const double brightCap = std::fmin(std::fmax(0.0, ss.maxBrighten), 0.95 * peak * range / std::fmax(maxFall, 0.0001));
+    return clamp(d * ss.perStep, -peak * range * 0.95, brightCap);
 }
 
-double userBlackOffset(double v) { return userOffset(v, BLACK); }  // higherIsDarker: true
-double userWhiteOffset(double v) { return userOffset(v, WHITE); }  // higherIsBrighter: true
+double userBlackOffset(double v)
+{
+    const auto &b = expert().black;
+    return userOffset(normU(v) * dir(b.higherIsDarker), {b.perStep, b.maxOffset});
+}
+double userWhiteOffset(double v)
+{
+    const auto &w = expert().white;
+    return userOffset(normU(v) * dir(w.higherIsBrighter), {w.perStep, w.maxOffset});
+}
 
 ShaderValues computeShaderValues(const Params &p)
 {
@@ -151,7 +179,8 @@ ShaderValues computeShaderValues(const Params &p)
     if (p.darkMoody) { saturation *= MOODY.gpuSaturation; brightness *= MOODY.gpuBrightness; }
     if (p.vibrantSat) saturation *= VIBRANT_SATURATION;
 
-    const double sharpen = normU(p.sharpen) * SHARPEN_PER_STEP;
+    const auto &es = expert().sharpen;
+    const double sharpen = normU(p.sharpen) * dir(es.higherIsSharper) * es.webglPerStep * SHARPEN_PLAYER_FACTOR;
     const double hue = userHueDegrees(p.hue);
     double hdr = clamp(normHDR(p.hdr), -1.0, 2.0);
     if (hdr > 0) hdr = std::fmin(hdr, HDR_GPU_MAX_SINGLE);
@@ -198,7 +227,8 @@ ShaderValues computeShaderValues(const Params &p)
 
 // ---------------------------------------------------------------- Profile
 static const QStringList kKnownTop{"schema", "ver", "baseOtp", "darkMoody", "tealOrange", "vibrantSat", "sl", "sr", "bl",
-                                   "wl", "dn", "edge", "hdr", "profile", "user", "uvePlayer", "lutProfile"};
+                                   "wl", "dn", "edge", "hdr", "profile", "user", "uvePlayer", "lutProfile",
+                                   "autoOn", "autoStrength", "autoLockWB"};
 static const QStringList kProfiles{"off", "film", "anime", "gaming", "eyecare", "user"};
 
 static bool readNumber(const QJsonObject &o, const char *key, double lo, double hi, double *out, QStringList *errors)
@@ -233,6 +263,9 @@ ProfileResult paramsFromProfile(const QJsonObject &profile, const Params &base)
     readNumber(profile, "dn", -1.5, 1.5, &p.dn, &errors);
     readNumber(profile, "edge", 0, 1, &p.edge, &errors);
     readNumber(profile, "hdr", -1, 2, &p.hdr, &errors);
+    flag("autoOn", p.autoOn);
+    flag("autoLockWB", p.autoLockWB);
+    readNumber(profile, "autoStrength", 0, 1, &p.autoStrength, &errors);
     const QString prof = profile.value("profile").toString();
     if (!prof.isEmpty()) p.profile = kProfiles.contains(prof) ? prof : QStringLiteral("off");
     const auto u = profile.value("user").toObject();
@@ -286,6 +319,9 @@ QJsonObject profileFromParams(const Params &p, const QJsonObject &passthrough)
     o.insert("edge", fix(normEDGE(p.edge), 2));
     o.insert("hdr", fix(normHDR(p.hdr), 2));
     o.insert("profile", p.profile);
+    o.insert("autoOn", p.autoOn);
+    o.insert("autoStrength", fix(p.autoStrength, 2));
+    o.insert("autoLockWB", p.autoLockWB);
     o.insert("lutProfile", p.lutProfile.isEmpty() ? QStringLiteral("none") : p.lutProfile);
     o.insert("user", QJsonObject{
         {"contrast", fix(normU(p.contrast), 1)}, {"black", fix(normU(p.black), 1)}, {"white", fix(normU(p.white), 1)},

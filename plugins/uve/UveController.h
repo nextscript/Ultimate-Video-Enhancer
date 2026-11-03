@@ -1,8 +1,13 @@
 #pragma once
+#include "engine/AutoSceneMatch.h"
 #include "engine/CubeLut.h"
+#include "engine/ExpertSettings.h"
 #include "engine/UveParams.h"
 #include "LutLibrary.h"
 
+#include <QElapsedTimer>
+#include <QFutureWatcher>
+#include <QImage>
 #include <QObject>
 #include <QTimer>
 #include <QVariantList>
@@ -24,6 +29,8 @@ class UveController : public QObject
     Q_PROPERTY(QString activePreset READ activePreset NOTIFY valuesChanged)
     Q_PROPERTY(bool enabled READ enabled NOTIFY valuesChanged)
     Q_PROPERTY(bool compare READ compare NOTIFY valuesChanged)
+    // true, sobald der gesetzte Shader den doppelt breiten Vergleich liefert (compare ist nur der Wunsch)
+    Q_PROPERTY(bool compareActive READ compareActive NOTIFY compareActiveChanged)
     Q_PROPERTY(bool canUndo READ canUndo NOTIFY historyChanged)
     Q_PROPERTY(bool canRedo READ canRedo NOTIFY historyChanged)
     Q_PROPERTY(QString lutInfo READ lutInfo NOTIFY valuesChanged)
@@ -39,6 +46,10 @@ class UveController : public QObject
     Q_PROPERTY(QVariantList galleryItems READ galleryItems NOTIFY galleryChanged)
     Q_PROPERTY(QString galleryOriginal READ galleryOriginal NOTIFY galleryChanged)
     Q_PROPERTY(QString galleryInfo READ galleryInfo NOTIFY galleryChanged)
+    Q_PROPERTY(bool autoOn READ autoOn NOTIFY valuesChanged)
+    Q_PROPERTY(QString autoInfo READ autoInfo NOTIFY autoInfoChanged)
+    Q_PROPERTY(QVariantList expertBlocks READ expertBlocks NOTIFY expertChanged)
+    Q_PROPERTY(int expertChangedCount READ expertChangedCount NOTIFY expertChanged)
 
 public:
     UveController(IPlayerHost *host, const QString &pluginId, QObject *parent = nullptr);
@@ -49,6 +60,7 @@ public:
     QString activePreset() const { return m_activePreset; }
     bool enabled() const { return m_params.enabled; }
     bool compare() const { return m_params.compare; }
+    bool compareActive() const { return m_compareActive; }
     bool canUndo() const { return !m_undo.isEmpty(); }
     bool canRedo() const { return !m_redo.isEmpty(); }
     QString lutInfo() const;
@@ -65,6 +77,10 @@ public:
     QString galleryOriginal() const { return m_galleryOriginal; }
     QString galleryInfo() const { return m_galleryInfo; }
 
+    bool autoOn() const { return m_params.autoOn; }
+    QVariantList expertBlocks() const;
+    int expertChangedCount() const;
+    QString autoInfo() const { return m_autoInfo; }
     const Params &params() const { return m_params; }
     bool eventFilter(QObject *o, QEvent *e) override;
     void releaseNetwork() { m_library->releaseNetwork(); }
@@ -85,6 +101,13 @@ public:
     Q_INVOKABLE void setCompare(bool on);
     Q_INVOKABLE void toggleCompare();
     Q_INVOKABLE void setCompareSplit(double split);
+    Q_INVOKABLE void setAutoOn(bool on);                 // Auto-Scene-Match (Strg+Alt+A)
+    Q_INVOKABLE void toggleAuto();
+    // Expert Settings (Grading-Kurven, wie "Expert Settings" im UVE-Userscript)
+    Q_INVOKABLE void setExpertValue(const QString &block, const QString &key, const QVariant &value);
+    Q_INVOKABLE void resetExpert(const QString &block = QString(), const QString &key = QString());
+    Q_INVOKABLE bool exportExpert(const QString &fileOrUrl);
+    Q_INVOKABLE bool importExpert(const QString &fileOrUrl);
     Q_INVOKABLE bool applyPreset(const QString &name);
     Q_INVOKABLE bool savePreset(const QString &name);
     Q_INVOKABLE bool deletePreset(const QString &name);
@@ -116,6 +139,10 @@ signals:
     void galleryRequested();
     void languageChanged();
     void scrollRequested(const QString &where);
+    void autoInfoChanged();
+    void compareActiveChanged();
+    void expertChanged();
+    void expertMessage(const QString &text, bool error);
 
 private:
     void changed(bool recordUndo);
@@ -126,6 +153,11 @@ private:
     void loadPresets();
     bool reloadLut();
     void setError(const QString &e);
+    void updateAutoLoop();              // Analyse starten/stoppen je nach Zustand
+    void autoTick();
+    void autoFrameReady(const QImage &frame);
+    void applyEq(const MpvEq &eq);
+    void expertApplied();
     Params presetParams(const QString &name, bool *found) const;
     static QString toLocal(const QString &fileOrUrl);
     bool applyProfileJson(const QByteArray &json, const QString &label, QString *error);
@@ -153,6 +185,17 @@ private:
     QString m_galleryOriginal, m_galleryInfo;
     int m_galleryGen = 0;
     int m_shaderSeq = 0;
+    // Auto-Scene-Match
+    AutoSceneMatch m_auto;
+    QTimer m_autoTimer;
+    QElapsedTimer m_clock;
+    MpvEq m_eqApplied;
+    bool m_eqKnown = false;
+    qint64 m_lastEqMs = -1000;
+    QString m_autoInfo;
+    bool m_compareActive = false;
+    void setCompareActive(bool on) { if (m_compareActive != on) { m_compareActive = on; emit compareActiveChanged(); } }
+    ExpertSettings m_expert;
 };
 
 } // namespace uve::fx

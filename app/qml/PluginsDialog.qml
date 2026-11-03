@@ -85,7 +85,16 @@ Dialog {
                     + qsTr("nach wiederholten Abstürzen startet der Player im Safe Mode (auch per --safe-mode).")
             }
             Button { text: qsTr("Fehlerprotokoll"); onClicked: app.openFolder(app.plugins.errorLogPath()) }
-            Button { text: qsTr("Plugin-Ordner"); onClicked: app.openFolder(app.dataDir + "/plugins") }
+            Button {
+                text: qsTr("Plugin-Ordner")
+                onClicked: app.openPluginFolder(false)
+                ToolTip.text: qsTr("Ordner mit den installierten Plugins öffnen"); ToolTip.visible: hovered
+            }
+            Button {
+                text: qsTr("Eigene Plugins")
+                onClicked: app.openPluginFolder(true)
+                ToolTip.text: qsTr("Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)"); ToolTip.visible: hovered
+            }
         }
     }
 }

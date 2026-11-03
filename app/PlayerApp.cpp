@@ -731,7 +731,22 @@ void PlayerApp::clearResumePositions()
     showOsd(tr("Gemerkte Positionen gelöscht"));
 }
 
-void PlayerApp::openFolder(const QString &path) const { QDesktopServices::openUrl(QUrl::fromLocalFile(path)); }
+void PlayerApp::openFolder(const QString &path) const
+{
+    if (QDesktopServices::openUrl(QUrl::fromLocalFile(path))) return;
+#ifdef Q_OS_WIN
+    // Rückfall, falls kein Standard-Handler registriert ist
+    if (QFileInfo::exists(path)) QProcess::startDetached(QStringLiteral("explorer.exe"), {QDir::toNativeSeparators(path)});
+#endif
+}
+
+void PlayerApp::openPluginFolder(bool user) const
+{
+    const QString dir = user ? QDir(m_settings->dataDir()).filePath(QStringLiteral("plugins"))
+                             : QDir(QCoreApplication::applicationDirPath()).filePath(QStringLiteral("plugins"));
+    QDir().mkpath(dir);   // vorher öffnete der Button einen nicht vorhandenen Ordner → es passierte nichts
+    openFolder(dir);
+}
 
 void PlayerApp::showInExplorer(const QString &path) const
 {
@@ -872,7 +887,9 @@ void PlayerApp::runSelftestStep()
     poll->setInterval(250);
     connect(poll, &QTimer::timeout, this, [this, poll, started] {
         const qint64 elapsed = QDateTime::currentMSecsSinceEpoch() - started;
-        const bool playing = m_player->state() == MpvController::Playing && m_player->position() > 2.0;
+        // UVE_SELFTEST_PLAYSEC: länger abspielen (z. B. Ruckel-Messung); Standard 2 s
+        const double playSec = qEnvironmentVariableIsSet("UVE_SELFTEST_PLAYSEC") ? qEnvironmentVariable("UVE_SELFTEST_PLAYSEC").toDouble() : 2.0;
+        const bool playing = m_player->state() == MpvController::Playing && m_player->position() > playSec;
         const bool failed = m_player->state() == MpvController::Error;
         if (!playing && !failed && elapsed < 45000) return;
         poll->stop();
@@ -887,6 +904,11 @@ void PlayerApp::runSelftestStep()
             {"width", m_player->getProperty("video-params/w")}, {"height", m_player->getProperty("video-params/h")},
             {"glslShaders", m_player->getProperty("glsl-shaders")}, {"droppedFrames", m_player->getProperty("frame-drop-count")},
             {"audioPts", m_player->getProperty("audio-pts")},
+            {"decoderDrops", m_player->getProperty("decoder-frame-drop-count")},
+            {"voDelayedFrames", m_player->getProperty("vo-delayed-frame-count")},
+            {"mistimedFrames", m_player->getProperty("mistimed-frame-count")},
+            {"eq", QVariantMap{{"brightness", m_player->getProperty("brightness")}, {"contrast", m_player->getProperty("contrast")},
+                               {"saturation", m_player->getProperty("saturation")}, {"hue", m_player->getProperty("hue")}}},
         };
         if (!playing) { r.insert("ok", false); m_selftestResults << r; runSelftestStep(); return; }
         // Sprung auf 40 % (bei Livestreams übersprungen)

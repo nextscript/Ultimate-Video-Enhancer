@@ -38,7 +38,10 @@ Aktivieren/Deaktivieren zur Laufzeit ohne Neustart. Ausnahmen in `initialize`/`o
 
 ## Host-Dienste (`IPlayerHost`)
 Einstellungen pro Plugin (JSON), Datenordner, GPU-Shader-Stufe setzen/entfernen, OSD, Protokoll,
-aktueller Medienpfad/Position/Pause lesen, Pause setzen. Kein direkter Zugriff auf mpv- oder GUI-Objekte.
+aktueller Medienpfad/Position/Pause lesen, Pause setzen, Standbild ohne Effekte (`grabVideoFrame`, threadsicher).
+Ab 1.0.2: `setVideoEqualizer(pluginId, brightness, contrast, saturation, hue)` – mpv-Video-Equalizer (je −100 … 100),
+wird beim Deaktivieren/Entladen des Plugins zurückgesetzt (an das Ende der Schnittstelle angehängt, API-Version bleibt 1).
+Kein direkter Zugriff auf mpv- oder GUI-Objekte.
 
 ## Sicherheit
 Native Plugins laufen im Hauptprozess und sind **Vertrauenscode** (gleicher Compiler/Qt-Build nötig).

@@ -28,6 +28,7 @@ qt_add_qml_module(uve-player
         qml/PlaylistPanel.qml
         qml/VideoContextMenu.qml
         qml/SettingsDialog.qml
+        qml/ExpertSettingsPage.qml
         qml/PluginsDialog.qml
         qml/UpdateDialog.qml
         qml/AboutDialog.qml
@@ -38,6 +39,12 @@ qt_add_qml_module(uve-player
         qml/VecIcon.qml
     RESOURCES
         resources/icon.png
+)
+
+# Qt-Shader (RHI): Vorher/Nachher-Zusammensetzung → :/uve/shaders/splitview.frag.qsb
+qt_add_shaders(uve-player "uve_shaders"
+    PREFIX "/uve"
+    FILES shaders/splitview.frag
 )
 
 target_link_libraries(uve-player PRIVATE uvecore Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Network)

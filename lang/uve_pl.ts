@@ -241,6 +241,10 @@
         <translation>LUT</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Auto</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>Wczytaj 3D LUT (.cube)</translation>
     </message>
@@ -397,6 +401,10 @@
         <translation>Resetuj sekcję</translation>
     </message>
     <message>
+        <source>wartet auf Wiedergabe …</source>
+        <translation>oczekiwanie na odtwarzanie …</translation>
+    </message>
+    <message>
         <source>Laden…</source>
         <translation>Wczytaj…</translation>
     </message>
@@ -435,6 +443,73 @@
     <message>
         <source>Alles zurücksetzen</source>
         <translation>Resetuj wszystko</translation>
+    </message>
+</context>
+<context>
+    <name>ExpertSettingsPage</name>
+    <message>
+        <source>Expert Settings (*.json)</source>
+        <translation>Ustawienia eksperckie (*.json)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>Wszystkie pliki (*)</translation>
+    </message>
+    <message>
+        <source>🧪 Expert Settings</source>
+        <translation>🧪 Ustawienia eksperckie</translation>
+    </message>
+    <message>
+        <source>Feinabstimmung aller Kurven der Grading-Regler (Effekte → Basis/Farbe/Schärfe). Änderungen wirken sofort und werden automatisch gespeichert.</source>
+        <translation>Precyzyjne dostrojenie wszystkich krzywych suwaków korekcji (Efekty → Podstawa/Kolor/Ostrość). Zmiany działają od razu i są zapisywane automatycznie.</translation>
+    </message>
+    <message>
+        <source>🔍 Einstellungen suchen …</source>
+        <translation>🔍 Szukaj ustawień …</translation>
+    </message>
+    <message>
+        <source>%1 Werte geändert</source>
+        <translation>Zmienione wartości: %1</translation>
+    </message>
+    <message>
+        <source>Alle Werte auf Standard</source>
+        <translation>Wszystkie wartości domyślne</translation>
+    </message>
+    <message>
+        <source>Importieren …</source>
+        <translation>Importuj …</translation>
+    </message>
+    <message>
+        <source>Exportieren …</source>
+        <translation>Eksportuj …</translation>
+    </message>
+    <message>
+        <source>Alle zurücksetzen</source>
+        <translation>Resetuj wszystkie</translation>
+    </message>
+    <message>
+        <source>Das Ultimate-Video-Enhancer-Plugin ist nicht aktiv (Einstellungen → Plugins).</source>
+        <translation>Wtyczka Ultimate Video Enhancer nie jest aktywna (Ustawienia → Wtyczki).</translation>
+    </message>
+    <message>
+        <source>Block auf Standard zurücksetzen</source>
+        <translation>Resetuj blok</translation>
+    </message>
+    <message>
+        <source>Std. %1</source>
+        <translation>Dom. %1</translation>
+    </message>
+    <message>
+        <source>an</source>
+        <translation>wł.</translation>
+    </message>
+    <message>
+        <source>aus</source>
+        <translation>wył.</translation>
+    </message>
+    <message>
+        <source>Auf Standard zurücksetzen</source>
+        <translation>Przywróć domyślne</translation>
     </message>
 </context>
 <context>
@@ -704,6 +779,10 @@
         <translation>Porównanie przed/po</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Automatyczne dopasowanie sceny</translation>
+    </message>
+    <message>
         <source>Effekt-Panel öffnen</source>
         <translation>Otwórz panel efektów</translation>
     </message>
@@ -814,6 +893,14 @@
     <message>
         <source>▶ Wiedergabe</source>
         <translation>▶ Odtwórz</translation>
+    </message>
+    <message>
+        <source>VORHER</source>
+        <translation>PRZED</translation>
+    </message>
+    <message>
+        <source>NACHHER</source>
+        <translation>PO</translation>
     </message>
     <message>
         <source>Zum Abspielen loslassen</source>
@@ -1365,6 +1452,18 @@
         <source>Plugin-Ordner</source>
         <translation>Folder wtyczek</translation>
     </message>
+    <message>
+        <source>Ordner mit den installierten Plugins öffnen</source>
+        <translation>Otwórz folder zainstalowanych wtyczek</translation>
+    </message>
+    <message>
+        <source>Eigene Plugins</source>
+        <translation>Własne wtyczki</translation>
+    </message>
+    <message>
+        <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
+        <translation>Otwórz folder użytkownika na dodatkowe wtyczki (ma pierwszeństwo)</translation>
+    </message>
 </context>
 <context>
     <name>ProxyConfig</name>
@@ -1453,6 +1552,10 @@
     <message>
         <source>Erweitert</source>
         <translation>Zaawansowane</translation>
+    </message>
+    <message>
+        <source>Expert Settings</source>
+        <translation>Ustawienia eksperckie</translation>
     </message>
     <message>
         <source>Sprache</source>
@@ -2279,6 +2382,10 @@
         <translation>Porównanie przed/po</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match an/aus</source>
+        <translation>Automatyczne dopasowanie sceny wł./wył.</translation>
+    </message>
+    <message>
         <source>Datei öffnen…</source>
         <translation>Otwórz plik…</translation>
     </message>
@@ -2635,6 +2742,510 @@
     <message>
         <source>Radius von SL und Detail-Schärfe (|SR|)</source>
         <translation>Promień SL i wyostrzania detali (|SR|)</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Automatyczne dopasowanie sceny</translation>
+    </message>
+    <message>
+        <source>Analysiert das Bild (2–10 fps, adaptiv) und gleicht Helligkeit, Kontrast, Sättigung und Weißabgleich je Szene an (Strg+Alt+A)</source>
+        <translation>Analizuje obraz (2–10 kl./s, adaptacyjnie) i dopasowuje jasność, kontrast, nasycenie i balans bieli do sceny (Ctrl+Alt+A)</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Siła</translation>
+    </message>
+    <message>
+        <source>Weißabgleich nachführen</source>
+        <translation>Śledź balans bieli</translation>
+    </message>
+    <message>
+        <source>korrigiert Rot-/Blaustiche über den Farbton</source>
+        <translation>koryguje czerwone/niebieskie zafarby przez odcień</translation>
+    </message>
+    <message>
+        <source>Schwarzwert</source>
+        <translation>Poziom czerni</translation>
+    </message>
+    <message>
+        <source>Weißwert</source>
+        <translation>Poziom bieli</translation>
+    </message>
+    <message>
+        <source>Gamma</source>
+        <translation>Gamma</translation>
+    </message>
+    <message>
+        <source>Filmkorn (Banding)</source>
+        <translation>Ziarno (banding)</translation>
+    </message>
+    <message>
+        <source>Farbton-Korrektur</source>
+        <translation>Korekcja odcienia</translation>
+    </message>
+    <message>
+        <source>S-Kurve um einen Drehpunkt. Schwarz, Weiß und der Drehpunkt bleiben fest, nichts wird abgeschnitten.</source>
+        <translation>Krzywa S wokół tonu osi. Czerń, biel i oś pozostają stałe, nic nie jest obcinane.</translation>
+    </message>
+    <message>
+        <source>Schwarzpunkt wie bei einer Tonwertkorrektur: Schwarztöne vertiefen oder anheben.</source>
+        <translation>Punkt czerni jak w poziomach: pogłębienie lub podniesienie czerni.</translation>
+    </message>
+    <message>
+        <source>Weißpunkt wie bei einer Tonwertkorrektur: Weißtöne aufhellen oder absenken.</source>
+        <translation>Punkt bieli jak w poziomach: rozjaśnienie lub obniżenie bieli.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für helle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Krzywa tonalna tylko dla jasnych tonów. Czerń i biel pozostają stałe.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für dunkle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Krzywa tonalna tylko dla ciemnych tonów. Czerń i biel pozostają stałe.</translation>
+    </message>
+    <message>
+        <source>Sättigungskurve: blasse Farben erhalten die volle Verstärkung, kräftige weniger – nichts läuft aus.</source>
+        <translation>Krzywa nasycenia: blade kolory dostają pełne wzmocnienie, intensywne mniej – nic się nie przepala.</translation>
+    </message>
+    <message>
+        <source>Verstärkt vor allem blasse Farben; kräftige Farben und Hauttöne bleiben natürlich.</source>
+        <translation>Wzmacnia głównie blade kolory; intensywne kolory i odcienie skóry pozostają naturalne.</translation>
+    </message>
+    <message>
+        <source>Hellt die Mitteltöne auf oder dunkelt sie ab. Schwarz und Weiß bleiben fest.</source>
+        <translation>Rozjaśnia lub przyciemnia półtony. Czerń i biel pozostają stałe.</translation>
+    </message>
+    <message>
+        <source>Detailkurve auf der Helligkeit: echte Details werden schärfer, Rauschen und Säume bleiben gering.</source>
+        <translation>Krzywa szczegółów na jasności: prawdziwe detale są ostrzejsze, szum i obwódki pozostają małe.</translation>
+    </message>
+    <message>
+        <source>Feines Rauschen gegen Farbabrisse (Banding). Schwarz und Weiß bleiben sauber.</source>
+        <translation>Drobny szum ukrywający banding. Czerń i biel pozostają czyste.</translation>
+    </message>
+    <message>
+        <source>Dreht alle Farbtöne, die Helligkeit bleibt exakt gleich. Hilft gegen Farbstiche.</source>
+        <translation>Obraca wszystkie odcienie, jasność pozostaje dokładnie taka sama. Pomaga na zafarby.</translation>
+    </message>
+    <message>
+        <source>Reglerrichtung. Aus kehrt den Regler um.</source>
+        <translation>Kierunek suwaka. Wyłączenie odwraca suwak.</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Kontrast</source>
+        <translation>Wyżej = więcej kontrastu</translation>
+    </message>
+    <message>
+        <source>Höher = tiefere Schwarztöne</source>
+        <translation>Wyżej = głębsza czerń</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Weißtöne</source>
+        <translation>Wyżej = jaśniejsza biel</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Lichter</source>
+        <translation>Wyżej = jaśniejsze światła</translation>
+    </message>
+    <message>
+        <source>Höher = dunklere Schatten</source>
+        <translation>Wyżej = ciemniejsze cienie</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Farbe</source>
+        <translation>Wyżej = więcej koloru</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Dynamik</source>
+        <translation>Wyżej = więcej jaskrawości</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Mitteltöne</source>
+        <translation>Wyżej = jaśniejsze półtony</translation>
+    </message>
+    <message>
+        <source>Höher = schärfer</source>
+        <translation>Wyżej = ostrzej</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Korn</source>
+        <translation>Wyżej = więcej ziarna</translation>
+    </message>
+    <message>
+        <source>Richtung umkehren</source>
+        <translation>Odwróć kierunek</translation>
+    </message>
+    <message>
+        <source>An: der Regler dreht den Farbton in die andere Richtung.</source>
+        <translation>Wł.: suwak obraca odcień w drugą stronę.</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt</source>
+        <translation>Siła na krok</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt den Kontrast ändert.</source>
+        <translation>Jak mocno każdy krok suwaka zmienia kontrast.</translation>
+    </message>
+    <message>
+        <source>Verschiebung je Schritt</source>
+        <translation>Przesunięcie na krok</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Schwarzpunkt verschiebt.</source>
+        <translation>Jak daleko każdy krok suwaka przesuwa punkt czerni.</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Weißpunkt verschiebt.</source>
+        <translation>Jak daleko każdy krok suwaka przesuwa punkt bieli.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Lichter aufhellt oder abdunkelt.</source>
+        <translation>Jak mocno każdy krok suwaka rozjaśnia lub przyciemnia światła.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Schatten abdunkelt oder anhebt.</source>
+        <translation>Jak mocno każdy krok suwaka przyciemnia lub podnosi cienie.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Farbstärke ändert.</source>
+        <translation>Jak mocno każdy krok suwaka zmienia siłę koloru.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die blassen Farben ändert.</source>
+        <translation>Jak mocno każdy krok suwaka zmienia blade kolory.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Mitteltöne ändert.</source>
+        <translation>Jak mocno każdy krok suwaka zmienia półtony.</translation>
+    </message>
+    <message>
+        <source>Menge je Schritt</source>
+        <translation>Ilość na krok</translation>
+    </message>
+    <message>
+        <source>Wie viel Korn jeder Reglerschritt hinzufügt.</source>
+        <translation>Ile ziarna dodaje każdy krok suwaka.</translation>
+    </message>
+    <message>
+        <source>Grad je Schritt</source>
+        <translation>Stopnie na krok</translation>
+    </message>
+    <message>
+        <source>Farbtondrehung je Reglerschritt.</source>
+        <translation>Obrót odcienia na krok suwaka.</translation>
+    </message>
+    <message>
+        <source>Geringster Kontrast</source>
+        <translation>Najniższy kontrast</translation>
+    </message>
+    <message>
+        <source>Grenze für die flachste Kurve (Regler ganz unten).</source>
+        <translation>Granica najbardziej płaskiej krzywej (suwak na dole).</translation>
+    </message>
+    <message>
+        <source>Höchster Kontrast</source>
+        <translation>Najwyższy kontrast</translation>
+    </message>
+    <message>
+        <source>Grenze für die steilste Kurve (Regler ganz oben).</source>
+        <translation>Granica najbardziej stromej krzywej (suwak na górze).</translation>
+    </message>
+    <message>
+        <source>Drehpunkt</source>
+        <translation>Ton osi</translation>
+    </message>
+    <message>
+        <source>Ton, der fest bleibt. Niedriger = Kontrast dreht sich um dunklere Töne (gut für dunkle Videos).</source>
+        <translation>Ton, który pozostaje stały. Niżej = kontrast obraca się wokół ciemniejszych tonów (dobre dla ciemnych filmów).</translation>
+    </message>
+    <message>
+        <source>Max. Verschiebung</source>
+        <translation>Maks. przesunięcie</translation>
+    </message>
+    <message>
+        <source>Grenze der Schwarzpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Granica przesunięcia punktu czerni w obu kierunkach.</translation>
+    </message>
+    <message>
+        <source>Grenze der Weißpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Granica przesunięcia punktu bieli w obu kierunkach.</translation>
+    </message>
+    <message>
+        <source>Weichheit</source>
+        <translation>Miękkość</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Schwarz statt harter Kante. 0 = hart.</source>
+        <translation>Płynne przejście w czerń zamiast ostrego cięcia. 0 = ostro.</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Weiß statt harter Kante. 0 = hart.</source>
+        <translation>Płynne przejście w biel zamiast ostrego cięcia. 0 = ostro.</translation>
+    </message>
+    <message>
+        <source>Fokus</source>
+        <translation>Skupienie</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerhellsten Töne werden verändert.</source>
+        <translation>Wyżej = zmieniają się tylko najjaśniejsze tony.</translation>
+    </message>
+    <message>
+        <source>Startton</source>
+        <translation>Ton początkowy</translation>
+    </message>
+    <message>
+        <source>Töne darunter bleiben völlig unverändert. 0 = ganzer Bereich.</source>
+        <translation>Tony poniżej pozostają bez zmian. 0 = cały zakres.</translation>
+    </message>
+    <message>
+        <source>Max. Abdunklung</source>
+        <translation>Maks. przyciemnienie</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Abdunklung der Lichter.</source>
+        <translation>Najsilniejsze dozwolone przyciemnienie świateł.</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerdunkelsten Töne werden verändert.</source>
+        <translation>Wyżej = zmieniają się tylko najciemniejsze tony.</translation>
+    </message>
+    <message>
+        <source>Endton</source>
+        <translation>Ton końcowy</translation>
+    </message>
+    <message>
+        <source>Töne darüber bleiben völlig unverändert. 1 = ganzer Bereich.</source>
+        <translation>Tony powyżej pozostają bez zmian. 1 = cały zakres.</translation>
+    </message>
+    <message>
+        <source>Max. Anhebung</source>
+        <translation>Maks. podniesienie</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Anhebung der Schatten.</source>
+        <translation>Najsilniejsze dozwolone podniesienie cieni.</translation>
+    </message>
+    <message>
+        <source>Geringste Sättigung</source>
+        <translation>Najniższe nasycenie</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren. 0 = bis ganz grau.</source>
+        <translation>Granica przy zmniejszaniu. 0 = do pełnej szarości.</translation>
+    </message>
+    <message>
+        <source>Höchste Sättigung</source>
+        <translation>Najwyższe nasycenie</translation>
+    </message>
+    <message>
+        <source>Grenze der Verstärkung für blasse Farben.</source>
+        <translation>Granica wzmocnienia bladych kolorów.</translation>
+    </message>
+    <message>
+        <source>Schutz kräftiger Farben</source>
+        <translation>Ochrona intensywnych kolorów</translation>
+    </message>
+    <message>
+        <source>0 = alle Farben gleich (kann auslaufen). Höher = kräftige Farben werden stärker geschützt.</source>
+        <translation>0 = wszystkie kolory jednakowo (może się przepalić). Wyżej = intensywne kolory są bardziej chronione.</translation>
+    </message>
+    <message>
+        <source>Gleichmäßig entsättigen</source>
+        <translation>Odbarwiaj równomiernie</translation>
+    </message>
+    <message>
+        <source>An: Absenken nimmt allen Farben gleich viel Farbe. Aus: kräftige Farben behalten mehr.</source>
+        <translation>Wł.: obniżanie zabiera kolor wszystkim jednakowo. Wył.: intensywne kolory zachowują więcej.</translation>
+    </message>
+    <message>
+        <source>Geringste Dynamik</source>
+        <translation>Najniższa jaskrawość</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren der Dynamik.</source>
+        <translation>Granica przy zmniejszaniu jaskrawości.</translation>
+    </message>
+    <message>
+        <source>Höchste Dynamik</source>
+        <translation>Najwyższa jaskrawość</translation>
+    </message>
+    <message>
+        <source>Fokus auf blasse Farben</source>
+        <translation>Skupienie na bladych kolorach</translation>
+    </message>
+    <message>
+        <source>Höher = nur die blassesten Farben werden verstärkt.</source>
+        <translation>Wyżej = wzmacniane są tylko najbledsze kolory.</translation>
+    </message>
+    <message>
+        <source>Hautschutz</source>
+        <translation>Ochrona skóry</translation>
+    </message>
+    <message>
+        <source>Weniger Schärfe auf Haut (Poren, Unreinheiten). 0 = aus.</source>
+        <translation>Mniej wyostrzania na skórze (pory, niedoskonałości). 0 = wył.</translation>
+    </message>
+    <message>
+        <source>Hauttöne behalten ihren Farbton. 0 = aus, 1 = voller Schutz.</source>
+        <translation>Odcienie skóry zachowują odcień. 0 = wył., 1 = pełna ochrona.</translation>
+    </message>
+    <message>
+        <source>0 = aus, 1 = Hauttöne werden gar nicht verändert.</source>
+        <translation>0 = wył., 1 = odcienie skóry nie są zmieniane.</translation>
+    </message>
+    <message>
+        <source>Dunkelste Mitteltöne</source>
+        <translation>Najciemniejsze półtony</translation>
+    </message>
+    <message>
+        <source>Untergrenze des Gammawerts.</source>
+        <translation>Dolna granica wartości gamma.</translation>
+    </message>
+    <message>
+        <source>Hellste Mitteltöne</source>
+        <translation>Najjaśniejsze półtony</translation>
+    </message>
+    <message>
+        <source>Obergrenze des Gammawerts.</source>
+        <translation>Górna granica wartości gamma.</translation>
+    </message>
+    <message>
+        <source>Rauschschutz in den Schatten</source>
+        <translation>Ochrona przed szumem w cieniach</translation>
+    </message>
+    <message>
+        <source>Begrenzt, wie stark fast schwarze Töne angehoben werden (weniger sichtbares Rauschen). 0 = aus.</source>
+        <translation>Ogranicza podnoszenie tonów bliskich czerni (mniej widocznego szumu). 0 = wył.</translation>
+    </message>
+    <message>
+        <source>Stärke bei +10</source>
+        <translation>Siła przy +10</translation>
+    </message>
+    <message>
+        <source>Kantenverstärkung beim höchsten Reglerwert.</source>
+        <translation>Wzmocnienie krawędzi przy najwyższej wartości suwaka.</translation>
+    </message>
+    <message>
+        <source>Helle Säume</source>
+        <translation>Jasne obwódki</translation>
+    </message>
+    <message>
+        <source>Stärke der aufhellenden Kantenseite. Niedriger = weniger helle Säume.</source>
+        <translation>Siła rozjaśniającej strony krawędzi. Niżej = mniej jasnych obwódek.</translation>
+    </message>
+    <message>
+        <source>Dunkle Säume</source>
+        <translation>Ciemne obwódki</translation>
+    </message>
+    <message>
+        <source>Stärke der abdunkelnden Kantenseite. Niedriger = weniger dunkle Umrisse.</source>
+        <translation>Siła przyciemniającej strony krawędzi. Niżej = mniej ciemnych konturów.</translation>
+    </message>
+    <message>
+        <source>Rauschschwelle</source>
+        <translation>Próg szumu</translation>
+    </message>
+    <message>
+        <source>Kleinere Details werden nicht geschärft (Rauschen, Kompression). 0 = aus.</source>
+        <translation>Mniejsze detale nie są wyostrzane (szum, kompresja). 0 = wył.</translation>
+    </message>
+    <message>
+        <source>Max. Änderung</source>
+        <translation>Maks. zmiana</translation>
+    </message>
+    <message>
+        <source>Weiche Grenze der Helligkeitsänderung je Pixel (verhindert Säume).</source>
+        <translation>Miękka granica zmiany jasności na piksel (zapobiega obwódkom).</translation>
+    </message>
+    <message>
+        <source>Detailradius (SVG)</source>
+        <translation>Promień detali (SVG)</translation>
+    </message>
+    <message>
+        <source>Nur SVG-Modus des Userscripts – im Player ohne Wirkung, bleibt für Export/Import erhalten.</source>
+        <translation>Tylko tryb SVG userscriptu – bez wpływu w odtwarzaczu, zachowane dla eksportu/importu.</translation>
+    </message>
+    <message>
+        <source>Weichzeichnen-Radius (SVG)</source>
+        <translation>Promień zmiękczania (SVG)</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt (GPU)</source>
+        <translation>Siła na krok (GPU)</translation>
+    </message>
+    <message>
+        <source>Schärfe je Reglerschritt (Player: ×1.5).</source>
+        <translation>Wyostrzenie na krok suwaka (odtwarzacz: ×1.5).</translation>
+    </message>
+    <message>
+        <source>Höher = Korn nur um den Spitzenton. 0 = gleichmäßig auf allen Tönen.</source>
+        <translation>Wyżej = ziarno tylko wokół tonu szczytowego. 0 = równomiernie na wszystkich tonach.</translation>
+    </message>
+    <message>
+        <source>Spitzenton</source>
+        <translation>Ton szczytowy</translation>
+    </message>
+    <message>
+        <source>Helligkeit mit dem stärksten Korn. Niedriger = mehr Korn in den Schatten.</source>
+        <translation>Jasność z najsilniejszym ziarnem. Niżej = więcej ziarna w cieniach.</translation>
+    </message>
+    <message>
+        <source>Farbkorn</source>
+        <translation>Kolorowe ziarno</translation>
+    </message>
+    <message>
+        <source>0 = graues Korn, 1 = volles Farbkorn wie bei Film.</source>
+        <translation>0 = szare ziarno, 1 = pełne kolorowe ziarno jak na filmie.</translation>
+    </message>
+    <message>
+        <source>Stärke (SVG)</source>
+        <translation>Siła (SVG)</translation>
+    </message>
+    <message>
+        <source>Feinheit (SVG)</source>
+        <translation>Drobność (SVG)</translation>
+    </message>
+    <message>
+        <source>Max. Drehung</source>
+        <translation>Maks. obrót</translation>
+    </message>
+    <message>
+        <source>Grenze der Drehung in beide Richtungen, in Grad.</source>
+        <translation>Granica obrotu w obu kierunkach, w stopniach.</translation>
+    </message>
+    <message>
+        <source>Export fehlgeschlagen: </source>
+        <translation>Eksport nie powiódł się: </translation>
+    </message>
+    <message>
+        <source>Exportiert: %1</source>
+        <translation>Wyeksportowano: %1</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar</source>
+        <translation>Plik nieczytelny</translation>
+    </message>
+    <message>
+        <source>Keine Expert-Settings-Datei (erwartet type &quot;gvf-expert-settings&quot;)</source>
+        <translation>To nie jest plik ustawień eksperckich (oczekiwano type &quot;gvf-expert-settings&quot;)</translation>
+    </message>
+    <message>
+        <source>Importiert: %1 Blöcke</source>
+        <translation>Zaimportowano bloków: %1</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match an</source>
+        <translation>Automatyczne dopasowanie sceny wł.</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match aus</source>
+        <translation>Automatyczne dopasowanie sceny wył.</translation>
+    </message>
+    <message>
+        <source>Helligkeit ×%1 · Kontrast ×%2 · Sättigung ×%3 · Farbton %4° · %5 fps</source>
+        <translation>Jasność ×%1 · Kontrast ×%2 · Nasycenie ×%3 · Odcień %4° · %5 kl./s</translation>
     </message>
     <message>
         <source>Unschärfemaske</source>

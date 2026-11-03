@@ -1,5 +1,8 @@
 #pragma once
 #include <QHash>
+#include <QMutex>
+#include <QRect>
+#include <atomic>
 #include <QImage>
 #include <QObject>
 #include <QStringList>
@@ -36,6 +39,10 @@ class MpvController : public QObject
     Q_PROPERTY(QVariantMap diagnostics READ diagnostics NOTIFY diagnosticsChanged)
     Q_PROPERTY(bool abLoopActive READ abLoopActive NOTIFY abLoopChanged)
     Q_PROPERTY(QString abLoopText READ abLoopText NOTIFY abLoopChanged)
+    // Sichtbare Videofläche im Ausgabebild (mpv "osd-dimensions": w, h, ml, mt, mr, mb in Pixeln)
+    Q_PROPERTY(QVariantMap osdDimensions READ osdDimensions NOTIFY osdDimensionsChanged)
+    // Video-Equalizer (brightness/contrast/saturation/hue, je −100 … 100) – z. B. von Auto-Scene-Match gesetzt
+    Q_PROPERTY(QVariantMap videoEq READ videoEq NOTIFY videoEqChanged)
 
 public:
     enum State { Idle, Opening, Playing, Paused, Buffering, Ended, Error };
@@ -71,6 +78,8 @@ public:
     QVariantMap diagnostics() const { return m_diag; }
     bool abLoopActive() const;
     QString abLoopText() const;
+    QVariantMap osdDimensions() const { return m_osdDims; }
+    QVariantMap videoEq() const { return m_eq; }
 
     // Render-Kontext (Videoausgabe) bereit? Vorher geladene Dateien würden ohne Video starten
     // (vo=libmpv hat ohne Render-Kontext keine Ausgabe) – load() wartet daher darauf.
@@ -101,6 +110,10 @@ public:
     Q_INVOKABLE void setAudioDelay(double seconds);
     Q_INVOKABLE void cycleAbLoop();
     Q_INVOKABLE void setAspect(const QString &mode); // fit|fill|stretch|16:9|4:3|21:9
+    // Vorher/Nachher-Ansicht: der UVE-Shader liefert ein doppelt breites Bild (links Original, rechts mit Effekten).
+    // mpv zeigt es mit doppeltem Seitenverhältnis an; die Oberfläche setzt beide Hälften am Schieber zusammen.
+    // Dadurch ändert das Ziehen des Schiebers nichts an mpv (jede Shader-Änderung baut mpvs Render-Kette neu auf).
+    Q_INVOKABLE void setSplitView(bool on);
     Q_INVOKABLE QString screenshot(const QString &directory);
     // Aktueller dekodierter Frame (ohne OSD/Untertitel/Benutzer-Shader), auf maxWidth verkleinert; leer bei Fehler
     QImage grabFrame(int maxWidth) const;
@@ -108,6 +121,24 @@ public:
     Q_INVOKABLE QVariant getProperty(const QString &name) const;
     Q_INVOKABLE bool setProperty(const QString &name, const QVariant &value);
     Q_INVOKABLE bool command(const QStringList &args);
+    // Wie setProperty, blockiert den aufrufenden Thread aber nicht (mpv_set_property_async)
+    void setPropertyAsync(const QString &name, const QVariant &value);
+
+    // Kleine Bildprobe der Videoausgabe (GPU-Rücklesen im Render-Thread, ohne den mpv-Kern zu blockieren).
+    // requestDisplaySample() fordert eine neue Probe an; displaySample() liefert die zuletzt fertige (96×54, RGB32).
+    void requestDisplaySample() { m_sampleRequested.store(true); }
+    QImage displaySample() const { QMutexLocker l(&m_sampleLock); return m_sample; }
+    // Render-Thread (MpvVideoItem)
+    bool takeDisplaySampleRequest() { return m_sampleRequested.exchange(false); }
+    void storeDisplaySample(const QImage &img) { QMutexLocker l(&m_sampleLock); m_sample = img; }
+    // Sichtbare Videofläche (osd-dimensions) als Anteil des Ausgabebilds: x, y, w, h in 0 … 1
+    QRectF videoAreaFraction() const
+    {
+        QMutexLocker l(&m_sampleLock);
+        // Vergleichsansicht: nur die rechte Hälfte (mit Effekten) analysieren
+        if (m_sampleSplit) return QRectF(m_videoArea.x() + m_videoArea.width() / 2, m_videoArea.y(), m_videoArea.width() / 2, m_videoArea.height());
+        return m_videoArea;
+    }
 
 signals:
     void stateChanged();
@@ -125,6 +156,8 @@ signals:
     void delaysChanged();
     void diagnosticsChanged();
     void abLoopChanged();
+    void osdDimensionsChanged();
+    void videoEqChanged();
 
     void fileLoaded();
     void endOfFile(const QString &reason);   // "eof", "error", "stop", "quit", "redirect"
@@ -152,6 +185,17 @@ private:
     QString m_title, m_path, m_error;
     QVariantList m_audio, m_subs, m_video;
     QVariantMap m_diag;
+    QVariantMap m_osdDims;
+    QVariantMap m_eq{{"brightness", 0.0}, {"contrast", 0.0}, {"saturation", 0.0}, {"hue", 0.0}};
+    std::atomic<bool> m_sampleRequested{false};
+    mutable QMutex m_sampleLock;
+    QImage m_sample;
+    QRectF m_videoArea{0, 0, 1, 1};
+    void applyAspect();
+    QString m_aspectMode = QStringLiteral("fit");
+    bool m_splitView = false;
+    bool m_sampleSplit = false;   // Kopie für den Render-Thread (unter m_sampleLock)
+    QVariant m_subVisibilityBeforeSplit;
     bool m_eventsQueued = false;
     bool m_renderReady = false;
     QStringList m_pendingLoad; // zurückgestellter loadfile-Befehl bis zur Videoausgabe

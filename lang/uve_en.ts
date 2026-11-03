@@ -241,6 +241,10 @@
         <translation>LUT</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Auto</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>Load 3D LUT (.cube)</translation>
     </message>
@@ -397,6 +401,10 @@
         <translation>Reset section</translation>
     </message>
     <message>
+        <source>wartet auf Wiedergabe …</source>
+        <translation>waiting for playback …</translation>
+    </message>
+    <message>
         <source>Laden…</source>
         <translation>Load…</translation>
     </message>
@@ -435,6 +443,73 @@
     <message>
         <source>Alles zurücksetzen</source>
         <translation>Reset all</translation>
+    </message>
+</context>
+<context>
+    <name>ExpertSettingsPage</name>
+    <message>
+        <source>Expert Settings (*.json)</source>
+        <translation>Expert Settings (*.json)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>All files (*)</translation>
+    </message>
+    <message>
+        <source>🧪 Expert Settings</source>
+        <translation>🧪 Expert Settings</translation>
+    </message>
+    <message>
+        <source>Feinabstimmung aller Kurven der Grading-Regler (Effekte → Basis/Farbe/Schärfe). Änderungen wirken sofort und werden automatisch gespeichert.</source>
+        <translation>Fine-tune every curve of the grading sliders (Effects → Base/Color/Sharpness). Changes apply instantly and are saved automatically.</translation>
+    </message>
+    <message>
+        <source>🔍 Einstellungen suchen …</source>
+        <translation>🔍 Search settings …</translation>
+    </message>
+    <message>
+        <source>%1 Werte geändert</source>
+        <translation>%1 values changed</translation>
+    </message>
+    <message>
+        <source>Alle Werte auf Standard</source>
+        <translation>All values at default</translation>
+    </message>
+    <message>
+        <source>Importieren …</source>
+        <translation>Import …</translation>
+    </message>
+    <message>
+        <source>Exportieren …</source>
+        <translation>Export …</translation>
+    </message>
+    <message>
+        <source>Alle zurücksetzen</source>
+        <translation>Reset all</translation>
+    </message>
+    <message>
+        <source>Das Ultimate-Video-Enhancer-Plugin ist nicht aktiv (Einstellungen → Plugins).</source>
+        <translation>The Ultimate Video Enhancer plugin is not active (Settings → Plugins).</translation>
+    </message>
+    <message>
+        <source>Block auf Standard zurücksetzen</source>
+        <translation>Reset block to default</translation>
+    </message>
+    <message>
+        <source>Std. %1</source>
+        <translation>Def. %1</translation>
+    </message>
+    <message>
+        <source>an</source>
+        <translation>on</translation>
+    </message>
+    <message>
+        <source>aus</source>
+        <translation>off</translation>
+    </message>
+    <message>
+        <source>Auf Standard zurücksetzen</source>
+        <translation>Reset to default</translation>
     </message>
 </context>
 <context>
@@ -704,6 +779,10 @@
         <translation>Before/after comparison</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Auto Scene Match</translation>
+    </message>
+    <message>
         <source>Effekt-Panel öffnen</source>
         <translation>Open effects panel</translation>
     </message>
@@ -814,6 +893,14 @@
     <message>
         <source>▶ Wiedergabe</source>
         <translation>▶ Play</translation>
+    </message>
+    <message>
+        <source>VORHER</source>
+        <translation>BEFORE</translation>
+    </message>
+    <message>
+        <source>NACHHER</source>
+        <translation>AFTER</translation>
     </message>
     <message>
         <source>Zum Abspielen loslassen</source>
@@ -1365,6 +1452,18 @@
         <source>Plugin-Ordner</source>
         <translation>Plugin folder</translation>
     </message>
+    <message>
+        <source>Ordner mit den installierten Plugins öffnen</source>
+        <translation>Open the folder with the installed plugins</translation>
+    </message>
+    <message>
+        <source>Eigene Plugins</source>
+        <translation>Own plugins</translation>
+    </message>
+    <message>
+        <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
+        <translation>Open the user folder for additional plugins (takes precedence)</translation>
+    </message>
 </context>
 <context>
     <name>ProxyConfig</name>
@@ -1453,6 +1552,10 @@
     <message>
         <source>Erweitert</source>
         <translation>Advanced</translation>
+    </message>
+    <message>
+        <source>Expert Settings</source>
+        <translation>Expert Settings</translation>
     </message>
     <message>
         <source>Sprache</source>
@@ -2279,6 +2382,10 @@
         <translation>Before/after comparison</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match an/aus</source>
+        <translation>Auto Scene Match on/off</translation>
+    </message>
+    <message>
         <source>Datei öffnen…</source>
         <translation>Open file…</translation>
     </message>
@@ -2635,6 +2742,510 @@
     <message>
         <source>Radius von SL und Detail-Schärfe (|SR|)</source>
         <translation>Radius of SL and detail sharpening (|SR|)</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Auto Scene Match</translation>
+    </message>
+    <message>
+        <source>Analysiert das Bild (2–10 fps, adaptiv) und gleicht Helligkeit, Kontrast, Sättigung und Weißabgleich je Szene an (Strg+Alt+A)</source>
+        <translation>Analyzes the picture (2–10 fps, adaptive) and matches brightness, contrast, saturation and white balance per scene (Ctrl+Alt+A)</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Strength</translation>
+    </message>
+    <message>
+        <source>Weißabgleich nachführen</source>
+        <translation>Track white balance</translation>
+    </message>
+    <message>
+        <source>korrigiert Rot-/Blaustiche über den Farbton</source>
+        <translation>corrects red/blue casts via the hue</translation>
+    </message>
+    <message>
+        <source>Schwarzwert</source>
+        <translation>Black level</translation>
+    </message>
+    <message>
+        <source>Weißwert</source>
+        <translation>White level</translation>
+    </message>
+    <message>
+        <source>Gamma</source>
+        <translation>Gamma</translation>
+    </message>
+    <message>
+        <source>Filmkorn (Banding)</source>
+        <translation>Grain (banding)</translation>
+    </message>
+    <message>
+        <source>Farbton-Korrektur</source>
+        <translation>Hue correction</translation>
+    </message>
+    <message>
+        <source>S-Kurve um einen Drehpunkt. Schwarz, Weiß und der Drehpunkt bleiben fest, nichts wird abgeschnitten.</source>
+        <translation>S-curve around a pivot tone. Black, white and the pivot stay fixed, nothing is clipped.</translation>
+    </message>
+    <message>
+        <source>Schwarzpunkt wie bei einer Tonwertkorrektur: Schwarztöne vertiefen oder anheben.</source>
+        <translation>Black point like in a levels tool: deepen or lift the blacks.</translation>
+    </message>
+    <message>
+        <source>Weißpunkt wie bei einer Tonwertkorrektur: Weißtöne aufhellen oder absenken.</source>
+        <translation>White point like in a levels tool: brighten or lower the whites.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für helle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Tone curve for bright tones only. Black and white stay fixed.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für dunkle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Tone curve for dark tones only. Black and white stay fixed.</translation>
+    </message>
+    <message>
+        <source>Sättigungskurve: blasse Farben erhalten die volle Verstärkung, kräftige weniger – nichts läuft aus.</source>
+        <translation>Saturation curve: muted colors get the full boost, vivid colors less, so nothing clips.</translation>
+    </message>
+    <message>
+        <source>Verstärkt vor allem blasse Farben; kräftige Farben und Hauttöne bleiben natürlich.</source>
+        <translation>Boosts mainly the muted colors; vivid colors and skin tones stay natural.</translation>
+    </message>
+    <message>
+        <source>Hellt die Mitteltöne auf oder dunkelt sie ab. Schwarz und Weiß bleiben fest.</source>
+        <translation>Brightens or darkens the midtones. Black and white stay fixed.</translation>
+    </message>
+    <message>
+        <source>Detailkurve auf der Helligkeit: echte Details werden schärfer, Rauschen und Säume bleiben gering.</source>
+        <translation>Detail curve on brightness: real details get sharper, noise and halos are kept low.</translation>
+    </message>
+    <message>
+        <source>Feines Rauschen gegen Farbabrisse (Banding). Schwarz und Weiß bleiben sauber.</source>
+        <translation>Fine noise that hides color banding. Black and white stay clean.</translation>
+    </message>
+    <message>
+        <source>Dreht alle Farbtöne, die Helligkeit bleibt exakt gleich. Hilft gegen Farbstiche.</source>
+        <translation>Rotates all hues while brightness stays exactly the same. Useful against color casts.</translation>
+    </message>
+    <message>
+        <source>Reglerrichtung. Aus kehrt den Regler um.</source>
+        <translation>Slider direction. Off reverses the slider.</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Kontrast</source>
+        <translation>Higher = more contrast</translation>
+    </message>
+    <message>
+        <source>Höher = tiefere Schwarztöne</source>
+        <translation>Higher = deeper blacks</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Weißtöne</source>
+        <translation>Higher = brighter whites</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Lichter</source>
+        <translation>Higher = brighter highlights</translation>
+    </message>
+    <message>
+        <source>Höher = dunklere Schatten</source>
+        <translation>Higher = darker shadows</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Farbe</source>
+        <translation>Higher = more color</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Dynamik</source>
+        <translation>Higher = more vibrance</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Mitteltöne</source>
+        <translation>Higher = brighter midtones</translation>
+    </message>
+    <message>
+        <source>Höher = schärfer</source>
+        <translation>Higher = sharper</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Korn</source>
+        <translation>Higher = more grain</translation>
+    </message>
+    <message>
+        <source>Richtung umkehren</source>
+        <translation>Reverse direction</translation>
+    </message>
+    <message>
+        <source>An: der Regler dreht den Farbton in die andere Richtung.</source>
+        <translation>On: the slider rotates the hue the other way.</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt</source>
+        <translation>Strength per step</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt den Kontrast ändert.</source>
+        <translation>How much each slider step changes the contrast.</translation>
+    </message>
+    <message>
+        <source>Verschiebung je Schritt</source>
+        <translation>Shift per step</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Schwarzpunkt verschiebt.</source>
+        <translation>How far each slider step moves the black point.</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Weißpunkt verschiebt.</source>
+        <translation>How far each slider step moves the white point.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Lichter aufhellt oder abdunkelt.</source>
+        <translation>How much each slider step brightens or darkens the highlights.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Schatten abdunkelt oder anhebt.</source>
+        <translation>How much each slider step darkens or lifts the shadows.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Farbstärke ändert.</source>
+        <translation>How much each slider step changes the color strength.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die blassen Farben ändert.</source>
+        <translation>How much each slider step changes the muted colors.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Mitteltöne ändert.</source>
+        <translation>How much each slider step changes the midtones.</translation>
+    </message>
+    <message>
+        <source>Menge je Schritt</source>
+        <translation>Amount per step</translation>
+    </message>
+    <message>
+        <source>Wie viel Korn jeder Reglerschritt hinzufügt.</source>
+        <translation>How much grain each slider step adds.</translation>
+    </message>
+    <message>
+        <source>Grad je Schritt</source>
+        <translation>Degrees per step</translation>
+    </message>
+    <message>
+        <source>Farbtondrehung je Reglerschritt.</source>
+        <translation>Hue rotation per slider step.</translation>
+    </message>
+    <message>
+        <source>Geringster Kontrast</source>
+        <translation>Lowest contrast</translation>
+    </message>
+    <message>
+        <source>Grenze für die flachste Kurve (Regler ganz unten).</source>
+        <translation>Limit for the flattest curve (slider at the low end).</translation>
+    </message>
+    <message>
+        <source>Höchster Kontrast</source>
+        <translation>Highest contrast</translation>
+    </message>
+    <message>
+        <source>Grenze für die steilste Kurve (Regler ganz oben).</source>
+        <translation>Limit for the steepest curve (slider at the high end).</translation>
+    </message>
+    <message>
+        <source>Drehpunkt</source>
+        <translation>Pivot tone</translation>
+    </message>
+    <message>
+        <source>Ton, der fest bleibt. Niedriger = Kontrast dreht sich um dunklere Töne (gut für dunkle Videos).</source>
+        <translation>Tone that stays fixed. Lower = contrast turns around darker tones (good for dark videos).</translation>
+    </message>
+    <message>
+        <source>Max. Verschiebung</source>
+        <translation>Max shift</translation>
+    </message>
+    <message>
+        <source>Grenze der Schwarzpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Limit of the black point shift in both directions.</translation>
+    </message>
+    <message>
+        <source>Grenze der Weißpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Limit of the white point shift in both directions.</translation>
+    </message>
+    <message>
+        <source>Weichheit</source>
+        <translation>Softness</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Schwarz statt harter Kante. 0 = hart.</source>
+        <translation>Smooth transition into black instead of a hard cut. 0 = hard.</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Weiß statt harter Kante. 0 = hart.</source>
+        <translation>Smooth transition into white instead of a hard cut. 0 = hard.</translation>
+    </message>
+    <message>
+        <source>Fokus</source>
+        <translation>Focus</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerhellsten Töne werden verändert.</source>
+        <translation>Higher = only the very brightest tones are affected.</translation>
+    </message>
+    <message>
+        <source>Startton</source>
+        <translation>Start tone</translation>
+    </message>
+    <message>
+        <source>Töne darunter bleiben völlig unverändert. 0 = ganzer Bereich.</source>
+        <translation>Tones below this stay completely untouched. 0 = whole range.</translation>
+    </message>
+    <message>
+        <source>Max. Abdunklung</source>
+        <translation>Max darkening</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Abdunklung der Lichter.</source>
+        <translation>Strongest allowed darkening of the highlights.</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerdunkelsten Töne werden verändert.</source>
+        <translation>Higher = only the very darkest tones are affected.</translation>
+    </message>
+    <message>
+        <source>Endton</source>
+        <translation>End tone</translation>
+    </message>
+    <message>
+        <source>Töne darüber bleiben völlig unverändert. 1 = ganzer Bereich.</source>
+        <translation>Tones above this stay completely untouched. 1 = whole range.</translation>
+    </message>
+    <message>
+        <source>Max. Anhebung</source>
+        <translation>Max lifting</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Anhebung der Schatten.</source>
+        <translation>Strongest allowed lifting of the shadows.</translation>
+    </message>
+    <message>
+        <source>Geringste Sättigung</source>
+        <translation>Lowest saturation</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren. 0 = bis ganz grau.</source>
+        <translation>Limit when reducing color. 0 = can go fully grey.</translation>
+    </message>
+    <message>
+        <source>Höchste Sättigung</source>
+        <translation>Highest saturation</translation>
+    </message>
+    <message>
+        <source>Grenze der Verstärkung für blasse Farben.</source>
+        <translation>Limit of the boost for muted colors.</translation>
+    </message>
+    <message>
+        <source>Schutz kräftiger Farben</source>
+        <translation>Vivid color protection</translation>
+    </message>
+    <message>
+        <source>0 = alle Farben gleich (kann auslaufen). Höher = kräftige Farben werden stärker geschützt.</source>
+        <translation>0 = all colors boosted equally (may clip). Higher = vivid colors are protected more.</translation>
+    </message>
+    <message>
+        <source>Gleichmäßig entsättigen</source>
+        <translation>Desaturate evenly</translation>
+    </message>
+    <message>
+        <source>An: Absenken nimmt allen Farben gleich viel Farbe. Aus: kräftige Farben behalten mehr.</source>
+        <translation>On: lowering removes color from all colors equally. Off: vivid colors keep more color.</translation>
+    </message>
+    <message>
+        <source>Geringste Dynamik</source>
+        <translation>Lowest vibrance</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren der Dynamik.</source>
+        <translation>Limit when reducing vibrance.</translation>
+    </message>
+    <message>
+        <source>Höchste Dynamik</source>
+        <translation>Highest vibrance</translation>
+    </message>
+    <message>
+        <source>Fokus auf blasse Farben</source>
+        <translation>Focus on muted colors</translation>
+    </message>
+    <message>
+        <source>Höher = nur die blassesten Farben werden verstärkt.</source>
+        <translation>Higher = only the most muted colors are boosted.</translation>
+    </message>
+    <message>
+        <source>Hautschutz</source>
+        <translation>Skin protection</translation>
+    </message>
+    <message>
+        <source>Weniger Schärfe auf Haut (Poren, Unreinheiten). 0 = aus.</source>
+        <translation>Less sharpening on skin (pores, blemishes). 0 = off.</translation>
+    </message>
+    <message>
+        <source>Hauttöne behalten ihren Farbton. 0 = aus, 1 = voller Schutz.</source>
+        <translation>Skin tones keep their hue. 0 = off, 1 = full protection.</translation>
+    </message>
+    <message>
+        <source>0 = aus, 1 = Hauttöne werden gar nicht verändert.</source>
+        <translation>0 = off, 1 = skin tones are not changed at all.</translation>
+    </message>
+    <message>
+        <source>Dunkelste Mitteltöne</source>
+        <translation>Darkest midtones</translation>
+    </message>
+    <message>
+        <source>Untergrenze des Gammawerts.</source>
+        <translation>Lower limit of the gamma value.</translation>
+    </message>
+    <message>
+        <source>Hellste Mitteltöne</source>
+        <translation>Brightest midtones</translation>
+    </message>
+    <message>
+        <source>Obergrenze des Gammawerts.</source>
+        <translation>Upper limit of the gamma value.</translation>
+    </message>
+    <message>
+        <source>Rauschschutz in den Schatten</source>
+        <translation>Shadow noise protection</translation>
+    </message>
+    <message>
+        <source>Begrenzt, wie stark fast schwarze Töne angehoben werden (weniger sichtbares Rauschen). 0 = aus.</source>
+        <translation>Limits how hard near-black tones are lifted (less visible noise). 0 = off.</translation>
+    </message>
+    <message>
+        <source>Stärke bei +10</source>
+        <translation>Strength at +10</translation>
+    </message>
+    <message>
+        <source>Kantenverstärkung beim höchsten Reglerwert.</source>
+        <translation>Edge boost at the highest slider value.</translation>
+    </message>
+    <message>
+        <source>Helle Säume</source>
+        <translation>Bright halos</translation>
+    </message>
+    <message>
+        <source>Stärke der aufhellenden Kantenseite. Niedriger = weniger helle Säume.</source>
+        <translation>Strength of the brightening side of edges. Lower = fewer bright halos.</translation>
+    </message>
+    <message>
+        <source>Dunkle Säume</source>
+        <translation>Dark halos</translation>
+    </message>
+    <message>
+        <source>Stärke der abdunkelnden Kantenseite. Niedriger = weniger dunkle Umrisse.</source>
+        <translation>Strength of the darkening side of edges. Lower = fewer dark outlines.</translation>
+    </message>
+    <message>
+        <source>Rauschschwelle</source>
+        <translation>Noise threshold</translation>
+    </message>
+    <message>
+        <source>Kleinere Details werden nicht geschärft (Rauschen, Kompression). 0 = aus.</source>
+        <translation>Smaller details are not sharpened (noise, compression). 0 = off.</translation>
+    </message>
+    <message>
+        <source>Max. Änderung</source>
+        <translation>Max change</translation>
+    </message>
+    <message>
+        <source>Weiche Grenze der Helligkeitsänderung je Pixel (verhindert Säume).</source>
+        <translation>Soft limit of the brightness change per pixel (prevents halos).</translation>
+    </message>
+    <message>
+        <source>Detailradius (SVG)</source>
+        <translation>Detail radius (SVG)</translation>
+    </message>
+    <message>
+        <source>Nur SVG-Modus des Userscripts – im Player ohne Wirkung, bleibt für Export/Import erhalten.</source>
+        <translation>SVG mode of the userscript only – no effect in the player, kept for export/import.</translation>
+    </message>
+    <message>
+        <source>Weichzeichnen-Radius (SVG)</source>
+        <translation>Soften radius (SVG)</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt (GPU)</source>
+        <translation>Strength per step (GPU)</translation>
+    </message>
+    <message>
+        <source>Schärfe je Reglerschritt (Player: ×1.5).</source>
+        <translation>Sharpening per slider step (player: ×1.5).</translation>
+    </message>
+    <message>
+        <source>Höher = Korn nur um den Spitzenton. 0 = gleichmäßig auf allen Tönen.</source>
+        <translation>Higher = grain only around the peak tone. 0 = even on all tones.</translation>
+    </message>
+    <message>
+        <source>Spitzenton</source>
+        <translation>Peak tone</translation>
+    </message>
+    <message>
+        <source>Helligkeit mit dem stärksten Korn. Niedriger = mehr Korn in den Schatten.</source>
+        <translation>Brightness with the strongest grain. Lower = more grain in the shadows.</translation>
+    </message>
+    <message>
+        <source>Farbkorn</source>
+        <translation>Color grain</translation>
+    </message>
+    <message>
+        <source>0 = graues Korn, 1 = volles Farbkorn wie bei Film.</source>
+        <translation>0 = grey grain, 1 = full color grain like film.</translation>
+    </message>
+    <message>
+        <source>Stärke (SVG)</source>
+        <translation>Strength (SVG)</translation>
+    </message>
+    <message>
+        <source>Feinheit (SVG)</source>
+        <translation>Fineness (SVG)</translation>
+    </message>
+    <message>
+        <source>Max. Drehung</source>
+        <translation>Max rotation</translation>
+    </message>
+    <message>
+        <source>Grenze der Drehung in beide Richtungen, in Grad.</source>
+        <translation>Limit of the rotation in both directions, in degrees.</translation>
+    </message>
+    <message>
+        <source>Export fehlgeschlagen: </source>
+        <translation>Export failed: </translation>
+    </message>
+    <message>
+        <source>Exportiert: %1</source>
+        <translation>Exported: %1</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar</source>
+        <translation>File not readable</translation>
+    </message>
+    <message>
+        <source>Keine Expert-Settings-Datei (erwartet type &quot;gvf-expert-settings&quot;)</source>
+        <translation>Not an expert settings file (expected type &quot;gvf-expert-settings&quot;)</translation>
+    </message>
+    <message>
+        <source>Importiert: %1 Blöcke</source>
+        <translation>Imported: %1 blocks</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match an</source>
+        <translation>Auto Scene Match on</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match aus</source>
+        <translation>Auto Scene Match off</translation>
+    </message>
+    <message>
+        <source>Helligkeit ×%1 · Kontrast ×%2 · Sättigung ×%3 · Farbton %4° · %5 fps</source>
+        <translation>Brightness ×%1 · Contrast ×%2 · Saturation ×%3 · Hue %4° · %5 fps</translation>
     </message>
     <message>
         <source>Unschärfemaske</source>

@@ -6,6 +6,7 @@ import QtQuick.Layouts
 Dialog {
     id: dlg
     property var theme
+    property var effects      // UVE-Controller für die Seite "Expert Settings"
     signal openPlugins()
     signal openEffects()
     title: qsTr("Einstellungen")
@@ -31,7 +32,7 @@ Dialog {
             id: nav
             Layout.preferredWidth: 180
             Layout.fillHeight: true
-            model: [qsTr("Allgemein"), qsTr("Wiedergabe"), qsTr("Video & GPU"), qsTr("Audio"), qsTr("Untertitel"), qsTr("Plugins"), qsTr("Effekte"), qsTr("Tastenkürzel"), qsTr("Datenschutz"), qsTr("Netzwerk"), qsTr("Erweitert")]
+            model: [qsTr("Allgemein"), qsTr("Wiedergabe"), qsTr("Video & GPU"), qsTr("Audio"), qsTr("Untertitel"), qsTr("Plugins"), qsTr("Effekte"), qsTr("Tastenkürzel"), qsTr("Datenschutz"), qsTr("Netzwerk"), qsTr("Erweitert"), qsTr("Expert Settings")]
             currentIndex: 0
             delegate: ItemDelegate {
                 required property string modelData
@@ -338,6 +339,8 @@ Dialog {
                         text: qsTr("Start ohne Plugins: UVEPlayer.exe --safe-mode. Portables Profil: Datei „portable.txt“ neben die EXE legen (Daten in ./data).") }
                 Item { Layout.fillHeight: true }
             }
+            // Expert Settings (Grading-Kurven des Ultimate Video Enhancer)
+            ExpertSettingsPage { theme: dlg.theme; effects: dlg.effects }
         }
     }
 }

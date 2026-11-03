@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.0.2 – 2026-11-03
+
+### Windows integration
+- **"Open with → UVE Player"** is now registered for **all supported formats** on installation (25 video, 17 audio and
+  3 playlist extensions – previously only 19 and only as an optional component). UVE Player also appears under
+  *Settings → Apps → Default apps* (RegisteredApplications/Capabilities). Existing default apps stay unchanged.
+- **Video thumbnails in Explorer** when UVE Player is the default app: new thumbnail provider `UVEThumbnailer.dll`
+  (IThumbnailProvider, frame at ~10 % of the duration via the bundled libmpv, also for MKV/WebM/FLV etc.) with the
+  **UVE Player icon in the corner** of the thumbnail. Runs in Explorer's isolated thumbnail process.
+- Updating or uninstalling while Explorer holds the thumbnail DLL works **without a reboot**: the installer ends only the Explorer thumbnail helper processes (dllhost) that loaded `UVEThumbnailer.dll`; Windows restarts them on demand.
+- The installer now writes to the **64-bit registry view**. Before, NSIS (a 32-bit program) registered the thumbnail
+  provider under `WOW6432Node`, where the 64-bit Explorer does not look – thumbnails stayed empty
+  ("class not registered"). Leftover 32-bit entries of earlier builds are removed on update.
+
+### Ultimate Video Enhancer
+- **Auto Scene Match** (Ctrl+Alt+A, *Effects → Auto*) ported 1:1 from the userscript: frame statistics on a 96×54
+  image, cut detection, motion threshold, adaptive analysis rate 2–10 fps, smoothing, strength and white-balance tracking.
+  The auto matrix is applied via the mpv video equalizer (early, in the raw image – like `uAutoMatrix`), without shader
+  recompilation. The analysis image is a 96×54 sample of the video output, scaled down on the GPU and read back
+  asynchronously (PBO); the own equalizer is removed again before the statistics. It never blocks playback
+  (mpv `screenshot-raw` blocked the mpv core for 7–20 ms per analysis and made video stutter). Profiles import/export `autoOn`, `autoStrength`, `autoLockWB`.
+- **Expert Settings** as a new page in *Settings*: all 11 grading blocks of the userscript (contrast, black/white level,
+  highlights, shadows, saturation, vibrance, gamma, sharpen, grain, hue) with the same keys, defaults and ranges; search,
+  reset per value/block/all, import/export in the userscript format (`gvf-expert-settings`). Changes apply instantly.
+- **Before/after slider (Ctrl+Alt+U)** now shows a draggable divider with a ◀▶ knob and BEFORE/AFTER labels directly on
+  the video (like the userscript): **left without any filter** (also without the Auto Scene Match correction), right with
+  all effects. Dragging is smooth: mpv renders original and result side by side once, the player composes them at the
+  divider on the GPU – before, every slider movement rebuilt mpv's render chain (≈50 dropped frames per 3 s of dragging
+  at 4K). Switching the comparison on/off holds the last picture until mpv delivers the new one, so no
+  intermediate "double picture" flashes. The orange split line of the shader was removed.
+
+### Fixes
+- **Plugin folder** button (*Plugins*) opens the folder with the installed plugins; a second button opens the user
+  plugin folder (created on demand). Previously the button pointed to a folder that did not exist and nothing happened.
+- **Shortcuts page:** German umlauts were displayed incorrectly (ANSI/UTF-8 mix-up in the shortcut labels).
+- **Fullscreen:** the play button of the control bar was cut off at the bottom (the overlay bar was 14 px too low).
+
+### Other
+- Translations for all languages updated
+
 ## 1.0.1 – 2026-11-02
 
 ### Ultimate Video Enhancer

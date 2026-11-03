@@ -1,5 +1,7 @@
 #include "LutLibrary.h"
+#include "engine/AutoSceneMatch.h"
 #include "engine/CubeLut.h"
+#include "engine/ExpertSettings.h"
 #include "engine/LutProfile.h"
 #include "engine/MiniZip.h"
 #include "engine/ShaderBuilder.h"
@@ -179,9 +181,15 @@ private slots:
         in.params.sl = 0;
         in.params.compare = true;
         s = buildShader(in);
-        QCOMPARE(s.count("//!HOOK MAIN"), 3);           // Original + Grading + Detail
+        QCOMPARE(s.count("//!HOOK MAIN"), 4);           // Original + Grading + Detail + Vergleich (doppelt breit)
         QVERIFY(s.contains("//!SAVE UVEORIG"));
         QVERIFY(s.contains("UVEORIG_tex"));
+        QVERIFY(s.contains("//!WIDTH HOOKED.w 2 *"));
+        // Die Schieberposition steckt nicht im Shader: Ziehen darf mpvs Render-Kette nicht neu aufbauen
+        in.params.compareSplit = 0.2;
+        const QString a = buildShader(in);
+        in.params.compareSplit = 0.8;
+        QCOMPARE(buildShader(in), a);
 
         const auto lut = loadCubeFile(QStringLiteral(UVE_TEST_DATA "/luts/NaturalBoost.cube"));
         in.lut = &lut.lut;
@@ -316,6 +324,145 @@ private slots:
         QVERIFY(!s.contains("applyHueRotate(color,"));  // Farbton 0 → kein Rotationsaufruf
         QVERIFY(!s.contains("tonemapACES(lin)"));       // HDR 0 → kein HDR-Block
         QVERIFY(!s.contains("lumaDelta"));              // Schärfe 0 → kein Detailblock
+    }
+
+    // ---------------------------------------------------------------- Auto-Scene-Match
+    static QImage solid(QRgb c, int w = 96, int h = 54) { QImage i(w, h, QImage::Format_RGB32); i.fill(c); return i; }
+
+    void autoFrameStats()
+    {
+        const auto s = AutoSceneMatch::computeFrameStats(solid(qRgb(128, 128, 128)));
+        QVERIFY(std::fabs(s.mY - 128.0 / 255) < 1e-9);
+        QCOMPARE(s.sdY, 0.0);
+        QCOMPARE(s.mCh, 0.0);
+        QCOMPARE(s.mSat, 0.0);
+        QCOMPARE(s.skin, 0.0);
+        const auto d = AutoSceneMatch::computeFrameStats(solid(qRgb(0, 0, 0)));
+        QCOMPARE(d.mSat, 0.25);    // keine hellen Pixel → Standardwert wie im Userscript
+    }
+
+    void autoDarkFlatSceneIsLifted()
+    {
+        AutoSceneMatch a;
+        // Dunkle, flache, wechselnde Szene → nach Bewegungsphase: Helligkeit und Kontrast steigen
+        qint64 t = 0;
+        a.reset(t, false);
+        for (int i = 0; i < 400; ++i) {
+            t += 100;
+            a.step(solid(i % 2 ? qRgb(40, 40, 46) : qRgb(46, 44, 40)), t);
+        }
+        QVERIFY(a.current().br > 1.05);
+        QVERIFY(a.current().ct > 1.0);
+        QVERIFY(a.current().br <= 1.22 && a.current().ct <= 1.30 && a.current().sat <= 1.15);
+    }
+
+    void autoStaticFrameDoesNotUpdate()
+    {
+        AutoSceneMatch a;
+        a.reset(0, false);
+        // Standbild: nach dem Abklingen der Bewegungs-EMA keine Anpassung mehr (motionThresh/motionMinFrames)
+        for (int i = 1; i <= 40; ++i) a.step(solid(qRgb(30, 30, 30)), i * 100);
+        const AutoGrade before = a.current();
+        for (int i = 41; i <= 60; ++i) QVERIFY(!a.step(solid(qRgb(30, 30, 30)), i * 100));
+        QCOMPARE(a.current().br, before.br);
+        QCOMPARE(a.nextIntervalMs(), 500);   // Mindestrate 2 fps
+    }
+
+    void autoMpvEqMapping()
+    {
+        // UVE: out = br·ct·x + br·0.5·(1−ct)  ↔  mpv: out = (1 + contrast/100)·x + brightness/100
+        AutoGrade g; g.br = 1.1; g.ct = 1.2; g.sat = 1.1; g.hue = 6;
+        const MpvEq e = AutoSceneMatch::toMpvEq(g);
+        QVERIFY(std::fabs(e.contrast - 32.0) < 0.01);
+        QVERIFY(std::fabs(e.brightness - (-11.0)) < 0.01);
+        QVERIFY(std::fabs(e.saturation - 10.0) < 0.01);
+        QVERIFY(std::fabs(e.hue - (-6.0 / 180 * 100)) < 0.01);   // Drehrichtung von mpv umgekehrt
+        QCOMPARE(AutoSceneMatch::toMpvEq(AutoGrade()), MpvEq());
+    }
+
+    void autoRemoveEqInvertsMpv()
+    {
+        // Vorwärts wie mpv csputils: [U,V] um −θ drehen und mit s skalieren, dann out = c·rgb + b
+        const MpvEq eq{6.0, 18.0, 12.0, -4.0};   // brightness, contrast, saturation, hue
+        const double c = 1.18, b = 0.06, s = 1.12, th = -4.0 / 100 * 3.14159265358979323846;
+        const double LR = 0.2126, LG = 0.7152, LB = 0.0722;
+        QImage in(4, 1, QImage::Format_RGB32), out(4, 1, QImage::Format_RGB32);
+        const QRgb cols[4] = {qRgb(150, 90, 60), qRgb(60, 120, 170), qRgb(100, 100, 100), qRgb(90, 140, 70)};
+        for (int i = 0; i < 4; ++i) {
+            in.setPixel(i, 0, cols[i]);
+            const double r = qRed(cols[i]) / 255.0, g = qGreen(cols[i]) / 255.0, bl = qBlue(cols[i]) / 255.0;
+            const double Y = LR * r + LG * g + LB * bl, u = (bl - Y) / 1.8556, v = (r - Y) / 1.5748;
+            const double u2 = s * (std::cos(th) * u + std::sin(th) * v), v2 = s * (-std::sin(th) * u + std::cos(th) * v);
+            const double r2 = Y + 1.5748 * v2, b2 = Y + 1.8556 * u2, g2 = (Y - LR * r2 - LB * b2) / LG;
+            auto q = [&](double t) { return int(std::lround(std::clamp(c * t + b, 0.0, 1.0) * 255)); };
+            out.setPixel(i, 0, qRgb(q(r2), q(g2), q(b2)));
+        }
+        const QImage back = AutoSceneMatch::removeEq(out, eq);
+        for (int i = 0; i < 4; ++i) {
+            const QRgb a = back.pixel(i, 0), e = in.pixel(i, 0);
+            QVERIFY2(std::abs(qRed(a) - qRed(e)) <= 2 && std::abs(qGreen(a) - qGreen(e)) <= 2 && std::abs(qBlue(a) - qBlue(e)) <= 2,
+                     qPrintable(QStringLiteral("Pixel %1").arg(i)));
+        }
+        QCOMPARE(AutoSceneMatch::removeEq(in, MpvEq()), in);
+    }
+
+    void autoProfileRoundtrip()
+    {
+        Params p; p.autoOn = false; p.autoStrength = 0.4; p.autoLockWB = false;
+        const auto o = profileFromParams(p);
+        QCOMPARE(o.value("autoOn").toBool(), false);
+        QCOMPARE(o.value("autoStrength").toDouble(), 0.4);
+        const auto r = paramsFromProfile(o);
+        QVERIFY(r.ok);
+        QCOMPARE(r.params.autoOn, false);
+        QCOMPARE(r.params.autoStrength, 0.4);
+        QCOMPARE(r.params.autoLockWB, false);
+        QVERIFY(!r.passthrough.contains("autoOn"));
+    }
+
+    // ---------------------------------------------------------------- Expert Settings
+    void expertDefaultsMatchPreviousBehaviour()
+    {
+        setExpert(ExpertSettings());
+        QVERIFY(expertDiff(ExpertSettings()).isEmpty());
+        Params p; p.sharpen = 2;
+        QVERIFY(std::fabs(computeShaderValues(p).sharpen - 0.3) < 1e-12);   // 0.1 × 1.5 je Schritt
+    }
+
+    void expertOverridesApply()
+    {
+        ExpertSettings e;
+        e.contrast.perStep = 0.08;
+        e.hue.reverse = true;
+        e.gamma.maxShadowSlope = 0;
+        setExpert(e);
+        QVERIFY(std::fabs(userContrastAmount(5) - 0.40) < 1e-12);
+        QCOMPARE(userHueDegrees(2), -6.0);
+        QCOMPARE(curveConstants().gammaShadowSlope, 0.0);   // 0 = aus
+        setExpert(ExpertSettings());
+        QVERIFY(std::fabs(userContrastAmount(5) - 0.20) < 1e-12);
+    }
+
+    void expertExportImportRoundtrip()
+    {
+        ExpertSettings e;
+        e.black.softness = 0.1;
+        e.saturation.desaturateEvenly = false;
+        const QJsonObject exp = expertExport(e, "1.0.2");
+        QCOMPARE(exp.value("type").toString(), QString("gvf-expert-settings"));
+        const auto diff = exp.value("settings").toObject();
+        QCOMPARE(diff.size(), 2);
+        QCOMPARE(diff.value("GVF_BLACK_SETTINGS").toObject().value("softness").toDouble(), 0.1);
+        ExpertSettings back;
+        QCOMPARE(expertImport(back, exp), 2);
+        QCOMPARE(back.black.softness, 0.1);
+        QCOMPARE(back.saturation.desaturateEvenly, false);
+        // Fremdes JSON wird abgelehnt, unbekannte Schlüssel/Typen ignoriert
+        QCOMPARE(expertImport(back, QJsonObject{{"type", "gvf-settings"}}), -1);
+        ExpertSettings plain;
+        QCOMPARE(expertImport(plain, QJsonObject{{"GVF_HUE_SETTINGS", QJsonObject{{"perStep", "2.5"}, {"reverse", 1}, {"bogus", 3}}}}), 1);
+        QCOMPARE(plain.hue.perStep, 2.5);
+        QCOMPARE(plain.hue.reverse, false);
     }
 };
 

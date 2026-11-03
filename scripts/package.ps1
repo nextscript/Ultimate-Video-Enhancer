@@ -33,6 +33,7 @@ $stage = Join-Path $root "release\stage"
 Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $stage, "$stage\mpv", "$stage\tools\yt-dlp", "$stage\plugins\uve", "$stage\docs" | Out-Null
 Copy-Item build\bin\UVEPlayer.exe $stage
+Copy-Item build\bin\UVEThumbnailer.dll $stage   # Explorer-Vorschaubilder (Shell-Erweiterung)
 Copy-Item deps\mpv\libmpv-2.dll, deps\mpv\version.json "$stage\mpv"
 Copy-Item deps\tools\yt-dlp\yt-dlp.exe, deps\tools\yt-dlp\version.json "$stage\tools\yt-dlp"
 Copy-Item deps\tools\7zr.exe "$stage\tools"

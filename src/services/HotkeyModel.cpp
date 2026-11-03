@@ -44,6 +44,7 @@ QList<HotkeyModel::Action> HotkeyModel::defaultActions()
         {"diagnostics", QT_TR_NOOP("Diagnose-Overlay"), QT_TR_NOOP("Video"), "Ctrl+D"},
         {"effects.toggle", QT_TR_NOOP("Effekte an/aus"), QT_TR_NOOP("Effekte"), "Ctrl+Alt+E"},
         {"effects.compare", QT_TR_NOOP("Vorher/Nachher-Vergleich"), QT_TR_NOOP("Effekte"), "Ctrl+Alt+U"},
+        {"effects.auto", QT_TR_NOOP("Auto-Scene-Match an/aus"), QT_TR_NOOP("Effekte"), "Ctrl+Alt+A"},
         {"open.file", QT_TR_NOOP("Datei öffnen…"), QT_TR_NOOP("Datei"), "Ctrl+O"},
         {"open.folder", QT_TR_NOOP("Ordner öffnen…"), QT_TR_NOOP("Datei"), "Ctrl+F"},
         {"open.url", QT_TR_NOOP("Netzwerkstream öffnen…"), QT_TR_NOOP("Datei"), "Ctrl+N"},
@@ -76,7 +77,7 @@ QString HotkeyModel::shortcut(const QString &id) const
 
 QString HotkeyModel::labelFor(const QString &id) const
 {
-    for (const auto &a : m_actions) if (a.id == id) return tr(qPrintable(a.label));
+    for (const auto &a : m_actions) if (a.id == id) return tr(a.label.toUtf8().constData());
     return id;
 }
 
@@ -93,7 +94,7 @@ QVariantList HotkeyModel::items() const
     QVariantList out;
     for (const auto &a : m_actions) {
         const QString cur = shortcut(a.id);
-        out << QVariantMap{{"id", a.id}, {"label", tr(qPrintable(a.label))}, {"category", tr(qPrintable(a.category))},
+        out << QVariantMap{{"id", a.id}, {"label", tr(a.label.toUtf8().constData())}, {"category", tr(a.category.toUtf8().constData())},
                            {"shortcut", cur}, {"defaultShortcut", a.defaultSeq},
                            {"nativeText", QKeySequence(cur, QKeySequence::PortableText).toString(QKeySequence::NativeText)},
                            {"modified", m_overrides.contains(a.id)}};

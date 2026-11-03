@@ -53,6 +53,16 @@ public:
     virtual void setPaused(bool paused) = 0;
     // Standbild des aktuellen Videos (dekodiert, ohne Effekte), max. maxWidth Pixel breit; leer ohne Video
     virtual QImage grabVideoFrame(int maxWidth) = 0;
+
+    // Seit 1.0.2 (an das Ende angehängt, ABI-kompatibel): mpv-Video-Equalizer (je −100 … 100) für das
+    // Plugin setzen, z. B. für Auto-Scene-Match. Wird beim Deaktivieren/Entladen des Plugins zurückgesetzt.
+    virtual void setVideoEqualizer(const QString &pluginId, double brightness, double contrast, double saturation, double hue)
+    {
+        Q_UNUSED(pluginId); Q_UNUSED(brightness); Q_UNUSED(contrast); Q_UNUSED(saturation); Q_UNUSED(hue);
+    }
+    // Seit 1.0.2: kleine Bildprobe (96×54) der Videoausgabe – so wie sie angezeigt wird (mit Equalizer und Effekten).
+    // Blockiert nicht: fordert eine neue Probe an und liefert die zuletzt fertige (leer, solange keine vorliegt).
+    virtual QImage sampleDisplayFrame() { return {}; }
 };
 
 // Vom Plugin implementiert

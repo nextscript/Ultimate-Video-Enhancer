@@ -37,6 +37,11 @@ struct Params
     double saturation = 0, vibrance = 0, sharpen = 0, gamma = 0, grain = 0, hue = 0;
     int rGain = 128, gGain = 128, bGain = 128; // 0 … 255
 
+    // Auto-Scene-Match (UVE "autoOn"/"autoStrength"/"autoLockWB", Standard wie im Userscript)
+    bool autoOn = true;
+    double autoStrength = 0.65;   // 0 … 1
+    bool autoLockWB = true;       // Weißabgleich per Farbton nachführen
+
     // Erweiterungen des nativen Players
     bool gpuBase = false;      // früher Bilateral-Rauschfilter + CAS; entfernt, nur noch für den Profil-Roundtrip
     QString lutFile;           // .cube-Datei

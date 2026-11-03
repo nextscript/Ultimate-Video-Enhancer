@@ -1,6 +1,8 @@
 #pragma once
 #include <QProcess>
 #include <QDir>
+#include <QImage>
+#include <QtConcurrent/QtConcurrentRun>
 #include <QFileInfo>
 #include <QObject>
 #include <QQuickWindow>
@@ -104,6 +106,9 @@ public:
     Q_INVOKABLE void clearResumePositions();
     Q_INVOKABLE QString toLocalFile(const QUrl &url) const { return url.isLocalFile() ? url.toLocalFile() : url.toString(); }
     Q_INVOKABLE void openFolder(const QString &path) const;
+    // Plugin-Ordner öffnen: user = false → mitgelieferte Plugins (plugins\ neben der EXE),
+    // user = true → eigene Plugins im Benutzerordner (wird bei Bedarf angelegt)
+    Q_INVOKABLE void openPluginFolder(bool user) const;
     Q_INVOKABLE void showInExplorer(const QString &path) const;
     Q_INVOKABLE void copyText(const QString &text) const;
     Q_INVOKABLE void resetSafeMode();
@@ -120,6 +125,13 @@ public:
     // Selbsttest: mittlere Farbe/Sättigung eines Fensterbereichs (echte Pixel aus dem Fenster-Framebuffer)
     Q_INVOKABLE QString selftestPath(const QString &name) const { return QFileInfo(m_selftestOut).absoluteDir().filePath(name); }
     Q_INVOKABLE bool saveWindowShot(const QString &file) const { return m_window && !m_selftestOut.isEmpty() && m_window->grabWindow().save(file); }
+    // Selbsttest: Fenster aufnehmen, verkleinert im Hintergrund speichern (schnelle Bildfolgen, z. B. Übergänge)
+    Q_INVOKABLE void saveWindowShotAsync(const QString &file) const
+    {
+        if (!m_window || m_selftestOut.isEmpty()) return;
+        const QImage img = m_window->grabWindow();
+        (void)QtConcurrent::run([img, file] { img.scaled(img.width() / 4, img.height() / 4, Qt::IgnoreAspectRatio, Qt::SmoothTransformation).save(file); });
+    }
     Q_INVOKABLE QVariantMap sampleWindow(qreal x, qreal y, qreal w, qreal h) const;
     void setWindow(QQuickWindow *w);   // stellt Fensterposition/-größe wieder her und zeigt das Fenster
     bool selftestUiMode() const { return m_selftestUiMode; }

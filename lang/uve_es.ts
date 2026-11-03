@@ -241,6 +241,10 @@
         <translation>LUT</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Auto</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>Cargar LUT 3D (.cube)</translation>
     </message>
@@ -397,6 +401,10 @@
         <translation>Restablecer sección</translation>
     </message>
     <message>
+        <source>wartet auf Wiedergabe …</source>
+        <translation>esperando la reproducción …</translation>
+    </message>
+    <message>
         <source>Laden…</source>
         <translation>Cargar…</translation>
     </message>
@@ -435,6 +443,73 @@
     <message>
         <source>Alles zurücksetzen</source>
         <translation>Restablecer todo</translation>
+    </message>
+</context>
+<context>
+    <name>ExpertSettingsPage</name>
+    <message>
+        <source>Expert Settings (*.json)</source>
+        <translation>Ajustes expertos (*.json)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>Todos los archivos (*)</translation>
+    </message>
+    <message>
+        <source>🧪 Expert Settings</source>
+        <translation>🧪 Ajustes expertos</translation>
+    </message>
+    <message>
+        <source>Feinabstimmung aller Kurven der Grading-Regler (Effekte → Basis/Farbe/Schärfe). Änderungen wirken sofort und werden automatisch gespeichert.</source>
+        <translation>Ajuste fino de todas las curvas de los controles de gradación (Efectos → Base/Color/Nitidez). Los cambios se aplican al instante y se guardan automáticamente.</translation>
+    </message>
+    <message>
+        <source>🔍 Einstellungen suchen …</source>
+        <translation>🔍 Buscar ajustes …</translation>
+    </message>
+    <message>
+        <source>%1 Werte geändert</source>
+        <translation>%1 valores cambiados</translation>
+    </message>
+    <message>
+        <source>Alle Werte auf Standard</source>
+        <translation>Todos los valores por defecto</translation>
+    </message>
+    <message>
+        <source>Importieren …</source>
+        <translation>Importar …</translation>
+    </message>
+    <message>
+        <source>Exportieren …</source>
+        <translation>Exportar …</translation>
+    </message>
+    <message>
+        <source>Alle zurücksetzen</source>
+        <translation>Restablecer todo</translation>
+    </message>
+    <message>
+        <source>Das Ultimate-Video-Enhancer-Plugin ist nicht aktiv (Einstellungen → Plugins).</source>
+        <translation>El plugin Ultimate Video Enhancer no está activo (Ajustes → Plugins).</translation>
+    </message>
+    <message>
+        <source>Block auf Standard zurücksetzen</source>
+        <translation>Restablecer bloque</translation>
+    </message>
+    <message>
+        <source>Std. %1</source>
+        <translation>Def. %1</translation>
+    </message>
+    <message>
+        <source>an</source>
+        <translation>sí</translation>
+    </message>
+    <message>
+        <source>aus</source>
+        <translation>no</translation>
+    </message>
+    <message>
+        <source>Auf Standard zurücksetzen</source>
+        <translation>Restablecer valor</translation>
     </message>
 </context>
 <context>
@@ -704,6 +779,10 @@
         <translation>Comparación antes/después</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Ajuste automático de escena</translation>
+    </message>
+    <message>
         <source>Effekt-Panel öffnen</source>
         <translation>Abrir panel de efectos</translation>
     </message>
@@ -814,6 +893,14 @@
     <message>
         <source>▶ Wiedergabe</source>
         <translation>▶ Reproducir</translation>
+    </message>
+    <message>
+        <source>VORHER</source>
+        <translation>ANTES</translation>
+    </message>
+    <message>
+        <source>NACHHER</source>
+        <translation>DESPUÉS</translation>
     </message>
     <message>
         <source>Zum Abspielen loslassen</source>
@@ -1365,6 +1452,18 @@
         <source>Plugin-Ordner</source>
         <translation>Carpeta de plugins</translation>
     </message>
+    <message>
+        <source>Ordner mit den installierten Plugins öffnen</source>
+        <translation>Abrir la carpeta de plugins instalados</translation>
+    </message>
+    <message>
+        <source>Eigene Plugins</source>
+        <translation>Plugins propios</translation>
+    </message>
+    <message>
+        <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
+        <translation>Abrir la carpeta de usuario para plugins adicionales (tiene prioridad)</translation>
+    </message>
 </context>
 <context>
     <name>ProxyConfig</name>
@@ -1453,6 +1552,10 @@
     <message>
         <source>Erweitert</source>
         <translation>Avanzado</translation>
+    </message>
+    <message>
+        <source>Expert Settings</source>
+        <translation>Ajustes expertos</translation>
     </message>
     <message>
         <source>Sprache</source>
@@ -2279,6 +2382,10 @@
         <translation>Comparación antes/después</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match an/aus</source>
+        <translation>Ajuste automático de escena sí/no</translation>
+    </message>
+    <message>
         <source>Datei öffnen…</source>
         <translation>Abrir archivo…</translation>
     </message>
@@ -2635,6 +2742,510 @@
     <message>
         <source>Radius von SL und Detail-Schärfe (|SR|)</source>
         <translation>Radio de SL y de la nitidez de detalle (|SR|)</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Ajuste automático de escena</translation>
+    </message>
+    <message>
+        <source>Analysiert das Bild (2–10 fps, adaptiv) und gleicht Helligkeit, Kontrast, Sättigung und Weißabgleich je Szene an (Strg+Alt+A)</source>
+        <translation>Analiza la imagen (2–10 fps, adaptativo) y ajusta brillo, contraste, saturación y balance de blancos por escena (Ctrl+Alt+A)</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Intensidad</translation>
+    </message>
+    <message>
+        <source>Weißabgleich nachführen</source>
+        <translation>Seguir balance de blancos</translation>
+    </message>
+    <message>
+        <source>korrigiert Rot-/Blaustiche über den Farbton</source>
+        <translation>corrige dominantes rojas/azules mediante el tono</translation>
+    </message>
+    <message>
+        <source>Schwarzwert</source>
+        <translation>Nivel de negro</translation>
+    </message>
+    <message>
+        <source>Weißwert</source>
+        <translation>Nivel de blanco</translation>
+    </message>
+    <message>
+        <source>Gamma</source>
+        <translation>Gamma</translation>
+    </message>
+    <message>
+        <source>Filmkorn (Banding)</source>
+        <translation>Grano (banding)</translation>
+    </message>
+    <message>
+        <source>Farbton-Korrektur</source>
+        <translation>Corrección de tono</translation>
+    </message>
+    <message>
+        <source>S-Kurve um einen Drehpunkt. Schwarz, Weiß und der Drehpunkt bleiben fest, nichts wird abgeschnitten.</source>
+        <translation>Curva S alrededor de un tono pivote. El negro, el blanco y el pivote quedan fijos; nada se recorta.</translation>
+    </message>
+    <message>
+        <source>Schwarzpunkt wie bei einer Tonwertkorrektur: Schwarztöne vertiefen oder anheben.</source>
+        <translation>Punto negro como en una corrección de niveles: profundizar o levantar los negros.</translation>
+    </message>
+    <message>
+        <source>Weißpunkt wie bei einer Tonwertkorrektur: Weißtöne aufhellen oder absenken.</source>
+        <translation>Punto blanco como en una corrección de niveles: aclarar o bajar los blancos.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für helle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Curva tonal solo para tonos claros. El negro y el blanco quedan fijos.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für dunkle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Curva tonal solo para tonos oscuros. El negro y el blanco quedan fijos.</translation>
+    </message>
+    <message>
+        <source>Sättigungskurve: blasse Farben erhalten die volle Verstärkung, kräftige weniger – nichts läuft aus.</source>
+        <translation>Curva de saturación: los colores apagados reciben todo el refuerzo, los intensos menos; nada se satura en exceso.</translation>
+    </message>
+    <message>
+        <source>Verstärkt vor allem blasse Farben; kräftige Farben und Hauttöne bleiben natürlich.</source>
+        <translation>Refuerza sobre todo los colores apagados; los colores intensos y los tonos de piel quedan naturales.</translation>
+    </message>
+    <message>
+        <source>Hellt die Mitteltöne auf oder dunkelt sie ab. Schwarz und Weiß bleiben fest.</source>
+        <translation>Aclara u oscurece los tonos medios. El negro y el blanco quedan fijos.</translation>
+    </message>
+    <message>
+        <source>Detailkurve auf der Helligkeit: echte Details werden schärfer, Rauschen und Säume bleiben gering.</source>
+        <translation>Curva de detalle sobre el brillo: los detalles reales ganan nitidez, el ruido y los halos se mantienen bajos.</translation>
+    </message>
+    <message>
+        <source>Feines Rauschen gegen Farbabrisse (Banding). Schwarz und Weiß bleiben sauber.</source>
+        <translation>Ruido fino que oculta el banding de color. El negro y el blanco quedan limpios.</translation>
+    </message>
+    <message>
+        <source>Dreht alle Farbtöne, die Helligkeit bleibt exakt gleich. Hilft gegen Farbstiche.</source>
+        <translation>Gira todos los tonos mientras el brillo queda exactamente igual. Útil contra dominantes de color.</translation>
+    </message>
+    <message>
+        <source>Reglerrichtung. Aus kehrt den Regler um.</source>
+        <translation>Dirección del control. Desactivado lo invierte.</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Kontrast</source>
+        <translation>Mayor = más contraste</translation>
+    </message>
+    <message>
+        <source>Höher = tiefere Schwarztöne</source>
+        <translation>Mayor = negros más profundos</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Weißtöne</source>
+        <translation>Mayor = blancos más claros</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Lichter</source>
+        <translation>Mayor = luces más claras</translation>
+    </message>
+    <message>
+        <source>Höher = dunklere Schatten</source>
+        <translation>Mayor = sombras más oscuras</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Farbe</source>
+        <translation>Mayor = más color</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Dynamik</source>
+        <translation>Mayor = más intensidad</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Mitteltöne</source>
+        <translation>Mayor = tonos medios más claros</translation>
+    </message>
+    <message>
+        <source>Höher = schärfer</source>
+        <translation>Mayor = más nítido</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Korn</source>
+        <translation>Mayor = más grano</translation>
+    </message>
+    <message>
+        <source>Richtung umkehren</source>
+        <translation>Invertir dirección</translation>
+    </message>
+    <message>
+        <source>An: der Regler dreht den Farbton in die andere Richtung.</source>
+        <translation>Activado: el control gira el tono en sentido contrario.</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt</source>
+        <translation>Intensidad por paso</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt den Kontrast ändert.</source>
+        <translation>Cuánto cambia el contraste cada paso del control.</translation>
+    </message>
+    <message>
+        <source>Verschiebung je Schritt</source>
+        <translation>Desplazamiento por paso</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Schwarzpunkt verschiebt.</source>
+        <translation>Cuánto desplaza el punto negro cada paso del control.</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Weißpunkt verschiebt.</source>
+        <translation>Cuánto desplaza el punto blanco cada paso del control.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Lichter aufhellt oder abdunkelt.</source>
+        <translation>Cuánto aclara u oscurece las luces cada paso del control.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Schatten abdunkelt oder anhebt.</source>
+        <translation>Cuánto oscurece o levanta las sombras cada paso del control.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Farbstärke ändert.</source>
+        <translation>Cuánto cambia la intensidad del color cada paso del control.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die blassen Farben ändert.</source>
+        <translation>Cuánto cambia los colores apagados cada paso del control.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Mitteltöne ändert.</source>
+        <translation>Cuánto cambia los tonos medios cada paso del control.</translation>
+    </message>
+    <message>
+        <source>Menge je Schritt</source>
+        <translation>Cantidad por paso</translation>
+    </message>
+    <message>
+        <source>Wie viel Korn jeder Reglerschritt hinzufügt.</source>
+        <translation>Cuánto grano añade cada paso del control.</translation>
+    </message>
+    <message>
+        <source>Grad je Schritt</source>
+        <translation>Grados por paso</translation>
+    </message>
+    <message>
+        <source>Farbtondrehung je Reglerschritt.</source>
+        <translation>Giro de tono por paso del control.</translation>
+    </message>
+    <message>
+        <source>Geringster Kontrast</source>
+        <translation>Contraste mínimo</translation>
+    </message>
+    <message>
+        <source>Grenze für die flachste Kurve (Regler ganz unten).</source>
+        <translation>Límite de la curva más plana (control al mínimo).</translation>
+    </message>
+    <message>
+        <source>Höchster Kontrast</source>
+        <translation>Contraste máximo</translation>
+    </message>
+    <message>
+        <source>Grenze für die steilste Kurve (Regler ganz oben).</source>
+        <translation>Límite de la curva más pronunciada (control al máximo).</translation>
+    </message>
+    <message>
+        <source>Drehpunkt</source>
+        <translation>Tono pivote</translation>
+    </message>
+    <message>
+        <source>Ton, der fest bleibt. Niedriger = Kontrast dreht sich um dunklere Töne (gut für dunkle Videos).</source>
+        <translation>Tono que queda fijo. Menor = el contraste gira en torno a tonos más oscuros (bueno para vídeos oscuros).</translation>
+    </message>
+    <message>
+        <source>Max. Verschiebung</source>
+        <translation>Desplazamiento máx.</translation>
+    </message>
+    <message>
+        <source>Grenze der Schwarzpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Límite del desplazamiento del punto negro en ambas direcciones.</translation>
+    </message>
+    <message>
+        <source>Grenze der Weißpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Límite del desplazamiento del punto blanco en ambas direcciones.</translation>
+    </message>
+    <message>
+        <source>Weichheit</source>
+        <translation>Suavidad</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Schwarz statt harter Kante. 0 = hart.</source>
+        <translation>Transición suave al negro en lugar de un corte duro. 0 = duro.</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Weiß statt harter Kante. 0 = hart.</source>
+        <translation>Transición suave al blanco en lugar de un corte duro. 0 = duro.</translation>
+    </message>
+    <message>
+        <source>Fokus</source>
+        <translation>Enfoque</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerhellsten Töne werden verändert.</source>
+        <translation>Mayor = solo cambian los tonos más claros.</translation>
+    </message>
+    <message>
+        <source>Startton</source>
+        <translation>Tono inicial</translation>
+    </message>
+    <message>
+        <source>Töne darunter bleiben völlig unverändert. 0 = ganzer Bereich.</source>
+        <translation>Los tonos por debajo no cambian. 0 = todo el rango.</translation>
+    </message>
+    <message>
+        <source>Max. Abdunklung</source>
+        <translation>Oscurecimiento máx.</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Abdunklung der Lichter.</source>
+        <translation>Máximo oscurecimiento permitido de las luces.</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerdunkelsten Töne werden verändert.</source>
+        <translation>Mayor = solo cambian los tonos más oscuros.</translation>
+    </message>
+    <message>
+        <source>Endton</source>
+        <translation>Tono final</translation>
+    </message>
+    <message>
+        <source>Töne darüber bleiben völlig unverändert. 1 = ganzer Bereich.</source>
+        <translation>Los tonos por encima no cambian. 1 = todo el rango.</translation>
+    </message>
+    <message>
+        <source>Max. Anhebung</source>
+        <translation>Elevación máx.</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Anhebung der Schatten.</source>
+        <translation>Máxima elevación permitida de las sombras.</translation>
+    </message>
+    <message>
+        <source>Geringste Sättigung</source>
+        <translation>Saturación mínima</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren. 0 = bis ganz grau.</source>
+        <translation>Límite al reducir. 0 = hasta gris total.</translation>
+    </message>
+    <message>
+        <source>Höchste Sättigung</source>
+        <translation>Saturación máxima</translation>
+    </message>
+    <message>
+        <source>Grenze der Verstärkung für blasse Farben.</source>
+        <translation>Límite del refuerzo para colores apagados.</translation>
+    </message>
+    <message>
+        <source>Schutz kräftiger Farben</source>
+        <translation>Protección de colores intensos</translation>
+    </message>
+    <message>
+        <source>0 = alle Farben gleich (kann auslaufen). Höher = kräftige Farben werden stärker geschützt.</source>
+        <translation>0 = todos los colores por igual (puede saturar). Mayor = los colores intensos se protegen más.</translation>
+    </message>
+    <message>
+        <source>Gleichmäßig entsättigen</source>
+        <translation>Desaturar por igual</translation>
+    </message>
+    <message>
+        <source>An: Absenken nimmt allen Farben gleich viel Farbe. Aus: kräftige Farben behalten mehr.</source>
+        <translation>Activado: bajar quita color a todos por igual. Desactivado: los colores intensos conservan más.</translation>
+    </message>
+    <message>
+        <source>Geringste Dynamik</source>
+        <translation>Intensidad mínima</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren der Dynamik.</source>
+        <translation>Límite al reducir la intensidad.</translation>
+    </message>
+    <message>
+        <source>Höchste Dynamik</source>
+        <translation>Intensidad máxima</translation>
+    </message>
+    <message>
+        <source>Fokus auf blasse Farben</source>
+        <translation>Enfoque en colores apagados</translation>
+    </message>
+    <message>
+        <source>Höher = nur die blassesten Farben werden verstärkt.</source>
+        <translation>Mayor = solo se refuerzan los colores más apagados.</translation>
+    </message>
+    <message>
+        <source>Hautschutz</source>
+        <translation>Protección de piel</translation>
+    </message>
+    <message>
+        <source>Weniger Schärfe auf Haut (Poren, Unreinheiten). 0 = aus.</source>
+        <translation>Menos nitidez en la piel (poros, imperfecciones). 0 = desactivado.</translation>
+    </message>
+    <message>
+        <source>Hauttöne behalten ihren Farbton. 0 = aus, 1 = voller Schutz.</source>
+        <translation>Los tonos de piel conservan su tono. 0 = desactivado, 1 = protección total.</translation>
+    </message>
+    <message>
+        <source>0 = aus, 1 = Hauttöne werden gar nicht verändert.</source>
+        <translation>0 = desactivado, 1 = los tonos de piel no cambian.</translation>
+    </message>
+    <message>
+        <source>Dunkelste Mitteltöne</source>
+        <translation>Tonos medios más oscuros</translation>
+    </message>
+    <message>
+        <source>Untergrenze des Gammawerts.</source>
+        <translation>Límite inferior del valor gamma.</translation>
+    </message>
+    <message>
+        <source>Hellste Mitteltöne</source>
+        <translation>Tonos medios más claros</translation>
+    </message>
+    <message>
+        <source>Obergrenze des Gammawerts.</source>
+        <translation>Límite superior del valor gamma.</translation>
+    </message>
+    <message>
+        <source>Rauschschutz in den Schatten</source>
+        <translation>Protección de ruido en sombras</translation>
+    </message>
+    <message>
+        <source>Begrenzt, wie stark fast schwarze Töne angehoben werden (weniger sichtbares Rauschen). 0 = aus.</source>
+        <translation>Limita cuánto se elevan los tonos casi negros (menos ruido visible). 0 = desactivado.</translation>
+    </message>
+    <message>
+        <source>Stärke bei +10</source>
+        <translation>Intensidad en +10</translation>
+    </message>
+    <message>
+        <source>Kantenverstärkung beim höchsten Reglerwert.</source>
+        <translation>Refuerzo de bordes en el valor máximo.</translation>
+    </message>
+    <message>
+        <source>Helle Säume</source>
+        <translation>Halos claros</translation>
+    </message>
+    <message>
+        <source>Stärke der aufhellenden Kantenseite. Niedriger = weniger helle Säume.</source>
+        <translation>Intensidad del lado que aclara los bordes. Menor = menos halos claros.</translation>
+    </message>
+    <message>
+        <source>Dunkle Säume</source>
+        <translation>Halos oscuros</translation>
+    </message>
+    <message>
+        <source>Stärke der abdunkelnden Kantenseite. Niedriger = weniger dunkle Umrisse.</source>
+        <translation>Intensidad del lado que oscurece los bordes. Menor = menos contornos oscuros.</translation>
+    </message>
+    <message>
+        <source>Rauschschwelle</source>
+        <translation>Umbral de ruido</translation>
+    </message>
+    <message>
+        <source>Kleinere Details werden nicht geschärft (Rauschen, Kompression). 0 = aus.</source>
+        <translation>Los detalles más pequeños no se enfocan (ruido, compresión). 0 = desactivado.</translation>
+    </message>
+    <message>
+        <source>Max. Änderung</source>
+        <translation>Cambio máx.</translation>
+    </message>
+    <message>
+        <source>Weiche Grenze der Helligkeitsänderung je Pixel (verhindert Säume).</source>
+        <translation>Límite suave del cambio de brillo por píxel (evita halos).</translation>
+    </message>
+    <message>
+        <source>Detailradius (SVG)</source>
+        <translation>Radio de detalle (SVG)</translation>
+    </message>
+    <message>
+        <source>Nur SVG-Modus des Userscripts – im Player ohne Wirkung, bleibt für Export/Import erhalten.</source>
+        <translation>Solo modo SVG del userscript: sin efecto en el reproductor, se conserva para exportar/importar.</translation>
+    </message>
+    <message>
+        <source>Weichzeichnen-Radius (SVG)</source>
+        <translation>Radio de suavizado (SVG)</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt (GPU)</source>
+        <translation>Intensidad por paso (GPU)</translation>
+    </message>
+    <message>
+        <source>Schärfe je Reglerschritt (Player: ×1.5).</source>
+        <translation>Nitidez por paso del control (reproductor: ×1.5).</translation>
+    </message>
+    <message>
+        <source>Höher = Korn nur um den Spitzenton. 0 = gleichmäßig auf allen Tönen.</source>
+        <translation>Mayor = grano solo alrededor del tono pico. 0 = uniforme en todos los tonos.</translation>
+    </message>
+    <message>
+        <source>Spitzenton</source>
+        <translation>Tono pico</translation>
+    </message>
+    <message>
+        <source>Helligkeit mit dem stärksten Korn. Niedriger = mehr Korn in den Schatten.</source>
+        <translation>Brillo con el grano más fuerte. Menor = más grano en las sombras.</translation>
+    </message>
+    <message>
+        <source>Farbkorn</source>
+        <translation>Grano de color</translation>
+    </message>
+    <message>
+        <source>0 = graues Korn, 1 = volles Farbkorn wie bei Film.</source>
+        <translation>0 = grano gris, 1 = grano de color completo como en película.</translation>
+    </message>
+    <message>
+        <source>Stärke (SVG)</source>
+        <translation>Intensidad (SVG)</translation>
+    </message>
+    <message>
+        <source>Feinheit (SVG)</source>
+        <translation>Finura (SVG)</translation>
+    </message>
+    <message>
+        <source>Max. Drehung</source>
+        <translation>Giro máx.</translation>
+    </message>
+    <message>
+        <source>Grenze der Drehung in beide Richtungen, in Grad.</source>
+        <translation>Límite del giro en ambas direcciones, en grados.</translation>
+    </message>
+    <message>
+        <source>Export fehlgeschlagen: </source>
+        <translation>Error al exportar: </translation>
+    </message>
+    <message>
+        <source>Exportiert: %1</source>
+        <translation>Exportado: %1</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar</source>
+        <translation>Archivo no legible</translation>
+    </message>
+    <message>
+        <source>Keine Expert-Settings-Datei (erwartet type &quot;gvf-expert-settings&quot;)</source>
+        <translation>No es un archivo de ajustes expertos (se esperaba type &quot;gvf-expert-settings&quot;)</translation>
+    </message>
+    <message>
+        <source>Importiert: %1 Blöcke</source>
+        <translation>Importado: %1 bloques</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match an</source>
+        <translation>Ajuste automático de escena activado</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match aus</source>
+        <translation>Ajuste automático de escena desactivado</translation>
+    </message>
+    <message>
+        <source>Helligkeit ×%1 · Kontrast ×%2 · Sättigung ×%3 · Farbton %4° · %5 fps</source>
+        <translation>Brillo ×%1 · Contraste ×%2 · Saturación ×%3 · Tono %4° · %5 fps</translation>
     </message>
     <message>
         <source>Unschärfemaske</source>

@@ -1,4 +1,4 @@
-# UVE Player 1.0.1
+# UVE Player 1.0.2
 
 Native media player for Windows built with **C++20, Qt 6, and libmpv** – featuring **Ultimate Video Enhancer** as a GPU effects plugin, network streaming (YouTube, Twitch, HLS, tcp://) with proxy support, and seven languages.
 
@@ -6,9 +6,9 @@ Native media player for Windows built with **C++20, Qt 6, and libmpv** – featu
 
 | File | Description |
 |---|---|
-| `UVE-Player-1.0.1-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, and "Open with" integration |
-| `UVE-Player-1.0.1-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
-| `UVE-Player-1.0.1-portable.zip` | Portable folder archive (data stored in `.\data`) |
+| `UVE-Player-1.0.2-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
+| `UVE-Player-1.0.2-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
+| `UVE-Player-1.0.2-portable.zip` | Portable folder archive (data stored in `.\data`) |
 | `SHA256SUMS.txt` | SHA-256 checksums |
 
 All versions include libmpv, yt-dlp, and 7zr – no additional software installation is required.
@@ -22,7 +22,7 @@ All versions include libmpv, yt-dlp, and 7zr – no additional software installa
 - **Window:** Position, size, and maximized state are remembered between sessions.
 - **Network Streaming:** YouTube/Twitch (via yt-dlp), HTTP(S), HLS, DASH, TCP/UDP/RTMP/RTSP/SRT; automatic update checks for yt-dlp and libmpv.
 - **Proxy Support:** None / Windows System / Manual (HTTP or SOCKS5, optional authentication) – applies to streams, yt-dlp, and downloads.
-- **Ultimate Video Enhancer:** Color correction, sharpening (SL/SR unsharp mask, detail sharpening), Teal & Orange split toning, HDR-like enhancement, film grain, edge enhancement, BL/WL controls; presets, before/after comparison, undo support; UVE profile import/export; **example profiles and LUT packages downloaded directly from GitHub**; **LUT Gallery** with previews based on the current video frame; `.cube` 3D LUT support.
+- **Ultimate Video Enhancer:** Color correction, sharpening (SL/SR unsharp mask, detail sharpening), Teal & Orange split toning, HDR-like enhancement, film grain, edge enhancement, BL/WL controls; **Auto Scene Match** (Ctrl+Alt+A); **Expert Settings** for every grading curve; presets, before/after comparison with a draggable on-video divider (Ctrl+Alt+U), undo support; UVE profile import/export; **example profiles and LUT packages downloaded directly from GitHub**; **LUT Gallery** with previews based on the current video frame; `.cube` 3D LUT support.
 - **Languages:** English (default), Deutsch, Español, Italiano, Polski, Ελληνικά, Türkçe – switch languages under *Settings → General*; add custom languages using [lang/README.md](lang/README.md).
 - **Plugins:** Versioned Plugin API with manifest validation and Safe Mode ([docs/PLUGIN_API.md](docs/PLUGIN_API.md)).
 - **Privacy:** No telemetry.

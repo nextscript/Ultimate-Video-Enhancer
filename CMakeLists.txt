@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(UVEPlayer VERSION 1.0.1 LANGUAGES CXX
+project(UVEPlayer VERSION 1.0.2 LANGUAGES CXX
         DESCRIPTION "UVE Player – Medienplayer mit libmpv und Ultimate-Video-Enhancer-Plugin")
 
 set(CMAKE_CXX_STANDARD 20)
@@ -22,7 +22,7 @@ foreach(cfg DEBUG RELEASE RELWITHDEBINFO MINSIZEREL)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY_${cfg} ${CMAKE_BINARY_DIR}/bin)
 endforeach()
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Qml Network OpenGL Concurrent Test Xml LinguistTools)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Qml Network OpenGL Concurrent Test Xml LinguistTools ShaderTools)
 qt_standard_project_setup(REQUIRES 6.5)
 
 include(cmake/Mpv.cmake)
@@ -33,6 +33,10 @@ enable_testing()
 add_subdirectory(src)
 # Anwendung
 add_subdirectory(app)
+# Explorer-Vorschaubilder (Shell-Erweiterung, nur Windows)
+if(WIN32)
+    add_subdirectory(thumbnailer)
+endif()
 # Plugins (getrennte DLLs, über PluginApi.h angebunden)
 add_subdirectory(plugins/uve)
 add_subdirectory(plugins/examples/sleeptimer)

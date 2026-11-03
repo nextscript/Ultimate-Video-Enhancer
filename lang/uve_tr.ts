@@ -241,6 +241,10 @@
         <translation>LUT</translation>
     </message>
     <message>
+        <source>Auto</source>
+        <translation>Otomatik</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>3D LUT yükle (.cube)</translation>
     </message>
@@ -397,6 +401,10 @@
         <translation>Bölümü sıfırla</translation>
     </message>
     <message>
+        <source>wartet auf Wiedergabe …</source>
+        <translation>oynatma bekleniyor …</translation>
+    </message>
+    <message>
         <source>Laden…</source>
         <translation>Yükle…</translation>
     </message>
@@ -435,6 +443,73 @@
     <message>
         <source>Alles zurücksetzen</source>
         <translation>Tümünü sıfırla</translation>
+    </message>
+</context>
+<context>
+    <name>ExpertSettingsPage</name>
+    <message>
+        <source>Expert Settings (*.json)</source>
+        <translation>Uzman ayarları (*.json)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>Tüm dosyalar (*)</translation>
+    </message>
+    <message>
+        <source>🧪 Expert Settings</source>
+        <translation>🧪 Uzman ayarları</translation>
+    </message>
+    <message>
+        <source>Feinabstimmung aller Kurven der Grading-Regler (Effekte → Basis/Farbe/Schärfe). Änderungen wirken sofort und werden automatisch gespeichert.</source>
+        <translation>Renk düzenleme kaydırıcılarının tüm eğrilerinin ince ayarı (Efektler → Temel/Renk/Keskinlik). Değişiklikler hemen uygulanır ve otomatik kaydedilir.</translation>
+    </message>
+    <message>
+        <source>🔍 Einstellungen suchen …</source>
+        <translation>🔍 Ayarlarda ara …</translation>
+    </message>
+    <message>
+        <source>%1 Werte geändert</source>
+        <translation>%1 değer değiştirildi</translation>
+    </message>
+    <message>
+        <source>Alle Werte auf Standard</source>
+        <translation>Tüm değerler varsayılan</translation>
+    </message>
+    <message>
+        <source>Importieren …</source>
+        <translation>İçe aktar …</translation>
+    </message>
+    <message>
+        <source>Exportieren …</source>
+        <translation>Dışa aktar …</translation>
+    </message>
+    <message>
+        <source>Alle zurücksetzen</source>
+        <translation>Tümünü sıfırla</translation>
+    </message>
+    <message>
+        <source>Das Ultimate-Video-Enhancer-Plugin ist nicht aktiv (Einstellungen → Plugins).</source>
+        <translation>Ultimate Video Enhancer eklentisi etkin değil (Ayarlar → Eklentiler).</translation>
+    </message>
+    <message>
+        <source>Block auf Standard zurücksetzen</source>
+        <translation>Bloğu varsayılana sıfırla</translation>
+    </message>
+    <message>
+        <source>Std. %1</source>
+        <translation>Vars. %1</translation>
+    </message>
+    <message>
+        <source>an</source>
+        <translation>açık</translation>
+    </message>
+    <message>
+        <source>aus</source>
+        <translation>kapalı</translation>
+    </message>
+    <message>
+        <source>Auf Standard zurücksetzen</source>
+        <translation>Varsayılana sıfırla</translation>
     </message>
 </context>
 <context>
@@ -704,6 +779,10 @@
         <translation>Önce/Sonra karşılaştırması</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Otomatik sahne eşleme</translation>
+    </message>
+    <message>
         <source>Effekt-Panel öffnen</source>
         <translation>Efekt panelini aç</translation>
     </message>
@@ -814,6 +893,14 @@
     <message>
         <source>▶ Wiedergabe</source>
         <translation>▶ Oynat</translation>
+    </message>
+    <message>
+        <source>VORHER</source>
+        <translation>ÖNCE</translation>
+    </message>
+    <message>
+        <source>NACHHER</source>
+        <translation>SONRA</translation>
     </message>
     <message>
         <source>Zum Abspielen loslassen</source>
@@ -1365,6 +1452,18 @@
         <source>Plugin-Ordner</source>
         <translation>Eklenti klasörü</translation>
     </message>
+    <message>
+        <source>Ordner mit den installierten Plugins öffnen</source>
+        <translation>Yüklü eklentilerin klasörünü aç</translation>
+    </message>
+    <message>
+        <source>Eigene Plugins</source>
+        <translation>Kendi eklentiler</translation>
+    </message>
+    <message>
+        <source>Benutzerordner für zusätzliche Plugins öffnen (hat Vorrang)</source>
+        <translation>Ek eklentiler için kullanıcı klasörünü aç (önceliklidir)</translation>
+    </message>
 </context>
 <context>
     <name>ProxyConfig</name>
@@ -1453,6 +1552,10 @@
     <message>
         <source>Erweitert</source>
         <translation>Gelişmiş</translation>
+    </message>
+    <message>
+        <source>Expert Settings</source>
+        <translation>Uzman ayarları</translation>
     </message>
     <message>
         <source>Sprache</source>
@@ -2279,6 +2382,10 @@
         <translation>Önce/Sonra karşılaştırması</translation>
     </message>
     <message>
+        <source>Auto-Scene-Match an/aus</source>
+        <translation>Otomatik sahne eşleme aç/kapat</translation>
+    </message>
+    <message>
         <source>Datei öffnen…</source>
         <translation>Dosya aç…</translation>
     </message>
@@ -2635,6 +2742,510 @@
     <message>
         <source>Radius von SL und Detail-Schärfe (|SR|)</source>
         <translation>SL ve detay keskinliği yarıçapı (|SR|)</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match</source>
+        <translation>Otomatik sahne eşleme</translation>
+    </message>
+    <message>
+        <source>Analysiert das Bild (2–10 fps, adaptiv) und gleicht Helligkeit, Kontrast, Sättigung und Weißabgleich je Szene an (Strg+Alt+A)</source>
+        <translation>Görüntüyü analiz eder (2–10 fps, uyarlamalı) ve parlaklık, kontrast, doygunluk ve beyaz dengesini sahneye göre ayarlar (Ctrl+Alt+A)</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Güç</translation>
+    </message>
+    <message>
+        <source>Weißabgleich nachführen</source>
+        <translation>Beyaz dengesini izle</translation>
+    </message>
+    <message>
+        <source>korrigiert Rot-/Blaustiche über den Farbton</source>
+        <translation>kırmızı/mavi renk kaymalarını ton ile düzeltir</translation>
+    </message>
+    <message>
+        <source>Schwarzwert</source>
+        <translation>Siyah seviyesi</translation>
+    </message>
+    <message>
+        <source>Weißwert</source>
+        <translation>Beyaz seviyesi</translation>
+    </message>
+    <message>
+        <source>Gamma</source>
+        <translation>Gama</translation>
+    </message>
+    <message>
+        <source>Filmkorn (Banding)</source>
+        <translation>Gren (bantlanma)</translation>
+    </message>
+    <message>
+        <source>Farbton-Korrektur</source>
+        <translation>Ton düzeltme</translation>
+    </message>
+    <message>
+        <source>S-Kurve um einen Drehpunkt. Schwarz, Weiß und der Drehpunkt bleiben fest, nichts wird abgeschnitten.</source>
+        <translation>Bir pivot ton etrafında S eğrisi. Siyah, beyaz ve pivot sabit kalır, hiçbir şey kırpılmaz.</translation>
+    </message>
+    <message>
+        <source>Schwarzpunkt wie bei einer Tonwertkorrektur: Schwarztöne vertiefen oder anheben.</source>
+        <translation>Seviyeler aracındaki gibi siyah nokta: siyahları derinleştir veya yükselt.</translation>
+    </message>
+    <message>
+        <source>Weißpunkt wie bei einer Tonwertkorrektur: Weißtöne aufhellen oder absenken.</source>
+        <translation>Seviyeler aracındaki gibi beyaz nokta: beyazları aydınlat veya düşür.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für helle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Yalnızca açık tonlar için ton eğrisi. Siyah ve beyaz sabit kalır.</translation>
+    </message>
+    <message>
+        <source>Tonkurve nur für dunkle Töne. Schwarz und Weiß bleiben fest.</source>
+        <translation>Yalnızca koyu tonlar için ton eğrisi. Siyah ve beyaz sabit kalır.</translation>
+    </message>
+    <message>
+        <source>Sättigungskurve: blasse Farben erhalten die volle Verstärkung, kräftige weniger – nichts läuft aus.</source>
+        <translation>Doygunluk eğrisi: soluk renkler tam güçlendirme alır, canlı renkler daha az – hiçbir şey taşmaz.</translation>
+    </message>
+    <message>
+        <source>Verstärkt vor allem blasse Farben; kräftige Farben und Hauttöne bleiben natürlich.</source>
+        <translation>Özellikle soluk renkleri güçlendirir; canlı renkler ve ten tonları doğal kalır.</translation>
+    </message>
+    <message>
+        <source>Hellt die Mitteltöne auf oder dunkelt sie ab. Schwarz und Weiß bleiben fest.</source>
+        <translation>Orta tonları aydınlatır veya koyulaştırır. Siyah ve beyaz sabit kalır.</translation>
+    </message>
+    <message>
+        <source>Detailkurve auf der Helligkeit: echte Details werden schärfer, Rauschen und Säume bleiben gering.</source>
+        <translation>Parlaklık üzerinde detay eğrisi: gerçek detaylar keskinleşir, gürültü ve haleler düşük kalır.</translation>
+    </message>
+    <message>
+        <source>Feines Rauschen gegen Farbabrisse (Banding). Schwarz und Weiß bleiben sauber.</source>
+        <translation>Renk bantlanmasını gizleyen ince gürültü. Siyah ve beyaz temiz kalır.</translation>
+    </message>
+    <message>
+        <source>Dreht alle Farbtöne, die Helligkeit bleibt exakt gleich. Hilft gegen Farbstiche.</source>
+        <translation>Parlaklık tamamen aynı kalırken tüm tonları döndürür. Renk kaymalarına karşı yararlıdır.</translation>
+    </message>
+    <message>
+        <source>Reglerrichtung. Aus kehrt den Regler um.</source>
+        <translation>Kaydırıcı yönü. Kapalı ise kaydırıcı tersine çalışır.</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Kontrast</source>
+        <translation>Yüksek = daha fazla kontrast</translation>
+    </message>
+    <message>
+        <source>Höher = tiefere Schwarztöne</source>
+        <translation>Yüksek = daha derin siyahlar</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Weißtöne</source>
+        <translation>Yüksek = daha parlak beyazlar</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Lichter</source>
+        <translation>Yüksek = daha parlak açık tonlar</translation>
+    </message>
+    <message>
+        <source>Höher = dunklere Schatten</source>
+        <translation>Yüksek = daha koyu gölgeler</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Farbe</source>
+        <translation>Yüksek = daha fazla renk</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Dynamik</source>
+        <translation>Yüksek = daha fazla canlılık</translation>
+    </message>
+    <message>
+        <source>Höher = hellere Mitteltöne</source>
+        <translation>Yüksek = daha parlak orta tonlar</translation>
+    </message>
+    <message>
+        <source>Höher = schärfer</source>
+        <translation>Yüksek = daha keskin</translation>
+    </message>
+    <message>
+        <source>Höher = mehr Korn</source>
+        <translation>Yüksek = daha fazla gren</translation>
+    </message>
+    <message>
+        <source>Richtung umkehren</source>
+        <translation>Yönü tersine çevir</translation>
+    </message>
+    <message>
+        <source>An: der Regler dreht den Farbton in die andere Richtung.</source>
+        <translation>Açık: kaydırıcı tonu diğer yöne döndürür.</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt</source>
+        <translation>Adım başına güç</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt den Kontrast ändert.</source>
+        <translation>Her kaydırıcı adımının kontrastı ne kadar değiştirdiği.</translation>
+    </message>
+    <message>
+        <source>Verschiebung je Schritt</source>
+        <translation>Adım başına kayma</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Schwarzpunkt verschiebt.</source>
+        <translation>Her kaydırıcı adımının siyah noktayı ne kadar kaydırdığı.</translation>
+    </message>
+    <message>
+        <source>Wie weit jeder Reglerschritt den Weißpunkt verschiebt.</source>
+        <translation>Her kaydırıcı adımının beyaz noktayı ne kadar kaydırdığı.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Lichter aufhellt oder abdunkelt.</source>
+        <translation>Her kaydırıcı adımının açık tonları ne kadar aydınlattığı veya koyulaştırdığı.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Schatten abdunkelt oder anhebt.</source>
+        <translation>Her kaydırıcı adımının gölgeleri ne kadar koyulaştırdığı veya kaldırdığı.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Farbstärke ändert.</source>
+        <translation>Her kaydırıcı adımının renk gücünü ne kadar değiştirdiği.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die blassen Farben ändert.</source>
+        <translation>Her kaydırıcı adımının soluk renkleri ne kadar değiştirdiği.</translation>
+    </message>
+    <message>
+        <source>Wie stark jeder Reglerschritt die Mitteltöne ändert.</source>
+        <translation>Her kaydırıcı adımının orta tonları ne kadar değiştirdiği.</translation>
+    </message>
+    <message>
+        <source>Menge je Schritt</source>
+        <translation>Adım başına miktar</translation>
+    </message>
+    <message>
+        <source>Wie viel Korn jeder Reglerschritt hinzufügt.</source>
+        <translation>Her kaydırıcı adımının ne kadar gren eklediği.</translation>
+    </message>
+    <message>
+        <source>Grad je Schritt</source>
+        <translation>Adım başına derece</translation>
+    </message>
+    <message>
+        <source>Farbtondrehung je Reglerschritt.</source>
+        <translation>Kaydırıcı adımı başına ton dönüşü.</translation>
+    </message>
+    <message>
+        <source>Geringster Kontrast</source>
+        <translation>En düşük kontrast</translation>
+    </message>
+    <message>
+        <source>Grenze für die flachste Kurve (Regler ganz unten).</source>
+        <translation>En düz eğri için sınır (kaydırıcı en altta).</translation>
+    </message>
+    <message>
+        <source>Höchster Kontrast</source>
+        <translation>En yüksek kontrast</translation>
+    </message>
+    <message>
+        <source>Grenze für die steilste Kurve (Regler ganz oben).</source>
+        <translation>En dik eğri için sınır (kaydırıcı en üstte).</translation>
+    </message>
+    <message>
+        <source>Drehpunkt</source>
+        <translation>Pivot ton</translation>
+    </message>
+    <message>
+        <source>Ton, der fest bleibt. Niedriger = Kontrast dreht sich um dunklere Töne (gut für dunkle Videos).</source>
+        <translation>Sabit kalan ton. Düşük = kontrast daha koyu tonlar etrafında döner (karanlık videolar için iyi).</translation>
+    </message>
+    <message>
+        <source>Max. Verschiebung</source>
+        <translation>Maks. kayma</translation>
+    </message>
+    <message>
+        <source>Grenze der Schwarzpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Siyah nokta kaymasının iki yöndeki sınırı.</translation>
+    </message>
+    <message>
+        <source>Grenze der Weißpunkt-Verschiebung in beide Richtungen.</source>
+        <translation>Beyaz nokta kaymasının iki yöndeki sınırı.</translation>
+    </message>
+    <message>
+        <source>Weichheit</source>
+        <translation>Yumuşaklık</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Schwarz statt harter Kante. 0 = hart.</source>
+        <translation>Sert kesim yerine siyaha yumuşak geçiş. 0 = sert.</translation>
+    </message>
+    <message>
+        <source>Weicher Übergang ins Weiß statt harter Kante. 0 = hart.</source>
+        <translation>Sert kesim yerine beyaza yumuşak geçiş. 0 = sert.</translation>
+    </message>
+    <message>
+        <source>Fokus</source>
+        <translation>Odak</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerhellsten Töne werden verändert.</source>
+        <translation>Yüksek = yalnızca en açık tonlar etkilenir.</translation>
+    </message>
+    <message>
+        <source>Startton</source>
+        <translation>Başlangıç tonu</translation>
+    </message>
+    <message>
+        <source>Töne darunter bleiben völlig unverändert. 0 = ganzer Bereich.</source>
+        <translation>Bunun altındaki tonlar hiç değişmez. 0 = tüm aralık.</translation>
+    </message>
+    <message>
+        <source>Max. Abdunklung</source>
+        <translation>Maks. koyulaştırma</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Abdunklung der Lichter.</source>
+        <translation>Açık tonların izin verilen en güçlü koyulaştırması.</translation>
+    </message>
+    <message>
+        <source>Höher = nur die allerdunkelsten Töne werden verändert.</source>
+        <translation>Yüksek = yalnızca en koyu tonlar etkilenir.</translation>
+    </message>
+    <message>
+        <source>Endton</source>
+        <translation>Bitiş tonu</translation>
+    </message>
+    <message>
+        <source>Töne darüber bleiben völlig unverändert. 1 = ganzer Bereich.</source>
+        <translation>Bunun üstündeki tonlar hiç değişmez. 1 = tüm aralık.</translation>
+    </message>
+    <message>
+        <source>Max. Anhebung</source>
+        <translation>Maks. kaldırma</translation>
+    </message>
+    <message>
+        <source>Stärkste erlaubte Anhebung der Schatten.</source>
+        <translation>Gölgelerin izin verilen en güçlü kaldırılması.</translation>
+    </message>
+    <message>
+        <source>Geringste Sättigung</source>
+        <translation>En düşük doygunluk</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren. 0 = bis ganz grau.</source>
+        <translation>Azaltırken sınır. 0 = tamamen griye kadar.</translation>
+    </message>
+    <message>
+        <source>Höchste Sättigung</source>
+        <translation>En yüksek doygunluk</translation>
+    </message>
+    <message>
+        <source>Grenze der Verstärkung für blasse Farben.</source>
+        <translation>Soluk renkler için güçlendirme sınırı.</translation>
+    </message>
+    <message>
+        <source>Schutz kräftiger Farben</source>
+        <translation>Canlı renk koruması</translation>
+    </message>
+    <message>
+        <source>0 = alle Farben gleich (kann auslaufen). Höher = kräftige Farben werden stärker geschützt.</source>
+        <translation>0 = tüm renkler eşit (taşabilir). Yüksek = canlı renkler daha çok korunur.</translation>
+    </message>
+    <message>
+        <source>Gleichmäßig entsättigen</source>
+        <translation>Eşit şekilde doygunluğu azalt</translation>
+    </message>
+    <message>
+        <source>An: Absenken nimmt allen Farben gleich viel Farbe. Aus: kräftige Farben behalten mehr.</source>
+        <translation>Açık: düşürmek tüm renklerden eşit renk alır. Kapalı: canlı renkler daha fazlasını korur.</translation>
+    </message>
+    <message>
+        <source>Geringste Dynamik</source>
+        <translation>En düşük canlılık</translation>
+    </message>
+    <message>
+        <source>Grenze beim Reduzieren der Dynamik.</source>
+        <translation>Canlılık azaltılırken sınır.</translation>
+    </message>
+    <message>
+        <source>Höchste Dynamik</source>
+        <translation>En yüksek canlılık</translation>
+    </message>
+    <message>
+        <source>Fokus auf blasse Farben</source>
+        <translation>Soluk renklere odak</translation>
+    </message>
+    <message>
+        <source>Höher = nur die blassesten Farben werden verstärkt.</source>
+        <translation>Yüksek = yalnızca en soluk renkler güçlendirilir.</translation>
+    </message>
+    <message>
+        <source>Hautschutz</source>
+        <translation>Ten koruması</translation>
+    </message>
+    <message>
+        <source>Weniger Schärfe auf Haut (Poren, Unreinheiten). 0 = aus.</source>
+        <translation>Ciltte daha az keskinleştirme (gözenekler, lekeler). 0 = kapalı.</translation>
+    </message>
+    <message>
+        <source>Hauttöne behalten ihren Farbton. 0 = aus, 1 = voller Schutz.</source>
+        <translation>Ten tonları kendi tonunu korur. 0 = kapalı, 1 = tam koruma.</translation>
+    </message>
+    <message>
+        <source>0 = aus, 1 = Hauttöne werden gar nicht verändert.</source>
+        <translation>0 = kapalı, 1 = ten tonları hiç değişmez.</translation>
+    </message>
+    <message>
+        <source>Dunkelste Mitteltöne</source>
+        <translation>En koyu orta tonlar</translation>
+    </message>
+    <message>
+        <source>Untergrenze des Gammawerts.</source>
+        <translation>Gama değerinin alt sınırı.</translation>
+    </message>
+    <message>
+        <source>Hellste Mitteltöne</source>
+        <translation>En parlak orta tonlar</translation>
+    </message>
+    <message>
+        <source>Obergrenze des Gammawerts.</source>
+        <translation>Gama değerinin üst sınırı.</translation>
+    </message>
+    <message>
+        <source>Rauschschutz in den Schatten</source>
+        <translation>Gölge gürültü koruması</translation>
+    </message>
+    <message>
+        <source>Begrenzt, wie stark fast schwarze Töne angehoben werden (weniger sichtbares Rauschen). 0 = aus.</source>
+        <translation>Siyaha yakın tonların ne kadar kaldırılacağını sınırlar (daha az görünür gürültü). 0 = kapalı.</translation>
+    </message>
+    <message>
+        <source>Stärke bei +10</source>
+        <translation>+10&apos;da güç</translation>
+    </message>
+    <message>
+        <source>Kantenverstärkung beim höchsten Reglerwert.</source>
+        <translation>En yüksek kaydırıcı değerinde kenar güçlendirme.</translation>
+    </message>
+    <message>
+        <source>Helle Säume</source>
+        <translation>Açık haleler</translation>
+    </message>
+    <message>
+        <source>Stärke der aufhellenden Kantenseite. Niedriger = weniger helle Säume.</source>
+        <translation>Kenarların aydınlatan tarafının gücü. Düşük = daha az açık hale.</translation>
+    </message>
+    <message>
+        <source>Dunkle Säume</source>
+        <translation>Koyu haleler</translation>
+    </message>
+    <message>
+        <source>Stärke der abdunkelnden Kantenseite. Niedriger = weniger dunkle Umrisse.</source>
+        <translation>Kenarların koyulaştıran tarafının gücü. Düşük = daha az koyu kontur.</translation>
+    </message>
+    <message>
+        <source>Rauschschwelle</source>
+        <translation>Gürültü eşiği</translation>
+    </message>
+    <message>
+        <source>Kleinere Details werden nicht geschärft (Rauschen, Kompression). 0 = aus.</source>
+        <translation>Daha küçük detaylar keskinleştirilmez (gürültü, sıkıştırma). 0 = kapalı.</translation>
+    </message>
+    <message>
+        <source>Max. Änderung</source>
+        <translation>Maks. değişim</translation>
+    </message>
+    <message>
+        <source>Weiche Grenze der Helligkeitsänderung je Pixel (verhindert Säume).</source>
+        <translation>Piksel başına parlaklık değişiminin yumuşak sınırı (haleleri önler).</translation>
+    </message>
+    <message>
+        <source>Detailradius (SVG)</source>
+        <translation>Detay yarıçapı (SVG)</translation>
+    </message>
+    <message>
+        <source>Nur SVG-Modus des Userscripts – im Player ohne Wirkung, bleibt für Export/Import erhalten.</source>
+        <translation>Yalnızca userscript SVG modu – oynatıcıda etkisi yok, dışa/içe aktarma için korunur.</translation>
+    </message>
+    <message>
+        <source>Weichzeichnen-Radius (SVG)</source>
+        <translation>Yumuşatma yarıçapı (SVG)</translation>
+    </message>
+    <message>
+        <source>Stärke je Schritt (GPU)</source>
+        <translation>Adım başına güç (GPU)</translation>
+    </message>
+    <message>
+        <source>Schärfe je Reglerschritt (Player: ×1.5).</source>
+        <translation>Kaydırıcı adımı başına keskinlik (oynatıcı: ×1.5).</translation>
+    </message>
+    <message>
+        <source>Höher = Korn nur um den Spitzenton. 0 = gleichmäßig auf allen Tönen.</source>
+        <translation>Yüksek = gren yalnızca tepe ton çevresinde. 0 = tüm tonlarda eşit.</translation>
+    </message>
+    <message>
+        <source>Spitzenton</source>
+        <translation>Tepe ton</translation>
+    </message>
+    <message>
+        <source>Helligkeit mit dem stärksten Korn. Niedriger = mehr Korn in den Schatten.</source>
+        <translation>En güçlü grenin olduğu parlaklık. Düşük = gölgelerde daha fazla gren.</translation>
+    </message>
+    <message>
+        <source>Farbkorn</source>
+        <translation>Renkli gren</translation>
+    </message>
+    <message>
+        <source>0 = graues Korn, 1 = volles Farbkorn wie bei Film.</source>
+        <translation>0 = gri gren, 1 = film gibi tam renkli gren.</translation>
+    </message>
+    <message>
+        <source>Stärke (SVG)</source>
+        <translation>Güç (SVG)</translation>
+    </message>
+    <message>
+        <source>Feinheit (SVG)</source>
+        <translation>İncelik (SVG)</translation>
+    </message>
+    <message>
+        <source>Max. Drehung</source>
+        <translation>Maks. dönüş</translation>
+    </message>
+    <message>
+        <source>Grenze der Drehung in beide Richtungen, in Grad.</source>
+        <translation>İki yöndeki dönüş sınırı, derece cinsinden.</translation>
+    </message>
+    <message>
+        <source>Export fehlgeschlagen: </source>
+        <translation>Dışa aktarma başarısız: </translation>
+    </message>
+    <message>
+        <source>Exportiert: %1</source>
+        <translation>Dışa aktarıldı: %1</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar</source>
+        <translation>Dosya okunamıyor</translation>
+    </message>
+    <message>
+        <source>Keine Expert-Settings-Datei (erwartet type &quot;gvf-expert-settings&quot;)</source>
+        <translation>Uzman ayarları dosyası değil (beklenen type &quot;gvf-expert-settings&quot;)</translation>
+    </message>
+    <message>
+        <source>Importiert: %1 Blöcke</source>
+        <translation>İçe aktarıldı: %1 blok</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match an</source>
+        <translation>Otomatik sahne eşleme açık</translation>
+    </message>
+    <message>
+        <source>Auto-Scene-Match aus</source>
+        <translation>Otomatik sahne eşleme kapalı</translation>
+    </message>
+    <message>
+        <source>Helligkeit ×%1 · Kontrast ×%2 · Sättigung ×%3 · Farbton %4° · %5 fps</source>
+        <translation>Parlaklık ×%1 · Kontrast ×%2 · Doygunluk ×%3 · Ton %4° · %5 fps</translation>
     </message>
     <message>
         <source>Unschärfemaske</source>

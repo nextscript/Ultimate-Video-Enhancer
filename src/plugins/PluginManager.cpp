@@ -149,6 +149,7 @@ void PluginManager::fail(Entry &e, const QString &error)
         try { e.instance->deactivate(); } catch (...) {}
     }
     setShaderStage(e.manifest.id, QString());
+    setVideoEqualizer(e.manifest.id, 0, 0, 0, 0);
     e.instance = nullptr;
     if (e.loader) { e.loader->unload(); }
 }
@@ -179,6 +180,7 @@ bool PluginManager::setEnabled(const QString &id, bool enabled)
     } else if (e->instance) {
         e->instance->deactivate();
         setShaderStage(id, QString());
+        setVideoEqualizer(id, 0, 0, 0, 0);
         e->state = PluginState::Deactivated;
     }
     emit pluginsChanged();
@@ -291,5 +293,25 @@ bool PluginManager::isPaused() const { return m_mpv->paused(); }
 void PluginManager::setPaused(bool paused) { m_mpv->setPaused(paused); }
 
 QImage PluginManager::grabVideoFrame(int maxWidth) { return m_mpv ? m_mpv->grabFrame(qBound(16, maxWidth, 4096)) : QImage(); }
+
+void PluginManager::setVideoEqualizer(const QString &pluginId, double brightness, double contrast, double saturation, double hue)
+{
+    Q_UNUSED(pluginId);   // derzeit nutzt nur das UVE-Plugin den Equalizer
+    if (!m_mpv) return;
+    auto b = [](double v) { return qBound(-100.0, v, 100.0); };
+    // asynchron: die Oberfläche wartet nicht auf den mpv-Kern
+    m_mpv->setPropertyAsync(QStringLiteral("brightness"), b(brightness));
+    m_mpv->setPropertyAsync(QStringLiteral("contrast"), b(contrast));
+    m_mpv->setPropertyAsync(QStringLiteral("saturation"), b(saturation));
+    m_mpv->setPropertyAsync(QStringLiteral("hue"), b(hue));
+}
+
+QImage PluginManager::sampleDisplayFrame()
+{
+    if (!m_mpv) return {};
+    QImage last = m_mpv->displaySample();
+    m_mpv->requestDisplaySample();
+    return last;
+}
 
 } // namespace uve
