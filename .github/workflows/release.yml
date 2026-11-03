@@ -2,10 +2,14 @@ name: Release
 
 # Builds UVE Player for Windows, Linux and macOS and publishes the GitHub release
 # "UVE Player <version>" (tag uve-player-v<version>, version taken from CMakeLists.txt).
+#
+# Runs ONLY on request – a normal push does not build or release anything:
+#   • GitHub → Actions → "Release" → "Run workflow" (branch uve-player), or
+#   • push a release tag:  git tag uve-player-v1.0.6 && git push origin uve-player-v1.0.6
 on:
-  push:
-    branches: [uve-player]
   workflow_dispatch:
+  push:
+    tags: ["uve-player-v*"]
 
 permissions:
   contents: write
