@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.3 – 2026-11-03
+
+### Fixes
+- **Tool updates:** updating libmpv under *Update available* failed with "Temporary folder not writable" on installations
+  where the user data folder had no `tools` subfolder yet (every fresh installation). The folder is now created first;
+  if an update still cannot write, the message names the folder and the reason.
+
 ## 1.0.2 – 2026-11-03
 
 ### Windows integration
