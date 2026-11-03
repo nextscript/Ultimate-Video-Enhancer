@@ -1092,6 +1092,10 @@
         <translation>Resumed at %1</translation>
     </message>
     <message>
+        <source>Netzlaufwerk antwortet noch nicht – neuer Versuch (%1/%2) …</source>
+        <translation>Network drive not responding yet – retrying (%1/%2) …</translation>
+    </message>
+    <message>
         <source>Nicht abspielbar: %1 (%2)</source>
         <translation>Not playable: %1 (%2)</translation>
     </message>

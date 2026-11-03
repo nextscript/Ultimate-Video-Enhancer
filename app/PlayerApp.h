@@ -208,6 +208,12 @@ private:
     QTimer m_resumeTimer;
     QString m_loadedPath;
     bool m_stoppedByUser = false;
+    // Netzlaufwerke (z. B. RaiDrive): Öffnen schlägt kurzzeitig fehl, solange ein anderer Prozess
+    // (Explorer, Virenscanner) die noch nicht zwischengespeicherte Datei liest → automatisch erneut versuchen
+    QString m_retryPath;
+    int m_retryCount = 0;
+    bool m_retrying = false;
+    quint64 m_loadGeneration = 0;                               // jedes neue playIndex() verwirft alte Wiederholungen
 
     // Selbsttest
     bool m_selftest = false;

@@ -109,6 +109,15 @@ private slots:
         QVERIFY(!media::isAllowedUrlScheme("https://"));
         QVERIFY(!media::isUrl("C:\\Filme\\a.mkv"));
     }
+    void networkPathDetection()
+    {
+        QVERIFY(media::isNetworkPath("\\\\server\\share\\film.mkv"));
+        QVERIFY(media::isNetworkPath("//server/share/film.mkv"));
+        QVERIFY(!media::isNetworkPath("https://example.com/a.mp4"));
+        QVERIFY(!media::isNetworkPath(QString()));
+        QTemporaryDir dir;   // temporärer Ordner liegt auf einem lokalen Laufwerk
+        QVERIFY(!media::isNetworkPath(dir.filePath("a.mkv")));
+    }
     void folderExpansionSorted()
     {
         QTemporaryDir dir;

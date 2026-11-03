@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.5 – 2026-11-03
+
+### Fixes
+- **Network drives:** files on network drives (mapped drives, UNC paths, RaiDrive/WinFsp mounts) sometimes failed with
+  "unrecognized file format" right after opening them from Explorer, because the drive briefly refused reads while
+  another process (Explorer, virus scanner) was accessing a not yet cached file. UVE Player now retries automatically
+  for about a minute (after 1, 2, 3, 4 s, then every 5 s) and shows the progress on the video; choosing another file
+  or stopping cancels the retries. Local files still report errors immediately.
+
 ## 1.0.4 – 2026-11-03
 
 ### Fixes

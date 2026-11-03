@@ -1092,6 +1092,10 @@
         <translation>Wznowiono od %1</translation>
     </message>
     <message>
+        <source>Netzlaufwerk antwortet noch nicht – neuer Versuch (%1/%2) …</source>
+        <translation>Dysk sieciowy jeszcze nie odpowiada – ponowna próba (%1/%2) …</translation>
+    </message>
+    <message>
         <source>Nicht abspielbar: %1 (%2)</source>
         <translation>Nie można odtworzyć: %1 (%2)</translation>
     </message>

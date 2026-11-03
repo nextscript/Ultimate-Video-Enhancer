@@ -1092,6 +1092,10 @@
         <translation>%1 konumundan devam edildi</translation>
     </message>
     <message>
+        <source>Netzlaufwerk antwortet noch nicht – neuer Versuch (%1/%2) …</source>
+        <translation>Ağ sürücüsü henüz yanıt vermiyor – yeniden deneniyor (%1/%2) …</translation>
+    </message>
+    <message>
         <source>Nicht abspielbar: %1 (%2)</source>
         <translation>Oynatılamıyor: %1 (%2)</translation>
     </message>

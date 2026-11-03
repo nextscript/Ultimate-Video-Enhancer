@@ -523,6 +523,8 @@ void PlayerApp::playIndex(int index, double startAt)
 {
     const QString path = m_playlist->pathAt(index);
     if (path.isEmpty()) return;
+    ++m_loadGeneration;
+    if (!m_retrying) { m_retryPath.clear(); m_retryCount = 0; }   // neue Auswahl → neue Versuche
     saveResume();
     m_stoppedByUser = false;
     m_playlist->setCurrentIndex(index);
@@ -566,6 +568,9 @@ void PlayerApp::onFileLoaded()
     m_loadedPath = m_player->getProperty(QStringLiteral("path")).toString();
     m_loadedPath = m_proxiedOriginal.value(m_loadedPath, m_loadedPath);
     m_playlist->setError(i, false);
+    if (m_retryCount > 0) Logger::write("play", QStringLiteral("Netzlaufwerk: geöffnet nach %1 Wiederholung(en)").arg(m_retryCount));
+    m_retryPath.clear();
+    m_retryCount = 0;
     if (m_player->duration() > 0) m_playlist->setDuration(i, m_player->duration());
     QTimer::singleShot(1500, this, [this, i] { if (m_player->duration() > 0) m_playlist->setDuration(i, m_player->duration()); });
     m_settings->addRecentFile(m_playlist->pathAt(i));
@@ -578,6 +583,31 @@ void PlayerApp::onEndOfFile(const QString &reason)
 {
     const int i = m_playlist->currentIndex();
     if (reason == "error") {
+        // Netzlaufwerk: erneut versuchen (1, 2, 3, 4, dann alle 5 s – insgesamt gut eine Minute)
+        static constexpr int kDelaysMs[] = {1000, 2000, 3000, 4000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000, 5000};
+        static constexpr int kMaxRetries = int(std::size(kDelaysMs));
+        const QString path = m_playlist->pathAt(i);
+        if (!m_stoppedByUser && media::isNetworkPath(path)) {
+            if (m_retryPath != path) { m_retryPath = path; m_retryCount = 0; }
+            if (m_retryCount < kMaxRetries) {
+                const int delay = kDelaysMs[m_retryCount++];
+                if (m_retryCount == 1)
+                    Logger::write("play", "Netzlaufwerk: " + path + " – " + m_player->errorString() + ", neuer Versuch");
+                showOsd(tr("Netzlaufwerk antwortet noch nicht – neuer Versuch (%1/%2) …").arg(m_retryCount).arg(kMaxRetries),
+                        delay + 1500);
+                const quint64 gen = m_loadGeneration;
+                QTimer::singleShot(delay, this, [this, i, path, gen] {
+                    // inzwischen etwas anderes gewählt, gestoppt oder Liste geändert → nicht mehr wiederholen
+                    if (gen != m_loadGeneration || m_stoppedByUser || m_playlist->pathAt(i) != path) return;
+                    m_retrying = true;
+                    playIndex(i);
+                    m_retrying = false;
+                });
+                return;
+            }
+        }
+        m_retryPath.clear();
+        m_retryCount = 0;
         m_playlist->setError(i, true);
         showOsd(tr("Nicht abspielbar: %1 (%2)").arg(m_playlist->titleAt(i), m_player->errorString()), 4000);
         Logger::write("play", "Fehler: " + m_playlist->pathAt(i) + " – " + m_player->errorString());

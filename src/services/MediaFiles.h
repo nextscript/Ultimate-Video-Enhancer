@@ -14,6 +14,8 @@ bool isAllowedUrlScheme(const QString &s); // Validierung für Drag & Drop / URL
 bool isMediaFile(const QString &path);
 bool isSubtitleFile(const QString &path);
 bool isPlaylistFile(const QString &path);
+// Lokaler Pfad auf einem Netzlaufwerk (UNC, verbundenes Laufwerk, NFS/SMB/FUSE-Mount)
+bool isNetworkPath(const QString &path);
 
 // Dateien, Ordner (rekursiv, natürlich sortiert), Wiedergabelisten und URLs zu Einträgen auflösen
 QStringList expand(const QStringList &inputs);

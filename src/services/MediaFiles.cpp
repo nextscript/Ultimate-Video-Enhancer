@@ -7,8 +7,16 @@
 #include <QFileInfo>
 #include <QRegularExpression>
 #include <QSaveFile>
+#include <QStorageInfo>
 #include <QTextStream>
 #include <QUrl>
+
+#ifdef Q_OS_WIN
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
 
 namespace uve::media {
 
@@ -51,6 +59,24 @@ static QString ext(const QString &p) { return QFileInfo(p).suffix().toLower(); }
 bool isMediaFile(const QString &p) { return videoExtensions().contains(ext(p)) || audioExtensions().contains(ext(p)); }
 bool isSubtitleFile(const QString &p) { return subtitleExtensions().contains(ext(p)); }
 bool isPlaylistFile(const QString &p) { return playlistExtensions().contains(ext(p)); }
+
+bool isNetworkPath(const QString &path)
+{
+    if (path.isEmpty() || isUrl(path)) return false;
+    const QString native = QDir::toNativeSeparators(path);
+    if (native.startsWith(QStringLiteral("\\\\")) || native.startsWith(QStringLiteral("//"))) return true;   // UNC
+#ifdef Q_OS_WIN
+    if (native.size() >= 2 && native[1] == u':') {
+        const std::wstring root = native.left(2).toStdWString() + L"\\";
+        return GetDriveTypeW(root.c_str()) == DRIVE_REMOTE;   // verbundene Laufwerke, RaiDrive/WinFsp u. a.
+    }
+    return false;
+#else
+    const QByteArray fs = QStorageInfo(QFileInfo(path).absolutePath()).fileSystemType().toLower();
+    static const QList<QByteArray> remote = {"nfs", "nfs4", "cifs", "smbfs", "smb3", "afpfs", "webdav", "davfs", "sshfs"};
+    return remote.contains(fs) || fs.startsWith("fuse.") || fs.startsWith("macfuse") || fs.startsWith("osxfuse");
+#endif
+}
 
 QStringList parsePlaylistFile(const QString &file)
 {

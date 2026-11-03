@@ -1092,6 +1092,10 @@
         <translation>Ripreso da %1</translation>
     </message>
     <message>
+        <source>Netzlaufwerk antwortet noch nicht – neuer Versuch (%1/%2) …</source>
+        <translation>L'unità di rete non risponde ancora – nuovo tentativo (%1/%2) …</translation>
+    </message>
+    <message>
         <source>Nicht abspielbar: %1 (%2)</source>
         <translation>Non riproducibile: %1 (%2)</translation>
     </message>
