@@ -62,7 +62,7 @@ powershell -ExecutionPolicy Bypass -File scripts\package.ps1     # Setup, portab
 
 ## Documentation
 
-[ARCHITECTURE](docs/ARCHITECTURE.md) · [PLUGIN_API](docs/PLUGIN_API.md) · [BUILD](docs/BUILD.md) · [TEST_REPORT](docs/TEST_REPORT.md) · [UVE_PARITY_MATRIX](docs/UVE_PARITY_MATRIX.md) · [FEATURE_COMPARISON](docs/FEATURE_COMPARISON.md) · [REA_ANALYSIS](docs/REA_ANALYSIS.md) · [REA_LIMITATIONS](docs/REA_LIMITATIONS.md) · [THIRD_PARTY_LICENSES](docs/THIRD_PARTY_LICENSES.md) · [CHANGELOG](CHANGELOG.md)
+[ARCHITECTURE](docs/ARCHITECTURE.md) · [PLUGIN_API](docs/PLUGIN_API.md) · [BUILD](docs/BUILD.md) · [TEST_REPORT](docs/TEST_REPORT.md) · [UVE_PARITY_MATRIX](docs/UVE_PARITY_MATRIX.md) · [FEATURE_COMPARISON](docs/FEATURE_COMPARISON.md) · [THIRD_PARTY_LICENSES](docs/THIRD_PARTY_LICENSES.md) · [CHANGELOG](CHANGELOG.md)
 
 ## Requirements – Final Implementation Status
 
@@ -78,11 +78,10 @@ powershell -ExecutionPolicy Bypass -File scripts\package.ps1     # Setup, portab
 | Native UVE effects (GLSL), presets, undo, before/after, per-file presets, default presets | Yes | Yes (exact formulas, visually measured effects) | Auto Scene Match, Scopes, and custom filter codes not ported | UVE_PARITY_MATRIX.md |
 | UVE profiles, example profile and LUT packages from GitHub, LUT Gallery | Yes | Yes (real downloads, 83 profiles) | SR uses a radius-based approximation | UVE_PARITY_MATRIX.md |
 | Shader error handling with fallback instead of black screen | Yes | Yes (ShaderChain) | None | src/rendering/ShaderChain.cpp |
-| Plugin API (manifest, lifecycle, Safe Mode, error logging) | Yes | Yes (tst_manifest, self-test) | Native plugins execute trusted code; no digital signature verification | PLUGIN_API.md |
+| Plugin API (manifest, lifecycle, Safe Mode, error logging, events/commands, contributions, QML plugins, ZIP install) | Yes | Yes (tst_manifest, tst_plugins, self-test) | Native plugins execute trusted code; no digital signature verification | PLUGIN_API.md |
 | Multilingual support (English default, German, Spanish, Italian, Polish, Greek, Turkish) and custom languages | Yes | Yes (tst_i18n, English/Greek UI) | Machine-generated translations; native-speaker review pending | lang/README.md |
 | Tool updater (yt-dlp, libmpv) with checksum verification | Yes | Partially (checks verified; libmpv update installation not tested end-to-end) | Updates take effect after restarting | ToolUpdater.cpp |
 | Installer, portable EXE, and ZIP with all required tools | Yes | Yes (package build, launch from staging) | Installer not tested on a clean system | scripts/package.ps1 |
-| REA analysis (vlc.exe, libmpv, previous Electron version) | Yes | N/A | No deep-analysis provider (Ghidra/IDA) available | REA_ANALYSIS.md, REA_LIMITATIONS.md |
 | No telemetry, no unsolicited downloads, no DRM circumvention | Yes | Code review | None | THIRD_PARTY_LICENSES.md |
 
 ## Licenses

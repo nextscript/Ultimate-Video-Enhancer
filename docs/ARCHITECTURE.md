@@ -1,46 +1,55 @@
-# Architektur
+# Architecture
 
 ```text
 UVEPlayer.exe (app/)
-├── main.cpp            Starter: libmpv vorladen, Einzelinstanz, Safe Mode, Datenordner, QML laden
-├── PlayerApp           Anwendungskern für QML ("app"): Öffnen, Wiedergabeliste, Fortsetzen, Sitzung, Updates, Selbsttest
-└── qml/                Qt-Quick-Oberfläche (Main, ControlBar, SeekBar, PlaylistPanel, Dialoge, Kontextmenüs)
+├── main.cpp            Launcher: preload libmpv, single instance, Safe Mode, data folder, load QML
+├── PlayerApp           Application core for QML ("app"): opening, playlist, resume, session, updates, self-test
+└── qml/                Qt Quick UI (Main, ControlBar, SeekBar, PlaylistPanel, dialogs, context menus)
 
-uvecore (src/, statische Bibliothek)
-├── core/       AppSettings (JSON, Schemaversion, atomar), Logger, SafeMode (Absturzzähler)
-├── player/     MpvController (Client-API, Zustandsautomat), MpvVideoItem (Render-API → Qt-Quick-FBO)
-├── plugins/    PluginApi.h (Vertrag), PluginManifest (Prüfung vor dem Laden), PluginManager (Lebenszyklus, Host-Dienste)
-├── rendering/  ShaderChain (mpv "glsl-shaders", Fehlerzuordnung, Deaktivieren fehlerhafter Stufen)
-└── services/   PlaylistModel, MediaFiles, HotkeyModel, ToolUpdater, SingleInstance
+uvecore (src/, static library)
+├── core/       AppSettings (JSON, schema version, atomic), Logger, SafeMode (crash counter), LanguageManager
+├── player/     MpvController (client API, state machine), MpvVideoItem (render API → Qt Quick FBO)
+├── plugins/    PluginApi.h (contract), PluginManifest (validation before loading), PluginManager (lifecycle,
+│               host services, events/commands, contributions), PluginBridge (QML access for plugin pages)
+├── rendering/  ShaderChain (mpv "glsl-shaders", error attribution, disabling faulty stages)
+└── services/   PlaylistModel, MediaFiles, HotkeyModel, ToolUpdater, SingleInstance, ProxyConfig, ProxyBridge
 
 plugins/
-├── uve/                Ultimate Video Enhancer: engine/ (Parameter, Shader-Generator, .cube-Parser), Controller, QML-Panel
-└── examples/sleeptimer Referenz-Plugin (nur Host-Dienste)
+├── uve/                Ultimate Video Enhancer: engine/ (parameters, shader generator, .cube parser), controller, QML panel
+└── examples/sleeptimer Reference plugin (host services only)
 ```
 
-## libmpv-Anbindung
-- **Thread-Grenzen:** mpv ruft `wakeup` aus eigenen Threads; der Controller reiht nur `processEvents` per
-  `Qt::QueuedConnection` ein und liest dann im GUI-Thread mit `mpv_wait_event(…, 0)` (nicht blockierend).
-- **Befehle** asynchron (`mpv_command_async`), Eigenschaften über `mpv_observe_property`.
-- **Zustandsautomat:** `Idle → Opening → Playing ⇄ Paused / Buffering → Ended | Error`
-  (`START_FILE`, `FILE_LOADED`, `pause`, `paused-for-cache`, `eof-reached` wegen `keep-open=yes`, `END_FILE`).
-- **Videoausgabe:** `vo=libmpv` + Render-API (OpenGL). Qt Quick wird auf das OpenGL-RHI festgelegt;
-  `MpvVideoItem` erzeugt den Render-Kontext im Render-Thread beim ersten FBO. Dateien, die vorher geöffnet werden,
-  werden zurückgestellt (`markRenderReady`), sonst würde mpv die Videospur mangels Ausgabe deaktivieren.
-- **Zero-Copy:** nicht zugesagt. Hardware-Dekodierung `auto-safe` (im Test NVDEC); ob mpv dabei interop oder kopiert,
-  hängt von Treiber/Backend ab und wurde nicht gemessen.
+## libmpv integration
+- **Thread boundaries:** mpv calls `wakeup` from its own threads; the controller only queues `processEvents` via
+  `Qt::QueuedConnection` and then reads with `mpv_wait_event(…, 0)` (non-blocking) on the GUI thread.
+- **Commands** are asynchronous (`mpv_command_async`), properties via `mpv_observe_property`.
+- **State machine:** `Idle → Opening → Playing ⇄ Paused / Buffering → Ended | Error`
+  (`START_FILE`, `FILE_LOADED`, `pause`, `paused-for-cache`, `eof-reached` because of `keep-open=yes`, `END_FILE`).
+- **Video output:** `vo=libmpv` + render API (OpenGL). Qt Quick is pinned to the OpenGL RHI;
+  `MpvVideoItem` creates the render context on the render thread with the first FBO. Files opened before that are
+  deferred (`markRenderReady`); otherwise mpv would disable the video track for lack of an output.
+- **Zero-copy:** not promised. Hardware decoding `auto-safe` (NVDEC in testing); whether mpv uses interop or copies
+  depends on driver/backend and was not measured.
 
-## Frame-Pipeline (nativ)
-Decode (HW/SW) → YUV→RGB (mpv) → **Hook MAIN: UVE-Pässe** (Original sichern · Rauschfilter+CAS · Farbkorrektur ·
-Detail/Kanten/LUT/Split) → Skalierung → mpv-Farbmanagement/Tonemapping → Ausgabe ins Qt-FBO.
+## Frame pipeline (native)
+Decode (HW/SW) → YUV→RGB (mpv) → **hook MAIN: UVE passes** (save original · color correction · detail/edges/LUT/split)
+→ scaling → mpv color management/tone mapping → output into the Qt FBO.
 
-## Fehlerbehandlung
-- libmpv nicht ladbar (z. B. fehlende `vulkan-1.dll`): Klartextmeldung statt Absturz.
-- Shaderfehler: `ShaderChain` deaktiviert die Stufe, Wiedergabe läuft weiter, Plugin erhält `onShaderError`.
-- Plugin-Absturz beim Start: nach 2 unsauberen Starts in Folge Safe Mode (auch `--safe-mode`).
-- Beschädigte `settings.json`: Sicherung `settings.json.corrupt-<zeit>`, Start mit Standardwerten.
-- Beschädigtes Profil/LUT: Ablehnung mit Meldung, Quelldatei unverändert.
+## Plugins
+- Discovery in the user plugin folder (takes precedence) and the program folder: single libraries with an embedded
+  manifest, or plugin folders (`manifest.json` + library or QML).
+- Name-based events (player → plugin) and commands (plugin → player); contributions from the manifest (pages, menu
+  entries, hotkeys, translations, URL handlers). Details: [PLUGIN_API.md](PLUGIN_API.md).
 
-## Daten
-`%APPDATA%\nextscript\UVE Player\` (bzw. `UVE_DATA_DIR`, portabel `.\data` mit `portable.txt`):
-`settings.json`, `crash-guard.json`, `logs\`, `plugin-data\<id>\`, `tools\<werkzeug>\<version>\` (Updates).
+## Error handling
+- libmpv cannot be loaded (e.g. missing `vulkan-1.dll`): plain-text message instead of a crash.
+- Shader error: `ShaderChain` disables the stage, playback continues, the plugin receives `onShaderError`.
+- Plugin crash at startup: Safe Mode after 2 unclean starts in a row (also `--safe-mode`).
+- Corrupted `settings.json`: backup `settings.json.corrupt-<time>`, start with defaults.
+- Corrupted profile/LUT: rejected with a message, the source file stays unchanged.
+- Files on network drives that are temporarily unreadable: automatic retries for about a minute.
+
+## Data
+`%APPDATA%\nextscript\UVE Player\` (or `UVE_DATA_DIR`, portable `.\data` with `portable.txt`):
+`settings.json`, `crash-guard.json`, `logs\`, `plugins\` (user plugins), `plugin-data\<id>\`,
+`tools\<tool>\<version>\` (updates).

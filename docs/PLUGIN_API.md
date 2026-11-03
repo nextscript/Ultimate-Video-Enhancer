@@ -1,41 +1,41 @@
-# Plugin-API (Version 1)
+# Plugin API (version 1)
 
-Header: `src/plugins/PluginApi.h`. Ziel seit **1.0.6**: Neue Plugins erweitern den Player, **ohne dass der Player
-aktualisiert werden muss**. Dafür gibt es drei Bausteine, die über Namen erweitert werden statt über neue Funktionen:
+Header: `src/plugins/PluginApi.h`. Goal since **1.0.6**: new plugins extend the player **without the player having to be
+updated**. There are three building blocks that are extended by name instead of by new functions:
 
-| Baustein | Richtung | Wie |
+| Building block | Direction | How |
 |---|---|---|
-| **Ereignisse** | Player → Plugin | `IPluginEvents::onEvent(name, data)` (nativ) bzw. `plugin.onEvent(name, data)` (QML) |
-| **Befehle** | Plugin → Player | `host->call(pluginId, name, args, &error)` (nativ) bzw. `plugin.call(name, args)` (QML) |
-| **Beiträge** | Manifest → Player | `contributes`: Seiten, Menüeinträge, Tastenkürzel, Sprachdateien, Adressmuster |
+| **Events** | player → plugin | `IPluginEvents::onEvent(name, data)` (native) or `plugin.onEvent(name, data)` (QML) |
+| **Commands** | plugin → player | `host->call(pluginId, name, args, &error)` (native) or `plugin.call(name, args)` (QML) |
+| **Contributions** | manifest → player | `contributes`: pages, menu entries, hotkeys, translation files, URL handlers |
 
-Neue Ereignisse und Befehle kommen in späteren Versionen einfach hinzu. Die Schnittstelle (und damit `apiVersion 1`)
-ändert sich dadurch nicht, alte Plugins laufen weiter. Ob der laufende Player einen Befehl kennt: `hasCommand(name)`.
+New events and commands are simply added in later versions. The interface (and therefore `apiVersion 1`) does not
+change, existing plugins keep working. To check whether the running player knows a command: `hasCommand(name)`.
 
-## Plugin-Formen
+## Plugin forms
 
-### 1. Plugin-Ordner (empfohlen)
+### 1. Plugin folder (recommended)
 
 ```
 plugins/<name>/
-    manifest.json        Pflicht
-    <bibliothek>.dll     native Logik ("library")      – oder –   Main.qml  reine QML-Logik ("main")
-    lang/<name>_<code>.qm  eigene Übersetzungen (z. B. beispiel_en.qm)
-    *.qml, Bilder …       Seiten und Ressourcen
+    manifest.json          required
+    <library>.dll          native logic ("library")      – or –   Main.qml  pure QML logic ("main")
+    lang/<name>_<code>.qm  own translations (e.g. example_en.qm)
+    *.qml, images …        pages and resources
 ```
 
-Gesucht wird im Benutzerordner (`%APPDATA%\nextscript\UVE Player\plugins`, hat Vorrang) und im Programmordner
-(`<Programm>\plugins`). Das Manifest im Ordner gilt, auch wenn die Bibliothek ein eingebettetes Manifest hat –
-Seiten, Menüs oder Sprachen lassen sich so ohne Neukompilieren ändern.
+Plugins are searched in the user folder (`%APPDATA%\nextscript\UVE Player\plugins`, takes precedence) and in the program
+folder (`<program>\plugins`). The manifest in the folder applies even if the library has an embedded manifest – pages,
+menus or translations can be changed without recompiling.
 
-**Installieren:** Plugin-Verwaltung → *Plugin installieren …* → `.zip` (mit `manifest.json` im Wurzelverzeichnis
-oder in genau einem Unterordner) oder `manifest.json` eines Ordners wählen. Das Paket wird geprüft
-(Manifest, Pfade) und beim **nächsten Start** in `plugins/<id>/` übernommen (geladene DLLs sind unter Windows gesperrt).
+**Installing:** plugin manager → *Install plugin …* → choose a `.zip` (with `manifest.json` at the root or in exactly one
+subfolder) or the `manifest.json` of a folder. The package is validated (manifest, paths) and moved to `plugins/<id>/` on
+the **next start** (loaded DLLs are locked on Windows).
 
-### 2. Reines QML-Plugin (ohne Kompilieren)
+### 2. Pure QML plugin (no compiler needed)
 
-`"main": "Main.qml"` – ein nicht sichtbares QML-Objekt. Optional: `property var plugin` (Brücke, siehe unten),
-Funktionen `activate()`, `suspend()`, `deactivate()`.
+`"main": "Main.qml"` – a non-visual QML object. Optional: `property var plugin` (the bridge, see below) and the functions
+`activate()`, `suspend()`, `deactivate()`.
 
 ```qml
 import QtQml
@@ -45,21 +45,21 @@ QtObject {
     property Connections events: Connections {
         target: root.plugin
         function onEvent(name, data) {
-            if (name === "media.loaded") root.plugin.call("osd.show", { text: "Läuft: " + data.title })
+            if (name === "media.loaded") root.plugin.call("osd.show", { text: "Playing: " + data.title })
         }
     }
 }
 ```
 
-Netzwerkzugriffe in QML: `XMLHttpRequest`.
+Network access in QML: `XMLHttpRequest`.
 
-### 3. Einzelne Bibliothek (bisheriges Format)
+### 3. Single library (previous format)
 
-Eine DLL direkt in `plugins/` mit eingebettetem Manifest (`Q_PLUGIN_METADATA(... FILE "manifest.json")`).
-Funktioniert weiter; Beiträge (`contributes`) können auch im eingebetteten Manifest stehen, Sprachdateien und
-Seiten aus Dateien aber nur im Plugin-Ordner.
+A DLL directly in `plugins/` with an embedded manifest (`Q_PLUGIN_METADATA(... FILE "manifest.json")`). Still works;
+contributions (`contributes`) can also be in the embedded manifest, but translation files and pages from files only work
+in a plugin folder.
 
-## Native Plugins (C++)
+## Native plugins (C++)
 
 ```cpp
 class MyPlugin : public QObject, public uve::IPlayerPlugin, public uve::IPluginEvents {
@@ -69,117 +69,117 @@ class MyPlugin : public QObject, public uve::IPlayerPlugin, public uve::IPluginE
 public:
     bool initialize(uve::IPlayerHost *host, QString *error) override;
     void activate() override; void suspend() override; void deactivate() override;
-    QObject *controller() override;    // Objekt für die Seiten (Eigenschaft "controller")
-    QUrl panelQml() const override;     // optional, sonst leer → Seiten über contributes.panels
+    QObject *controller() override;    // object for the pages (property "controller")
+    QUrl panelQml() const override;     // optional, otherwise empty → pages via contributes.panels
     QString panelTitle() const override;
     void onEvent(const QString &name, const QVariantMap &data) override;   // IPluginEvents (optional)
 };
 ```
 
-Gleicher Compiler und dieselbe Qt-Version wie der Player (1.0.x: Qt 6.12, MSVC 2022, 64 bit).
+Same compiler and Qt version as the player (1.0.x: Qt 6.12, MSVC 2022, 64 bit).
 
 ## Manifest
 
 ```json
 {
-  "id": "org.beispiel.plugin", "name": "…", "version": "1.0.0", "apiVersion": 1, "minHostVersion": "1.0.6",
+  "id": "org.example.plugin", "name": "…", "version": "1.0.0", "apiVersion": 1, "minHostVersion": "1.0.6",
   "type": "utility", "description": "…", "author": "…", "license": "…",
-  "library": "beispiel.dll",
+  "library": "example.dll",
   "main": "Main.qml",
   "supportedPlatforms": ["windows", "linux", "macos"], "requiredBackends": [], "permissions": [],
   "contributes": {
     "panels":   [ { "id": "main", "title": { "de": "Beispiel", "en": "Example" }, "qml": "Panel.qml", "location": "sidebar" },
-                  { "id": "settings", "title": "Einstellungen", "qml": "Settings.qml", "location": "settings" } ],
+                  { "id": "settings", "title": "Settings", "qml": "Settings.qml", "location": "settings" } ],
     "menu":     [ { "id": "doit", "title": { "de": "Ausführen", "en": "Run" } } ],
-    "hotkeys":  [ { "id": "doit", "title": "Ausführen", "default": "Ctrl+Alt+B" } ],
+    "hotkeys":  [ { "id": "doit", "title": "Run", "default": "Ctrl+Alt+B" } ],
     "translations": "lang",
     "urlHandlers": [ "^https?://(www\\.)?example\\.com/" ]
   }
 }
 ```
 
-`library` **oder** `main` (nur Plugin-Ordner). Texte im Manifest: Zeichenkette oder `{ "<sprache>": "…" }`
-(Rückfall Englisch, dann Deutsch). Verfügbare Backends: `mpv-user-shaders`, `mpv-render-api-opengl`,
+`library` **or** `main` (plugin folders only). Texts in the manifest: a string or `{ "<language>": "…" }`
+(fallback English, then German). Available backends: `mpv-user-shaders`, `mpv-render-api-opengl`,
 `plugin-events`, `plugin-commands`, `qml-plugins`.
 
-| Beitrag | Wirkung |
+| Contribution | Effect |
 |---|---|
-| `panels` | `location: "sidebar"` → Reiter in der Seitenleiste; `"settings"` → Knopf in der Plugin-Verwaltung. `qml` relativ zum Ordner oder `qrc:/…` |
-| `menu` | Eintrag im Menü *Plugins* → Ereignis `action.triggered {id}` |
-| `hotkeys` | Eintrag in *Einstellungen → Tastenkürzel* (änderbar) → Ereignis `action.triggered {id}`. Ein bereits belegtes Standardkürzel wird nicht übernommen |
-| `translations` | Ordner mit `*_<code>.qm` (Standard `lang`), wird beim Sprachwechsel mit umgeschaltet; Quellsprache Deutsch, Rückfall Englisch |
-| `urlHandlers` | Reguläre Ausdrücke; passende Adressen gehen vor dem Laden an das Plugin (Ereignis `media.resolve`) |
+| `panels` | `location: "sidebar"` → tab in the sidebar; `"settings"` → button in the plugin manager. `qml` relative to the folder or `qrc:/…` |
+| `menu` | entry in the *Plugins* menu → event `action.triggered {id}` |
+| `hotkeys` | entry in *Settings → Shortcuts* (editable) → event `action.triggered {id}`. A default shortcut that is already taken is not applied |
+| `translations` | folder with `*_<code>.qm` (default `lang`), switched together with the player language; source language German, fallback English |
+| `urlHandlers` | regular expressions; matching addresses go to the plugin before loading (event `media.resolve`) |
 
-Seiten bekommen die Eigenschaften `theme`, `host` (Player-Objekt), `controller` (Plugin-Objekt bzw. QML-Logik) und
-`plugin` (Brücke) – jeweils nur, wenn die Seite sie deklariert.
+Pages receive the properties `theme`, `host` (player object), `controller` (plugin object or QML logic) and `plugin`
+(the bridge) – each only if the page declares it.
 
-## Brücke (`plugin` in QML)
+## Bridge (`plugin` in QML)
 
 `plugin.call(name, args)`, `plugin.hasCommand(name)`, `plugin.commands()`, `plugin.settings()`,
 `plugin.saveSettings(obj)`, `plugin.log(text, level)`, `plugin.osd(text, ms)`, `plugin.lastError()`,
-`plugin.resolve("bild.png")` (Datei im Plugin-Ordner als URL), Eigenschaften `id`, `folder`, `dataDir`, `language`,
-Signal `event(name, data)`.
+`plugin.resolve("image.png")` (file in the plugin folder as a URL), properties `id`, `folder`, `dataDir`, `language`,
+signal `event(name, data)`.
 
-## Ereignisse
+## Events
 
-| Name | Daten |
+| Name | Data |
 |---|---|
-| `media.loading` | `url` – der Nutzer hat ein Medium gewählt (vor einer Auflösung) |
-| `media.resolve` | `requestId`, `url` – nur an das Plugin, dessen `urlHandlers` passt; Antwort mit `media.resolved` |
-| `media.resolveCancelled` | `requestId` – Ergebnis wird nicht mehr gebraucht |
-| `media.loaded` | `path` (geladen), `source` (gewählt), `title`, `duration` |
+| `media.loading` | `url` – the user chose a medium (before any resolution) |
+| `media.resolve` | `requestId`, `url` – only to the plugin whose `urlHandlers` match; answer with `media.resolved` |
+| `media.resolveCancelled` | `requestId` – the result is no longer needed |
+| `media.loaded` | `path` (loaded), `source` (chosen), `title`, `duration` |
 | `media.ended` | `reason` (`eof`, `stop`, `error`, …), `path`, `source`, `error` |
 | `player.stopped` | `path` |
 | `playback.paused` | `paused` |
 | `language.changed` | `code` |
-| `action.triggered` | `id` – Menüeintrag oder Tastenkürzel dieses Plugins |
-| `app.quit` | – Programmende |
+| `action.triggered` | `id` – menu entry or hotkey of this plugin |
+| `app.quit` | – program exit |
 
-Unbekannte Ereignisse ignorieren – spätere Versionen können weitere senden.
+Ignore unknown events – later versions may send more.
 
-## Befehle
+## Commands
 
-| Name | Argumente → Ergebnis |
+| Name | Arguments → result |
 |---|---|
-| `commands` | → Liste aller Befehle |
+| `commands` | → list of all commands |
 | `app.info` | → `version`, `apiVersion`, `language`, `platform`, `backends` |
 | `osd.show` | `text`, `ms` |
 | `log` | `message`, `level` |
-| `settings.get` / `settings.set` | → Plugin-Einstellungen / `settings` (Objekt) |
-| `plugin.dataDir` | → Datenordner des Plugins |
-| `panel.open` | `panel` (id aus `contributes.panels`) – Seite zeigen |
-| `media.resolved` | `requestId`, `url` (abzuspielen) oder `error` |
+| `settings.get` / `settings.set` | → plugin settings / `settings` (object) |
+| `plugin.dataDir` | → data folder of the plugin |
+| `panel.open` | `panel` (id from `contributes.panels`) – show the page |
+| `media.resolved` | `requestId`, `url` (to play) or `error` |
 | `player.state` | → `path`, `source`, `title`, `position`, `duration`, `paused`, `state`, `playlistIndex` |
-| `player.load` | `url` oder `urls`, `next` – zur Wiedergabeliste hinzufügen und abspielen |
-| `player.pause` | `paused` (ohne: umschalten) |
+| `player.load` | `url` or `urls`, `next` – add to the playlist and play |
+| `player.pause` | `paused` (without: toggle) |
 | `player.stop`, `player.next`, `player.previous`, `player.reload` | – |
 | `player.seek` | `seconds`, `relative` |
 | `playlist.add` | `urls`, `play`, `next` |
 | `playlist.items` | → `[{path, title, current}]` |
 | `playlist.play` | `index` |
-| `mpv.get` / `mpv.set` / `mpv.command` | `name` / `name`, `value` / `args` – direkter mpv-Zugriff für alles ohne eigenen Befehl |
+| `mpv.get` / `mpv.set` / `mpv.command` | `name` / `name`, `value` / `args` – direct mpv access for everything without its own command |
 
-## Prüfung vor dem Laden (`validateManifest`)
+## Validation before loading (`validateManifest`)
 
-id-Format, Name, SemVer-Version, `apiVersion == 1`, `minHostVersion ≤ Host`, Plattform, Backends; im Plugin-Ordner
-zusätzlich: `library` vorhanden und ein UVE-Player-Plugin bzw. `main` vorhanden. Abgelehnte Plugins werden nicht geladen
-und im Plugin-Dialog mit Grund angezeigt (Fehlerprotokoll `logs\plugin-errors.log`).
+id format, name, SemVer version, `apiVersion == 1`, `minHostVersion ≤ host`, platform, backends; for plugin folders also:
+`library` exists and is a UVE Player plugin, or `main` exists. Rejected plugins are not loaded and are shown with the
+reason in the plugin manager (error log `logs\plugin-errors.log`).
 
-## Lebenszyklus
+## Lifecycle
 
 `discover → verify → load → initialize → activate ⇄ suspend → deactivate → unload`
-Aktivieren/Deaktivieren zur Laufzeit ohne Neustart; abgeschaltete Plugins verlieren Seiten, Menüs, Tastenkürzel und
-Adressmuster sofort. Ausnahmen in `initialize`, `onMediaChanged`, `onEvent` und Befehlen werden abgefangen.
+Enabling/disabling at runtime without a restart; disabled plugins lose their pages, menu entries, hotkeys and URL handlers
+immediately. Exceptions in `initialize`, `onMediaChanged`, `onEvent` and commands are caught.
 
-## Host-Dienste (`IPlayerHost`)
+## Host services (`IPlayerHost`)
 
-Einstellungen pro Plugin (JSON), Datenordner, GPU-Shader-Stufe setzen/entfernen, OSD, Protokoll,
-aktueller Medienpfad/Position/Pause lesen, Pause setzen, Standbild ohne Effekte (`grabVideoFrame`, threadsicher),
-ab 1.0.2 `setVideoEqualizer` und `sampleDisplayFrame`, ab 1.0.6 `call`, `hasCommand`, `commands`.
+Per-plugin settings (JSON), data folder, set/remove a GPU shader stage, OSD, logging, read the current media path /
+position / pause state, set pause, still frame without effects (`grabVideoFrame`, thread-safe),
+since 1.0.2 `setVideoEqualizer` and `sampleDisplayFrame`, since 1.0.6 `call`, `hasCommand`, `commands`.
 
-## Sicherheit
+## Security
 
-Plugins (nativ und QML) laufen im Hauptprozess und sind **Vertrauenscode**; `mpv.*` erlaubt vollen Zugriff auf mpv.
-Es gibt keine Signaturprüfung und keine Prozessisolation; fremde Plugins nur aus vertrauenswürdiger Quelle installieren.
+Plugins (native and QML) run in the main process and are **trusted code**; `mpv.*` gives full access to mpv.
+There is no signature verification and no process isolation; only install plugins from trustworthy sources.
 
-Beispiele: `plugins/examples/sleeptimer/` (nativ, bisheriges Format), `tests/unit/tst_plugins.cpp` (QML-Plugin-Ordner).
+Examples: `plugins/examples/sleeptimer/` (native, previous format), `tests/unit/tst_plugins.cpp` (QML plugin folder).

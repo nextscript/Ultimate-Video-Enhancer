@@ -1,50 +1,55 @@
-# Testbericht – UVE Player 1.0.0
+# Test report – UVE Player
 
-Testsystem: Windows 10 IoT Enterprise LTSC 2021 (19044), x64, NVIDIA-GPU, MSVC 19.51, Qt 6.12.0, libmpv 20261102 (mpv v0.41.0-1386).
-Alle Angaben stammen aus tatsächlich ausgeführten Läufen am 2026-11-02. Nicht Getestetes ist ausdrücklich als solches markiert.
+Test system: Windows 10 IoT Enterprise LTSC 2021 (19044), x64, NVIDIA GPU, MSVC 19.51, Qt 6.12.0, libmpv 20261102 (mpv v0.41.0-1386).
+All results come from runs that were actually executed (1.0.0 on 2026-11-02, additions up to 1.0.6 on 2026-11-03).
+Anything not tested is explicitly marked as such.
 
-## Automatische Tests (CTest, `ctest --test-dir build -C Release`)
+## Automated tests (CTest, `ctest --test-dir build -C Release`)
 
-| Suite | Inhalt | Ergebnis |
+| Suite | Content | Result |
 |---|---|---|
-| tst_manifest | Manifest-Prüfung (id, Version, apiVersion, minHostVersion, Plattform, Backends) | bestanden |
-| tst_playlist | Hinzufügen, Verschieben, Sortieren, Wiederholen/Zufall, M3U/PLS | bestanden |
-| tst_hotkeys | Standardbelegung, Konflikterkennung, Zurücksetzen | bestanden |
-| tst_proxy | URL-Kodierung, Prüfung, DPAPI-Speicherung; Brücke gegen lokalen SOCKS5-Server (407 ohne Zugang, CONNECT-Tunnel, Auflösung am Proxy, tcp-Weiterleitung); optional Live-Proxy | bestanden (Live: öffentliche IP direkt 84.118.8.160, über Proxy 88.151.59.152) |
-| tst_i18n | alle `lang/uve_*.ts`: vollständig, Platzhalter, Randleerzeichen, eindeutige Menü-Kürzel; Umschalten en/el/tr/de mit gebauten `.qm`, Rückfall, defekte Datei | bestanden (6 Sprachen × 678 Texte) |
-| tst_uve | 15 UVE-Umrechnungen exakt gegen Original-JS (Node-vm), Profile-Roundtrip, `.cube`-Parser, ZIP/Inflate/CRC, echtes `LUTsProfiles_v3.0.zip` (83 Profile), Prüfsummen GitHub/jsDelivr, BL/WL/SR-Werte, Shaderaufbau | bestanden |
-| tst_mpv_integration | libmpv laden, Datei öffnen, Spurwechsel, Suchen, EOF | bestanden |
+| tst_manifest | Manifest validation (id, version, apiVersion, minHostVersion, platform, backends) | passed |
+| tst_plugins | Plugin folders, pure QML plugin, contributions (pages, menu, hotkeys, localized titles), commands, events, URL resolution, enabling/disabling at runtime, package installation from a folder and from ZIP (incl. backslash paths and path-traversal rejection) | passed |
+| tst_playlist | Adding, moving, sorting, repeat/shuffle, M3U/PLS, network path detection | passed |
+| tst_hotkeys | Default bindings, conflict detection, reset | passed |
+| tst_proxy | URL encoding, validation, DPAPI storage; bridge against a local SOCKS5 server (407 without access, CONNECT tunnel, resolution at the proxy, tcp forwarding); optional live proxy | passed (live: public IP direct 84.118.8.160, via proxy 88.151.59.152) |
+| tst_toolupdater | Tool updater (data folder creation, error messages) | passed |
+| tst_i18n | all `lang/uve_*.ts`: complete, placeholders, edge whitespace, unique menu accelerators; switching en/el/tr/de with built `.qm`, fallback, broken file | passed (6 languages × 860 strings) |
+| tst_uve | 15 UVE conversions exact against the original JS (Node vm), profile round trip, `.cube` parser, ZIP/inflate/CRC, real `LUTsProfiles_v3.0.zip` (83 profiles), GitHub/jsDelivr checksums, BL/WL/SR values, shader structure | passed |
+| tst_mpv_integration | Load libmpv, open a file, switch tracks, seek, EOF | passed |
+| tst_thumbnailer | Explorer thumbnail provider: file stream, memory stream, STA-bound stream (no access from other threads) | passed |
 
-Ergebnis: **7/7 bestanden**.
+Result: **10/10 passed**.
 
-## Oberflächen-Selbsttest (`UVE_SELFTEST_UI=1 UVEPlayer.exe --selftest …`, echte Mausereignisse)
+## UI self-test (`UVE_SELFTEST_UI=1 UVEPlayer.exe --selftest …`, real mouse events)
 
-| Prüfung | Ergebnis |
+| Check | Result |
 |---|---|
-| Doppelklick in der Wiedergabeliste spielt Zeile 2 | ok |
-| Klick aufs Bild pausiert / setzt fort; Doppelklick → Vollbild ohne Pause | ok |
-| Rechtsklick-Kontextmenü | ok |
-| Effekte wirken im Bild (Sättigung −10: Farbsättigung auf 41 % gemessen) | ok |
-| Beispielprofil My_Profile.json von GitHub: BL 0.7, WL 0.2, SR 1.1, SL 1.2, Dark & Moody, LUT-Profil Fujifilm DCI-P3 | ok |
-| LUT-Paket v3.0 automatisch nachgeladen (83 Profile), LUT-Profil im Bild messbar (Schwarzweiß-LUT: Sättigung → 0) | ok |
-| LUT-Galerie mit 83 Vorschaubildern aus dem aktuellen Frame (53–64 ms) | ok |
-| Einstellungen → Netzwerk | ok |
-| Sprache Englisch (Voreinstellung) und Griechisch, 0 Warnungen im Protokoll | ok |
-| Sauberes Beenden (Exitcode 0) | ok |
+| Double-click in the playlist plays row 2 | ok |
+| Click on the video pauses / resumes; double-click → fullscreen without pausing | ok |
+| Right-click context menu | ok |
+| Effects are visible in the picture (saturation −10: color saturation measured at 41 %) | ok |
+| Example profile My_Profile.json from GitHub: BL 0.7, WL 0.2, SR 1.1, SL 1.2, Dark & Moody, LUT profile Fujifilm DCI-P3 | ok |
+| LUT package v3.0 downloaded automatically (83 profiles), LUT profile measurable in the picture (black-and-white LUT: saturation → 0) | ok |
+| LUT gallery with 83 previews from the current frame (53–64 ms) | ok |
+| Settings → Network | ok |
+| English (default) and Greek language, 0 warnings in the log | ok |
+| Clean exit (exit code 0) | ok |
 
-## Wiedergabe echter Quellen
+## Playback of real sources
 
-| Quelle | Ergebnis |
+| Source | Result |
 |---|---|
-| MKV HEVC 10-Bit + AC3, 2 Audio-/2 Untertitelspuren | NVDEC, Start 3,0 s, Suchen 212 ms |
-| AVI MPEG-4/MP3, MKV H.264 + AAC/AC3 + SRT (Testmedien) | ok |
-| YouTube 1080p (yt-dlp) | Start 6,5 s, Suchen 200 ms |
+| MKV HEVC 10-bit + AC3, 2 audio / 2 subtitle tracks | NVDEC, start 3.0 s, seek 212 ms |
+| AVI MPEG-4/MP3, MKV H.264 + AAC/AC3 + SRT (test media) | ok |
+| YouTube 1080p (yt-dlp) | start 6.5 s, seek 200 ms |
 | Twitch mihanaplays (live) | 1080p |
-| `tcp://hls.ts3x.cc:8113` (live) | 1080p, Start 0,7 s |
-| **Über SOCKS5-Proxy** albcloud.ts3x.cc:2888: Twitch + tcp:// | 1080p/NVDEC; alle Verbindungen über die Brücke (gql.twitch.tv, usher, Playlist, 4× Segmente, hls.ts3x.cc), 7,5 MB |
+| `tcp://hls.ts3x.cc:8113` (live) | 1080p, start 0.7 s |
+| **Via SOCKS5 proxy** albcloud.ts3x.cc:2888: Twitch + tcp:// | 1080p/NVDEC; all connections via the bridge (gql.twitch.tv, usher, playlist, 4× segments, hls.ts3x.cc), 7.5 MB |
+| File via a network path that becomes readable only after a few seconds (UNC) | opened automatically after 2 retries |
 
-## Nicht getestet
-- Linux, macOS (nicht gebaut)
-- AMD-/Intel-GPUs, HDR10-Ausgabe, Mehrschirmbetrieb
-- Installation des Setups auf einem frischen System ohne Visual-C++-Laufzeit (Laufzeit-DLLs werden von windeployqt beigelegt)
-- Pixelgenauer Vergleich Browser-UVE ↔ nativ (siehe UVE_PARITY_MATRIX.md)
+## Not tested
+- Linux, macOS (built by CI only, not tested manually)
+- AMD/Intel GPUs, HDR10 output, multi-monitor setups
+- Installing the setup on a clean system without the Visual C++ runtime (runtime DLLs are bundled by windeployqt)
+- Pixel-exact comparison browser UVE ↔ native (see UVE_PARITY_MATRIX.md)

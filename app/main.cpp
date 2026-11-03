@@ -1,5 +1,5 @@
 // UVE Player 1.0.0 – Launcher
-// Aufgaben (vgl. docs/REA_ANALYSIS.md, VLC: vlc.exe ist ein schlanker Starter vor libvlc):
+// Aufgaben (schlanker Starter vor dem Player-Kern):
 //   libmpv laden → Einzelinstanz → Safe-Mode-Prüfung → Player initialisieren → QML-Oberfläche → Plugins
 #include "PlayerApp.h"
 
