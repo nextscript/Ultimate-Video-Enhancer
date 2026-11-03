@@ -6,6 +6,15 @@
 // Software-Renderer der Render-API, Bild bei ~10 % der Laufzeit, keine Audio-/Untertitelspuren.
 // Läuft in der isolierten Explorer-Thumbnail-Umgebung (dllhost); Dateizugriff über IInitializeWithStream.
 // Bewusst ohne Qt – die DLL wird in fremde Prozesse geladen.
+//
+// Threading (wichtig, sonst hängt der Explorer):
+//   mpv läuft komplett in einem eigenen Worker-Thread. Der IStream wird ausschließlich vom aufrufenden
+//   Thread (STA des Hosts) benutzt: mpv-Threads stellen Lese-/Seek-Anfragen in einen Kanal, den
+//   GetThumbnail() bedient, während es auf das Ergebnis wartet. Kein mpv-Thread ruft also per COM in das
+//   STA zurück. (Früher: Deadlock, wenn das STA in mpv_terminate_destroy blockierte und gleichzeitig ein
+//   Demuxer-Thread über den IStream-Proxy las – der hängende Host blockierte dann auch „Öffnen mit“.)
+//   GetThumbnail() kehrt spätestens nach kWaitLimitMs zurück; mpv wird danach im Worker aufgeräumt,
+//   ohne den Aufrufer zu blockieren.
 
 #include <windows.h>
 #include <shlwapi.h>
@@ -15,6 +24,9 @@
 #include <string>
 #include <vector>
 #include <mutex>
+#include <condition_variable>
+#include <memory>
+#include <thread>
 #include <atomic>
 #include <cstdint>
 #include <cstring>
@@ -80,66 +92,107 @@ MpvApi &mpvApi()
 }
 
 // ------------------------------------------------------------------ IStream → mpv stream_cb
-// mpv liest auf eigenen Threads; der IStream wird über die Global Interface Table in deren
-// Apartment gereicht (direkter Zeiger bei agilen Streams, sonst Proxy).
-struct StreamSource {
-    IGlobalInterfaceTable *git = nullptr;
-    DWORD cookie = 0;
-    std::mutex lock;
+// mpv liest auf eigenen Threads. Die Anfragen landen in diesem Kanal und werden von dem Thread
+// ausgeführt, dem der IStream gehört (serve()). Nach close() schlagen alle Anfragen sofort fehl.
+struct StreamChannel {
+    enum class Op { Read, Seek, Size };
 
-    IStream *acquire()
+    explicit StreamChannel(IStream *s) : stream(s)
     {
-        static thread_local bool comInit = false;
-        if (!comInit) { CoInitializeEx(nullptr, COINIT_MULTITHREADED); comInit = true; }
-        IStream *s = nullptr;
-        if (FAILED(git->GetInterfaceFromGlobal(cookie, IID_PPV_ARGS(&s)))) return nullptr;
-        return s;
+        if (stream) stream->AddRef();
+        request = CreateEventW(nullptr, FALSE, FALSE, nullptr);
     }
+    ~StreamChannel()
+    {
+        if (stream) stream->Release();
+        if (request) CloseHandle(request);
+    }
+    StreamChannel(const StreamChannel &) = delete;
+    StreamChannel &operator=(const StreamChannel &) = delete;
+
+    // mpv-Thread: Anfrage stellen und auf die Antwort warten
+    int64_t call(Op op, char *buf, uint64_t n, int64_t off, int64_t fail)
+    {
+        std::lock_guard serial(m_callLock);   // eine Anfrage zur Zeit
+        std::unique_lock l(m_lock);
+        if (m_closed) return fail;
+        m_op = op; m_buf = buf; m_n = n; m_off = off; m_fail = fail;
+        m_pending = true; m_done = false;
+        SetEvent(request);
+        m_cv.wait(l, [this] { return m_done || m_closed; });
+        m_pending = false;
+        return m_done ? m_result : fail;
+    }
+
+    // Besitzer-Thread: offene Anfrage ausführen (nachdem `request` signalisiert wurde)
+    void serve()
+    {
+        Op op; char *buf; uint64_t n; int64_t off, fail;
+        {
+            std::lock_guard l(m_lock);
+            if (!m_pending || m_done || m_closed) return;
+            op = m_op; buf = m_buf; n = m_n; off = m_off; fail = m_fail;
+        }
+        int64_t r = fail;
+        if (stream) {
+            if (op == Op::Read) {
+                ULONG want = static_cast<ULONG>(n > 0x7fffffffu ? 0x7fffffffu : n), got = 0;
+                HRESULT hr = stream->Read(buf, want, &got);
+                r = FAILED(hr) ? -1 : static_cast<int64_t>(got);
+            } else if (op == Op::Seek) {
+                LARGE_INTEGER li; li.QuadPart = off;
+                ULARGE_INTEGER pos{};
+                if (SUCCEEDED(stream->Seek(li, STREAM_SEEK_SET, &pos))) r = static_cast<int64_t>(pos.QuadPart);
+            } else {
+                STATSTG st{};
+                if (SUCCEEDED(stream->Stat(&st, STATFLAG_NONAME))) r = static_cast<int64_t>(st.cbSize.QuadPart);
+            }
+        }
+        std::lock_guard l(m_lock);
+        m_result = r;
+        m_done = true;
+        m_cv.notify_all();
+    }
+
+    // Besitzer-Thread: ab jetzt keine Zugriffe mehr auf den Stream
+    void close()
+    {
+        std::lock_guard l(m_lock);
+        m_closed = true;
+        m_cv.notify_all();
+    }
+
+    IStream *stream = nullptr;
+    HANDLE request = nullptr;
+
+private:
+    std::mutex m_callLock, m_lock;
+    std::condition_variable m_cv;
+    Op m_op = Op::Read;
+    char *m_buf = nullptr;
+    uint64_t m_n = 0;
+    int64_t m_off = 0, m_fail = -1, m_result = -1;
+    bool m_pending = false, m_done = false, m_closed = false;
 };
 
 int64_t cbRead(void *cookie, char *buf, uint64_t nbytes)
 {
-    auto *src = static_cast<StreamSource *>(cookie);
-    std::lock_guard g(src->lock);
-    IStream *s = src->acquire();
-    if (!s) return -1;
-    ULONG want = static_cast<ULONG>(nbytes > 0x7fffffffu ? 0x7fffffffu : nbytes), got = 0;
-    HRESULT hr = s->Read(buf, want, &got);
-    s->Release();
-    return FAILED(hr) ? -1 : static_cast<int64_t>(got);
+    return static_cast<StreamChannel *>(cookie)->call(StreamChannel::Op::Read, buf, nbytes, 0, -1);
 }
 int64_t cbSeek(void *cookie, int64_t offset)
 {
-    auto *src = static_cast<StreamSource *>(cookie);
-    std::lock_guard g(src->lock);
-    IStream *s = src->acquire();
-    if (!s) return MPV_ERROR_GENERIC;
-    LARGE_INTEGER li; li.QuadPart = offset;
-    ULARGE_INTEGER pos{};
-    HRESULT hr = s->Seek(li, STREAM_SEEK_SET, &pos);
-    s->Release();
-    return FAILED(hr) ? MPV_ERROR_GENERIC : static_cast<int64_t>(pos.QuadPart);
+    return static_cast<StreamChannel *>(cookie)->call(StreamChannel::Op::Seek, nullptr, 0, offset, MPV_ERROR_GENERIC);
 }
 int64_t cbSize(void *cookie)
 {
-    auto *src = static_cast<StreamSource *>(cookie);
-    std::lock_guard g(src->lock);
-    IStream *s = src->acquire();
-    if (!s) return MPV_ERROR_UNSUPPORTED;
-    STATSTG st{};
-    HRESULT hr = s->Stat(&st, STATFLAG_NONAME);
-    s->Release();
-    return FAILED(hr) ? MPV_ERROR_UNSUPPORTED : static_cast<int64_t>(st.cbSize.QuadPart);
+    return static_cast<StreamChannel *>(cookie)->call(StreamChannel::Op::Size, nullptr, 0, 0, MPV_ERROR_UNSUPPORTED);
 }
 void cbClose(void *) {}
 int cbOpen(void *userData, char *, mpv_stream_cb_info *info)
 {
-    auto *src = static_cast<StreamSource *>(userData);
-    {   // am Dateianfang beginnen
-        std::lock_guard g(src->lock);
-        if (IStream *s = src->acquire()) { LARGE_INTEGER z{}; s->Seek(z, STREAM_SEEK_SET, nullptr); s->Release(); }
-    }
-    info->cookie = src;
+    auto *ch = static_cast<StreamChannel *>(userData);
+    ch->call(StreamChannel::Op::Seek, nullptr, 0, 0, MPV_ERROR_GENERIC);   // am Dateianfang beginnen
+    info->cookie = ch;
     info->read_fn = cbRead;
     info->seek_fn = cbSeek;
     info->size_fn = cbSize;
@@ -157,24 +210,57 @@ std::string toUtf8(const std::wstring &w)
 }
 
 // ------------------------------------------------------------------ Bild erzeugen
-struct WakeCtx { HANDLE ev; std::atomic<bool> frame{false}; };
+constexpr DWORD kRenderLimitMs = 12000;   // mpv: Laden + erstes Bild
+constexpr DWORD kWaitLimitMs = 15000;     // GetThumbnail wartet höchstens so lange
+
+// Gemeinsamer Zustand von GetThumbnail (Aufrufer) und Worker; lebt, bis beide fertig sind.
+struct ThumbJob {
+    std::string url;
+    UINT cx = 256;
+    std::unique_ptr<StreamChannel> channel;   // nur bei Zugriff über IStream
+    HANDLE finished = CreateEventW(nullptr, TRUE, FALSE, nullptr);
+    std::mutex lock;
+    bool delivered = false, abandoned = false;
+    HRESULT hr = E_FAIL;
+    HBITMAP bmp = nullptr;
+
+    ThumbJob() = default;
+    ThumbJob(const ThumbJob &) = delete;
+    ThumbJob &operator=(const ThumbJob &) = delete;
+    ~ThumbJob()
+    {
+        if (bmp) DeleteObject(bmp);
+        if (finished) CloseHandle(finished);
+    }
+
+    // Worker: Ergebnis abgeben (nur das erste zählt). Hat der Aufrufer schon aufgegeben, wird es verworfen.
+    void deliver(HRESULT r, HBITMAP b)
+    {
+        std::lock_guard l(lock);
+        if (delivered || abandoned) {
+            if (b) DeleteObject(b);
+            return;
+        }
+        delivered = true;
+        hr = r;
+        bmp = b;
+        SetEvent(finished);
+    }
+};
+
+struct WakeCtx { HANDLE ev; };
 
 void onWakeup(void *p) { SetEvent(static_cast<WakeCtx *>(p)->ev); }
 void onRenderUpdate(void *p) { SetEvent(static_cast<WakeCtx *>(p)->ev); }
 
-// Wartet auf das Ereignis; in einem STA werden dabei Nachrichten verarbeitet (IStream-Proxy-Aufrufe)
-void waitFor(HANDLE ev, DWORD ms)
+// Läuft im Worker-Thread (ohne COM). Gibt das Ergebnis per job.deliver() ab, bevor mpv aufgeräumt wird.
+void renderThumbnail(ThumbJob &job)
 {
-    DWORD idx = 0;
-    if (FAILED(CoWaitForMultipleHandles(0, ms, 1, &ev, &idx))) WaitForSingleObject(ev, ms);
-}
-
-HRESULT renderThumbnail(const std::string &url, StreamSource *stream, UINT cx, HBITMAP *outBmp)
-{
+    const UINT cx = job.cx;
     MpvApi &m = mpvApi();
-    if (!m.ok) return E_FAIL;
+    if (!m.ok) { job.deliver(E_FAIL, nullptr); return; }
     mpv_handle *h = m.create();
-    if (!h) return E_OUTOFMEMORY;
+    if (!h) { job.deliver(E_OUTOFMEMORY, nullptr); return; }
 
     const char *opts[][2] = {
         {"config", "no"}, {"terminal", "no"}, {"msg-level", "all=no"}, {"load-scripts", "no"}, {"osc", "no"},
@@ -186,7 +272,11 @@ HRESULT renderThumbnail(const std::string &url, StreamSource *stream, UINT cx, H
         {"save-position-on-quit", "no"}, {"network-timeout", "5"},
     };
     for (auto &o : opts) m.set_option_string(h, o[0], o[1]);
-    if (m.initialize(h) < 0) { m.terminate_destroy(h); return E_FAIL; }
+    if (m.initialize(h) < 0) {
+        job.deliver(E_FAIL, nullptr);
+        m.terminate_destroy(h);
+        return;
+    }
 
     WakeCtx wake;
     wake.ev = CreateEventW(nullptr, FALSE, FALSE, nullptr);
@@ -197,13 +287,12 @@ HRESULT renderThumbnail(const std::string &url, StreamSource *stream, UINT cx, H
         {MPV_RENDER_PARAM_INVALID, nullptr},
     };
     mpv_render_context *rc = nullptr;
-    HRESULT result = E_FAIL;
     if (m.rc_create(&rc, h, cparams) >= 0) {
         m.rc_set_update_callback(rc, onRenderUpdate, &wake);
-        if (stream) m.stream_cb_add_ro(h, "uvethumb", stream, cbOpen);
-        const char *cmd[] = {"loadfile", url.c_str(), nullptr};
+        if (job.channel) m.stream_cb_add_ro(h, "uvethumb", job.channel.get(), cbOpen);
+        const char *cmd[] = {"loadfile", job.url.c_str(), nullptr};
         if (m.command(h, cmd) >= 0) {
-            const ULONGLONG deadline = GetTickCount64() + 12000;
+            const ULONGLONG deadline = GetTickCount64() + kRenderLimitMs;
             bool failed = false, haveFrame = false;
             while (!failed && !haveFrame && GetTickCount64() < deadline) {
                 for (;;) {
@@ -220,7 +309,7 @@ HRESULT renderThumbnail(const std::string &url, StreamSource *stream, UINT cx, H
                     }
                 }
                 if (m.rc_update(rc) & MPV_RENDER_UPDATE_FRAME) haveFrame = true;
-                if (!haveFrame && !failed) waitFor(wake.ev, 100);
+                if (!haveFrame && !failed) WaitForSingleObject(wake.ev, 100);
             }
             int64_t dw = 0, dh = 0;
             if (haveFrame && m.get_property(h, "dwidth", MPV_FORMAT_INT64, &dw) >= 0
@@ -259,8 +348,7 @@ HRESULT renderThumbnail(const std::string &url, StreamSource *stream, UINT cx, H
                                 std::memcpy(dst, buf + y * stride, static_cast<size_t>(w) * 4);
                                 for (int x = 0; x < w; ++x) dst[x * 4 + 3] = 0xff;
                             }
-                            *outBmp = bmp;
-                            result = S_OK;
+                            job.deliver(S_OK, bmp);
                         } else if (bmp) {
                             DeleteObject(bmp);
                         }
@@ -269,12 +357,62 @@ HRESULT renderThumbnail(const std::string &url, StreamSource *stream, UINT cx, H
                 }
             }
         }
+        // Ergebnis abgeben, bevor aufgeräumt wird: der Aufrufer schließt dann den Stream-Kanal, offene
+        // Leseanfragen von mpv schlagen sofort fehl und das Aufräumen läuft ohne den Aufrufer.
+        job.deliver(E_FAIL, nullptr);   // wirkungslos, wenn schon ein Bild geliefert wurde
         m.rc_free(rc);   // vor mpv_terminate_destroy freigeben (Render-API-Vorgabe)
     }
+    job.deliver(E_FAIL, nullptr);
     m.set_wakeup_callback(h, nullptr, nullptr);
     m.terminate_destroy(h);
     CloseHandle(wake.ev);
-    return result;
+}
+
+// Aufrufer-Thread: Worker starten, IStream-Anfragen bedienen und (begrenzt) auf das Ergebnis warten.
+HRESULT runThumbnailJob(const std::shared_ptr<ThumbJob> &job, HBITMAP *outBmp)
+{
+    ++g_objects;   // DLL bleibt geladen, solange der Worker läuft
+    try {
+        std::thread([job] {
+            renderThumbnail(*job);
+            if (job->channel) job->channel->close();
+            --g_objects;
+        }).detach();
+    } catch (...) {
+        --g_objects;
+        return E_OUTOFMEMORY;
+    }
+
+    HANDLE handles[2] = {job->finished, job->channel ? job->channel->request : nullptr};
+    const DWORD count = job->channel ? 2 : 1;
+    const ULONGLONG deadline = GetTickCount64() + kWaitLimitMs;
+    for (;;) {
+        const ULONGLONG now = GetTickCount64();
+        if (now >= deadline) break;
+        const DWORD left = static_cast<DWORD>(deadline - now);
+        DWORD idx = 0;
+        // CoWaitForMultipleHandles pumpt im STA (der Host bleibt ansprechbar); ohne COM normales Warten
+        HRESULT hr = CoWaitForMultipleHandles(0, left, count, handles, &idx);
+        if (hr == CO_E_NOTINITIALIZED) {
+            const DWORD w = WaitForMultipleObjects(count, handles, FALSE, left);
+            if (w >= WAIT_OBJECT_0 + count) break;
+            hr = S_OK;
+            idx = w - WAIT_OBJECT_0;
+        }
+        if (hr != S_OK) break;   // Zeitlimit oder Fehler
+        if (idx == 0) break;     // Ergebnis da
+        job->channel->serve();
+    }
+    if (job->channel) job->channel->close();   // ab hier kein Zugriff mehr auf den IStream
+
+    std::lock_guard l(job->lock);
+    if (!job->delivered) {
+        job->abandoned = true;   // Worker räumt allein auf und verwirft ein spätes Bild
+        return HRESULT_FROM_WIN32(ERROR_TIMEOUT);
+    }
+    *outBmp = job->bmp;
+    job->bmp = nullptr;
+    return job->hr;
 }
 } // namespace
 
@@ -284,10 +422,7 @@ public:
     UveThumbnailProvider() { ++g_objects; }
     ~UveThumbnailProvider()
     {
-        if (m_src.git) {
-            if (m_src.cookie) m_src.git->RevokeInterfaceFromGlobal(m_src.cookie);
-            m_src.git->Release();
-        }
+        if (m_stream) m_stream->Release();
         --g_objects;
     }
 
@@ -313,7 +448,7 @@ public:
     IFACEMETHODIMP Initialize(IStream *stream, DWORD) override
     {
         if (!stream) return E_INVALIDARG;
-        if (m_src.git) return HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED);
+        if (m_stream) return HRESULT_FROM_WIN32(ERROR_ALREADY_INITIALIZED);
         // Liefert der Stream einen vollständigen, vorhandenen Pfad, liest mpv die Datei direkt (schneller)
         STATSTG st{};
         if (SUCCEEDED(stream->Stat(&st, STATFLAG_DEFAULT)) && st.pwcsName) {
@@ -323,9 +458,9 @@ public:
                 && GetFileAttributesW(name.c_str()) != INVALID_FILE_ATTRIBUTES)
                 m_path = name;
         }
-        HRESULT hr = CoCreateInstance(CLSID_StdGlobalInterfaceTable, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&m_src.git));
-        if (FAILED(hr)) return hr;
-        return m_src.git->RegisterInterfaceInGlobal(stream, IID_IStream, &m_src.cookie);
+        m_stream = stream;   // wird nur auf dem aufrufenden Thread benutzt (siehe StreamChannel)
+        m_stream->AddRef();
+        return S_OK;
     }
 
     // IThumbnailProvider
@@ -334,15 +469,29 @@ public:
         if (!phbmp || !pdwAlpha) return E_INVALIDARG;
         *phbmp = nullptr;
         *pdwAlpha = WTSAT_RGB;
-        if (!m_src.git) return E_UNEXPECTED;
+        if (!m_stream) return E_UNEXPECTED;
         if (cx < 16) cx = 16;
-        return m_path.empty() ? renderThumbnail("uvethumb://stream", &m_src, cx, phbmp)
-                              : renderThumbnail(toUtf8(m_path), nullptr, cx, phbmp);
+        std::shared_ptr<ThumbJob> job;
+        try {
+            job = std::make_shared<ThumbJob>();
+            job->cx = cx;
+            if (m_path.empty()) {
+                job->url = "uvethumb://stream";
+                job->channel = std::make_unique<StreamChannel>(m_stream);
+                if (!job->channel->request) return E_OUTOFMEMORY;
+            } else {
+                job->url = toUtf8(m_path);
+            }
+        } catch (...) {
+            return E_OUTOFMEMORY;
+        }
+        if (!job->finished) return E_OUTOFMEMORY;
+        return runThumbnailJob(job, phbmp);
     }
 
 private:
     std::atomic<ULONG> m_ref{1};
-    StreamSource m_src;
+    IStream *m_stream = nullptr;
     std::wstring m_path;
 };
 
@@ -394,6 +543,6 @@ STDAPI DllGetClassObject(REFCLSID clsid, REFIID riid, void **ppv)
 
 STDAPI DllCanUnloadNow()
 {
-    // libmpv-Threads können noch laufen → DLL nur entladen, wenn wirklich nichts mehr aktiv ist
+    // Worker-Threads (mpv) können noch laufen → DLL nur entladen, wenn wirklich nichts mehr aktiv ist
     return (g_objects == 0 && g_locks == 0) ? S_OK : S_FALSE;
 }

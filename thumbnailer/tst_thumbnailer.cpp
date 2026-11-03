@@ -1,6 +1,8 @@
 // Prüft UVEThumbnailer.dll wie der Explorer: DllGetClassObject → IInitializeWithStream → GetThumbnail.
 //   tst_thumbnailer <UVEThumbnailer.dll> <video> [out.bmp]
-// Zwei Durchläufe: Dateistream (Pfad über IStream::Stat) und Speicherstream (mpv liest über stream_cb).
+// Drei Durchläufe: Dateistream (Pfad über IStream::Stat), Speicherstream (mpv liest über stream_cb) und
+// ein an das STA gebundener Stream wie im Explorer-Host: jeder Zugriff von einem fremden Thread zählt als
+// Fehler (früher Deadlock in mpv_terminate_destroy, der den Explorer bei „Öffnen mit“ hängen ließ).
 #include <windows.h>
 #include <shlwapi.h>
 #include <thumbcache.h>
@@ -27,6 +29,47 @@ static bool saveBmp(HBITMAP bmp, const wchar_t *path)
     CloseHandle(f);
     return true;
 }
+
+// IStream-Hülle, die nur auf ihrem Erzeuger-Thread benutzt werden darf (wie ein Proxy im STA)
+class StaBoundStream final : public IStream {
+public:
+    explicit StaBoundStream(IStream *inner) : m_inner(inner), m_owner(GetCurrentThreadId()) { m_inner->AddRef(); }
+    ~StaBoundStream() { m_inner->Release(); }
+    long foreignCalls = 0;
+
+    HRESULT check() { if (GetCurrentThreadId() != m_owner) { ++foreignCalls; return RPC_E_WRONG_THREAD; } return S_OK; }
+    IFACEMETHODIMP QueryInterface(REFIID riid, void **ppv) override
+    {
+        if (riid == IID_IUnknown || riid == IID_IStream || riid == IID_ISequentialStream) { *ppv = static_cast<IStream *>(this); AddRef(); return S_OK; }
+        *ppv = nullptr;
+        return E_NOINTERFACE;
+    }
+    IFACEMETHODIMP_(ULONG) AddRef() override { return InterlockedIncrement(&m_ref); }
+    IFACEMETHODIMP_(ULONG) Release() override { ULONG r = InterlockedDecrement(&m_ref); if (!r) delete this; return r; }
+    IFACEMETHODIMP Read(void *pv, ULONG cb, ULONG *pcb) override { HRESULT h = check(); return FAILED(h) ? h : m_inner->Read(pv, cb, pcb); }
+    IFACEMETHODIMP Write(const void *, ULONG, ULONG *) override { return STG_E_ACCESSDENIED; }
+    IFACEMETHODIMP Seek(LARGE_INTEGER d, DWORD o, ULARGE_INTEGER *n) override { HRESULT h = check(); return FAILED(h) ? h : m_inner->Seek(d, o, n); }
+    IFACEMETHODIMP SetSize(ULARGE_INTEGER) override { return E_NOTIMPL; }
+    IFACEMETHODIMP CopyTo(IStream *, ULARGE_INTEGER, ULARGE_INTEGER *, ULARGE_INTEGER *) override { return E_NOTIMPL; }
+    IFACEMETHODIMP Commit(DWORD) override { return E_NOTIMPL; }
+    IFACEMETHODIMP Revert() override { return E_NOTIMPL; }
+    IFACEMETHODIMP LockRegion(ULARGE_INTEGER, ULARGE_INTEGER, DWORD) override { return E_NOTIMPL; }
+    IFACEMETHODIMP UnlockRegion(ULARGE_INTEGER, ULARGE_INTEGER, DWORD) override { return E_NOTIMPL; }
+    IFACEMETHODIMP Stat(STATSTG *st, DWORD f) override
+    {
+        HRESULT h = check();
+        if (FAILED(h)) return h;
+        h = m_inner->Stat(st, f | STATFLAG_NONAME);   // kein Pfad → Zugriff nur über den Stream
+        if (SUCCEEDED(h)) st->pwcsName = nullptr;
+        return h;
+    }
+    IFACEMETHODIMP Clone(IStream **) override { return E_NOTIMPL; }
+
+private:
+    IStream *m_inner;
+    DWORD m_owner;
+    LONG m_ref = 1;
+};
 
 static int run(IClassFactory *cf, IStream *stream, const char *label, const wchar_t *out)
 {
@@ -90,6 +133,14 @@ int wmain(int argc, wchar_t **argv)
     fs->Release();
     IStream *ms = SHCreateMemStream(data.data(), got);
     failures += run(cf, ms, "memory stream", nullptr);
+
+    // An das STA gebundener Stream (Explorer-Host): Zugriffe nur auf diesem Thread erlaubt
+    auto *sta = new StaBoundStream(ms);
+    ULONGLONG t0 = GetTickCount64();
+    failures += run(cf, sta, "STA-bound stream", nullptr);
+    if (sta->foreignCalls) { std::printf("FAIL STA-bound stream: %ld calls from other threads\n", sta->foreignCalls); ++failures; }
+    if (GetTickCount64() - t0 > 20000) { std::printf("FAIL STA-bound stream: took too long\n"); ++failures; }
+    sta->Release();
     ms->Release();
 
     cf->Release();

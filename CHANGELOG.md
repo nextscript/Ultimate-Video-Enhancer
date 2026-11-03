@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.4 – 2026-11-03
+
+### Fixes
+- **Explorer hang on "Open with":** the video thumbnail provider could deadlock its Explorer helper process
+  (`dllhost.exe`): while libmpv was shutting down on the host thread, one of its reader threads called back into that
+  same thread through the file stream. The stuck helper then also blocked Explorer's "Open with" menu. libmpv now runs
+  on its own worker thread, the file stream is only touched by the calling thread, and a thumbnail request returns
+  after at most 15 seconds.
+
 ## 1.0.3 – 2026-11-03
 
 ### Fixes
