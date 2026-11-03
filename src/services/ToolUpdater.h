@@ -23,6 +23,8 @@ public:
 
     Q_INVOKABLE void check();
     Q_INVOKABLE void install(const QString &tool);
+    // Für Tests: Release-Infos vorgeben (sonst aus check()), z. B. mit einer file://-URL
+    void setReleaseInfo(const QString &tool, const QVariantMap &info) { m_latest.insert(tool, info); }
 
     // Kandidaten in absteigender Version (Benutzer-Updates vor mitgelieferter Version)
     static QStringList mpvDllCandidates(const QString &appDir, const QString &dataDir);

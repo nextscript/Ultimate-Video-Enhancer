@@ -267,12 +267,18 @@ void ToolUpdater::installYtdlp(const QVariantMap &info)
 void ToolUpdater::installMpv(const QVariantMap &info)
 {
     const QString build = info.value("latest").toString();
-    auto *tmp = new QTemporaryDir(QDir(m_dataDir).filePath("tools/.tmp-mpv-XXXXXX"));
+    // QTemporaryDir legt keine fehlenden Elternordner an: ohne <Daten>/tools (frische Installation, noch nie
+    // ein Werkzeug aktualisiert) schlug das libmpv-Update mit "Temporärer Ordner nicht beschreibbar" fehl
+    const QString toolsDir = QDir(m_dataDir).filePath("tools");
+    QDir().mkpath(toolsDir);
+    auto *tmp = new QTemporaryDir(QDir(toolsDir).filePath(".tmp-mpv-XXXXXX"));
     const QString archive = QDir(tmp->path()).filePath("mpv-dev.7z");
     auto *file = new QFile(archive, this);
     if (!tmp->isValid() || !file->open(QIODevice::WriteOnly)) {
+        const QString why = !tmp->isValid() ? tmp->errorString() : file->errorString();
+        Logger::write("update", "libmpv: temporärer Ordner unter " + toolsDir + " nicht beschreibbar: " + why);
         delete tmp; setBusy(false);
-        emit installFinished("libmpv", false, tr("Temporärer Ordner nicht beschreibbar"), false);
+        emit installFinished("libmpv", false, tr("Temporärer Ordner nicht beschreibbar") + " (" + QDir::toNativeSeparators(toolsDir) + ": " + why + ")", false);
         return;
     }
     auto *r = get(info.value("url").toString());
