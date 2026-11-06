@@ -130,7 +130,9 @@ jobs:
 
   macos:
     needs: version
-    runs-on: macos-14
+    # macos-14 wurde von GitHub Anfang November 2026 entfernt
+    # (Fehler: "The configuration 'macos-14-arm64-us-default' is not supported") -> immer das aktuelle Image.
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
