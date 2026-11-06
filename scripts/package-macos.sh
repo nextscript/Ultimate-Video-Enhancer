@@ -38,8 +38,19 @@ printf '{ "version": "%s", "source": "https://github.com/yt-dlp/yt-dlp/releases/
 DEPLOY="${QT_ROOT_DIR:+$QT_ROOT_DIR/bin/}macdeployqt"
 EXTRA=()
 for p in "$M"/plugins/*.dylib; do EXTRA+=("-executable=$p"); done
-"$DEPLOY" "$APP" -qmldir="$ROOT/app/qml" -qmldir="$ROOT/plugins/uve/qml" -qmldir="$ROOT/plugins/examples/sleeptimer" \
-    "${EXTRA[@]}" -always-overwrite
+QMLDIRS=(-qmldir="$ROOT/app/qml" -qmldir="$ROOT/plugins/uve/qml" -qmldir="$ROOT/plugins/examples/sleeptimer")
+# WebEngine-Build: das QtWebEngine-QML-Modul wird nur deployt, wenn eine gescannte QML-Datei es importiert.
+# Plugin-Seiten (z. B. twitchchat) importieren QtWebEngine aber aus dem Plugin-Ordner, den macdeployqt nicht
+# kennt -> scripts/webengine-qml enthaelt den Import, damit das Modul (inkl. QtWebEngineProcess) mitkommt.
+if otool -L "$M/UVEPlayer" | grep -q QtWebEngine; then
+    QMLDIRS+=(-qmldir="$ROOT/scripts/webengine-qml")
+fi
+"$DEPLOY" "$APP" "${QMLDIRS[@]}" "${EXTRA[@]}" -always-overwrite
+if otool -L "$M/UVEPlayer" | grep -q QtWebEngine; then
+    test -d "$APP/Contents/qml/QtWebEngine" || { echo "macdeployqt: QtWebEngine QML-Modul fehlt im Bundle"; exit 1; }
+    find "$APP" -name "QtWebEngineProcess*" | grep -q . || { echo "macdeployqt: QtWebEngineProcess-Helfer fehlt im Bundle"; exit 1; }
+    echo "QtWebEngine: QML-Modul und QtWebEngineProcess im Bundle vorhanden"
+fi
 # ad-hoc signature (required to start on Apple Silicon); not notarized
 codesign --force --deep --sign - "$APP"
 

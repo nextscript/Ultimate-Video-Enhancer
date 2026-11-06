@@ -16,7 +16,10 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: true
+  # Manuell angestossene Laeufe werden nicht mehr automatisch abgebrochen - der macOS-Job
+  # haengt oft laenger in der Runner-Warteschlange und wurde so bisher abgebrochen.
+  # Tag-Pushs ueberholen aeltere Laeufe weiterhin (cancel-in-progress).
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 
 env:
   QT_VERSION: "6.12.0"
@@ -139,7 +142,9 @@ jobs:
         with:
           version: ${{ env.QT_VERSION }}
           arch: clang_64
-          modules: qtimageformats qtshadertools
+          # QtWebEngine gibt es fuer 6.12.0 GA als offizielles Extensions-Archiv fuer macOS –
+          # damit hat der macOS-Build eingebettete Web-Ansichten (webview.available, Embed-Chat).
+          modules: qtimageformats qtshadertools qtwebengine
           cache: true
 
       - name: Build and package
