@@ -29,8 +29,15 @@ qt_standard_project_setup(REQUIRES 6.5)
 # Ohne installierte Qt6WebEngineQuick-Komponente mit -DUVE_WITH_WEBENGINE=OFF bauen.
 option(UVE_WITH_WEBENGINE "Qt WebEngine einbauen (WebViews für Plugins, z. B. Twitch-Embed-Chat)" ON)
 if(UVE_WITH_WEBENGINE)
-    find_package(Qt6 6.5 REQUIRED COMPONENTS WebEngineQuick)
-    add_compile_definitions(UVE_WITH_WEBENGINE=1)
+    # Die Qt-SDK-Repository enthält für 6.12.0 GA keine WebEngine-Binaries (Windows/Linux/macOS) –
+    # CI und Fremd-Builds fallen dann automatisch ohne WebViews zurück (Plugins nutzen ihre Native-Ansicht).
+    find_package(Qt6 6.5 QUIET COMPONENTS WebEngineQuick)
+    if(NOT Qt6WebEngineQuick_FOUND)
+        set(UVE_WITH_WEBENGINE OFF)
+        message(STATUS "Qt WebEngine-Komponente nicht installiert - Build ohne eingebettete Web-Ansichten")
+    else()
+        add_compile_definitions(UVE_WITH_WEBENGINE=1)
+    endif()
 endif()
 
 include(cmake/Mpv.cmake)
