@@ -48,6 +48,10 @@ qt_add_shaders(uve-player "uve_shaders"
 )
 
 target_link_libraries(uve-player PRIVATE uvecore Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Network)
+if(UVE_WITH_WEBENGINE)
+    # QtWebEngineQuick: stellt QtWebEngineQuick::initialize() bereit; Plugin-Seiten importieren QtWebEngine
+    target_link_libraries(uve-player PRIVATE Qt6::WebEngineQuick)
+endif()
 uve_link_mpv(uve-player)
 
 # Laufzeitdateien neben die EXE: libmpv (Unterordner mpv\, explizit geladen), yt-dlp, 7zr (Updater)

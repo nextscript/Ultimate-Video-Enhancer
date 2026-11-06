@@ -617,6 +617,14 @@ void PluginManager::registerBuiltinCommands()
         emit mediaResolved(req, a.value("url").toString(), a.value("error").toString(), e ? e->manifest.name : id);
         return QVariant(true);
     });
+#ifdef UVE_WITH_WEBENGINE
+    // WebView-Schnittstelle (ab 1.0.7): Plugins erkennen darüber, dass der Player eingebettete
+    // Web-Ansichten kann, und dürfen dann in Panel-Seiten "import QtWebEngine" verwenden.
+    registerCommand(QStringLiteral("webview.available"), [this](const QString &, const QVariantMap &, QString *) {
+        return QVariant(QVariantMap{{"available", true}, {"host", hostVersion()},
+                                    {"qt", QString::fromLatin1(qVersion())}, {"engine", QStringLiteral("QtWebEngine")}});
+    });
+#endif
 }
 
 // ---------------------------------------------------------------- Installation

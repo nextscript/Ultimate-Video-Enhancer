@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(UVEPlayer VERSION 1.0.6 LANGUAGES CXX
+project(UVEPlayer VERSION 1.0.7 LANGUAGES CXX
         DESCRIPTION "UVE Player – Medienplayer mit libmpv und Ultimate-Video-Enhancer-Plugin")
 
 set(CMAKE_CXX_STANDARD 20)
@@ -24,6 +24,14 @@ endforeach()
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Quick QuickControls2 Qml Network OpenGL Concurrent Test Xml LinguistTools ShaderTools)
 qt_standard_project_setup(REQUIRES 6.5)
+
+# Qt WebEngine (Erweiterung zu Qt 6.12): Schnittstelle für Plugin-Web-Ansichten (webview.available).
+# Ohne installierte Qt6WebEngineQuick-Komponente mit -DUVE_WITH_WEBENGINE=OFF bauen.
+option(UVE_WITH_WEBENGINE "Qt WebEngine einbauen (WebViews für Plugins, z. B. Twitch-Embed-Chat)" ON)
+if(UVE_WITH_WEBENGINE)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS WebEngineQuick)
+    add_compile_definitions(UVE_WITH_WEBENGINE=1)
+endif()
 
 include(cmake/Mpv.cmake)
 

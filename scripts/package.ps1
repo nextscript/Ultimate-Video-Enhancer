@@ -20,7 +20,12 @@ if (-not $Makensis) { $Makensis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe" }
 if (-not (Test-Path $Makensis)) { throw "makensis.exe nicht gefunden (Parameter -Makensis)" }
 
 # 1) Build + Tests
-cmake -S . -B build -G $Generator -A x64 -DCMAKE_PREFIX_PATH="$QtDir" | Out-Null
+#    Ninja-Generatoren (Multi-Config) kennen kein -A; dann muss die Umgebung MSVC + ninja mitbringen (VsDevCmd.bat).
+if ($Generator -like 'Ninja*') {
+    cmake -S . -B build -G $Generator -DCMAKE_PREFIX_PATH="$QtDir" | Out-Null
+} else {
+    cmake -S . -B build -G $Generator -A x64 -DCMAKE_PREFIX_PATH="$QtDir" | Out-Null
+}
 cmake --build build --config Release --parallel
 if ($LASTEXITCODE -ne 0) { throw "Build fehlgeschlagen" }
 if (-not $SkipTests) {
@@ -29,18 +34,24 @@ if (-not $SkipTests) {
 }
 
 # 2) Staging
+#    QtWebEngine-ABI-Fix vor dem Staging: die 6.12.0-Vorschau-WebEngine-DLLs (Juli) importieren den
+#    oeffentlichen QAccessibleInterface-Konstruktor, den das GA-Qt6Gui (Sep) nicht mehr exportiert
+#    (0xC0000139 beim Start). Details und Rueckweg (.orig) in scripts\fix-qtwebengine-abi.ps1.
+& "$PSScriptRoot\fix-qtwebengine-abi.ps1" -QtDir $QtDir -Apply
+#    Ninja Multi-Config legt die Ausgaben in bin\Release ab, VS-Generator direkt in bin.
+$bin = if (Test-Path "build\bin\Release\UVEPlayer.exe") { "build\bin\Release" } else { "build\bin" }
 $stage = Join-Path $root "release\stage"
 Remove-Item $stage -Recurse -Force -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $stage, "$stage\mpv", "$stage\tools\yt-dlp", "$stage\plugins\uve", "$stage\docs" | Out-Null
-Copy-Item build\bin\UVEPlayer.exe $stage
-Copy-Item build\bin\UVEThumbnailer.dll $stage   # Explorer-Vorschaubilder (Shell-Erweiterung)
+Copy-Item "$bin\UVEPlayer.exe" $stage
+Copy-Item "$bin\UVEThumbnailer.dll" $stage   # Explorer-Vorschaubilder (Shell-Erweiterung)
 Copy-Item deps\mpv\libmpv-2.dll, deps\mpv\version.json "$stage\mpv"
 Copy-Item deps\tools\yt-dlp\yt-dlp.exe, deps\tools\yt-dlp\version.json "$stage\tools\yt-dlp"
 Copy-Item deps\tools\7zr.exe "$stage\tools"
-Copy-Item build\bin\plugins\*.dll "$stage\plugins"
+Copy-Item "$bin\plugins\*.dll" "$stage\plugins"
 Copy-Item plugins\uve\data\* "$stage\plugins\uve" -Recurse
 New-Item -ItemType Directory -Force "$stage\lang" | Out-Null   # Sprachen: kompilierte .qm + Quellen (.ts) + Anleitung
-Copy-Item build\bin\lang\*.qm "$stage\lang"
+Copy-Item "$bin\lang\*.qm" "$stage\lang"
 Copy-Item lang\*.ts, lang\README.md "$stage\lang"
 if ((Get-ChildItem "$stage\lang\*.qm").Count -lt 6) { throw "Sprachdateien (.qm) fehlen im Staging" }
 Copy-Item app\resources\icon.ico $stage
@@ -54,6 +65,28 @@ Copy-Item README.md, CHANGELOG.md $stage
     --dir $stage (Get-ChildItem "$stage\plugins\*.dll").FullName | Out-Null
 foreach ($m in "Qt6Network.dll", "Qt6Concurrent.dll") {
     if (-not (Test-Path "$stage\$m")) { throw "Qt-Modul fehlt im Staging: $m" }
+}
+# Qt WebEngine ergänzen (WebView-Schnittstelle ab 1.0.7): windeployqt sieht QML-Importe aus Plugin-QML
+# (z. B. ChatWeb.qml) nicht – QtWebEngineProcess, Resourcen, QML-Plugin und Locale-Dateien beilegen.
+if ((Test-Path "$stage\Qt6WebEngineCore.dll") -or (Test-Path "$stage\Qt6WebEngineQuick.dll")) {
+    $webFiles = Get-ChildItem "$QtDir\bin\Qt6WebEngine*.dll", "$QtDir\bin\Qt6WebChannel*.dll", "$QtDir\bin\Qt6Positioning.dll",
+        "$QtDir\bin\Qt6Location.dll", "$QtDir\bin\QtWebEngineProcess.exe" -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -notmatch 'd\.dll$' -and $_.Name -ne 'Qt6WebEngineWidgets.dll' }  # Widgets-Zweig wird nicht benutzt (zieht Qt6Widgets/PrintSupport hinterher)
+    foreach ($f in $webFiles) { if (-not (Test-Path "$stage\$($f.Name)")) { Copy-Item $f.FullName $stage } }
+    if (-not (Test-Path "$stage\qml\QtWebEngine")) { Copy-Item "$QtDir\qml\QtWebEngine" "$stage\qml\QtWebEngine" -Recurse }
+    Get-ChildItem "$stage\qml\QtWebEngine" -Filter '*d.dll' -ErrorAction SilentlyContinue | Remove-Item -Force
+    if (-not (Test-Path "$stage\resources\qtwebengine_resources.pak") -and (Test-Path "$QtDir\resources")) {
+        New-Item -ItemType Directory -Force "$stage\resources" | Out-Null
+        Get-ChildItem "$QtDir\resources" -File | Where-Object { $_.Name -notmatch '\.debug\.' } |
+            ForEach-Object { Copy-Item $_.FullName "$stage\resources" }
+    }
+    if (Test-Path "$QtDir\translations\qtwebengine_locales") {
+        New-Item -ItemType Directory -Force "$stage\translations" | Out-Null
+        Copy-Item "$QtDir\translations\qtwebengine_locales" "$stage\translations\qtwebengine_locales" -Recurse -Force
+    }
+    foreach ($m in "QtWebEngineProcess.exe", "resources\qtwebengine_resources.pak", "qml\QtWebEngine\qtwebenginequickplugin.dll") {
+        if (-not (Test-Path "$stage\$m")) { throw "QtWebEngine-Datei fehlt im Staging: $m" }
+    }
 }
 # Visual-C++-Laufzeit app-lokal beilegen (läuft dann auch ohne installiertes VC++-Redistributable)
 $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"

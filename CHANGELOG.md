@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.0.7 – 2026-11-06
+
+### Plugins: embedded web views (WebView interface)
+- The player now embeds **Qt WebEngine** (Qt 6.12 extension, MSVC x64). Build option `UVE_WITH_WEBENGINE` (on by default;
+  build with `-DUVE_WITH_WEBENGINE=OFF` if the component is not installed).
+- **New host command `webview.available`** (`hasCommand()` / `call()`): plugins detect embedded web support and may then
+  use `import QtWebEngine` in their panel pages (`WebEngineView` for web content, `WebEngineProfile` with `storageName`
+  for persistent logins). Existing plugins and the plugin API (version 1) are unchanged.
+- The Twitch Chat plugin (`cc.ts3x.twitch-chat` 1.2.0) uses this interface: the official Twitch **embed chat**
+  (`twitch.tv/embed/<channel>/chat` – the same chat as play.php/embed pages) is the default view inside the player;
+  the native IRC view stays as fallback for older players.
+
 ## 1.0.6 – 2026-11-03
 
 ### Plugin system: extensions without player updates

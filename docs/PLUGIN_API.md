@@ -158,6 +158,7 @@ Ignore unknown events – later versions may send more.
 | `playlist.items` | → `[{path, title, current}]` |
 | `playlist.play` | `index` |
 | `mpv.get` / `mpv.set` / `mpv.command` | `name` / `name`, `value` / `args` – direct mpv access for everything without its own command |
+| `webview.available` | → `available`, `host`, `qt`, `engine` – since 1.0.7 in WebEngine builds: the player can show embedded web pages; panel QML may then `import QtWebEngine` (`WebEngineView`, `WebEngineProfile`) |
 
 ## Validation before loading (`validateManifest`)
 
@@ -175,7 +176,8 @@ immediately. Exceptions in `initialize`, `onMediaChanged`, `onEvent` and command
 
 Per-plugin settings (JSON), data folder, set/remove a GPU shader stage, OSD, logging, read the current media path /
 position / pause state, set pause, still frame without effects (`grabVideoFrame`, thread-safe),
-since 1.0.2 `setVideoEqualizer` and `sampleDisplayFrame`, since 1.0.6 `call`, `hasCommand`, `commands`.
+since 1.0.2 `setVideoEqualizer` and `sampleDisplayFrame`, since 1.0.6 `call`, `hasCommand`, `commands`,
+since 1.0.7 the command `webview.available` (embedded web views via Qt WebEngine, when the player is built with it).
 
 ## Security
 

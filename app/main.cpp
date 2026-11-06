@@ -23,6 +23,10 @@
 #include <QQuickWindow>
 #include <QStandardPaths>
 
+#ifdef UVE_WITH_WEBENGINE
+#include <QtWebEngineQuick>
+#endif
+
 #include <clocale>
 
 #ifdef Q_OS_WIN
@@ -138,6 +142,12 @@ int main(int argc, char *argv[])
         delete player;
         return 4;
     }
+
+#ifdef UVE_WITH_WEBENGINE
+    // WebEngine muss vor der QML-Engine initialisiert werden (lädt QtWebEngineProcess).
+    // Ab hier melden Plugins über hasCommand("webview.available"), dass WebViews möglich sind.
+    QtWebEngineQuick::initialize();
+#endif
 
     qmlRegisterType<uve::MpvVideoItem>("UvePlayer.Native", 1, 0, "MpvVideo");
     qmlRegisterUncreatableType<uve::MpvController>("UvePlayer.Native", 1, 0, "MpvController", QStringLiteral("nur über app.player"));
