@@ -1,4 +1,4 @@
-# UVE Player 1.0.6
+# UVE Player 1.0.7
 
 Native media player for Windows built with **C++20, Qt 6, and libmpv** – featuring **Ultimate Video Enhancer** as a GPU effects plugin, network streaming (YouTube, Twitch, HLS, tcp://) with proxy support, and seven languages.
 
@@ -6,9 +6,9 @@ Native media player for Windows built with **C++20, Qt 6, and libmpv** – featu
 
 | File | Description |
 |---|---|
-| `UVE-Player-1.0.6-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
-| `UVE-Player-1.0.6-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
-| `UVE-Player-1.0.6-portable.zip` | Portable folder archive (data stored in `.\data`) |
+| `UVE-Player-1.0.7-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
+| `UVE-Player-1.0.7-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
+| `UVE-Player-1.0.7-portable.zip` | Portable folder archive (data stored in `.\data`) |
 | `SHA256SUMS.txt` | SHA-256 checksums |
 
 All versions include libmpv, yt-dlp, and 7zr – no additional software installation is required.
@@ -25,6 +25,7 @@ All versions include libmpv, yt-dlp, and 7zr – no additional software installa
 - **Ultimate Video Enhancer:** Color correction, sharpening (SL/SR unsharp mask, detail sharpening), Teal & Orange split toning, HDR-like enhancement, film grain, edge enhancement, BL/WL controls; **Auto Scene Match** (Ctrl+Alt+A); **Expert Settings** for every grading curve; presets, before/after comparison with a draggable on-video divider (Ctrl+Alt+U), undo support; UVE profile import/export; **example profiles and LUT packages downloaded directly from GitHub**; **LUT Gallery** with previews based on the current video frame; `.cube` 3D LUT support.
 - **Languages:** English (default), Deutsch, Español, Italiano, Polski, Ελληνικά, Türkçe – switch languages under *Settings → General*; add custom languages using [lang/README.md](lang/README.md).
 - **Plugins:** Versioned Plugin API with manifest validation and Safe Mode; plugins extend the player without player updates – own pages, menu entries, hotkeys, translations, URL handlers, pure QML plugins and ZIP installation ([docs/PLUGIN_API.md](docs/PLUGIN_API.md)).
+- **Embedded web views (1.0.7):** plugin panels can show web pages inside the player via Qt WebEngine – detected with the host command `webview.available`; `WebEngineProfile` keeps plugin logins (e.g. Twitch chat) persistent. The Twitch Chat plugin shows the official `twitch.tv/embed` chat directly in the player.
 - **Privacy:** No telemetry.
 
 ## Quick Controls
@@ -60,6 +61,8 @@ ctest --test-dir build -C Release
 powershell -ExecutionPolicy Bypass -File scripts\package.ps1     # Setup, portable EXE, ZIP → release\
 ```
 
+Qt 6.12 with the **WebEngine** component enables plugin web views; build with `-DUVE_WITH_WEBENGINE=OFF` if it is not installed. Mixed Qt 6.12.0 installations (preview WebEngine DLLs + GA base) are reconciled automatically by `scripts\fix-qtwebengine-abi.ps1` during packaging.
+
 ## Documentation
 
 [ARCHITECTURE](docs/ARCHITECTURE.md) · [PLUGIN_API](docs/PLUGIN_API.md) · [BUILD](docs/BUILD.md) · [TEST_REPORT](docs/TEST_REPORT.md) · [UVE_PARITY_MATRIX](docs/UVE_PARITY_MATRIX.md) · [FEATURE_COMPARISON](docs/FEATURE_COMPARISON.md) · [THIRD_PARTY_LICENSES](docs/THIRD_PARTY_LICENSES.md) · [CHANGELOG](CHANGELOG.md)
@@ -68,7 +71,7 @@ powershell -ExecutionPolicy Bypass -File scripts\package.ps1     # Setup, portab
 
 | Requirement | Implemented | Tested | Limitations | Reference |
 |---|---|---|---|---|
-| C++20 + Qt 6 (QML) + libmpv, CMake | Yes | Yes (build, 7 CTest suites) | Built for Windows x64 only | ARCHITECTURE.md, BUILD.md |
+| C++20 + Qt 6 (QML) + libmpv, CMake | Yes | Yes (build, 10 CTest suites) | Built for Windows x64 only | ARCHITECTURE.md, BUILD.md |
 | Local playback (MKV/AVI/MP4, HEVC 10-bit, AC3), including hardware decoding | Yes | Yes (NVDEC) | AMD/Intel not tested | TEST_REPORT.md |
 | Playlist, double-click playback, context menu, resume playback | Yes | Yes (UI self-test, tst_playlist) | None | app/qml/PlaylistPanel.qml |
 | File through Help menus, settings (11 pages), customizable hotkeys with conflict warnings | Yes | Yes (tst_hotkeys, UI) | None | SettingsDialog.qml |
@@ -78,7 +81,7 @@ powershell -ExecutionPolicy Bypass -File scripts\package.ps1     # Setup, portab
 | Native UVE effects (GLSL), presets, undo, before/after, per-file presets, default presets | Yes | Yes (exact formulas, visually measured effects) | Auto Scene Match, Scopes, and custom filter codes not ported | UVE_PARITY_MATRIX.md |
 | UVE profiles, example profile and LUT packages from GitHub, LUT Gallery | Yes | Yes (real downloads, 83 profiles) | SR uses a radius-based approximation | UVE_PARITY_MATRIX.md |
 | Shader error handling with fallback instead of black screen | Yes | Yes (ShaderChain) | None | src/rendering/ShaderChain.cpp |
-| Plugin API (manifest, lifecycle, Safe Mode, error logging, events/commands, contributions, QML plugins, ZIP install) | Yes | Yes (tst_manifest, tst_plugins, self-test) | Native plugins execute trusted code; no digital signature verification | PLUGIN_API.md |
+| Plugin API (manifest, lifecycle, Safe Mode, error logging, events/commands, contributions, QML plugins, ZIP install, embedded web views via `webview.available`) | Yes | Yes (tst_manifest, tst_plugins, self-test) | Native plugins execute trusted code; no digital signature verification; web views require the WebEngine build | PLUGIN_API.md |
 | Multilingual support (English default, German, Spanish, Italian, Polish, Greek, Turkish) and custom languages | Yes | Yes (tst_i18n, English/Greek UI) | Machine-generated translations; native-speaker review pending | lang/README.md |
 | Tool updater (yt-dlp, libmpv) with checksum verification | Yes | Partially (checks verified; libmpv update installation not tested end-to-end) | Updates take effect after restarting | ToolUpdater.cpp |
 | Installer, portable EXE, and ZIP with all required tools | Yes | Yes (package build, launch from staging) | Installer not tested on a clean system | scripts/package.ps1 |
