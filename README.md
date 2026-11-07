@@ -1,4 +1,4 @@
-# UVE Player 1.0.7
+# UVE Player 1.0.9
 
 Native media player for Windows built with **C++20, Qt 6, and libmpv** – featuring **Ultimate Video Enhancer** as a GPU effects plugin, network streaming (YouTube, Twitch, HLS, tcp://) with proxy support, and seven languages.
 
@@ -6,9 +6,9 @@ Native media player for Windows built with **C++20, Qt 6, and libmpv** – featu
 
 | File | Description |
 |---|---|
-| `UVE-Player-1.0.7-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
-| `UVE-Player-1.0.7-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
-| `UVE-Player-1.0.7-portable.zip` | Portable folder archive (data stored in `.\data`) |
+| `UVE-Player-1.0.9-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
+| `UVE-Player-1.0.9-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
+| `UVE-Player-1.0.9-portable.zip` | Portable folder archive (data stored in `.\data`) |
 | `SHA256SUMS.txt` | SHA-256 checksums |
 
 All versions include libmpv, yt-dlp, and 7zr – no additional software installation is required.
@@ -18,6 +18,7 @@ All versions include libmpv, yt-dlp, and 7zr – no additional software installa
 ## Features
 
 - **Playback:** Supports nearly all media formats through libmpv/FFmpeg, hardware decoding, playlist management (M3U/PLS, folders, search, drag & drop), resume playback from the last position, audio/subtitle tracks and delay adjustment, A-B looping, frame stepping, playback speed control, screenshots, diagnostic overlay, and media information.
+- **GPU load (1.0.8):** *Settings → Video & GPU → Picture scaling* selects Balanced (default), High quality (mpv defaults) or Fast.
 - **Controls:** Single-click to pause, double-click for fullscreen, mouse wheel for volume adjustment, right-click context menu, and customizable keyboard shortcuts.
 - **Window:** Position, size, and maximized state are remembered between sessions.
 - **Network Streaming:** YouTube/Twitch (via yt-dlp), HTTP(S), HLS, DASH, TCP/UDP/RTMP/RTSP/SRT; automatic update checks for yt-dlp and libmpv.

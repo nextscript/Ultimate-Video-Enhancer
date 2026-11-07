@@ -115,6 +115,7 @@ public:
     Q_INVOKABLE QVariant setting(const QString &key, const QVariant &def = {}) const;
     Q_INVOKABLE void setSetting(const QString &key, const QVariant &value);
     Q_INVOKABLE void applyHwdec(const QString &mode);
+    Q_INVOKABLE void setRenderQuality(const QString &mode);   // balanced | high | fast
     Q_INVOKABLE QVariantList audioDevices() const;
     Q_INVOKABLE void setAudioDevice(const QString &name);
     Q_INVOKABLE void showOsd(const QString &text, int ms = 1500) { emit osd(text, ms); }
@@ -177,6 +178,7 @@ private:
     void saveResume();
     void saveSession();
     void applyYtdlOptions();
+    void applyRenderQuality(const QString &mode);
     void loadPath(const QString &path, double start, bool paused); // inkl. gewählter Stream-Auflösung
     void prepareStreamQualities(const QString &path);
     void clearStreamQualities(const QString &path);
@@ -233,6 +235,7 @@ private:
     int m_selftestIndex = -1;
     QVariantList m_selftestResults;
     QVariantMap m_selftestUi;
+    QVariantMap m_renderDefaults;   // mpv-Standardwerte der Skalierungsoptionen ("high")
     bool m_selftestUiMode = false;
     QQuickWindow *m_window = nullptr;
     QRect m_normalGeometry;          // letzte Geometrie im Fenstermodus (ohne Maximiert/Vollbild)

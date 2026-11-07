@@ -2,16 +2,18 @@ import QtQuick
 import QtQuick.Controls
 
 // Rechtsklick auf das Videobild: Wiedergabe, Audiospur, Untertitel, Geschwindigkeit, Bild, Effekte, Diagnose
+// Die ID darf nicht "menu" heißen: MenuItem hat eine eigene Eigenschaft "menu" (das direkte Eltern-Menü), die in
+// Delegates (Instantiator, Repeater) die ID der äußeren Komponente verdeckt – player/effects wären dort undefined.
 Menu {
-    id: menu
+    id: videoMenu
     property var player
     property var effects       // UVE-Controller oder null
     property var act           // Aktionsfunktion aus Main.qml
     property string aspect: "fit"
     readonly property bool hasMedia: player && player.state !== 0
 
-    MenuItem { text: player && player.paused ? qsTr("Wiedergabe") : qsTr("Pause"); enabled: menu.hasMedia; onTriggered: act("play.toggle") }
-    MenuItem { text: qsTr("Stopp"); enabled: menu.hasMedia; onTriggered: act("play.stop") }
+    MenuItem { text: player && player.paused ? qsTr("Wiedergabe") : qsTr("Pause"); enabled: videoMenu.hasMedia; onTriggered: act("play.toggle") }
+    MenuItem { text: qsTr("Stopp"); enabled: videoMenu.hasMedia; onTriggered: act("play.stop") }
     MenuItem { text: qsTr("Vorheriger Titel"); onTriggered: act("play.prev") }
     MenuItem { text: qsTr("Nächster Titel"); onTriggered: act("play.next") }
     MenuSeparator {}
@@ -19,15 +21,15 @@ Menu {
     Menu {
         id: audioMenu
         title: qsTr("Audiospur")
-        enabled: menu.hasMedia
+        enabled: videoMenu.hasMedia
         Instantiator {
-            model: menu.player ? menu.player.audioTracks : []
+            model: videoMenu.player ? videoMenu.player.audioTracks : []
             delegate: MenuItem {
                 required property var modelData
                 text: modelData.label
                 checkable: true
                 checked: modelData.selected === true
-                onTriggered: menu.player.setAudioTrack(modelData.id)
+                onTriggered: videoMenu.player.setAudioTrack(modelData.id)
             }
             onObjectAdded: (i, o) => audioMenu.insertItem(i, o)
             onObjectRemoved: (i, o) => audioMenu.removeItem(o)
@@ -36,25 +38,25 @@ Menu {
         MenuItem { text: qsTr("Audioverzögerung −50 ms"); onTriggered: act("audio.delayMinus") }
         MenuItem { text: qsTr("Audioverzögerung +50 ms"); onTriggered: act("audio.delayPlus") }
         MenuItem {
-            text: qsTr("Verzögerung zurücksetzen (") + Math.round((menu.player ? menu.player.audioDelay : 0) * 1000) + qsTr(" ms)")
-            enabled: !!menu.player && menu.player.audioDelay !== 0
-            onTriggered: menu.player.setAudioDelay(0)
+            text: qsTr("Verzögerung zurücksetzen (") + Math.round((videoMenu.player ? videoMenu.player.audioDelay : 0) * 1000) + qsTr(" ms)")
+            enabled: !!videoMenu.player && videoMenu.player.audioDelay !== 0
+            onTriggered: videoMenu.player.setAudioDelay(0)
         }
-        MenuItem { text: menu.player && menu.player.muted ? qsTr("Ton einschalten") : qsTr("Stumm"); onTriggered: act("mute") }
+        MenuItem { text: videoMenu.player && videoMenu.player.muted ? qsTr("Ton einschalten") : qsTr("Stumm"); onTriggered: act("mute") }
     }
 
     Menu {
         id: subMenu
         title: qsTr("Untertitel")
-        enabled: menu.hasMedia
+        enabled: videoMenu.hasMedia
         Instantiator {
-            model: menu.player ? menu.player.subtitleTracks : []
+            model: videoMenu.player ? videoMenu.player.subtitleTracks : []
             delegate: MenuItem {
                 required property var modelData
                 text: modelData.label
                 checkable: true
                 checked: modelData.selected === true
-                onTriggered: menu.player.setSubtitleTrack(modelData.id)
+                onTriggered: videoMenu.player.setSubtitleTrack(modelData.id)
             }
             onObjectAdded: (i, o) => subMenu.insertItem(i, o)
             onObjectRemoved: (i, o) => subMenu.removeItem(o)
@@ -62,17 +64,17 @@ Menu {
         MenuItem {
             text: qsTr("Aus")
             checkable: true
-            checked: menu.player ? !menu.player.subtitleTracks.some(t => t.selected) : true
-            onTriggered: menu.player.setSubtitleTrack(0)
+            checked: videoMenu.player ? !videoMenu.player.subtitleTracks.some(t => t.selected) : true
+            onTriggered: videoMenu.player.setSubtitleTrack(0)
         }
         MenuSeparator {}
         MenuItem { text: qsTr("Untertiteldatei hinzufügen…"); onTriggered: act("sub.add") }
         MenuItem { text: qsTr("Verzögerung −50 ms"); onTriggered: act("sub.delayMinus") }
         MenuItem { text: qsTr("Verzögerung +50 ms"); onTriggered: act("sub.delayPlus") }
         MenuItem {
-            text: qsTr("Verzögerung zurücksetzen (") + Math.round((menu.player ? menu.player.subDelay : 0) * 1000) + qsTr(" ms)")
-            enabled: !!menu.player && menu.player.subDelay !== 0
-            onTriggered: menu.player.setSubDelay(0)
+            text: qsTr("Verzögerung zurücksetzen (") + Math.round((videoMenu.player ? videoMenu.player.subDelay : 0) * 1000) + qsTr(" ms)")
+            enabled: !!videoMenu.player && videoMenu.player.subDelay !== 0
+            onTriggered: videoMenu.player.setSubDelay(0)
         }
     }
 
@@ -80,7 +82,7 @@ Menu {
     Menu {
         id: qualityMenu
         title: qsTr("Auflösung") + (app.streamQuality !== "" ? " (" + app.streamQuality + ")" : "")
-        enabled: menu.hasMedia && (app.streamQualities.length > 0 || app.streamQualitiesLoading)
+        enabled: videoMenu.hasMedia && (app.streamQualities.length > 0 || app.streamQualitiesLoading)
         MenuItem {
             text: qsTr("Beste (automatisch)")
             checkable: true
@@ -105,15 +107,15 @@ Menu {
 
     Menu {
         id: speedMenu
-        title: qsTr("Geschwindigkeit (") + (menu.player ? menu.player.speed.toFixed(2) : "1.00") + "×)"
+        title: qsTr("Geschwindigkeit (") + (videoMenu.player ? videoMenu.player.speed.toFixed(2) : "1.00") + "×)"
         Repeater {
             model: [0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 3.0, 4.0]
             MenuItem {
                 required property real modelData
                 text: modelData.toFixed(2) + "×" + (modelData === 1 ? qsTr(" (normal)") : "")
                 checkable: true
-                checked: !!menu.player && Math.abs(menu.player.speed - modelData) < 0.01
-                onTriggered: menu.player.setSpeed(modelData)
+                checked: !!videoMenu.player && Math.abs(videoMenu.player.speed - modelData) < 0.01
+                onTriggered: videoMenu.player.setSpeed(modelData)
             }
         }
     }
@@ -126,32 +128,32 @@ Menu {
                 required property var modelData
                 text: modelData[1]
                 checkable: true
-                checked: menu.aspect === modelData[0]
+                checked: videoMenu.aspect === modelData[0]
                 onTriggered: act("aspect.set", modelData[0])
             }
         }
         MenuSeparator {}
         MenuItem { text: qsTr("Vollbild"); onTriggered: act("fullscreen") }
-        MenuItem { text: qsTr("Bildschirmfoto"); enabled: menu.hasMedia; onTriggered: act("snapshot") }
-        MenuItem { text: qsTr("Einzelbild vor"); enabled: menu.hasMedia; onTriggered: act("frame.step") }
-        MenuItem { text: qsTr("Einzelbild zurück"); enabled: menu.hasMedia; onTriggered: act("frame.back") }
+        MenuItem { text: qsTr("Bildschirmfoto"); enabled: videoMenu.hasMedia; onTriggered: act("snapshot") }
+        MenuItem { text: qsTr("Einzelbild vor"); enabled: videoMenu.hasMedia; onTriggered: act("frame.step") }
+        MenuItem { text: qsTr("Einzelbild zurück"); enabled: videoMenu.hasMedia; onTriggered: act("frame.back") }
     }
 
     Menu {
         title: qsTr("Effekte (UVE)")
-        enabled: menu.effects !== null && menu.effects !== undefined
-        MenuItem { text: qsTr("Effekte an"); checkable: true; checked: menu.effects ? menu.effects.enabled : false; onTriggered: menu.effects.toggleEnabled() }
-        MenuItem { text: qsTr("Vorher/Nachher"); checkable: true; checked: menu.effects ? menu.effects.compare : false; onTriggered: menu.effects.toggleCompare() }
+        enabled: videoMenu.effects !== null && videoMenu.effects !== undefined
+        MenuItem { text: qsTr("Effekte an"); checkable: true; checked: videoMenu.effects ? videoMenu.effects.enabled : false; onTriggered: videoMenu.effects.toggleEnabled() }
+        MenuItem { text: qsTr("Vorher/Nachher"); checkable: true; checked: videoMenu.effects ? videoMenu.effects.compare : false; onTriggered: videoMenu.effects.toggleCompare() }
         MenuSeparator {}
         Instantiator {
-            model: menu.effects ? menu.effects.presets : []
+            model: videoMenu.effects ? videoMenu.effects.presets : []
             delegate: MenuItem {
                 required property var modelData
                 text: modelData ? modelData.name : ""
                 checkable: true
-                // beim Neuaufbau der Preset-Liste können menu.effects/modelData kurzzeitig null sein
-                checked: { var e = menu ? menu.effects : null; return !!e && !!modelData && e.activePreset === modelData.name }
-                onTriggered: if (menu && menu.effects && modelData) menu.effects.applyPreset(modelData.name)
+                // beim Neuaufbau der Preset-Liste können videoMenu.effects/modelData kurzzeitig null sein
+                checked: { var e = videoMenu ? videoMenu.effects : null; return !!e && !!modelData && e.activePreset === modelData.name }
+                onTriggered: if (videoMenu && videoMenu.effects && modelData) videoMenu.effects.applyPreset(modelData.name)
             }
             onObjectAdded: (i, o) => presetsHolder.insertItem(i, o)
             onObjectRemoved: (i, o) => presetsHolder.removeItem(o)
@@ -162,12 +164,12 @@ Menu {
 
     MenuSeparator {}
     MenuItem {
-        text: menu.player && menu.player.abLoopActive ? qsTr("A-B-Wiederholung: ") + menu.player.abLoopText : qsTr("A-B-Wiederholung: A setzen")
-        enabled: menu.hasMedia
+        text: videoMenu.player && videoMenu.player.abLoopActive ? qsTr("A-B-Wiederholung: ") + videoMenu.player.abLoopText : qsTr("A-B-Wiederholung: A setzen")
+        enabled: videoMenu.hasMedia
         onTriggered: act("abloop")
     }
-    MenuItem { text: qsTr("Zu Zeit springen…"); enabled: menu.hasMedia && menu.player.duration > 0; onTriggered: act("goto") }
-    MenuItem { text: qsTr("Medieninformationen…"); enabled: menu.hasMedia; onTriggered: act("mediainfo") }
+    MenuItem { text: qsTr("Zu Zeit springen…"); enabled: videoMenu.hasMedia && videoMenu.player.duration > 0; onTriggered: act("goto") }
+    MenuItem { text: qsTr("Medieninformationen…"); enabled: videoMenu.hasMedia; onTriggered: act("mediainfo") }
     MenuItem { text: qsTr("Diagnose-Overlay"); onTriggered: act("diagnostics") }
     MenuItem { text: qsTr("Seitenleiste ein/aus"); onTriggered: act("sidebar.toggle") }
 }

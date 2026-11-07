@@ -1666,6 +1666,10 @@
         <translation>Direct3D 11 (d3d11va)</translation>
     </message>
     <message>
+        <source>Direct3D 11 mit Kopie (d3d11va-copy)</source>
+        <translation>Direct3D 11 con copia (d3d11va-copy)</translation>
+    </message>
+    <message>
         <source>DXVA2</source>
         <translation>DXVA2</translation>
     </message>
@@ -1680,6 +1684,22 @@
     <message>
         <source>Aus (Software)</source>
         <translation>Disattivato (software)</translation>
+    </message>
+    <message>
+        <source>Bildskalierung</source>
+        <translation>Ridimensionamento immagine</translation>
+    </message>
+    <message>
+        <source>Ausgewogen (empfohlen)</source>
+        <translation>Bilanciato (consigliato)</translation>
+    </message>
+    <message>
+        <source>Hohe Qualität (mehr GPU-Last)</source>
+        <translation>Alta qualità (più carico GPU)</translation>
+    </message>
+    <message>
+        <source>Schnell (geringste GPU-Last)</source>
+        <translation>Veloce (carico GPU minimo)</translation>
     </message>
     <message>
         <source>Aktiv: </source>
@@ -2508,7 +2528,7 @@
     </message>
     <message>
         <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
-        <translation>manifest.json richiede "library" o "main"</translation>
+        <translation>manifest.json richiede &quot;library&quot; o &quot;main&quot;</translation>
     </message>
     <message>
         <source>Ungültiges URL-Muster: %1</source>
@@ -2540,7 +2560,7 @@
     </message>
     <message>
         <source>Ausnahme beim Aktivieren</source>
-        <translation>Eccezione durante l'attivazione</translation>
+        <translation>Eccezione durante l&apos;attivazione</translation>
     </message>
     <message>
         <source>Sprachdatei fehlerhaft: %1</source>

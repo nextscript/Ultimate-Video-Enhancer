@@ -107,13 +107,23 @@ Dialog {
                 Row2 { Label { text: qsTr("Hardware-Dekodierung"); color: theme.text; Layout.fillWidth: true }
                     ComboBox {
                         id: hw
-                        model: [["auto-safe", qsTr("Automatisch (empfohlen)")], ["auto-copy", qsTr("Automatisch mit Kopie (kompatibler)")], ["d3d11va", qsTr("Direct3D 11 (d3d11va)")],
+                        model: [["auto-safe", qsTr("Automatisch (empfohlen)")], ["auto-copy", qsTr("Automatisch mit Kopie (kompatibler)")], ["d3d11va", qsTr("Direct3D 11 (d3d11va)")], ["d3d11va-copy", qsTr("Direct3D 11 mit Kopie (d3d11va-copy)")],
                                 ["dxva2", qsTr("DXVA2")], ["nvdec", qsTr("NVIDIA NVDEC")], ["vulkan", qsTr("Vulkan")], ["no", qsTr("Aus (Software)")]]
                         textRole: "1"
                         currentIndex: Math.max(0, model.findIndex(m => m[0] === app.setting("hwdec", "auto-safe")))
                         displayText: model[currentIndex][1]
                         delegate: ItemDelegate { required property var modelData; width: hw.width; text: modelData[1] }
                         onActivated: (i) => app.applyHwdec(model[i][0])
+                    } }
+                Row2 { Label { text: qsTr("Bildskalierung"); color: theme.text; Layout.fillWidth: true }
+                    ComboBox {
+                        id: renderQuality
+                        model: [["balanced", qsTr("Ausgewogen (empfohlen)")], ["high", qsTr("Hohe Qualität (mehr GPU-Last)")], ["fast", qsTr("Schnell (geringste GPU-Last)")]]
+                        textRole: "1"
+                        currentIndex: Math.max(0, model.findIndex(m => m[0] === app.setting("renderQuality", "balanced")))
+                        displayText: model[currentIndex][1]
+                        delegate: ItemDelegate { required property var modelData; width: renderQuality.width; text: modelData[1] }
+                        onActivated: (i) => app.setRenderQuality(model[i][0])
                     } }
                 Label {
                     Layout.fillWidth: true; wrapMode: Text.Wrap; color: theme.muted

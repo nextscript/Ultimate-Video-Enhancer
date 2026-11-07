@@ -20,6 +20,7 @@ static QJsonObject defaults()
         {"rememberHistory", true},
         {"restoreSession", true},
         {"hwdec", "auto-safe"},
+        {"renderQuality", "balanced"},
         {"seekStep", 10},
         {"repeat", "none"},
         {"shuffle", false},

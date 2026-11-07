@@ -342,26 +342,49 @@ ApplicationWindow {
             // Übergang Vergleich an/aus: Beim Umschalten ändern sich Shader (mpv baut neu auf), Seitenverhältnis und
             // Layout nicht im selben Frame – dazwischen wären kurz zwei Bilder zu sehen. Daher das letzte Bild als
             // Standbild halten, bis mpv das neue Bild liefert, und dann sanft ausblenden.
-            // Die Quelle läuft ständig mit (fast unsichtbar), damit beim Umschalten sofort das zuletzt gezeigte Bild
-            // vorliegt: einfrieren (live = false) und im selben Frame voll zeigen – kein Einblenden, durch das der
-            // Zwischenzustand durchscheinen würde. Ausblenden erst, wenn mpv das neue Bild liefert.
+            // Eine ständig mitlaufende Kopie kostet bei jedem Videobild einen Durchgang über die ganze Fläche (GPU-Last),
+            // daher: Außerhalb des Vergleichs ist die Quelle abgeschaltet und wird erst beim Wunsch einmalig aufgenommen –
+            // das Plugin setzt den Shader frühestens 40 ms später (UveController::scheduleShader), das Bild liegt also davor.
+            // Nur im Vergleich läuft sie mit: Effekte-aus schaltet die Ansicht dort ohne Verzögerung um.
+            // Einfrieren und im selben Frame voll zeigen – kein Einblenden, durch das der Zwischenzustand durchscheinen
+            // würde. Ausblenden erst, wenn mpv das neue Bild liefert.
             ShaderEffectSource {
                 id: transitionFreeze
                 anchors.fill: videoArea
                 sourceItem: videoLayer
-                live: true
+                live: false
+                visible: false
                 property bool frozen: false
+                property bool capturing: false
                 opacity: 0.002
                 NumberAnimation { id: freezeFade; target: transitionFreeze; property: "opacity"; to: 0.002; duration: 160
-                                  onFinished: { transitionFreeze.frozen = false; transitionFreeze.live = true } }
-                function begin() {
-                    if (frozen) { freezeHold.restart(); return }   // schon eingefroren: nur verlängern
-                    freezeFade.stop()
-                    live = false                                   // letztes gezeigtes Bild festhalten
+                                  onFinished: transitionFreeze.finish() }
+                function hold() {
+                    capturing = false
                     frozen = true
                     opacity = 1
+                }
+                function begin() {
+                    if (frozen) { freezeHold.restart(); return }   // schon eingefroren: nur verlängern
+                    if (capturing) return                          // Aufnahme läuft bereits
+                    freezeFade.stop()
+                    if (live) {                                    // im Vergleich: letztes gezeigtes Bild festhalten
+                        live = false
+                        hold()
+                    } else {                                       // sonst jetzt einmalig aufnehmen
+                        capturing = true
+                        visible = true
+                        scheduleUpdate()
+                    }
                     freezeHold.interval = 1000                     // Sicherheitsgrenze, falls nichts umschaltet
                     freezeHold.restart()
+                }
+                onScheduledUpdateCompleted: if (capturing) hold()
+                function finish() {
+                    frozen = false
+                    capturing = false
+                    live = win.splitWanted
+                    visible = win.splitWanted
                 }
                 function settled() {
                     if (!frozen) return

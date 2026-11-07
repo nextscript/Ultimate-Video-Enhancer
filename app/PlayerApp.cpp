@@ -143,6 +143,7 @@ bool PlayerApp::initializePlayer(QString *error)
     }
     const QVariantMap &opts2 = optsDiag;
     if (!m_player->initialize(opts2, error)) return false;
+    applyRenderQuality(m_settings->value("renderQuality", "balanced").toString());
     m_proxy = uve::ProxyConfig::fromJson(QJsonObject::fromVariantMap(m_settings->value("proxy").toMap()));
     applyYtdlOptions();
     applyProxy();
@@ -912,6 +913,36 @@ void PlayerApp::applyHwdec(const QString &mode)
     m_settings->setValue("hwdec", mode);
     m_player->setProperty("hwdec", mode);
     showOsd(tr("Hardware-Dekodierung: ") + mode);
+}
+
+// Skalierung der Videoausgabe: mpvs Standard (Lanczos, Linearlicht-/Sigmoid-Durchgänge) kostet je Bild mehrere
+// Durchgänge über die ganze Fläche. "high" stellt genau die mpv-Standardwerte wieder her.
+void PlayerApp::applyRenderQuality(const QString &mode)
+{
+    struct Option { const char *name, *balanced, *fast; };
+    static const Option options[] = {
+        {"scale", "catmull_rom", "bilinear"},
+        {"cscale", "bilinear", "bilinear"},
+        {"dscale", "hermite", "bilinear"},
+        {"correct-downscaling", "yes", "no"},
+        {"linear-downscaling", "no", "no"},
+        {"sigmoid-upscaling", "no", "no"},
+    };
+    for (const auto &o : options) {
+        const QString name = QString::fromLatin1(o.name);
+        if (!m_renderDefaults.contains(name))
+            m_renderDefaults.insert(name, m_player->getProperty(QStringLiteral("option-info/%1/default-value").arg(name)));
+        const QVariant value = mode == QLatin1String("high") ? m_renderDefaults.value(name)
+                             : mode == QLatin1String("fast") ? QVariant(QString::fromLatin1(o.fast))
+                                                             : QVariant(QString::fromLatin1(o.balanced));
+        if (!m_player->setProperty(name, value)) Logger::write("mpv", "Renderoption nicht gesetzt: " + name);
+    }
+}
+
+void PlayerApp::setRenderQuality(const QString &mode)
+{
+    m_settings->setValue("renderQuality", mode);
+    applyRenderQuality(mode);
 }
 
 QVariantList PlayerApp::audioDevices() const

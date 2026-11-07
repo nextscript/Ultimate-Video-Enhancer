@@ -6,6 +6,7 @@
 #include <QDateTime>
 #include <cstring>
 #include <QDir>
+#include <QLocale>
 #include <QMetaObject>
 #include <QTimeZone>
 #include <QTimer>
@@ -226,6 +227,7 @@ void MpvController::handleEvent(mpv_event *e)
     case MPV_EVENT_FILE_LOADED:
         m_loaded = true;
         m_error.clear();
+        applyLanguagePreference();
         updatePlayState();
         emit fileLoaded();
         break;
@@ -379,6 +381,63 @@ void MpvController::updateTracks(const QVariant &trackList)
         else if (type == "video" && !m.value("albumart").toBool()) m_video << item;
     }
     emit tracksChanged();
+}
+
+// Vergleichswert einer Sprachangabe: Region und Schrift entfallen, 2- und 3-Buchstaben-Codes fallen zusammen
+static QString languageKey(const QString &code)
+{
+    const QString primary = code.section(QLatin1Char('-'), 0, 0).section(QLatin1Char('_'), 0, 0).trimmed().toLower();
+    const QLocale::Language language = QLocale::codeToLanguage(primary, QLocale::AnyLanguageCode);
+    return language != QLocale::AnyLanguage ? QString::number(int(language)) : primary;
+}
+
+int MpvController::preferredTrackId(const QVariantList &tracks, const QString &type, const QStringList &languages)
+{
+    QStringList keys;
+    for (const QString &language : languages) {
+        const QString key = languageKey(language);
+        if (!key.isEmpty() && !keys.contains(key)) keys << key;
+    }
+    const auto rank = [&keys](const QVariantMap &track) { return keys.indexOf(languageKey(track.value("lang").toString())); };
+
+    QVariantMap selected;
+    int bestRank = -1, bestId = 0;
+    bool bestIsDefault = false;
+    for (const QVariant &entry : tracks) {
+        const QVariantMap track = entry.toMap();
+        if (track.value("type").toString() != type) continue;
+        if (track.value("selected").toBool()) selected = track;
+        const int r = rank(track);
+        const bool isDefault = track.value("default").toBool();
+        if (r >= 0 && (bestRank < 0 || r < bestRank || (r == bestRank && isDefault && !bestIsDefault))) {
+            bestRank = r;
+            bestId = track.value("id").toInt();
+            bestIsDefault = isDefault;
+        }
+    }
+    // Keine Spur gewählt (z. B. keine Untertitel), externe Datei oder Spur ohne bevorzugte Sprache: mpv entscheidet bewusst
+    if (selected.isEmpty() || selected.value("external").toBool()) return 0;
+    const int selectedRank = rank(selected);
+    return selectedRank > bestRank && bestRank >= 0 ? bestId : 0;
+}
+
+// mpv wertet einen genauen Sprachtreffer höher als die Listenreihenfolge: mit alang=de,en gewinnt eine Spur "en"
+// gegen eine Spur "de-DE". Deshalb die Reihenfolge der Liste hier durchsetzen, außer die Spur wurde ausdrücklich
+// gewählt (mpv behält eine Wahl des Benutzers bei gleichem Spuraufbau auch für die nächste Datei).
+void MpvController::applyLanguagePreference()
+{
+    const QVariantList tracks = getProperty(QStringLiteral("track-list")).toList();
+    const struct { const char *type, *trackOption, *languageOption; } kinds[] = {
+        {"audio", "aid", "alang"},
+        {"sub", "sid", "slang"},
+    };
+    for (const auto &kind : kinds) {
+        const QString trackOption = QString::fromLatin1(kind.trackOption);
+        if (getProperty(QStringLiteral("options/") + trackOption).toString() != QLatin1String("auto")) continue;
+        const int id = preferredTrackId(tracks, QString::fromLatin1(kind.type),
+                                        getProperty(QString::fromLatin1(kind.languageOption)).toStringList());
+        if (id > 0) setProperty(trackOption, qlonglong(id));
+    }
 }
 
 void MpvController::pollDiagnostics()

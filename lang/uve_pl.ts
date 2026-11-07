@@ -1666,6 +1666,10 @@
         <translation>Direct3D 11 (d3d11va)</translation>
     </message>
     <message>
+        <source>Direct3D 11 mit Kopie (d3d11va-copy)</source>
+        <translation>Direct3D 11 z kopią (d3d11va-copy)</translation>
+    </message>
+    <message>
         <source>DXVA2</source>
         <translation>DXVA2</translation>
     </message>
@@ -1680,6 +1684,22 @@
     <message>
         <source>Aus (Software)</source>
         <translation>Wył. (programowo)</translation>
+    </message>
+    <message>
+        <source>Bildskalierung</source>
+        <translation>Skalowanie obrazu</translation>
+    </message>
+    <message>
+        <source>Ausgewogen (empfohlen)</source>
+        <translation>Zrównoważone (zalecane)</translation>
+    </message>
+    <message>
+        <source>Hohe Qualität (mehr GPU-Last)</source>
+        <translation>Wysoka jakość (większe obciążenie GPU)</translation>
+    </message>
+    <message>
+        <source>Schnell (geringste GPU-Last)</source>
+        <translation>Szybkie (najmniejsze obciążenie GPU)</translation>
     </message>
     <message>
         <source>Aktiv: </source>
@@ -2508,7 +2528,7 @@
     </message>
     <message>
         <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
-        <translation>manifest.json wymaga "library" lub "main"</translation>
+        <translation>manifest.json wymaga &quot;library&quot; lub &quot;main&quot;</translation>
     </message>
     <message>
         <source>Ungültiges URL-Muster: %1</source>

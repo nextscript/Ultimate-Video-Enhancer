@@ -26,6 +26,56 @@ private slots:
         QVERIFY(m->mpvVersion().startsWith("mpv"));
     }
 
+    void prefersListOrderOverExactLanguageMatch_data()
+    {
+        QTest::addColumn<QString>("langA");
+        QTest::addColumn<QString>("langB");
+        QTest::addColumn<int>("selected");
+        QTest::addColumn<QString>("languages");
+        QTest::addColumn<int>("expected");
+        const QString standard = QStringLiteral("de,ger,deu,en,eng");
+        QTest::newRow("regional tag loses to exact match in mpv") << "de-DE" << "en" << 2 << standard << 1;
+        QTest::newRow("three-letter track code") << "ger" << "en" << 2 << standard << 1;
+        QTest::newRow("three-letter preference") << "de-DE" << "en" << 2 << QStringLiteral("ger,en") << 1;
+        QTest::newRow("preferred already selected") << "de-DE" << "en" << 1 << standard << 0;
+        QTest::newRow("list prefers selected english") << "de-DE" << "en" << 2 << QStringLiteral("en,de") << 0;
+        QTest::newRow("same language, other region stays") << "de-DE" << "de-AT" << 2 << standard << 0;
+        QTest::newRow("no track in the list") << "fr" << "it" << 1 << standard << 0;
+        QTest::newRow("selected track not in the list") << "de" << "fr" << 2 << QStringLiteral("de") << 0;
+        QTest::newRow("empty list") << "de-DE" << "en" << 2 << QString() << 0;
+        QTest::newRow("nothing selected") << "de-DE" << "en" << 0 << standard << 0;
+    }
+
+    void prefersListOrderOverExactLanguageMatch()
+    {
+        QFETCH(QString, langA);
+        QFETCH(QString, langB);
+        QFETCH(int, selected);
+        QFETCH(QString, languages);
+        QFETCH(int, expected);
+        const QVariantList tracks{
+            QVariantMap{{"id", 1}, {"type", "video"}, {"selected", true}},
+            QVariantMap{{"id", 1}, {"type", "audio"}, {"lang", langA}, {"selected", selected == 1}},
+            QVariantMap{{"id", 2}, {"type", "audio"}, {"lang", langB}, {"selected", selected == 2}},
+        };
+        QCOMPARE(MpvController::preferredTrackId(tracks, "audio", languages.split(',', Qt::SkipEmptyParts)), expected);
+    }
+
+    void languagePreferenceKeepsExternalAndPicksDefaultTrack()
+    {
+        // Externe Datei hat Vorrang, auch wenn eine eingebettete Spur besser passt
+        QCOMPARE(MpvController::preferredTrackId(
+                     {QVariantMap{{"id", 1}, {"type", "sub"}, {"lang", "de-DE"}},
+                      QVariantMap{{"id", 2}, {"type", "sub"}, {"lang", "en"}, {"selected", true}, {"external", true}}},
+                     "sub", QStringList{"de", "en"}), 0);
+        // Mehrere Spuren in der gewünschten Sprache: die als Standard markierte
+        QCOMPARE(MpvController::preferredTrackId(
+                     {QVariantMap{{"id", 1}, {"type", "sub"}, {"lang", "de-DE"}},
+                      QVariantMap{{"id", 2}, {"type", "sub"}, {"lang", "en"}, {"selected", true}},
+                      QVariantMap{{"id", 3}, {"type", "sub"}, {"lang", "de-DE"}, {"default", true}}},
+                     "sub", QStringList{"de", "en"}), 3);
+    }
+
     void loadsMkvWithTracks()
     {
         QSignalSpy loaded(m, &MpvController::fileLoaded);

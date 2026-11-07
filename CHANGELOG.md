@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.0.9 – 2026-11-07
+
+### Audio and subtitle tracks
+- **Right-click menu fixed:** choosing an audio track in the video's right-click menu did nothing. The same error also
+  affected the subtitle tracks, playback speed, picture format and effect presets in that menu.
+- **Preferred languages are respected:** with tracks tagged with a region (e.g. `de-DE`), a file could start with the
+  wrong track: the list `de,en` chose an English track over `de-DE` because mpv rates an exact language match above the
+  order of the list. The order under *Settings → Preferred audio/subtitle languages* now decides, whichever way a
+  language is written (`de`, `ger`, `deu`, `de-DE`). A track you choose yourself stays selected, external subtitle files
+  are not replaced.
+
+## 1.0.8 – 2026-11-07
+
+### Lower GPU load during video playback
+- **No more permanent copy of the video picture:** the compare transition kept a live copy of the whole video area and
+  blended it over the picture on every frame. The copy is now only taken when switching the before/after view and only
+  runs while that view is open.
+- **New setting *Settings → Video & GPU → Picture scaling*:** *Balanced* (new default) drops mpv's linear-light and
+  sigmoid passes and uses lighter scalers, *High quality* restores the mpv defaults (the previous behaviour), *Fast* uses
+  bilinear scaling only. *Balanced* changes the picture slightly; choose *High quality* to keep the previous scaling.
+- **New decoder option *Direct3D 11 with copy (d3d11va-copy)*:** NVDEC work shows up in Task Manager as high "3D" load of
+  the player. This option lowers that value, but does not lower the GPU's power draw and can raise its load at 4K, so it
+  is not the default.
+
 ## 1.0.7 – 2026-11-06
 
 ### Plugins: embedded web views (WebView interface)

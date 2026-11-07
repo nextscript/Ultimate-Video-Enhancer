@@ -101,6 +101,10 @@ public:
     Q_INVOKABLE void setVolume(double v);
     Q_INVOKABLE void setMuted(bool m);
     Q_INVOKABLE void setSpeed(double s);
+    // Spur, die statt mpvs Auswahl laufen sollte (nur Einträge aus mpvs "track-list"); 0 = Auswahl beibehalten.
+    // languages in Prioritätsreihenfolge, Schreibweise egal ("de", "ger", "deu" und "de-DE" sind dieselbe Sprache).
+    static int preferredTrackId(const QVariantList &tracks, const QString &type, const QStringList &languages);
+
     Q_INVOKABLE void setAudioTrack(int id);
     Q_INVOKABLE void setSubtitleTrack(int id); // 0 = aus
     Q_INVOKABLE void cycleAudio();
@@ -175,6 +179,7 @@ private:
     void setState(State s, const QString &error = {});
     void updateTracks(const QVariant &trackList);
     void updatePlayState();
+    void applyLanguagePreference();
 
     mpv_handle *m_mpv = nullptr;
     State m_state = Idle;
