@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 – 2026-11-07
+
+### Stream resolutions with plugins
+- **Resolution menu for plugin streams:** when a plugin took over a Twitch or YouTube address (or passed it on unchanged),
+  the player emptied the *Resolution* menu. A plugin with the new capability `stream-quality` now keeps the list of
+  resolutions the streamer offers and receives the selection in `media.resolve` (see `docs/PLUGIN_API.md`).
+- **Plugin switched off:** addresses a plugin passes on unchanged show their resolutions again and honour the selection.
+- **HLS2TCP 1.1.0 is required for Twitch through HLS2TCP:** older versions of the plugin keep the previous behaviour.
+
 ## 1.0.9 – 2026-11-07
 
 ### Audio and subtitle tracks

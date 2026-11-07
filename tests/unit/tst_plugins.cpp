@@ -145,6 +145,8 @@ private slots:
         // Adressauflösung über urlHandlers; Antwort per Befehl media.resolved
         QSignalSpy spy(&pm, &PluginManager::mediaResolved);
         QVERIFY(!pm.resolveMedia(1, "https://other.test/a"));
+        QVERIFY(!pm.resolverSupportsQuality("https://other.test/a"));
+        QVERIFY(pm.resolverSupportsQuality("https://example.test/kanal"));
         QVERIFY(pm.resolveMedia(7, "https://example.test/kanal"));
         QCOMPARE(spy.count(), 1);
         QCOMPARE(spy.at(0).at(0).toULongLong(), 7ull);
@@ -223,7 +225,7 @@ private slots:
 
 const char *kManifest = R"({
   "id": "org.test.hello", "name": "Hello", "version": "1.0.0", "apiVersion": 1,
-  "type": "utility", "main": "Main.qml",
+  "type": "utility", "main": "Main.qml", "capabilities": ["stream-quality"],
   "contributes": {
     "panels": [ { "id": "page", "title": { "de": "Seite", "en": "Page" }, "qml": "Page.qml" },
                 { "id": "prefs", "title": "Optionen", "qml": "Page.qml", "location": "settings" } ],

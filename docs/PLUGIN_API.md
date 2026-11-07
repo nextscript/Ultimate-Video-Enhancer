@@ -125,7 +125,7 @@ signal `event(name, data)`.
 | Name | Data |
 |---|---|
 | `media.loading` | `url` – the user chose a medium (before any resolution) |
-| `media.resolve` | `requestId`, `url` – only to the plugin whose `urlHandlers` match; answer with `media.resolved` |
+| `media.resolve` | `requestId`, `url`, optionally `quality` – only to the plugin whose `urlHandlers` match; answer with `media.resolved`. A plugin with the capability `stream-quality` keeps the player's *Resolution* menu for YouTube/Twitch addresses: `quality` is sent when the user chose an entry (the yt-dlp `format_id`, e.g. `1080p60__source_`, or `best`) and the address is then resolved again |
 | `media.resolveCancelled` | `requestId` – the result is no longer needed |
 | `media.loaded` | `path` (loaded), `source` (chosen), `title`, `duration` |
 | `media.ended` | `reason` (`eof`, `stop`, `error`, …), `path`, `source`, `error` |

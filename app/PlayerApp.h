@@ -181,7 +181,9 @@ private:
     void applyRenderQuality(const QString &mode);
     void loadPath(const QString &path, double start, bool paused); // inkl. gewählter Stream-Auflösung
     void prepareStreamQualities(const QString &path);
-    void clearStreamQualities(const QString &path);
+    void clearStreamQualities();
+    QStringList streamFileOptions() const;   // mpv-Dateioptionen der gewählten Auflösung (yt-dlp)
+    QString resolverQuality() const;         // gewählte Auflösung für das auflösende Plugin
     void onMediaResolved(quint64 requestId, const QString &resolvedUrl, const QString &error, const QString &pluginName);
     void cancelPendingResolve();
     void registerPluginCommands();   // player.* / playlist.* für Plugins (docs/PLUGIN_API.md)
@@ -203,6 +205,7 @@ private:
     QString m_ytdlProxy;                                         // Proxy-URL für eigene yt-dlp-Aufrufe
     QVariantList m_streamQualities;
     QString m_streamQuality;
+    bool m_streamQualityChosen = false;   // im Menü gewählt (auch "Beste"), nicht nur Voreinstellung
     // Adressauflösung durch ein Plugin (z. B. Twitch → tcp://): wartender Ladevorgang
     struct PendingResolve { quint64 id = 0; QString path; double start = 0; bool paused = false; };
     PendingResolve m_resolve;

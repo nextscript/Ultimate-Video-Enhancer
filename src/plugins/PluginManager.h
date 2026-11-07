@@ -73,8 +73,10 @@ public:
     QVariantList hotkeyActions() const;
 
     // Adressauflösung über Plugins mit passendem contributes.urlHandlers-Muster:
-    // Ereignis "media.resolve" {requestId, url}; Antwort per Befehl "media.resolved"
-    bool resolveMedia(quint64 requestId, const QString &url);
+    // Ereignis "media.resolve" {requestId, url[, quality]}; Antwort per Befehl "media.resolved"
+    bool resolveMedia(quint64 requestId, const QString &url, const QString &quality = {});
+    // Plugin übernimmt die Adresse und kann die Auflösung wählen (capabilities: "stream-quality")
+    bool resolverSupportsQuality(const QString &url) const;
     void cancelResolve(quint64 requestId);
 
     // IPlayerHost

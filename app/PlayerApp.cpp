@@ -194,9 +194,12 @@ void PlayerApp::loadPath(const QString &path, double start, bool paused)
         // Plugins dürfen die Adresse vorher übernehmen (contributes.urlHandlers, z. B. Link eines Webdienstes → tcp://-Stream)
         const quint64 id = ++m_resolveSeq;
         m_resolve = {id, path, start, paused};
-        if (!path.isEmpty() && m_plugins->resolveMedia(id, path)) {
-            clearStreamQualities(path);   // Auflösungen bestimmt dann das Plugin, nicht yt-dlp
+        // Plugin mit "stream-quality": Liste kommt weiter von yt-dlp, die Auswahl geht mit der Anfrage ans Plugin
+        const bool pluginSelectsQuality = m_plugins->resolverSupportsQuality(path);
+        if (pluginSelectsQuality) prepareStreamQualities(path);
+        if (!path.isEmpty() && m_plugins->resolveMedia(id, path, pluginSelectsQuality ? resolverQuality() : QString())) {
             if (m_resolve.id == id) {     // Plugin hat nicht schon synchron geantwortet
+                if (!pluginSelectsQuality) clearStreamQualities();   // Auflösungen bestimmt das Plugin
                 m_player->stop();
                 m_resolveTimeout.start(90000);
             }
@@ -205,19 +208,31 @@ void PlayerApp::loadPath(const QString &path, double start, bool paused)
         m_resolve = {};
     }
     prepareStreamQualities(path);
-    QStringList fileOpts;
-    if (!m_streamQuality.isEmpty()) {
-        const QString f = ytdlFormatFor(m_streamQuality);
-        if (!f.isEmpty()) fileOpts << QStringLiteral("ytdl-format=") + f;
-    }
-    m_player->load(routeThroughProxy(path), start, paused, fileOpts);
+    m_player->load(routeThroughProxy(path), start, paused, streamFileOptions());
 }
 
-void PlayerApp::clearStreamQualities(const QString &path)
+QStringList PlayerApp::streamFileOptions() const
+{
+    const QString format = m_streamQuality.isEmpty() ? QString() : ytdlFormatFor(m_streamQuality);
+    return format.isEmpty() ? QStringList{} : QStringList{QStringLiteral("ytdl-format=") + format};
+}
+
+QString PlayerApp::resolverQuality() const
+{
+    if (!m_streamQualityChosen) return {};   // nichts gewählt: es gilt die Einstellung des Plugins
+    for (const auto &v : m_streamQualities) {
+        const auto q = v.toMap();
+        if (q.value("id").toString() == m_streamQuality) return q.value("formatId").toString();
+    }
+    return QStringLiteral("best");
+}
+
+void PlayerApp::clearStreamQualities()
 {
     if (m_formatProc) { m_formatProc->disconnect(this); m_formatProc->kill(); m_formatProc->deleteLater(); m_formatProc = nullptr; }
-    m_qualityUrl = path;
+    m_qualityUrl.clear();
     m_streamQuality.clear();
+    m_streamQualityChosen = false;
     m_streamQualities.clear();
     emit streamQualitiesChanged();
 }
@@ -290,6 +305,11 @@ void PlayerApp::onMediaResolved(quint64 requestId, const QString &resolvedUrl, c
         return;
     }
     Logger::write("plugin", QStringLiteral("%1: %2 → %3").arg(pluginName, r.path, resolvedUrl));
+    if (resolvedUrl == r.path) {   // Plugin lässt die Adresse unverändert (z. B. ausgeschaltet): normaler Weg über yt-dlp
+        prepareStreamQualities(r.path);
+        m_player->load(routeThroughProxy(r.path), r.start, r.paused, streamFileOptions());
+        return;
+    }
     m_player->load(routeThroughProxy(resolvedUrl), r.start, r.paused, {});
 }
 
@@ -299,6 +319,7 @@ void PlayerApp::prepareStreamQualities(const QString &path)
     if (m_formatProc) { m_formatProc->disconnect(this); m_formatProc->kill(); m_formatProc->deleteLater(); m_formatProc = nullptr; }
     m_qualityUrl = path;
     m_streamQuality.clear();
+    m_streamQualityChosen = false;
     m_streamQualities.clear();
     if (!isYtdlStream(path)) { emit streamQualitiesChanged(); return; }
     const QString ytdlp = ToolUpdater::preferredYtdlp(QCoreApplication::applicationDirPath(), m_settings->dataDir());
@@ -340,7 +361,7 @@ void PlayerApp::prepareStreamQualities(const QString &path)
             if (q.id.isEmpty() || q.id.contains(QLatin1Char(','))) continue;
             QString label = QString::number(q.h) + QLatin1Char('p');
             if (q.fps > 30) label += QString::number(q.fps);
-            list << QVariantMap{{"id", label}, {"label", label}, {"height", q.h},
+            list << QVariantMap{{"id", label}, {"label", label}, {"height", q.h}, {"formatId", q.id},
                                 {"format", q.hasAudio ? q.id : q.id + QStringLiteral("+ba/") + q.id}};
         }
         m_streamQualities = list;
@@ -355,6 +376,7 @@ void PlayerApp::setStreamQuality(const QString &id)
 {
     if (id == m_streamQuality || m_qualityUrl.isEmpty()) return;
     m_streamQuality = id;
+    m_streamQualityChosen = true;
     emit streamQualitiesChanged();
     // an der aktuellen Stelle neu laden (Livestreams ohne Dauer: live bleiben)
     const double dur = m_player->duration();

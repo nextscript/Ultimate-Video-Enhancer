@@ -520,14 +520,26 @@ void PluginManager::notifyMediaChanged(const QString &path)
     }
 }
 
-bool PluginManager::resolveMedia(quint64 requestId, const QString &url)
+bool PluginManager::resolverSupportsQuality(const QString &url) const
+{
+    for (const auto &e : m_entries) {
+        if (!e.running()) continue;
+        for (const auto &re : std::as_const(e.urlHandlers))
+            if (re.match(url).hasMatch()) return e.manifest.capabilities.contains(QStringLiteral("stream-quality"));
+    }
+    return false;
+}
+
+bool PluginManager::resolveMedia(quint64 requestId, const QString &url, const QString &quality)
 {
     for (auto &e : m_entries) {
         if (!e.running()) continue;
         for (const auto &re : std::as_const(e.urlHandlers)) {
             if (!re.match(url).hasMatch()) continue;
             m_resolving.insert(requestId, e.manifest.id);
-            emitEvent(QStringLiteral("media.resolve"), {{"requestId", QVariant::fromValue<qulonglong>(requestId)}, {"url", url}}, e.manifest.id);
+            QVariantMap data{{"requestId", QVariant::fromValue<qulonglong>(requestId)}, {"url", url}};
+            if (!quality.isEmpty()) data.insert(QStringLiteral("quality"), quality);
+            emitEvent(QStringLiteral("media.resolve"), data, e.manifest.id);
             // Plugin könnte währenddessen ausgefallen sein
             if (!e.running()) { m_resolving.remove(requestId); return false; }
             return true;
