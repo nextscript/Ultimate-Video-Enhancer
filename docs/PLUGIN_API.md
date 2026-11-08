@@ -28,11 +28,11 @@ Plugins are searched in the user folder (`%APPDATA%\nextscript\UVE Player\plugin
 folder (`<program>\plugins`). The manifest in the folder applies even if the library has an embedded manifest – pages,
 menus or translations can be changed without recompiling.
 
-**Installing:** plugin manager → *Install plugin …* → choose a `.zip` (with `manifest.json` at the root or in exactly one
+**Installing:** *Settings → Plugins* → *Install plugin …* → choose a `.zip` (with `manifest.json` at the root or in exactly one
 subfolder) or the `manifest.json` of a folder. The package is validated (manifest, paths) and moved to `plugins/<id>/` on
 the **next start** (loaded DLLs are locked on Windows).
 
-**Removing (since 1.1.3):** plugin manager → *Remove*. Plugins from the user folder are disabled immediately and deleted at the
+**Removing (since 1.1.3):** *Settings → Plugins* → *Remove*. Plugins from the user folder are disabled immediately and deleted at the
 **next start**; until then the removal can be undone. Their settings and data are only deleted when the user selects that
 option. Bundled plugins (program folder) can only be disabled. If a user plugin replaced a bundled one with the same id, the bundled
 one is active again after the removal.
@@ -111,7 +111,7 @@ Same compiler and Qt version as the player (1.0.x: Qt 6.12, MSVC 2022, 64 bit).
 
 | Contribution | Effect |
 |---|---|
-| `panels` | `location: "sidebar"` → tab in the sidebar; `"settings"` → own entry in *Settings* (since 1.1.3) and a button in the plugin manager; `"modal"` → window opened with `modal.open` (since 1.1.3). `qml` relative to the folder or `qrc:/…` |
+| `panels` | `location: "sidebar"` → tab in the sidebar; `"settings"` → own entry in *Settings* (since 1.1.3) and a button on the card of the plugin in *Settings → Plugins*; `"modal"` → window opened with `modal.open` (since 1.1.3). `qml` relative to the folder or `qrc:/…` |
 | `menu` | entry in the *Plugins* menu → event `action.triggered {id}` |
 | `hotkeys` | entry in *Settings → Shortcuts* (editable) → event `action.triggered {id}`. A default shortcut that is already taken is not applied |
 | `translations` | folder with `*_<code>.qm` (default `lang`), switched together with the player language; source language German, fallback English |
@@ -196,7 +196,7 @@ Ignore unknown events – later versions may send more.
 
 id format, name, SemVer version, `apiVersion == 1`, `minHostVersion ≤ host`, platform, backends; for plugin folders also:
 `library` exists and is a UVE Player plugin, or `main` exists. Rejected plugins are not loaded and are shown with the
-reason in the plugin manager (error log `logs\plugin-errors.log`).
+reason in *Settings → Plugins* (error log `logs\plugin-errors.log`).
 
 ## Lifecycle
 

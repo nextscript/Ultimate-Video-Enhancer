@@ -1506,7 +1506,7 @@
     </message>
 </context>
 <context>
-    <name>PluginsDialog</name>
+    <name>PluginsPage</name>
     <message>
         <source>Entfernen</source>
         <translation>Αφαίρεση</translation>
@@ -1542,10 +1542,6 @@
     <message>
         <source>Entfernen fehlgeschlagen: </source>
         <translation>Η αφαίρεση απέτυχε: </translation>
-    </message>
-    <message>
-        <source>Plugins</source>
-        <translation>Πρόσθετα</translation>
     </message>
     <message>
         <source>gefunden</source>
@@ -1590,10 +1586,6 @@
     <message>
         <source>Safe Mode</source>
         <translation>Ασφαλής λειτουργία</translation>
-    </message>
-    <message>
-        <source>Schließen</source>
-        <translation>Κλείσιμο</translation>
     </message>
     <message>
         <source>Safe Mode: Plugins wurden nicht geladen. </source>
@@ -1955,22 +1947,6 @@
     <message>
         <source>Bevorzugte Untertitelsprachen</source>
         <translation>Προτιμώμενες γλώσσες υποτίτλων</translation>
-    </message>
-    <message>
-        <source>Safe Mode aktiv: </source>
-        <translation>Ασφαλής λειτουργία ενεργή: </translation>
-    </message>
-    <message>
-        <source> Plugins gefunden.</source>
-        <translation> πρόσθετα βρέθηκαν.</translation>
-    </message>
-    <message>
-        <source>Plugin-Verwaltung öffnen…</source>
-        <translation>Άνοιγμα διαχείρισης προσθέτων…</translation>
-    </message>
-    <message>
-        <source>Safe Mode beenden</source>
-        <translation>Έξοδος από την ασφαλή λειτουργία</translation>
     </message>
     <message>
         <source>Effekte stellt das Ultimate-Video-Enhancer-Plugin bereit (Seitenleiste → Effekte). Dort lassen sich Presets, ein Standard-Preset für neue Dateien und Presets pro Datei festlegen.</source>

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.4 – 2026-11-08
+
+### Plugins
+- **One place for plugins:** plugin management now lives in *Settings → Plugins*: enable, disable, install and remove plugins, and open their
+  settings. The separate plugin window is gone; *Plugins → Manage plugins…* opens this page.
+
 ## 1.1.3 – 2026-11-08
 
 ### Plugins

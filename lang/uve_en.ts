@@ -1506,7 +1506,7 @@
     </message>
 </context>
 <context>
-    <name>PluginsDialog</name>
+    <name>PluginsPage</name>
     <message>
         <source>Entfernen</source>
         <translation>Remove</translation>
@@ -1542,10 +1542,6 @@
     <message>
         <source>Entfernen fehlgeschlagen: </source>
         <translation>Removal failed: </translation>
-    </message>
-    <message>
-        <source>Plugins</source>
-        <translation>Plugins</translation>
     </message>
     <message>
         <source>gefunden</source>
@@ -1590,10 +1586,6 @@
     <message>
         <source>Safe Mode</source>
         <translation>Safe mode</translation>
-    </message>
-    <message>
-        <source>Schließen</source>
-        <translation>Close</translation>
     </message>
     <message>
         <source>Safe Mode: Plugins wurden nicht geladen. </source>
@@ -1955,22 +1947,6 @@
     <message>
         <source>Bevorzugte Untertitelsprachen</source>
         <translation>Preferred subtitle languages</translation>
-    </message>
-    <message>
-        <source>Safe Mode aktiv: </source>
-        <translation>Safe mode active: </translation>
-    </message>
-    <message>
-        <source> Plugins gefunden.</source>
-        <translation> plugins found.</translation>
-    </message>
-    <message>
-        <source>Plugin-Verwaltung öffnen…</source>
-        <translation>Open plugin manager…</translation>
-    </message>
-    <message>
-        <source>Safe Mode beenden</source>
-        <translation>Exit safe mode</translation>
     </message>
     <message>
         <source>Effekte stellt das Ultimate-Video-Enhancer-Plugin bereit (Seitenleiste → Effekte). Dort lassen sich Presets, ein Standard-Preset für neue Dateien und Presets pro Datei festlegen.</source>

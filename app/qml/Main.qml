@@ -261,7 +261,7 @@ ApplicationWindow {
         Menu {
             id: pluginsMenu
             title: qsTr("&Plugins")
-            MenuItem { text: qsTr("Plugins verwalten…"); onTriggered: pluginsDialog.open() }
+            MenuItem { text: qsTr("Plugins verwalten…"); onTriggered: settingsDialog.openPlugins() }
             MenuSeparator { visible: pluginMenuItems.count > 0; height: visible ? implicitHeight : 0 }
             Instantiator {
                 id: pluginMenuItems
@@ -775,13 +775,6 @@ ApplicationWindow {
     OpenUrlDialog { id: urlDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
     MediaInfoDialog { id: mediaInfoDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
     AboutDialog { id: aboutDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
-    PluginsDialog {
-        id: pluginsDialog
-        theme: theme
-        onOpened: win.modalCount++
-        onClosed: win.modalCount = Math.max(0, win.modalCount - 1)
-        onOpenPluginSettings: (key) => { close(); settingsDialog.openPluginPage(key) }
-    }
     UpdateDialog { id: updateDialog; theme: theme; onOpened: win.modalCount++; onClosed: { win.modalCount = Math.max(0, win.modalCount - 1); updateCheck.showNext() } }
     AppUpdateDialog { id: appUpdateDialog; theme: theme; onOpened: win.modalCount++; onClosed: { win.modalCount = Math.max(0, win.modalCount - 1); updateCheck.showNext() } }
     SettingsDialog {
@@ -791,7 +784,6 @@ ApplicationWindow {
         effects: win.effects
         onOpened: win.modalCount++
         onClosed: win.modalCount = Math.max(0, win.modalCount - 1)
-        onOpenPlugins: { close(); pluginsDialog.open() }
         onOpenEffects: { close(); win.act("effects.panel") }
     }
 
@@ -1066,27 +1058,35 @@ ApplicationWindow {
             trigger("open-video")
             break
         case 16:
-            pluginsDialog.open()
+            pluginsMenu.itemAt(0).triggered()   // Menü "Plugins verwalten…"
             break
         case 17:
+            check("manager in settings", settingsDialog.opened && settingsDialog.page === settingsDialog.pluginsPageIndex)
+            check("one window", settingsDialog.pluginsPage.visible)
             shot("manager")
-            pluginsDialog.askRemove(demoInfo())
+            settingsDialog.pluginsPage.openPluginSettings(demo + "/settings")
             break
         case 18:
-            shot("remove-confirm")
-            pluginsDialog.confirmRemove()
+            check("settings button", settingsDialog.opened && settingsDialog.page === settingsDialog.builtinPages)
+            settingsDialog.page = settingsDialog.pluginsPageIndex
+            settingsDialog.pluginsPage.askRemove(demoInfo())
             break
         case 19:
+            shot("remove-confirm")
+            settingsDialog.pluginsPage.confirmRemove()
+            break
+        case 20:
             check("pending", demoInfo().pendingRemoval === true && demoInfo().state === "deaktiviert")
             check("panels gone", !app.plugins.panels.some(p => p.pluginId === demo))
             check("modal closed with plugin", win.pluginModals[key] === undefined)
+            check("stays on plugins page", settingsDialog.page === settingsDialog.pluginsPageIndex)
             shot("manager-pending")
             app.plugins.cancelRemoval(demo)
             break
-        case 20:
+        case 21:
             check("undo", demoInfo().pendingRemoval === false && demoInfo().state === "aktiv")
             check("removal", app.plugins.removePlugin(demo, true).ok)
-            pluginsDialog.close()
+            settingsDialog.close()
             ui.ok = ui.failures.length === 0
             ui.done = true
             selftestUi.stop()

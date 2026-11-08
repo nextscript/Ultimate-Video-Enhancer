@@ -1506,7 +1506,7 @@
     </message>
 </context>
 <context>
-    <name>PluginsDialog</name>
+    <name>PluginsPage</name>
     <message>
         <source>Entfernen</source>
         <translation>Usuń</translation>
@@ -1542,10 +1542,6 @@
     <message>
         <source>Entfernen fehlgeschlagen: </source>
         <translation>Usuwanie nie powiodło się: </translation>
-    </message>
-    <message>
-        <source>Plugins</source>
-        <translation>Wtyczki</translation>
     </message>
     <message>
         <source>gefunden</source>
@@ -1590,10 +1586,6 @@
     <message>
         <source>Safe Mode</source>
         <translation>Tryb awaryjny</translation>
-    </message>
-    <message>
-        <source>Schließen</source>
-        <translation>Zamknij</translation>
     </message>
     <message>
         <source>Safe Mode: Plugins wurden nicht geladen. </source>
@@ -1955,22 +1947,6 @@
     <message>
         <source>Bevorzugte Untertitelsprachen</source>
         <translation>Preferowane języki napisów</translation>
-    </message>
-    <message>
-        <source>Safe Mode aktiv: </source>
-        <translation>Tryb awaryjny aktywny: </translation>
-    </message>
-    <message>
-        <source> Plugins gefunden.</source>
-        <translation> – liczba znalezionych wtyczek.</translation>
-    </message>
-    <message>
-        <source>Plugin-Verwaltung öffnen…</source>
-        <translation>Otwórz menedżera wtyczek…</translation>
-    </message>
-    <message>
-        <source>Safe Mode beenden</source>
-        <translation>Zakończ tryb awaryjny</translation>
     </message>
     <message>
         <source>Effekte stellt das Ultimate-Video-Enhancer-Plugin bereit (Seitenleiste → Effekte). Dort lassen sich Presets, ein Standard-Preset für neue Dateien und Presets pro Datei festlegen.</source>

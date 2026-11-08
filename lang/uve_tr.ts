@@ -1506,7 +1506,7 @@
     </message>
 </context>
 <context>
-    <name>PluginsDialog</name>
+    <name>PluginsPage</name>
     <message>
         <source>Entfernen</source>
         <translation>Kaldır</translation>
@@ -1542,10 +1542,6 @@
     <message>
         <source>Entfernen fehlgeschlagen: </source>
         <translation>Kaldırma başarısız: </translation>
-    </message>
-    <message>
-        <source>Plugins</source>
-        <translation>Eklentiler</translation>
     </message>
     <message>
         <source>gefunden</source>
@@ -1590,10 +1586,6 @@
     <message>
         <source>Safe Mode</source>
         <translation>Güvenli mod</translation>
-    </message>
-    <message>
-        <source>Schließen</source>
-        <translation>Kapat</translation>
     </message>
     <message>
         <source>Safe Mode: Plugins wurden nicht geladen. </source>
@@ -1955,22 +1947,6 @@
     <message>
         <source>Bevorzugte Untertitelsprachen</source>
         <translation>Tercih edilen altyazı dilleri</translation>
-    </message>
-    <message>
-        <source>Safe Mode aktiv: </source>
-        <translation>Güvenli mod etkin: </translation>
-    </message>
-    <message>
-        <source> Plugins gefunden.</source>
-        <translation> eklenti bulundu.</translation>
-    </message>
-    <message>
-        <source>Plugin-Verwaltung öffnen…</source>
-        <translation>Eklenti yönetimini aç…</translation>
-    </message>
-    <message>
-        <source>Safe Mode beenden</source>
-        <translation>Güvenli moddan çık</translation>
     </message>
     <message>
         <source>Effekte stellt das Ultimate-Video-Enhancer-Plugin bereit (Seitenleiste → Effekte). Dort lassen sich Presets, ein Standard-Preset für neue Dateien und Presets pro Datei festlegen.</source>

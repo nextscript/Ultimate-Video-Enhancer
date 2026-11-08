@@ -47,7 +47,7 @@ qt_add_qml_module(uve-player
         qml/VideoContextMenu.qml
         qml/SettingsDialog.qml
         qml/ExpertSettingsPage.qml
-        qml/PluginsDialog.qml
+        qml/PluginsPage.qml
         qml/PluginModal.qml
         qml/UpdateDialog.qml
         qml/AppUpdateDialog.qml

@@ -8,7 +8,6 @@ Dialog {
     property var theme
     property var effects      // UVE-Controller für die Seite "Expert Settings"
     signal checkUpdatesRequested()
-    signal openPlugins()
     signal openEffects()
     title: qsTr("Einstellungen")
     modal: true
@@ -28,10 +27,13 @@ Dialog {
     readonly property var currentPluginPanel: page >= builtinPages ? (pluginPanels[page - builtinPages] || null) : null
     readonly property alias pageCount: nav.count
     readonly property alias pluginPage: pluginPage
-    onPluginPanelsChanged: if (page >= builtinPages + pluginPanels.length) page = 5
+    readonly property alias pluginsPage: pluginsPage
+    readonly property int pluginsPageIndex: 5
+    onPluginPanelsChanged: if (page >= builtinPages + pluginPanels.length) page = pluginsPageIndex
     function pluginPageTitle(p) {
         return pluginPanels.filter(q => q.pluginId === p.pluginId).length > 1 ? p.pluginName + " – " + p.title : p.pluginName
     }
+    function openPlugins() { open(); page = pluginsPageIndex }
     function openPluginPage(key) {
         var i = pluginPanels.findIndex(p => p.key === key)
         if (i < 0) return false
@@ -182,14 +184,7 @@ Dialog {
                 Item { Layout.fillHeight: true }
             }
             // Plugins
-            ColumnLayout {
-                spacing: 8
-                Label { Layout.fillWidth: true; wrapMode: Text.Wrap; color: theme.text
-                        text: app.safeMode ? qsTr("Safe Mode aktiv: ") + app.safeModeReason : ((app.plugins ? app.plugins.plugins.length : 0) + qsTr(" Plugins gefunden.")) }
-                Button { text: qsTr("Plugin-Verwaltung öffnen…"); onClicked: dlg.openPlugins() }
-                Button { visible: app.safeMode; text: qsTr("Safe Mode beenden"); onClicked: app.resetSafeMode() }
-                Item { Layout.fillHeight: true }
-            }
+            PluginsPage { id: pluginsPage; theme: dlg.theme; onOpenPluginSettings: (key) => dlg.openPluginPage(key) }
             // Effekte
             ColumnLayout {
                 spacing: 8
