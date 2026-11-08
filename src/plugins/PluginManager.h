@@ -58,6 +58,8 @@ public:
 
     Q_INVOKABLE bool setEnabled(const QString &id, bool enabled);
     Q_INVOKABLE void setSuspended(const QString &id, bool suspended);
+    // Wo eine Seite mit der Vorgabe "sidebar" erscheint: "sidebar" | "hidden" | "settings" (Wahl des Benutzers, bleibt gespeichert)
+    Q_INVOKABLE bool setPanelPlacement(const QString &key, const QString &placement);
     Q_INVOKABLE QString errorLogPath() const;
     // Menüeintrag oder Tastenkürzel eines Plugins ("plugin:<id>:<eintrag>")
     Q_INVOKABLE void triggerAction(const QString &actionId);

@@ -314,6 +314,74 @@ QtObject {
         QCOMPARE(logic->property("closed").toStringList(), QStringList{"dlg:ok"});
     }
 
+    void panelPlacement()
+    {
+        QTemporaryDir user, data;
+        writeFile(user.filePath("p/manifest.json"), R"({"id":"org.test.place","name":"P","version":"1.0.0","apiVersion":1,"main":"Main.qml",
+            "contributes":{"panels":[{"id":"side","title":"Side","qml":"S.qml"},
+                                     {"id":"conf","title":"Conf","qml":"S.qml","location":"settings"},
+                                     {"id":"dlg","title":"Dlg","qml":"S.qml","location":"modal"}]}})");
+        writeFile(user.filePath("p/Main.qml"), "import QtQml\nQtObject {}\n");
+        writeFile(user.filePath("p/S.qml"), "import QtQuick\nItem {}\n");
+        AppSettings settings(data.path());
+        MpvController mpv;
+        ShaderChain shaders(&mpv);
+        QQmlEngine engine;
+        const auto panel = [](const PluginManager &pm, const QString &key) {
+            for (const auto &v : pm.panels())
+                if (v.toMap().value("key") == key) return v.toMap();
+            return QVariantMap();
+        };
+        const QString side = "org.test.place/side";
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            QCOMPARE(panel(pm, side).value("location").toString(), QString("sidebar"));
+            QVERIFY(panel(pm, side).value("movable").toBool());
+            QVERIFY(!panel(pm, "org.test.place/conf").value("movable").toBool());
+            QVERIFY(!panel(pm, "org.test.place/dlg").value("movable").toBool());
+
+            QSignalSpy changed(&pm, &PluginManager::pluginsChanged);
+            QVERIFY(pm.setPanelPlacement(side, "hidden"));
+            QCOMPARE(changed.count(), 1);
+            QCOMPARE(panel(pm, side).value("location").toString(), QString("hidden"));
+            QVERIFY(pm.setPanelPlacement(side, "settings"));
+            QCOMPARE(panel(pm, side).value("location").toString(), QString("settings"));
+
+            // Abgelehnt: unbekannte Werte und Seiten, die nicht in die Seitenleiste gehören
+            QVERIFY(!pm.setPanelPlacement(side, "desktop"));
+            QVERIFY(!pm.setPanelPlacement("org.test.place/nope", "hidden"));
+            QVERIFY(!pm.setPanelPlacement("org.test.place/conf", "hidden"));
+            QVERIFY(!pm.setPanelPlacement("org.test.place/dlg", "sidebar"));
+            QCOMPARE(panel(pm, "org.test.place/conf").value("location").toString(), QString("settings"));
+            QCOMPARE(panel(pm, "org.test.place/dlg").value("location").toString(), QString("modal"));
+        }
+        {   // Bleibt nach einem Neustart erhalten
+            PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            QCOMPARE(panel(pm, side).value("location").toString(), QString("settings"));
+            QVERIFY(pm.setPanelPlacement(side, "sidebar"));
+            QCOMPARE(panel(pm, side).value("location").toString(), QString("sidebar"));
+            QVERIFY(settings.object("pluginPanelPlacements").isEmpty());
+            QVERIFY(pm.setPanelPlacement(side, "hidden"));
+            // Unbrauchbarer gespeicherter Wert: Seite bleibt in der Seitenleiste
+            auto all = settings.object("pluginPanelPlacements");
+            all.insert(side, "kaputt");
+            settings.setObject("pluginPanelPlacements", all);
+            QCOMPARE(panel(pm, side).value("location").toString(), QString("sidebar"));
+            QVERIFY(pm.setPanelPlacement(side, "hidden"));
+            QVERIFY(pm.removePlugin("org.test.place", true).value("ok").toBool());
+        }
+        {   // Entfernen mit Daten löscht auch die Wahl
+            PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            QVERIFY(settings.object("pluginPanelPlacements").isEmpty());
+        }
+    }
+
     void removePluginFromUserFolder()
     {
         const auto manifest = [](const char *id) {

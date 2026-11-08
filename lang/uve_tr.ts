@@ -650,6 +650,14 @@
 <context>
     <name>Main</name>
     <message>
+        <source>Plugin-Seiten</source>
+        <translation>Eklenti sayfaları</translation>
+    </message>
+    <message>
+        <source>Diese Seite ist ausgeblendet. Einblenden unter Einstellungen → Plugins.</source>
+        <translation>Bu sayfa gizli. Ayarlar → Eklentiler bölümünden gösterin.</translation>
+    </message>
+    <message>
         <source>UVE Player</source>
         <translation>UVE Player</translation>
     </message>
@@ -1507,6 +1515,22 @@
 </context>
 <context>
     <name>PluginsPage</name>
+    <message>
+        <source>Anzeige von „%1“</source>
+        <translation>“%1” gösterimi</translation>
+    </message>
+    <message>
+        <source>In der Seitenleiste</source>
+        <translation>Kenar çubuğunda</translation>
+    </message>
+    <message>
+        <source>Ausgeblendet</source>
+        <translation>Gizli</translation>
+    </message>
+    <message>
+        <source>Eigene Seite in den Einstellungen</source>
+        <translation>Ayarlar’da ayrı sayfa</translation>
+    </message>
     <message>
         <source>Entfernen</source>
         <translation>Kaldır</translation>

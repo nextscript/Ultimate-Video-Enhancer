@@ -18,6 +18,19 @@ ColumnLayout {
     function settingsPanelsFor(pluginId) {
         return (app.plugins ? app.plugins.panels : []).filter(p => p.location === "settings" && p.pluginId === pluginId)
     }
+    // Seiten eines Plugins, die normalerweise in der Seitenleiste stehen
+    function movablePanelsFor(pluginId) {
+        return (app.plugins ? app.plugins.panels : []).filter(p => p.movable && p.pluginId === pluginId)
+    }
+    readonly property var placements: ["sidebar", "hidden", "settings"]
+    // Später ausführen: Die Änderung baut die Liste samt auslösendem Element neu auf; die Scrollposition bleibt erhalten
+    function changePlacement(key, placement) {
+        Qt.callLater(() => {
+            var y = pluginList.contentY
+            app.plugins.setPanelPlacement(key, placement)
+            pluginList.contentY = y
+        })
+    }
     // Entfernen mit Rückfrage; die Dateien werden beim nächsten Start gelöscht
     function askRemove(plugin) { removeDialog.pluginInfo = plugin; removeData.checked = false; removeDialog.open() }
     function confirmRemove() {
@@ -40,6 +53,7 @@ ColumnLayout {
     }
 
     ListView {
+        id: pluginList
         Layout.fillWidth: true
         Layout.fillHeight: true
         clip: true
@@ -76,6 +90,20 @@ ColumnLayout {
                 Label { Layout.fillWidth: true; wrapMode: Text.Wrap; text: qsTr("ID: ") + modelData.id + qsTr("   ·   API ") + modelData.apiVersion + "   ·   " + (modelData.author || ""); color: theme.muted; font.pixelSize: 11 }
                 Label { visible: !!modelData.permissions && modelData.permissions.length > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; text: qsTr("Berechtigungen: ") + (modelData.permissions || []).join(", "); color: theme.muted; font.pixelSize: 11 }
                 Label { visible: modelData.error.length > 0; Layout.fillWidth: true; wrapMode: Text.Wrap; text: qsTr("Fehler: ") + modelData.error; color: theme.error }
+                Repeater {
+                    model: page.movablePanelsFor(modelData.id)
+                    RowLayout {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        Label { Layout.fillWidth: true; elide: Text.ElideRight; color: theme.text; text: qsTr("Anzeige von „%1“").arg(modelData.title) }
+                        ComboBox {
+                            Layout.preferredWidth: 270
+                            model: [qsTr("In der Seitenleiste"), qsTr("Ausgeblendet"), qsTr("Eigene Seite in den Einstellungen")]
+                            currentIndex: Math.max(0, page.placements.indexOf(modelData.location))
+                            onActivated: (i) => page.changePlacement(modelData.key, page.placements[i])
+                        }
+                    }
+                }
                 Flow {
                     Layout.fillWidth: true
                     spacing: 6

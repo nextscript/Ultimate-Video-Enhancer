@@ -44,6 +44,8 @@ QString pluginStateName(PluginState s)
     return {};
 }
 
+static const QLatin1String kPanelPlacements("pluginPanelPlacements");
+
 static QString pendingDir(const QString &userDir) { return QDir(userDir).filePath(QStringLiteral(".pending")); }
 
 PluginManager::PluginManager(AppSettings *settings, MpvController *mpv, ShaderChain *shaders,
@@ -199,6 +201,10 @@ void PluginManager::applyPendingRemovals()
             all.remove(id);
             m_settings->setObject(QStringLiteral("pluginSettings"), all);
             QDir(QDir(m_settings->dataDir()).filePath(QStringLiteral("plugin-data/") + id)).removeRecursively();
+            auto placements = m_settings->object(kPanelPlacements);
+            for (const auto &key : placements.keys())
+                if (key.startsWith(id + QLatin1Char('/'))) placements.remove(key);
+            m_settings->setObject(kPanelPlacements, placements);
         }
         marks.remove(id);
         Logger::write("plugin", QStringLiteral("entfernt: %1").arg(id));
@@ -571,8 +577,37 @@ QVariantList PluginManager::plugins() const
     return out;
 }
 
+bool PluginManager::setPanelPlacement(const QString &key, const QString &placement)
+{
+    if (placement != QLatin1String("sidebar") && placement != QLatin1String("hidden") && placement != QLatin1String("settings")) return false;
+    const auto list = panels();
+    const bool movable = std::any_of(list.begin(), list.end(), [&key](const QVariant &v) {
+        const QVariantMap p = v.toMap();
+        return p.value("key").toString() == key && p.value("movable").toBool();
+    });
+    if (!movable) return false;
+    auto all = m_settings->object(kPanelPlacements);
+    if (placement == QLatin1String("sidebar")) all.remove(key);
+    else all.insert(key, placement);
+    m_settings->setObject(kPanelPlacements, all);
+    emit pluginsChanged();
+    return true;
+}
+
 QVariantList PluginManager::panels() const
 {
+    const QJsonObject placements = m_settings->object(kPanelPlacements);
+    // Seiten mit der Vorgabe "sidebar" kann der Benutzer ausblenden oder in die Einstellungen verschieben
+    const auto place = [&placements](QVariantMap &p, const QString &location) {
+        const bool movable = location == QLatin1String("sidebar");
+        QString effective = location;
+        if (movable) {
+            const QString chosen = placements.value(p.value("key").toString()).toString();
+            if (chosen == QLatin1String("hidden") || chosen == QLatin1String("settings")) effective = chosen;
+        }
+        p.insert("location", effective);
+        p.insert("movable", movable);
+    };
     QVariantList out;
     for (const auto &e : m_entries) {
         if (e.state != PluginState::Active && e.state != PluginState::Suspended) continue;
@@ -585,7 +620,7 @@ QVariantList PluginManager::panels() const
             p.insert("key", e.manifest.id + QStringLiteral("/main"));
             p.insert("title", e.instance->panelTitle());
             p.insert("url", e.instance->panelQml());
-            p.insert("location", QStringLiteral("sidebar"));
+            place(p, QStringLiteral("sidebar"));
             out << p;
         }
         // Seiten aus dem Manifest
@@ -599,7 +634,7 @@ QVariantList PluginManager::panels() const
             p.insert("key", e.manifest.id + QLatin1Char('/') + o.value("id").toString(qml));
             p.insert("title", text(e, o.value("title")).isEmpty() ? e.manifest.name : text(e, o.value("title")));
             p.insert("url", url);
-            p.insert("location", o.value("location").toString(QStringLiteral("sidebar")));
+            place(p, o.value("location").toString(QStringLiteral("sidebar")));
             p.insert("modal", o.value("modal").toObject().toVariantMap());
             out << p;
         }

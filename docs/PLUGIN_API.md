@@ -111,14 +111,15 @@ Same compiler and Qt version as the player (1.0.x: Qt 6.12, MSVC 2022, 64 bit).
 
 | Contribution | Effect |
 |---|---|
-| `panels` | `location: "sidebar"` → tab in the sidebar; `"settings"` → own entry in *Settings* (since 1.1.3) and a button on the card of the plugin in *Settings → Plugins*; `"modal"` → window opened with `modal.open` (since 1.1.3). `qml` relative to the folder or `qrc:/…` |
+| `panels` | `location: "sidebar"` → tab in the sidebar, which the user can hide or move to *Settings* (since 1.1.5); `"settings"` → own entry in *Settings* (since 1.1.3) and a button on the card of the plugin in *Settings → Plugins*; `"modal"` → window opened with `modal.open` (since 1.1.3). `qml` relative to the folder or `qrc:/…` |
 | `menu` | entry in the *Plugins* menu → event `action.triggered {id}` |
 | `hotkeys` | entry in *Settings → Shortcuts* (editable) → event `action.triggered {id}`. A default shortcut that is already taken is not applied |
 | `translations` | folder with `*_<code>.qm` (default `lang`), switched together with the player language; source language German, fallback English |
 | `urlHandlers` | regular expressions; matching addresses go to the plugin before loading (event `media.resolve`) |
 
 Pages receive the properties `theme`, `host` (player object), `controller` (plugin object or QML logic) and `plugin`
-(the bridge) – each only if the page declares it. Settings pages can scroll: give the page an `implicitHeight`.
+(the bridge) – each only if the page declares it. Settings pages can scroll: give the page an `implicitHeight`. A sidebar page can
+end up in *Settings*, so it should adapt to the available width; it is only loaded while it is shown there.
 
 ## Modal windows (since 1.1.3)
 
@@ -175,7 +176,7 @@ Ignore unknown events – later versions may send more.
 | `log` | `message`, `level` |
 | `settings.get` / `settings.set` | → plugin settings / `settings` (object) |
 | `plugin.dataDir` | → data folder of the plugin |
-| `panel.open` | `panel` (id from `contributes.panels`) – show the page in the sidebar or in *Settings* |
+| `panel.open` | `panel` (id from `contributes.panels`) – show the page in the sidebar or in *Settings*. If the user hid the page, it stays hidden and the player shows a hint (since 1.1.5) |
 | `modal.open` | `panel`, optional `scope`, `mode`, `width`, `height`, `maxWidth`, `maxHeight`, `title`, `closeOnOutsideClick`, `data` – since 1.1.3, see *Modal windows* |
 | `modal.close` | `panel` (without: all windows of this plugin) – since 1.1.3 |
 | `media.resolved` | `requestId`, `url` (to play) or `error` |

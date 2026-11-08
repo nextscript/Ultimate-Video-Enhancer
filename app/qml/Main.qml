@@ -71,6 +71,31 @@ ApplicationWindow {
         if (fullscreen) visibility = wasVisibility === Window.Maximized ? Window.Maximized : Window.Windowed
         else { wasVisibility = visibility; visibility = Window.FullScreen }
     }
+    // Seite eines Plugins zeigen, dort wo der Benutzer sie hingelegt hat. Ausgeblendete Seiten blendet nur eine Aktion des Benutzers wieder ein.
+    function showPanel(key, userAction) {
+        var p = (app.plugins ? app.plugins.panels : []).find(x => x.key === key)
+        if (!p) return false
+        if (p.location === "settings") return settingsDialog.openPluginPage(key)
+        if (p.location === "hidden") {
+            if (!userAction) { osd(qsTr("Diese Seite ist ausgeblendet. Einblenden unter Einstellungen → Plugins."), 3000); return false }
+            app.plugins.setPanelPlacement(key, "sidebar")
+        } else if (p.location !== "sidebar") {
+            return false
+        }
+        sidebarVisible = true
+        app.setSetting("showSidebar", true)
+        return tabs.selectPanel(key)
+    }
+    function effectsPanel() {
+        return (app.plugins ? app.plugins.panels : []).find(p => p.movable && p.pluginId === "org.nextscript.ultimate-video-enhancer")
+    }
+    function showEffectsPanel() {
+        var p = effectsPanel()
+        if (p) { showPanel(p.key, true); return }
+        sidebarVisible = true
+        app.setSetting("showSidebar", true)
+        tabs.selectTab("Effekte")
+    }
     function act(id, arg) {
         switch (id) {
         case "play.toggle":
@@ -118,7 +143,7 @@ ApplicationWindow {
         case "effects.toggle": if (effects) effects.toggleEnabled(); else osd(qsTr("Effekt-Plugin nicht aktiv")); break
         case "effects.compare": if (effects) effects.toggleCompare(); else osd(qsTr("Effekt-Plugin nicht aktiv")); break
         case "effects.auto": if (effects) effects.toggleAuto(); else osd(qsTr("Effekt-Plugin nicht aktiv")); break
-        case "effects.panel": sidebarVisible = true; app.setSetting("showSidebar", true); tabs.selectTab("Effekte"); break
+        case "effects.panel": win.showEffectsPanel(); break
         case "open.file": openFileDialog.open(); break
         case "open.folder": openFolderDialog.open(); break
         case "open.url": urlDialog.playNow = true; urlDialog.open(); break
@@ -253,7 +278,7 @@ ApplicationWindow {
             MenuItem { text: qsTr("Vorher/Nachher-Vergleich"); enabled: win.effects !== null; checkable: true; checked: win.effects ? win.effects.compare : false; onTriggered: act("effects.compare") }
             MenuItem { text: qsTr("Auto-Scene-Match"); enabled: win.effects !== null; checkable: true; checked: win.effects ? win.effects.autoOn : false; onTriggered: act("effects.auto") }
             MenuItem { text: qsTr("Effekt-Panel öffnen"); enabled: win.effects !== null; onTriggered: act("effects.panel") }
-            MenuItem { text: qsTr("LUT-Galerie…"); enabled: win.effects !== null; onTriggered: { act("effects.panel"); win.effects.requestGallery() } }
+            MenuItem { text: qsTr("LUT-Galerie…"); enabled: win.effects !== null; onTriggered: { act("effects.panel"); Qt.callLater(() => win.effects.requestGallery()) } }
             MenuItem { text: qsTr("Beispielprofil von GitHub laden (My_Profile.json)"); enabled: win.effects !== null; onTriggered: win.effects.loadExampleProfile() }
             MenuItem { text: qsTr("LUT-Paket von GitHub laden"); enabled: win.effects !== null; onTriggered: win.effects.downloadLutPackage() }
             MenuItem { text: win.effects ? qsTr("Ultimate Video Enhancer aktiv") : qsTr("Ultimate Video Enhancer nicht aktiv"); enabled: false }
@@ -275,6 +300,28 @@ ApplicationWindow {
         Menu {
             title: qsTr("A&nsicht")
             MenuItem { text: qsTr("Seitenleiste"); checkable: true; checked: win.sidebarVisible; onTriggered: act("sidebar.toggle") }
+            // Einzelne Plugin-Seiten ein- und ausblenden, ohne die ganze Leiste umzuschalten
+            Menu {
+                id: panelsMenu
+                title: qsTr("Plugin-Seiten")
+                enabled: count > 0
+                Instantiator {
+                    model: (app.plugins ? app.plugins.panels : []).filter(p => p.movable)
+                    delegate: MenuItem {
+                        required property var modelData
+                        text: modelData.title
+                        checkable: true
+                        checked: modelData.location === "sidebar"
+                        onTriggered: {
+                            var key = modelData.key, placement = modelData.location === "sidebar" ? "hidden" : "sidebar"
+                            // Später ausführen: Die Änderung baut dieses Menü neu auf
+                            Qt.callLater(() => app.plugins.setPanelPlacement(key, placement))
+                        }
+                    }
+                    onObjectAdded: (i, o) => panelsMenu.insertItem(i, o)
+                    onObjectRemoved: (i, o) => panelsMenu.removeItem(o)
+                }
+            }
             MenuItem { text: qsTr("Minimale Oberfläche"); checkable: true; checked: win.minimal; onTriggered: act("minimal") }
             MenuItem { text: qsTr("Medieninformationen…"); onTriggered: act("mediainfo") }
             MenuItem { text: qsTr("Helles Farbschema"); checkable: true; checked: app.theme === "light"; onTriggered: app.theme = (app.theme === "light" ? "dark" : "light") }
@@ -617,6 +664,9 @@ ApplicationWindow {
             color: theme.panel
             Rectangle { width: 1; height: parent.height; color: theme.line }
             readonly property var panels: (app.plugins ? app.plugins.panels : []).filter(p => p.location === "sidebar")
+            // Gewählte Seite: Die Tabs werden bei jeder Änderung neu aufgebaut, sie soll trotzdem offen bleiben
+            property string activeKey: ""
+            onPanelsChanged: Qt.callLater(tabs.restoreActive)
 
             ColumnLayout {
                 anchors.fill: parent
@@ -628,23 +678,28 @@ ApplicationWindow {
                     function selectTab(name) {
                         if (name === "Effekte") {
                             for (var i = 0; i < sidebar.panels.length; ++i)
-                                if (sidebar.panels[i].pluginId === "org.nextscript.ultimate-video-enhancer") { currentIndex = i + 1; return }
+                                if (sidebar.panels[i].pluginId === "org.nextscript.ultimate-video-enhancer") { sidebar.activeKey = sidebar.panels[i].key; currentIndex = i + 1; return }
                         }
+                        sidebar.activeKey = ""
                         currentIndex = 0
+                    }
+                    function restoreActive() {
+                        currentIndex = sidebar.panels.findIndex(p => p.key === sidebar.activeKey) + 1
                     }
                     // Plugin-Befehl "panel.open": Schlüssel "<plugin-id>/<panel-id>"
                     function selectPanel(key) {
                         for (var i = 0; i < sidebar.panels.length; ++i)
-                            if (sidebar.panels[i].key === key) { currentIndex = i + 1; return true }
+                            if (sidebar.panels[i].key === key) { sidebar.activeKey = key; currentIndex = i + 1; return true }
                         return false
                     }
-                    TabButton { text: qsTr("Wiedergabeliste") }
+                    TabButton { text: qsTr("Wiedergabeliste"); onClicked: sidebar.activeKey = "" }
                     Repeater {
                         model: sidebar.panels
-                        TabButton { required property var modelData; text: modelData.title }
+                        TabButton { required property var modelData; text: modelData.title; onClicked: sidebar.activeKey = modelData.key }
                     }
                 }
                 StackLayout {
+                    id: sidebarStack
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     currentIndex: tabs.currentIndex
@@ -661,6 +716,9 @@ ApplicationWindow {
                         model: sidebar.panels
                         delegate: Loader {
                             required property var modelData
+                            // Feste Größe: StackLayout vergrößert neu aufgebaute Seiten sonst nicht (0×0, die Leiste bliebe leer)
+                            width: sidebarStack.width
+                            height: sidebarStack.height
                             source: modelData.url
                             onLoaded: {
                                 // Seiten bekommen theme, host (= app), controller und – falls deklariert – plugin (Befehle/Ereignisse)
@@ -784,7 +842,11 @@ ApplicationWindow {
         effects: win.effects
         onOpened: win.modalCount++
         onClosed: win.modalCount = Math.max(0, win.modalCount - 1)
-        onOpenEffects: { close(); win.act("effects.panel") }
+        onOpenEffects: {
+            var p = win.effectsPanel()
+            if (!p || p.location !== "settings") close()
+            win.act("effects.panel")
+        }
     }
 
     TrackedDialog {
@@ -871,9 +933,7 @@ ApplicationWindow {
         function onToolUpdatesAvailable(updates) { updateCheck.enqueue(() => updateDialog.show(updates)) }
         function onRequestRaise() { win.raise(); win.requestActivate() }
         function onPluginPanelRequested(key) {
-            // Seitenleisten-Seite eines Plugins zeigen, sonst dessen Einstellungsseite
-            if (tabs.selectPanel(key)) { win.sidebarVisible = true; app.setSetting("showSidebar", true) }
-            else settingsDialog.openPluginPage(key)
+            win.showPanel(key, false)
         }
     }
 
@@ -968,6 +1028,13 @@ ApplicationWindow {
             return c.x >= a.x - 1 && c.y >= a.y - 1 && c.x + m.card.width <= a.x + area.width + 1 && c.y + m.card.height <= a.y + area.height + 1
         }
         var demoInfo = () => app.plugins.plugins.find(p => p.id === demo)
+        // Die Seite muss wirklich sichtbar sein, nicht nur ihr Tab
+        var sidebarShowsPage = () => {
+            var r = sidebar.mapToItem(root, 0, 0)
+            return app.selftestInkShare(r.x + 4, r.y + tabs.height + 4, sidebar.width - 8, sidebar.height - tabs.height - 8) > 0.01
+        }
+        var uvePanel = app.plugins.panels.find(p => p.movable && p.pluginId === "org.nextscript.ultimate-video-enhancer")
+        var timerPanel = app.plugins.panels.find(p => p.movable && p.pluginId === "org.uveplayer.example.sleep-timer")
         switch (win.stPluginStep) {
         case 0:
             check("demo active", demoInfo() && demoInfo().state === "aktiv")
@@ -1087,6 +1154,70 @@ ApplicationWindow {
             check("undo", demoInfo().pendingRemoval === false && demoInfo().state === "aktiv")
             check("removal", app.plugins.removePlugin(demo, true).ok)
             settingsDialog.close()
+            break
+        case 22:
+            check("two movable panels", !!uvePanel && !!timerPanel && tabs.count === 3 && panelsMenu.count === 2)
+            tabs.selectPanel(uvePanel.key)
+            app.plugins.setPanelPlacement(timerPanel.key, "hidden")
+            break
+        case 23:
+            check("timer tab gone", tabs.count === 2 && timerPanel.location === "hidden")
+            check("sidebar stays open", win.sidebarVisible && sidebar.visible)
+            check("current tab kept", tabs.currentIndex === 1 && sidebar.activeKey === uvePanel.key)
+            check("page visible after hiding another", sidebarShowsPage())
+            shot("panel-hidden")
+            check("plugin cannot show hidden page", win.showPanel(timerPanel.key, false) === false && timerPanel.location === "hidden")
+            app.plugins.setPanelPlacement(timerPanel.key, "settings")
+            break
+        case 24:
+            check("timer not in sidebar", tabs.count === 2)
+            check("timer page listed", settingsDialog.pluginPanels.some(p => p.key === timerPanel.key))
+            check("plugin opens settings page", win.showPanel(timerPanel.key, false))
+            break
+        case 25:
+            check("timer page loaded", settingsDialog.opened && settingsDialog.pluginPage.status === Loader.Ready)
+            shot("timer-in-settings")
+            settingsDialog.close()
+            app.plugins.setPanelPlacement(uvePanel.key, "settings")
+            break
+        case 26:
+            check("only playlist tab", tabs.count === 1 && tabs.currentIndex === 0)
+            win.act("effects.panel")
+            break
+        case 27:
+            check("effects page in settings", settingsDialog.opened && settingsDialog.currentPluginPanel !== null
+                  && settingsDialog.currentPluginPanel.key === uvePanel.key && settingsDialog.pluginPage.status === Loader.Ready)
+            shot("uve-in-settings")
+            win.effects.requestGallery()
+            break
+        case 28:
+            shot("gallery-in-settings")
+            app.simulateClick(6, 60)
+            break
+        case 29:
+            settingsDialog.close()
+            app.plugins.setPanelPlacement(uvePanel.key, "hidden")
+            break
+        case 30:
+            check("effects hidden", uvePanel.location === "hidden")
+            win.act("effects.panel")
+            break
+        case 31:
+            check("user action shows effects again", uvePanel.location === "sidebar" && tabs.count === 2 && tabs.currentIndex === 1)
+            check("page visible when shown again", sidebarShowsPage())
+            // Menü Ansicht → Plugin-Seiten
+            for (var mi = 0; mi < panelsMenu.count; ++mi)
+                if (panelsMenu.itemAt(mi).text === timerPanel.title) panelsMenu.itemAt(mi).triggered()
+            break
+        case 32:
+            check("menu shows timer", timerPanel.location === "sidebar" && tabs.count === 3)
+            check("current tab kept after menu", sidebar.panels[tabs.currentIndex - 1].key === uvePanel.key)
+            check("page visible after menu", sidebarShowsPage())
+            app.setLanguage(app.language === "de" ? "en" : "de")
+            break
+        case 33:
+            check("page visible after language switch", tabs.currentIndex > 0 && sidebarShowsPage())
+            shot("sidebar-after-language")
             ui.ok = ui.failures.length === 0
             ui.done = true
             selftestUi.stop()

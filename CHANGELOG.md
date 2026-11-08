@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.5 – 2026-11-08
+
+### Plugin pages in the sidebar
+- **Show or hide single pages:** *View → Plugin pages* shows or hides a plugin page, for example *Effects* or *Timer*, without toggling the whole
+  sidebar. The open page stays open.
+- **Own page in Settings:** in *Settings → Plugins*, each page can be set to *In the sidebar*, *Hidden* or *Own page in Settings*. A moved page no
+  longer appears in the sidebar. Your choice is kept after a restart.
+- **The open sidebar page stays open:** it also stays open and visible when the tabs change, for example after a language switch.
+- **Effects stay reachable:** *Open effects panel* and the LUT gallery go to the place you chose. If the effects page is hidden, these commands show
+  it in the sidebar again.
+
 ## 1.1.4 – 2026-11-08
 
 ### Plugins

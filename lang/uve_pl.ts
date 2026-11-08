@@ -650,6 +650,14 @@
 <context>
     <name>Main</name>
     <message>
+        <source>Plugin-Seiten</source>
+        <translation>Strony wtyczek</translation>
+    </message>
+    <message>
+        <source>Diese Seite ist ausgeblendet. Einblenden unter Einstellungen → Plugins.</source>
+        <translation>Ta strona jest ukryta. Pokaż ją w Ustawienia → Wtyczki.</translation>
+    </message>
+    <message>
         <source>UVE Player</source>
         <translation>UVE Player</translation>
     </message>
@@ -1507,6 +1515,22 @@
 </context>
 <context>
     <name>PluginsPage</name>
+    <message>
+        <source>Anzeige von „%1“</source>
+        <translation>Wyświetlanie „%1”</translation>
+    </message>
+    <message>
+        <source>In der Seitenleiste</source>
+        <translation>Na pasku bocznym</translation>
+    </message>
+    <message>
+        <source>Ausgeblendet</source>
+        <translation>Ukryte</translation>
+    </message>
+    <message>
+        <source>Eigene Seite in den Einstellungen</source>
+        <translation>Osobna strona w Ustawieniach</translation>
+    </message>
     <message>
         <source>Entfernen</source>
         <translation>Usuń</translation>

@@ -650,6 +650,14 @@
 <context>
     <name>Main</name>
     <message>
+        <source>Plugin-Seiten</source>
+        <translation>Páginas de plugins</translation>
+    </message>
+    <message>
+        <source>Diese Seite ist ausgeblendet. Einblenden unter Einstellungen → Plugins.</source>
+        <translation>Esta página está oculta. Muéstrela en Configuración → Plugins.</translation>
+    </message>
+    <message>
         <source>UVE Player</source>
         <translation>UVE Player</translation>
     </message>
@@ -1507,6 +1515,22 @@
 </context>
 <context>
     <name>PluginsPage</name>
+    <message>
+        <source>Anzeige von „%1“</source>
+        <translation>Mostrar «%1»</translation>
+    </message>
+    <message>
+        <source>In der Seitenleiste</source>
+        <translation>En la barra lateral</translation>
+    </message>
+    <message>
+        <source>Ausgeblendet</source>
+        <translation>Oculto</translation>
+    </message>
+    <message>
+        <source>Eigene Seite in den Einstellungen</source>
+        <translation>Página propia en Configuración</translation>
+    </message>
     <message>
         <source>Entfernen</source>
         <translation>Quitar</translation>
