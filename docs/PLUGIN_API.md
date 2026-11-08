@@ -111,7 +111,7 @@ Same compiler and Qt version as the player (1.0.x: Qt 6.12, MSVC 2022, 64 bit).
 
 | Contribution | Effect |
 |---|---|
-| `panels` | `location: "sidebar"` → tab in the sidebar, which the user can hide or move to *Settings* (since 1.1.5); `"settings"` → own entry in *Settings* (since 1.1.3) and a button on the card of the plugin in *Settings → Plugins*; `"modal"` → window opened with `modal.open` (since 1.1.3). `qml` relative to the folder or `qrc:/…` |
+| `panels` | `location: "sidebar"` → tab in the sidebar, which the user can hide or move to *Settings* (since 1.1.5); `"settings"` → own entry in *Settings* (since 1.1.3) and a button on the card of the plugin in *Settings → Plugins*; `"modal"` → window opened with `modal.open` (since 1.1.3). `defaultPlacement: "hidden"` or `"settings"` starts a sidebar page there until the user chooses a place (since 1.1.6). `qml` relative to the folder or `qrc:/…` |
 | `menu` | entry in the *Plugins* menu → event `action.triggered {id}` |
 | `hotkeys` | entry in *Settings → Shortcuts* (editable) → event `action.triggered {id}`. A default shortcut that is already taken is not applied |
 | `translations` | folder with `*_<code>.qm` (default `lang`), switched together with the player language; source language German, fallback English |

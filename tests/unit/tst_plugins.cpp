@@ -105,6 +105,34 @@ private slots:
         QCOMPARE(chain.activeShaders(), QStringList({a, other}));
     }
 
+    void panelDefaultPlacement()
+    {
+        QTemporaryDir dir;
+        writeFile(dir.filePath("hid/manifest.json"),
+                  R"({"id":"org.test.hid","name":"Hid","version":"1.0.0","apiVersion":1,"main":"Main.qml",
+                      "contributes":{"panels":[{"id":"p","title":"P","qml":"P.qml","defaultPlacement":"hidden"}]}})");
+        writeFile(dir.filePath("hid/Main.qml"), "import QtQml\nQtObject {}\n");
+        AppSettings settings(m_tmp.filePath("dataPlacement"));
+        MpvController mpv;
+        ShaderChain shaders(&mpv);
+        QQmlEngine engine;
+        const auto location = [](const PluginManager &pm) { return pm.panels().first().toMap().value("location").toString(); };
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {dir.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            QCOMPARE(location(pm), QString("hidden"));
+            QVERIFY(pm.panels().first().toMap().value("movable").toBool());
+            QVERIFY(pm.setPanelPlacement("org.test.hid/p", "sidebar"));
+            QCOMPARE(location(pm), QString("sidebar"));
+        }
+        // Die Wahl des Benutzers überlebt den Neustart und schlägt die Vorgabe
+        PluginManager pm(&settings, &mpv, &shaders, {dir.path()}, false);
+        pm.setQmlEngine(&engine);
+        pm.discoverAndStart();
+        QCOMPARE(location(pm), QString("sidebar"));
+    }
+
     void qmlPluginFromFolder()
     {
         AppSettings settings(m_tmp.filePath("data"));

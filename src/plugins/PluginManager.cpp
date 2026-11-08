@@ -581,13 +581,14 @@ bool PluginManager::setPanelPlacement(const QString &key, const QString &placeme
 {
     if (placement != QLatin1String("sidebar") && placement != QLatin1String("hidden") && placement != QLatin1String("settings")) return false;
     const auto list = panels();
-    const bool movable = std::any_of(list.begin(), list.end(), [&key](const QVariant &v) {
+    const auto panel = std::find_if(list.begin(), list.end(), [&key](const QVariant &v) {
         const QVariantMap p = v.toMap();
         return p.value("key").toString() == key && p.value("movable").toBool();
     });
-    if (!movable) return false;
+    if (panel == list.end()) return false;
     auto all = m_settings->object(kPanelPlacements);
-    if (placement == QLatin1String("sidebar")) all.remove(key);
+    // Mit einer Vorgabe im Manifest muss auch "sidebar" gespeichert bleiben, sonst gälte wieder die Vorgabe
+    if (placement == QLatin1String("sidebar") && !panel->toMap().contains(QStringLiteral("defaultPlacement"))) all.remove(key);
     else all.insert(key, placement);
     m_settings->setObject(kPanelPlacements, all);
     emit pluginsChanged();
@@ -602,7 +603,8 @@ QVariantList PluginManager::panels() const
         const bool movable = location == QLatin1String("sidebar");
         QString effective = location;
         if (movable) {
-            const QString chosen = placements.value(p.value("key").toString()).toString();
+            QString chosen = placements.value(p.value("key").toString()).toString();
+            if (chosen.isEmpty()) chosen = p.value("defaultPlacement").toString();   // noch keine Wahl des Benutzers
             if (chosen == QLatin1String("hidden") || chosen == QLatin1String("settings")) effective = chosen;
         }
         p.insert("location", effective);
@@ -634,6 +636,9 @@ QVariantList PluginManager::panels() const
             p.insert("key", e.manifest.id + QLatin1Char('/') + o.value("id").toString(qml));
             p.insert("title", text(e, o.value("title")).isEmpty() ? e.manifest.name : text(e, o.value("title")));
             p.insert("url", url);
+            const QString defaultPlacement = o.value("defaultPlacement").toString();
+            if (defaultPlacement == QLatin1String("hidden") || defaultPlacement == QLatin1String("settings"))
+                p.insert("defaultPlacement", defaultPlacement);
             place(p, o.value("location").toString(QStringLiteral("sidebar")));
             p.insert("modal", o.value("modal").toObject().toVariantMap());
             out << p;

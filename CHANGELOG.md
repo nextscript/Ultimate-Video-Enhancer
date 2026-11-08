@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.6 – 2026-11-08
+
+### Plugin API
+- **Default place for sidebar pages:** `defaultPlacement` in the manifest lets a sidebar page start *Hidden* or as its own page in *Settings*. It applies
+  until you choose a place yourself, and your choice is kept after a restart.
+
 ## 1.1.5 – 2026-11-08
 
 ### Plugin pages in the sidebar
