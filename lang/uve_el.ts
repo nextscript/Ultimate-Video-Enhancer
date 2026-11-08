@@ -336,6 +336,10 @@
         <translation>Αυτόματο</translation>
     </message>
     <message>
+        <source>Denoising / Rauschreduzierung</source>
+        <translation>Μείωση θορύβου</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>Φόρτωση 3D LUT (.cube)</translation>
     </message>
@@ -490,6 +494,46 @@
     <message>
         <source>Abschnitt zurücksetzen</source>
         <translation>Επαναφορά ενότητας</translation>
+    </message>
+    <message>
+        <source>Denoising-Modus</source>
+        <translation>Λειτουργία μείωσης θορύβου</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Ένταση</translation>
+    </message>
+    <message>
+        <source>Details erhalten</source>
+        <translation>Διατήρηση λεπτομερειών</translation>
+    </message>
+    <message>
+        <source>Höher = Kanten und feine Strukturen bleiben besser erhalten, es bleibt aber mehr Rauschen</source>
+        <translation>Υψηλότερα = οι άκρες και οι λεπτές δομές διατηρούνται καλύτερα, αλλά μένει περισσότερος θόρυβος</translation>
+    </message>
+    <message>
+        <source>Debanding</source>
+        <translation>Debanding</translation>
+    </message>
+    <message>
+        <source>Nur bei „Adaptive Bilateral + Debanding“: glättet Farbstufen in Verläufen</source>
+        <translation>Μόνο με «Adaptive Bilateral + Debanding»: εξομαλύνει τα χρωματικά σκαλοπάτια στις διαβαθμίσεις</translation>
+    </message>
+    <message>
+        <source>Voreinstellung</source>
+        <translation>Προεπιλογή</translation>
+    </message>
+    <message>
+        <source>Mäßige Werte für die Auflösung des Videos; Profile und Presets bleiben unverändert</source>
+        <translation>Μέτριες τιμές για την ανάλυση του βίντεο· τα προφίλ και οι προεπιλογές δεν αλλάζουν</translation>
+    </message>
+    <message>
+        <source>Status: </source>
+        <translation>Κατάσταση: </translation>
+    </message>
+    <message>
+        <source>Temporal rechnet auf der CPU vor dem Renderer und mischt benachbarte Frames. Hardware-Decodierung läuft währenddessen im Copy-Modus; im Vorher/Nachher ist es auf beiden Seiten aktiv.</source>
+        <translation>Το Temporal υπολογίζεται στη CPU πριν από τον renderer και αναμειγνύει γειτονικά καρέ. Στο μεταξύ η αποκωδικοποίηση υλικού χρησιμοποιεί λειτουργία αντιγραφής· στο πριν/μετά είναι ενεργό και στις δύο πλευρές.</translation>
     </message>
     <message>
         <source>wartet auf Wiedergabe …</source>
@@ -2829,6 +2873,77 @@
     <message>
         <source> installiert – wird nach einem Neustart verwendet</source>
         <translation> εγκαταστάθηκε – θα χρησιμοποιηθεί μετά από επανεκκίνηση</translation>
+    </message>
+</context>
+<context>
+    <name>uve::fx::DenoiseController</name>
+    <message>
+        <source>Aus</source>
+        <translation>Ανενεργό</translation>
+    </message>
+    <message>
+        <source>1. Bilateral Filter</source>
+        <translation>1. Διμερές φίλτρο</translation>
+    </message>
+    <message>
+        <source>2. Adaptive Bilateral + Debanding</source>
+        <translation>2. Προσαρμοστικό διμερές + debanding</translation>
+    </message>
+    <message>
+        <source>3. Temporal Denoising</source>
+        <translation>3. Χρονική μείωση θορύβου</translation>
+    </message>
+    <message>
+        <source>4. NLMeans (GLSL-Shader)</source>
+        <translation>4. NLMeans (shader GLSL)</translation>
+    </message>
+    <message>
+        <source>Wartet – Effekte sind aus</source>
+        <translation>Σε αναμονή – τα εφέ είναι ανενεργά</translation>
+    </message>
+    <message>
+        <source>Keine Wirkung – Stärke ist 0</source>
+        <translation>Χωρίς επίδραση – η ένταση είναι 0</translation>
+    </message>
+    <message>
+        <source>Initialisiert</source>
+        <translation>Αρχικοποιήθηκε</translation>
+    </message>
+    <message>
+        <source>Aktiv</source>
+        <translation>Ενεργό</translation>
+    </message>
+    <message>
+        <source>Fallback auf Aus: Shaderdatei nicht schreibbar</source>
+        <translation>Επιστροφή σε Ανενεργό: δεν είναι δυνατή η εγγραφή του αρχείου shader</translation>
+    </message>
+    <message>
+        <source>Temporal nicht verfügbar, Fallback auf Bilateral: %1</source>
+        <translation>Το Temporal δεν είναι διαθέσιμο, επιστροφή σε διμερές: %1</translation>
+    </message>
+    <message>
+        <source>Player zu alt</source>
+        <translation>Πολύ παλιά έκδοση της εφαρμογής</translation>
+    </message>
+    <message>
+        <source>Aktiv – CPU-Filter, Decoder: %1</source>
+        <translation>Ενεργό – φίλτρο CPU, αποκωδικοποιητής: %1</translation>
+    </message>
+    <message>
+        <source>Software</source>
+        <translation>Λογισμικό</translation>
+    </message>
+    <message>
+        <source>Temporal überlastet (Frames verworfen), Fallback auf Bilateral</source>
+        <translation>Υπερφόρτωση Temporal (απόρριψη καρέ), επιστροφή σε διμερές</translation>
+    </message>
+    <message>
+        <source>Temporal überlastet – Frames werden verworfen</source>
+        <translation>Υπερφόρτωση Temporal – γίνεται απόρριψη καρέ</translation>
+    </message>
+    <message>
+        <source>Fallback auf Aus: GPU-Shader nicht unterstützt (%1)</source>
+        <translation>Επιστροφή σε Ανενεργό: το shader GPU δεν υποστηρίζεται (%1)</translation>
     </message>
 </context>
 <context>

@@ -136,7 +136,7 @@
     </message>
     <message>
         <source>Für diese Installation gibt es kein automatisches Update. Das neue Paket liegt auf der GitHub-Seite des Releases.</source>
-        <translation>This installation cannot be updated automatically. The new package is on the release's GitHub page.</translation>
+        <translation>This installation cannot be updated automatically. The new package is on the release&apos;s GitHub page.</translation>
     </message>
     <message>
         <source>Diese Version überspringen</source>
@@ -336,6 +336,10 @@
         <translation>Auto</translation>
     </message>
     <message>
+        <source>Denoising / Rauschreduzierung</source>
+        <translation>Denoising / noise reduction</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>Load 3D LUT (.cube)</translation>
     </message>
@@ -490,6 +494,46 @@
     <message>
         <source>Abschnitt zurücksetzen</source>
         <translation>Reset section</translation>
+    </message>
+    <message>
+        <source>Denoising-Modus</source>
+        <translation>Denoising mode</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Strength</translation>
+    </message>
+    <message>
+        <source>Details erhalten</source>
+        <translation>Preserve details</translation>
+    </message>
+    <message>
+        <source>Höher = Kanten und feine Strukturen bleiben besser erhalten, es bleibt aber mehr Rauschen</source>
+        <translation>Higher = edges and fine structures are preserved better, but more noise remains</translation>
+    </message>
+    <message>
+        <source>Debanding</source>
+        <translation>Debanding</translation>
+    </message>
+    <message>
+        <source>Nur bei „Adaptive Bilateral + Debanding“: glättet Farbstufen in Verläufen</source>
+        <translation>Only with “Adaptive Bilateral + Debanding”: smooths colour steps in gradients</translation>
+    </message>
+    <message>
+        <source>Voreinstellung</source>
+        <translation>Preset</translation>
+    </message>
+    <message>
+        <source>Mäßige Werte für die Auflösung des Videos; Profile und Presets bleiben unverändert</source>
+        <translation>Moderate values for the video&apos;s resolution; profiles and presets stay unchanged</translation>
+    </message>
+    <message>
+        <source>Status: </source>
+        <translation>Status: </translation>
+    </message>
+    <message>
+        <source>Temporal rechnet auf der CPU vor dem Renderer und mischt benachbarte Frames. Hardware-Decodierung läuft währenddessen im Copy-Modus; im Vorher/Nachher ist es auf beiden Seiten aktiv.</source>
+        <translation>Temporal runs on the CPU before the renderer and blends neighbouring frames. Hardware decoding uses copy mode meanwhile; in before/after it is active on both sides.</translation>
     </message>
     <message>
         <source>wartet auf Wiedergabe …</source>
@@ -1621,7 +1665,7 @@
     </message>
     <message>
         <source>Die Änderung wird nach einem Neustart des Players aktiv. Einstellungen des Plugins bleiben erhalten.</source>
-        <translation>The change takes effect after restarting the player. The plugin's settings are kept.</translation>
+        <translation>The change takes effect after restarting the player. The plugin&apos;s settings are kept.</translation>
     </message>
     <message>
         <source>Später</source>
@@ -2829,6 +2873,77 @@
     <message>
         <source> installiert – wird nach einem Neustart verwendet</source>
         <translation> installed – will be used after a restart</translation>
+    </message>
+</context>
+<context>
+    <name>uve::fx::DenoiseController</name>
+    <message>
+        <source>Aus</source>
+        <translation>Off</translation>
+    </message>
+    <message>
+        <source>1. Bilateral Filter</source>
+        <translation>1. Bilateral filter</translation>
+    </message>
+    <message>
+        <source>2. Adaptive Bilateral + Debanding</source>
+        <translation>2. Adaptive bilateral + debanding</translation>
+    </message>
+    <message>
+        <source>3. Temporal Denoising</source>
+        <translation>3. Temporal denoising</translation>
+    </message>
+    <message>
+        <source>4. NLMeans (GLSL-Shader)</source>
+        <translation>4. NLMeans (GLSL shader)</translation>
+    </message>
+    <message>
+        <source>Wartet – Effekte sind aus</source>
+        <translation>Waiting – effects are off</translation>
+    </message>
+    <message>
+        <source>Keine Wirkung – Stärke ist 0</source>
+        <translation>No effect – strength is 0</translation>
+    </message>
+    <message>
+        <source>Initialisiert</source>
+        <translation>Initialized</translation>
+    </message>
+    <message>
+        <source>Aktiv</source>
+        <translation>Active</translation>
+    </message>
+    <message>
+        <source>Fallback auf Aus: Shaderdatei nicht schreibbar</source>
+        <translation>Fallback to Off: shader file cannot be written</translation>
+    </message>
+    <message>
+        <source>Temporal nicht verfügbar, Fallback auf Bilateral: %1</source>
+        <translation>Temporal not available, fallback to Bilateral: %1</translation>
+    </message>
+    <message>
+        <source>Player zu alt</source>
+        <translation>Player too old</translation>
+    </message>
+    <message>
+        <source>Aktiv – CPU-Filter, Decoder: %1</source>
+        <translation>Active – CPU filter, decoder: %1</translation>
+    </message>
+    <message>
+        <source>Software</source>
+        <translation>Software</translation>
+    </message>
+    <message>
+        <source>Temporal überlastet (Frames verworfen), Fallback auf Bilateral</source>
+        <translation>Temporal overloaded (frames dropped), fallback to Bilateral</translation>
+    </message>
+    <message>
+        <source>Temporal überlastet – Frames werden verworfen</source>
+        <translation>Temporal overloaded – frames are being dropped</translation>
+    </message>
+    <message>
+        <source>Fallback auf Aus: GPU-Shader nicht unterstützt (%1)</source>
+        <translation>Fallback to Off: GPU shader not supported (%1)</translation>
     </message>
 </context>
 <context>

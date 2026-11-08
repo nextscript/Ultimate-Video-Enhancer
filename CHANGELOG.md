@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.2 – 2026-11-08
+
+### Live denoising
+- **New section *Denoising / noise reduction* under *Effects*:** a dropdown switches between *Off* (default) and four methods while a
+  video or stream is playing, without reopening it and without changing the position:
+  **Bilateral filter**, **Adaptive bilateral + debanding**, **Temporal denoising** and **NLMeans** (GLSL shader).
+- **Controls:** *Strength*, *Preserve details*, *Debanding* (only for the adaptive mode), presets for 480p, 720p, 1080p and 4K, and a
+  *Status* line.
+- **Works with all effects:** denoising runs before colour and sharpening. *Off* restores the identical picture. In *before/after*
+  the left side stays untreated with the GPU modes; Temporal is active on both sides.
+- **Temporal uses real neighbouring frames and is meant for light noise:** its strength is limited so that moving objects do not leave a
+  visible veil; NLMeans and Adaptive are better for strong noise. It runs as a video filter on the CPU. Hardware decoding uses copy mode while
+  it is active and returns afterwards; switching it on or off costs a short moment of picture (about 0.15 s with local files,
+  up to about 0.6 s with live streams). The other modes switch without restarting the decoder.
+- **Safe fallbacks:** if a shader or filter fails or Temporal is overloaded, the mode falls back to *Bilateral* or *Off* and the
+  status says why. Playback and the other effects continue.
+- **Your settings stay as they are:** denoising has its own settings and is not part of presets or UVE profiles. Details and
+  measurements: `docs/DENOISING.md`.
+
 ## 1.1.1 – 2026-11-08
 
 ### Player updates through GitHub

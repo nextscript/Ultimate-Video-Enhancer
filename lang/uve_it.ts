@@ -72,7 +72,7 @@
     </message>
     <message>
         <source>Update wird heruntergeladen …</source>
-        <translation>Download dell'aggiornamento …</translation>
+        <translation>Download dell&apos;aggiornamento …</translation>
     </message>
     <message>
         <source>GitHub antwortet gerade nicht – neuer Versuch in %1 s (der Download wird fortgesetzt)</source>
@@ -80,7 +80,7 @@
     </message>
     <message>
         <source>Installation wird gestartet – der Player wird neu gestartet …</source>
-        <translation>Avvio dell'installazione – il player verrà riavviato …</translation>
+        <translation>Avvio dell&apos;installazione – il player verrà riavviato …</translation>
     </message>
     <message>
         <source>Abbrechen</source>
@@ -132,7 +132,7 @@
     </message>
     <message>
         <source>„Jetzt installieren“ lädt das Update, prüft es per SHA-256, beendet den Player und startet ihn danach neu. Bei „Später“ erscheint dieser Hinweis beim nächsten Start wieder.</source>
-        <translation>«Installa ora» scarica l'aggiornamento, lo verifica con SHA-256, chiude il player e poi lo riavvia. Con «Più tardi» questo avviso riapparirà al prossimo avvio.</translation>
+        <translation>«Installa ora» scarica l&apos;aggiornamento, lo verifica con SHA-256, chiude il player e poi lo riavvia. Con «Più tardi» questo avviso riapparirà al prossimo avvio.</translation>
     </message>
     <message>
         <source>Für diese Installation gibt es kein automatisches Update. Das neue Paket liegt auf der GitHub-Seite des Releases.</source>
@@ -144,7 +144,7 @@
     </message>
     <message>
         <source>Das Update wurde nicht installiert: %1. Der Download wird beim nächsten Versuch fortgesetzt; alternativ lässt sich das Paket über „Auf GitHub ansehen“ im Browser laden.</source>
-        <translation>L'aggiornamento non è stato installato: %1. Il download riprenderà al prossimo tentativo; in alternativa puoi scaricare il pacchetto nel browser tramite «Vedi su GitHub».</translation>
+        <translation>L&apos;aggiornamento non è stato installato: %1. Il download riprenderà al prossimo tentativo; in alternativa puoi scaricare il pacchetto nel browser tramite «Vedi su GitHub».</translation>
     </message>
 </context>
 <context>
@@ -336,6 +336,10 @@
         <translation>Auto</translation>
     </message>
     <message>
+        <source>Denoising / Rauschreduzierung</source>
+        <translation>Riduzione del rumore</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>Carica LUT 3D (.cube)</translation>
     </message>
@@ -490,6 +494,46 @@
     <message>
         <source>Abschnitt zurücksetzen</source>
         <translation>Ripristina sezione</translation>
+    </message>
+    <message>
+        <source>Denoising-Modus</source>
+        <translation>Modalità di riduzione del rumore</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Intensità</translation>
+    </message>
+    <message>
+        <source>Details erhalten</source>
+        <translation>Conserva i dettagli</translation>
+    </message>
+    <message>
+        <source>Höher = Kanten und feine Strukturen bleiben besser erhalten, es bleibt aber mehr Rauschen</source>
+        <translation>Più alto = bordi e strutture fini si conservano meglio, ma resta più rumore</translation>
+    </message>
+    <message>
+        <source>Debanding</source>
+        <translation>Debanding</translation>
+    </message>
+    <message>
+        <source>Nur bei „Adaptive Bilateral + Debanding“: glättet Farbstufen in Verläufen</source>
+        <translation>Solo con «Adaptive Bilateral + Debanding»: attenua le bande di colore nelle sfumature</translation>
+    </message>
+    <message>
+        <source>Voreinstellung</source>
+        <translation>Preimpostazione</translation>
+    </message>
+    <message>
+        <source>Mäßige Werte für die Auflösung des Videos; Profile und Presets bleiben unverändert</source>
+        <translation>Valori moderati per la risoluzione del video; profili e preset restano invariati</translation>
+    </message>
+    <message>
+        <source>Status: </source>
+        <translation>Stato: </translation>
+    </message>
+    <message>
+        <source>Temporal rechnet auf der CPU vor dem Renderer und mischt benachbarte Frames. Hardware-Decodierung läuft währenddessen im Copy-Modus; im Vorher/Nachher ist es auf beiden Seiten aktiv.</source>
+        <translation>Temporal viene calcolato sulla CPU prima del renderer e fonde i fotogrammi vicini. Nel frattempo la decodifica hardware usa la modalità copia; in prima/dopo è attivo su entrambi i lati.</translation>
     </message>
     <message>
         <source>wartet auf Wiedergabe …</source>
@@ -1758,7 +1802,7 @@
     </message>
     <message>
         <source>Beim Start nach Updates für UVE Player suchen (Netzwerkzugriff auf GitHub)</source>
-        <translation>Cerca aggiornamenti di UVE Player all'avvio (accesso di rete a GitHub)</translation>
+        <translation>Cerca aggiornamenti di UVE Player all&apos;avvio (accesso di rete a GitHub)</translation>
     </message>
     <message>
         <source>Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)</source>
@@ -2478,7 +2522,7 @@
     </message>
     <message>
         <source>Das Installations-Image wurde geöffnet. Bitte UVE Player beenden und das Programm in den Ordner „Programme“ ziehen.</source>
-        <translation>L'immagine di installazione è stata aperta. Chiudi UVE Player e trascina l'app nella cartella Applicazioni.</translation>
+        <translation>L&apos;immagine di installazione è stata aperta. Chiudi UVE Player e trascina l&apos;app nella cartella Applicazioni.</translation>
     </message>
     <message>
         <source>Diese Installationsart kann nicht automatisch aktualisiert werden</source>
@@ -2486,7 +2530,7 @@
     </message>
     <message>
         <source>Das Update konnte nicht gestartet werden: %1</source>
-        <translation>Impossibile avviare l'aggiornamento: %1</translation>
+        <translation>Impossibile avviare l&apos;aggiornamento: %1</translation>
     </message>
 </context>
 <context>
@@ -2829,6 +2873,77 @@
     <message>
         <source> installiert – wird nach einem Neustart verwendet</source>
         <translation> installata – verrà usata dopo un riavvio</translation>
+    </message>
+</context>
+<context>
+    <name>uve::fx::DenoiseController</name>
+    <message>
+        <source>Aus</source>
+        <translation>Disattivato</translation>
+    </message>
+    <message>
+        <source>1. Bilateral Filter</source>
+        <translation>1. Filtro bilaterale</translation>
+    </message>
+    <message>
+        <source>2. Adaptive Bilateral + Debanding</source>
+        <translation>2. Bilaterale adattivo + debanding</translation>
+    </message>
+    <message>
+        <source>3. Temporal Denoising</source>
+        <translation>3. Riduzione del rumore temporale</translation>
+    </message>
+    <message>
+        <source>4. NLMeans (GLSL-Shader)</source>
+        <translation>4. NLMeans (shader GLSL)</translation>
+    </message>
+    <message>
+        <source>Wartet – Effekte sind aus</source>
+        <translation>In attesa: gli effetti sono disattivati</translation>
+    </message>
+    <message>
+        <source>Keine Wirkung – Stärke ist 0</source>
+        <translation>Nessun effetto: l&apos;intensità è 0</translation>
+    </message>
+    <message>
+        <source>Initialisiert</source>
+        <translation>Inizializzato</translation>
+    </message>
+    <message>
+        <source>Aktiv</source>
+        <translation>Attivo</translation>
+    </message>
+    <message>
+        <source>Fallback auf Aus: Shaderdatei nicht schreibbar</source>
+        <translation>Ritorno a Disattivato: impossibile scrivere il file shader</translation>
+    </message>
+    <message>
+        <source>Temporal nicht verfügbar, Fallback auf Bilateral: %1</source>
+        <translation>Temporal non disponibile, ritorno a Bilaterale: %1</translation>
+    </message>
+    <message>
+        <source>Player zu alt</source>
+        <translation>Lettore troppo vecchio</translation>
+    </message>
+    <message>
+        <source>Aktiv – CPU-Filter, Decoder: %1</source>
+        <translation>Attivo: filtro CPU, decoder: %1</translation>
+    </message>
+    <message>
+        <source>Software</source>
+        <translation>Software</translation>
+    </message>
+    <message>
+        <source>Temporal überlastet (Frames verworfen), Fallback auf Bilateral</source>
+        <translation>Temporal sovraccarico (fotogrammi scartati), ritorno a Bilaterale</translation>
+    </message>
+    <message>
+        <source>Temporal überlastet – Frames werden verworfen</source>
+        <translation>Temporal sovraccarico: fotogrammi scartati</translation>
+    </message>
+    <message>
+        <source>Fallback auf Aus: GPU-Shader nicht unterstützt (%1)</source>
+        <translation>Ritorno a Disattivato: shader GPU non supportato (%1)</translation>
     </message>
 </context>
 <context>

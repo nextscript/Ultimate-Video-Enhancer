@@ -7,6 +7,7 @@ add_library(uve_engine STATIC
     engine/MiniZip.cpp engine/MiniZip.h
     engine/AutoSceneMatch.cpp engine/AutoSceneMatch.h
     engine/ExpertSettings.cpp engine/ExpertSettings.h
+    engine/DenoiseShader.cpp engine/DenoiseShader.h
     LutLibrary.cpp LutLibrary.h
 )
 target_include_directories(uve_engine PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
@@ -18,6 +19,7 @@ set_target_properties(uve_engine PROPERTIES POSITION_INDEPENDENT_CODE ON)
 add_library(uve_enhancer MODULE
     UvePlugin.cpp UvePlugin.h
     UveController.cpp UveController.h
+    DenoiseController.cpp DenoiseController.h
     manifest.json
 )
 qt_add_resources(uve_enhancer "uve_qml" PREFIX "/uve" BASE qml FILES qml/EnhancementsPanel.qml)

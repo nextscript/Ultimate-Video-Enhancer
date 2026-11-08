@@ -18,6 +18,7 @@ namespace uve {
 class AppSettings;
 class MpvController;
 class ShaderChain;
+class VideoFilterStage;
 class PluginBridge;
 
 // Zustände nach Spezifikation: discover → verify → load → initialize → activate ⇄ suspend → deactivate → unload
@@ -148,6 +149,7 @@ private:
     AppSettings *m_settings;
     MpvController *m_mpv;
     ShaderChain *m_shaders;
+    VideoFilterStage *m_filters = nullptr;
     QQmlEngine *m_engine = nullptr;
     QStringList m_dirs;
     bool m_safeMode;

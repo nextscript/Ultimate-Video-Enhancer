@@ -18,8 +18,39 @@ Item {
     readonly property color panel2: theme ? theme.panel2 : "#1b1f26"
 
     // Schlüssel (auch in C++ verwendet) – Anzeige über qsTr(modelData)
-    readonly property var sections: [QT_TR_NOOP("Basis"), QT_TR_NOOP("Auto"), QT_TR_NOOP("Farbe"), QT_TR_NOOP("Schärfe"), QT_TR_NOOP("HDR-like"), QT_TR_NOOP("LUT")]
+    readonly property var dn: controller ? controller.denoise : null
+    property var denoiseItem: null
+    readonly property string denoiseSection: QT_TR_NOOP("Denoising / Rauschreduzierung")
+    readonly property var sections: {
+        var s = [QT_TR_NOOP("Basis"), QT_TR_NOOP("Auto"), QT_TR_NOOP("Farbe"), QT_TR_NOOP("Schärfe")]
+        if (dn && dn.available) s.push(denoiseSection)
+        return s.concat([QT_TR_NOOP("HDR-like"), QT_TR_NOOP("LUT")])
+    }
     property var collapsed: ({})
+
+    component DenoiseSlider: ColumnLayout {
+        id: ds
+        property string label
+        property string note
+        property int value
+        signal changedByUser(int v)
+        Layout.fillWidth: true
+        spacing: 0
+        opacity: enabled ? 1 : 0.45
+        RowLayout {
+            Layout.fillWidth: true
+            Label { text: ds.label; color: root.fg; Layout.fillWidth: true; elide: Text.ElideRight
+                    ToolTip.text: ds.note; ToolTip.visible: ds.note.length > 0 && dsHov.hovered
+                    HoverHandler { id: dsHov } }
+            Label { text: ds.value; color: root.muted; font.family: "Consolas" }
+        }
+        Slider {
+            Layout.fillWidth: true
+            from: 0; to: 100; stepSize: 1
+            value: ds.value
+            onMoved: ds.changedByUser(Math.round(value))
+        }
+    }
 
     component IconBtn: AbstractButton {
         id: ib
@@ -206,6 +237,10 @@ Item {
         ignoreUnknownSignals: true
         function onScrollRequested(where) {
             var f = panelScroll.contentItem
+            if (where === "denoising" && root.denoiseItem) {
+                f.contentY = Math.max(0, Math.min(root.denoiseItem.mapToItem(f.contentItem, 0, 0).y, f.contentHeight - f.height))
+                return
+            }
             f.contentY = where === "top" ? 0 : Math.max(0, f.contentHeight - f.height)
         }
     }
@@ -332,6 +367,7 @@ Item {
                     readonly property bool open: !root.collapsed[modelData]
                     Layout.fillWidth: true
                     spacing: 2
+                    Component.onCompleted: if (modelData === root.denoiseSection) root.denoiseItem = sec
 
                     Rectangle {
                         Layout.fillWidth: true
@@ -346,6 +382,73 @@ Item {
                         MouseArea {
                             anchors.fill: parent; anchors.rightMargin: 40
                             onClicked: { var c = Object.assign({}, root.collapsed); c[sec.modelData] = sec.open; root.collapsed = c }
+                        }
+                    }
+
+                    // Denoising: Live-Umschaltung, eigene Einstellungen (nicht Teil von Presets und UVE-Profilen)
+                    ColumnLayout {
+                        visible: sec.open && sec.modelData === root.denoiseSection && !!root.dn
+                        Layout.fillWidth: true; Layout.leftMargin: 10; Layout.rightMargin: 8
+                        spacing: 4
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Label { text: qsTr("Denoising-Modus"); color: fg }
+                            ComboBox {
+                                Layout.fillWidth: true
+                                model: root.dn ? root.dn.modes : []
+                                textRole: "text"; valueRole: "value"
+                                currentIndex: root.dn ? Math.max(0, root.dn.modes.findIndex(o => o.value === root.dn.mode)) : 0
+                                onActivated: (i) => root.dn.setMode(root.dn.modes[i].value)
+                            }
+                        }
+                        DenoiseSlider {
+                            label: qsTr("Stärke")
+                            enabled: !!root.dn && root.dn.modeActive
+                            value: root.dn ? root.dn.strength : 0
+                            onChangedByUser: (v) => root.dn.setStrength(v)
+                        }
+                        DenoiseSlider {
+                            label: qsTr("Details erhalten")
+                            note: qsTr("Höher = Kanten und feine Strukturen bleiben besser erhalten, es bleibt aber mehr Rauschen")
+                            enabled: !!root.dn && root.dn.modeActive
+                            value: root.dn ? root.dn.detail : 0
+                            onChangedByUser: (v) => root.dn.setDetail(v)
+                        }
+                        DenoiseSlider {
+                            label: qsTr("Debanding")
+                            note: qsTr("Nur bei „Adaptive Bilateral + Debanding“: glättet Farbstufen in Verläufen")
+                            enabled: !!root.dn && root.dn.debandingEnabled
+                            value: root.dn ? root.dn.debanding : 0
+                            onChangedByUser: (v) => root.dn.setDebanding(v)
+                        }
+                        RowLayout {
+                            Layout.fillWidth: true
+                            enabled: !!root.dn && root.dn.modeActive
+                            Label { text: qsTr("Voreinstellung"); color: fg; Layout.fillWidth: true
+                                    ToolTip.text: qsTr("Mäßige Werte für die Auflösung des Videos; Profile und Presets bleiben unverändert")
+                                    ToolTip.visible: dnPresetHov.hovered
+                                    HoverHandler { id: dnPresetHov } }
+                            Repeater {
+                                model: [["480p", "480p"], ["720p", "720p"], ["1080p", "1080p"], ["4K", "4k"]]
+                                delegate: Button {
+                                    required property var modelData
+                                    text: modelData[0]
+                                    implicitWidth: 52
+                                    onClicked: root.dn.applyPreset(modelData[1])
+                                }
+                            }
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            text: qsTr("Status: ") + (root.dn ? root.dn.status : "")
+                            color: root.dn && root.dn.statusIsProblem ? "#ffb0b0" : muted
+                            wrapMode: Text.Wrap; font.pixelSize: 11
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            visible: !!root.dn && root.dn.temporal
+                            text: qsTr("Temporal rechnet auf der CPU vor dem Renderer und mischt benachbarte Frames. Hardware-Decodierung läuft währenddessen im Copy-Modus; im Vorher/Nachher ist es auf beiden Seiten aktiv.")
+                            color: muted; wrapMode: Text.Wrap; font.pixelSize: 11
                         }
                     }
 

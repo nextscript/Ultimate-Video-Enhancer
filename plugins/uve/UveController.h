@@ -1,4 +1,5 @@
 #pragma once
+#include "DenoiseController.h"
 #include "engine/AutoSceneMatch.h"
 #include "engine/CubeLut.h"
 #include "engine/ExpertSettings.h"
@@ -50,6 +51,7 @@ class UveController : public QObject
     Q_PROPERTY(QString autoInfo READ autoInfo NOTIFY autoInfoChanged)
     Q_PROPERTY(QVariantList expertBlocks READ expertBlocks NOTIFY expertChanged)
     Q_PROPERTY(int expertChangedCount READ expertChangedCount NOTIFY expertChanged)
+    Q_PROPERTY(QObject *denoise READ denoise CONSTANT)
 
 public:
     UveController(IPlayerHost *host, const QString &pluginId, QObject *parent = nullptr);
@@ -81,6 +83,7 @@ public:
     QVariantList expertBlocks() const;
     int expertChangedCount() const;
     QString autoInfo() const { return m_autoInfo; }
+    QObject *denoise() const { return m_denoise; }
     const Params &params() const { return m_params; }
     bool eventFilter(QObject *o, QEvent *e) override;
     void releaseNetwork() { m_library->releaseNetwork(); }
@@ -164,6 +167,7 @@ private:
 
     IPlayerHost *m_host;
     LutLibrary *m_library = nullptr;
+    DenoiseController *m_denoise = nullptr;
     QString m_id;
     Params m_params;
     QString m_activePreset;

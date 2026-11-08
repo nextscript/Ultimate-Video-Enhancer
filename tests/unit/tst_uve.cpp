@@ -1,6 +1,7 @@
 #include "LutLibrary.h"
 #include "engine/AutoSceneMatch.h"
 #include "engine/CubeLut.h"
+#include "engine/DenoiseShader.h"
 #include "engine/ExpertSettings.h"
 #include "engine/LutProfile.h"
 #include "engine/MiniZip.h"
@@ -463,6 +464,105 @@ private slots:
         QCOMPARE(expertImport(plain, QJsonObject{{"GVF_HUE_SETTINGS", QJsonObject{{"perStep", "2.5"}, {"reverse", 1}, {"bogus", 3}}}}), 1);
         QCOMPARE(plain.hue.perStep, 2.5);
         QCOMPARE(plain.hue.reverse, false);
+    }
+
+    void denoiseSettingsAreSeparateAndSafe()
+    {
+        // Ältere Installationen haben keinen Block: Aus
+        QCOMPARE(denoiseFromJson({}).mode, DenoiseMode::Off);
+        // Unbekannter Modus (z. B. aus einer neueren Version) und Werte außerhalb des Bereichs
+        const auto odd = denoiseFromJson({{"mode", "gibtesnicht"}, {"strength", 900}, {"detailPreservation", -4}, {"debanding", 50}});
+        QCOMPARE(odd.mode, DenoiseMode::Off);
+        QCOMPARE(odd.strength, 100);
+        QCOMPARE(odd.detail, 0);
+        // Rundlauf aller Modi unter den vereinbarten Schlüsseln
+        for (const auto mode : {DenoiseMode::Off, DenoiseMode::Bilateral, DenoiseMode::AdaptiveDeband, DenoiseMode::Temporal, DenoiseMode::NLMeans}) {
+            DenoiseParams p; p.mode = mode; p.strength = 12; p.detail = 34; p.debanding = 56;
+            const QJsonObject j = denoiseToJson(p);
+            QCOMPARE(j.value("schemaVersion").toInt(), kDenoiseSchemaVersion);
+            QCOMPARE(j.value("detailPreservation").toInt(), 34);
+            QVERIFY(denoiseFromJson(j) == p);
+        }
+        // dn/gpuBase behalten ihre Bedeutung: ohne Wirkung auf den Shader, weiter im Profil-Rundlauf
+        Params p; p.dn = 1.5; p.gpuBase = true;
+        QCOMPARE(buildShader({p, nullptr}), buildShader({}));
+        QCOMPARE(paramsFromJson(paramsToJson(p)).dn, 1.5);
+        QVERIFY(!paramsToJson(p).contains("denoising"));
+    }
+
+    void denoiseStagesByMode()
+    {
+        DenoiseParams p;
+        QVERIFY(buildDenoiseShader(p, true).isEmpty());      // Aus: keine Stufe, auch nicht für den Vergleich
+        QVERIFY(buildTemporalGraph(p).isEmpty());
+
+        p.mode = DenoiseMode::Bilateral;
+        QString s = buildDenoiseShader(p, false);
+        QVERIFY(s.contains("Bilateral"));
+        QVERIFY(!s.contains("UVEORIG"));
+        QVERIFY(buildDenoiseShader(p, true).contains("//!SAVE UVEORIG"));
+        QVERIFY(buildTemporalGraph(p).isEmpty());
+        // Jede //!DESC-Zeile trägt die Stufe, die ShaderChain nutzt die Zuordnung bei Fehlern
+        for (const auto &line : s.split('\n'))
+            if (line.startsWith("//!DESC")) QVERIFY(line.contains(QString::fromLatin1(kDenoiseStageOwner) + ":"));
+
+        p.mode = DenoiseMode::AdaptiveDeband;
+        s = buildDenoiseShader(p, false);
+        QCOMPARE(s.count("//!HOOK MAIN"), 2);                // Entrauschen und Debanding sind getrennte Pässe
+        QVERIFY(s.contains("Adaptive Bilateral") && s.contains(": Deband"));
+        p.debanding = 0;
+        QVERIFY(!buildDenoiseShader(p, false).contains(": Deband"));
+        p.debanding = 40; p.strength = 0;
+        QVERIFY(!buildDenoiseShader(p, false).contains("Adaptive Bilateral"));
+        p.debanding = 0;
+        QVERIFY(buildDenoiseShader(p, false).isEmpty());
+
+        p = DenoiseParams(); p.mode = DenoiseMode::NLMeans;
+        QVERIFY(buildDenoiseShader(p, false).contains(": NLMeans"));
+        p.strength = 0;
+        QVERIFY(buildDenoiseShader(p, false).isEmpty());
+
+        // Temporal: keine Shader-Stufe (eine stateless Mischung wäre kein zeitlicher Filter), kleines festes Fenster
+        p = DenoiseParams(); p.mode = DenoiseMode::Temporal;
+        QVERIFY(buildDenoiseShader(p, false).isEmpty());
+        QVERIFY(buildTemporalGraph(p).startsWith("atadenoise="));
+        p.strength = 100; p.detail = 0;
+        const QString strongest = buildTemporalGraph(p);
+        QVERIFY(strongest.endsWith(":s=7"));
+        // Obergrenze gegen den Schleier hinter bewegten Objekten: Schwelle unter 12 von 255 Stufen
+        const double threshold = strongest.section("0a=", 1).section(':', 0, 0).toDouble();
+        QVERIFY(threshold > 0 && threshold * 255.0 < 12.0);
+        p.strength = 1;
+        QVERIFY(buildTemporalGraph(p).endsWith(":s=5"));
+        p.strength = 0;
+        QVERIFY(buildTemporalGraph(p).isEmpty());
+    }
+
+    void denoisePresetsKeepMode()
+    {
+        DenoiseParams p;
+        QVERIFY(denoisePreset(p, "720p") == p);              // Aus bleibt unverändert
+        p.mode = DenoiseMode::AdaptiveDeband;
+        const auto hd = denoisePreset(p, "720p");
+        QCOMPARE(hd.mode, DenoiseMode::AdaptiveDeband);
+        QCOMPARE(hd.strength, 40);
+        QVERIFY(denoisePreset(p, "4k").strength < denoisePreset(p, "480p").strength);
+    }
+
+    // Vergleich: die Denoising-Stufe sichert das Original, die UVE-Stufe darf es nicht überschreiben
+    void compareWithDenoiseOriginal()
+    {
+        ShaderBuildInput in;
+        in.params.compare = true;
+        QVERIFY(buildShader(in).contains("//!SAVE UVEORIG"));
+        in.originalSaved = true;
+        const QString s = buildShader(in);
+        QVERIFY(!s.contains("//!SAVE UVEORIG"));
+        QVERIFY(s.contains("//!BIND UVEORIG"));
+        in.params.compare = false;
+        ShaderBuildInput plain;
+        plain.params.compare = false;
+        QCOMPARE(buildShader(in), buildShader(plain));       // ohne Vergleich ohne jede Wirkung
     }
 };
 

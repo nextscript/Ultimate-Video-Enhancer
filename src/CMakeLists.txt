@@ -12,6 +12,7 @@ add_library(uvecore STATIC
     plugins/PluginBridge.cpp plugins/PluginBridge.h
     ../plugins/uve/engine/MiniZip.cpp ../plugins/uve/engine/MiniZip.h   # ZIP-Pakete für „Plugin installieren“
     rendering/ShaderChain.cpp rendering/ShaderChain.h
+    rendering/VideoFilterStage.cpp rendering/VideoFilterStage.h
     services/MediaFiles.cpp services/MediaFiles.h
     services/PlaylistModel.cpp services/PlaylistModel.h
     services/HotkeyModel.cpp services/HotkeyModel.h

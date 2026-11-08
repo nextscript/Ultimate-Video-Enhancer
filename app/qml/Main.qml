@@ -857,6 +857,85 @@ ApplicationWindow {
     property int stStep: 0
     function videoCenter() { return stageMouse.mapToItem(null, stageMouse.width / 2, stageMouse.height / 2) }
     function videoRect() { var p = videoArea.mapToItem(null, videoArea.width * 0.2, videoArea.height * 0.25); return { x: p.x, y: p.y, w: videoArea.width * 0.6, h: videoArea.height * 0.5 } }
+    // Selbsttest Live-Denoising (UVE_SELFTEST_UI=1, UVE_SELFTEST_ONLY=denoise): alle Modi während der Wiedergabe umschalten.
+    // Am Ende bleibt NLMeans gewählt, damit ein zweiter Lauf die Wiederherstellung nach dem Neustart prüfen kann.
+    property var stDenoiseModes: ["bilateral", "adaptive", "temporal", "nlmeans", "off"]
+    property int stDenoiseIndex: 0
+    property var stDenoiseLog: []
+    property real stDenoiseWall: 0
+    property real stDenoisePos: 0
+    function denoiseSelftestRecord(name) {
+        var d = win.effects.denoise
+        var e = { mode: d.mode, status: d.status, problem: d.statusIsProblem, state: player.state, paused: player.paused,
+                  position: player.position, wallSeconds: (Date.now() - win.stDenoiseWall) / 1000,
+                  shaders: app.shaders.activeShaders.length, vf: (player.getProperty("vf") || []).length,
+                  hwdec: player.getProperty("hwdec-current"), uveError: win.effects.lastError, pipeline: win.effects.pipelineInfo }
+        var l = win.stDenoiseLog; l.push(e); win.stDenoiseLog = l
+        app.saveWindowShot(app.selftestPath("denoise-" + name + ".png"))
+        return e
+    }
+    function denoiseSelftestStep(ui) {
+        var d = win.effects ? win.effects.denoise : null
+        if (win.stStep === 0) {
+            ui.available = !!d && d.available
+            ui.modes = d ? d.modes.length : 0
+            ui.initialMode = d ? d.mode : ""
+            ui.initialStrength = d ? d.strength : -1
+            ui.initialShaders = app.shaders.activeShaders.length
+            tabs.selectTab("Effekte")
+            win.effects.requestScroll("denoising")
+            player.setProperty("loop-file", "inf")
+            ui.baseShadersWithoutDenoise = ui.initialMode === "off" ? ui.initialShaders : -1
+            selftestUi.interval = 1500
+            win.stStep = 1
+            return
+        }
+        if (win.stStep === 1) {
+            win.denoiseSelftestRecord("start")
+            d.setMode("off")
+            win.stDenoiseWall = Date.now(); win.stDenoisePos = player.position
+            selftestUi.interval = 800
+            win.stStep = 2
+            return
+        }
+        if (win.stStep === 2) {   // ein Modus je Schritt
+            if (win.stDenoiseIndex > 0) win.denoiseSelftestRecord(win.stDenoiseModes[win.stDenoiseIndex - 1])
+            if (win.stDenoiseIndex < win.stDenoiseModes.length) {
+                d.setMode(win.stDenoiseModes[win.stDenoiseIndex++])
+                selftestUi.interval = win.stDenoiseModes[win.stDenoiseIndex - 1] === "temporal" ? 4000 : 2500
+                return
+            }
+            ui.shadersAfterOff = app.shaders.activeShaders.length
+            ui.vfAfterOff = (player.getProperty("vf") || []).length
+            ui.hwdecAfterOff = player.getProperty("hwdec-current")
+            d.setMode("nlmeans")
+            d.setStrength(77)
+            win.effects.setCompare(true)
+            selftestUi.interval = 2500
+            win.stStep = 3
+            return
+        }
+        if (win.stStep === 3) {
+            var c = win.denoiseSelftestRecord("compare")
+            ui.compareActive = win.effects.compareActive
+            ui.compareNoError = c.uveError === "" && !c.problem
+            win.effects.setCompare(false)
+            selftestUi.interval = 1500
+            win.stStep = 4
+            return
+        }
+        ui.log = win.stDenoiseLog
+        var ok = ui.available && ui.modes === 5 && ui.compareActive && ui.compareNoError && ui.vfAfterOff === 0
+        ui.playbackContinuous = true
+        for (var i = 0; i < win.stDenoiseLog.length; ++i) {
+            var e = win.stDenoiseLog[i]
+            if (e.state !== 2 || e.problem || e.uveError !== "") ui.playbackContinuous = false
+        }
+        ui.ok = ok && ui.playbackContinuous
+        ui.done = true
+        selftestUi.stop()
+        app.reportSelftestUi(ui)
+    }
     Timer {
         id: selftestUi
         interval: 6000
@@ -867,6 +946,12 @@ ApplicationWindow {
                 ui.sidebarTabs = tabs.count
                 ui.hotkeys = app.hotkeys.items.length
                 app.reportSelftestUi(ui)
+                return
+            }
+            if (app.selftestOnly("denoise")) {
+                win.denoiseSelftestStep(ui)
+                win.stUi = ui
+                if (!ui.done) restart()
                 return
             }
             switch (win.stStep) {

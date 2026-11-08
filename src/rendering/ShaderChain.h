@@ -18,7 +18,10 @@ class ShaderChain : public QObject
 public:
     explicit ShaderChain(MpvController *mpv, QObject *parent = nullptr);
 
+    // owner: Plugin-ID oder "<Plugin-ID>#<Name>" für eine weitere Stufe desselben Plugins.
+    // Die Reihenfolge ergibt sich aus dem ersten Aufruf je Besitzer, auch mit leerer Datei.
     void setStage(const QString &owner, const QString &file);
+    void removeSubStages(const QString &pluginId);   // alle "<Plugin-ID>#…"-Stufen
     QStringList activeShaders() const;
     QString lastError() const { return m_lastError; }
     QStringList disabledOwners() const { return m_disabled.keys(); }

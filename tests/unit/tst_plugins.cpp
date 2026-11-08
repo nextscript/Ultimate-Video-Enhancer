@@ -82,6 +82,29 @@ private slots:
         QCOMPARE(uve::localizedText(QJsonObject{{"it", "Ciao"}}, "pl"), QString("Ciao"));
     }
 
+    void shaderSubStagesKeepOrderAndCleanUp()
+    {
+        const QDir dir(m_tmp.path());
+        const QString a = dir.filePath("stage-a.glsl"), b = dir.filePath("stage-b.glsl"), other = dir.filePath("stage-c.glsl");
+        for (const auto &f : {a, b, other}) writeFile(f, "// leer");
+        MpvController mpv;
+        ShaderChain chain(&mpv);
+        const QString dn = "org.test.fx#denoise", fx = "org.test.fx";
+        // Leere Anmeldung legt nur die Reihenfolge fest; bestehende Stufen werden nicht umsortiert
+        chain.setStage(dn, QString());
+        chain.setStage(fx, a);
+        chain.setStage("org.test.other", other);
+        QCOMPARE(chain.activeShaders(), QStringList({a, other}));
+        chain.setStage(dn, b);
+        QCOMPARE(chain.activeShaders(), QStringList({b, a, other}));
+        // "Aus" entfernt ausschließlich die eigene Stufe
+        chain.setStage(dn, QString());
+        QCOMPARE(chain.activeShaders(), QStringList({a, other}));
+        chain.setStage(dn, b);
+        chain.removeSubStages(fx);
+        QCOMPARE(chain.activeShaders(), QStringList({a, other}));
+    }
+
     void qmlPluginFromFolder()
     {
         AppSettings settings(m_tmp.filePath("data"));

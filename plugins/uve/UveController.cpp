@@ -80,6 +80,17 @@ UveController::UveController(IPlayerHost *host, const QString &pluginId, QObject
     connect(m_library, &LutLibrary::changed, this, [this] { emit libraryChanged(); emit valuesChanged(); scheduleShader(); });
     connect(m_library, &LutLibrary::busyChanged, this, &UveController::libraryStatusChanged);
     connect(m_library, &LutLibrary::statusChanged, this, &UveController::libraryStatusChanged);
+    m_denoise = new DenoiseController(m_host, m_id, this);
+    connect(m_denoise, &DenoiseController::persistRequested, this, &UveController::persist);
+    connect(m_denoise, &DenoiseController::changed, this, &UveController::valuesChanged);   // Pipeline-Anzeige
+    connect(m_denoise, &DenoiseController::stageRequested, this, [this] {
+        if (!m_active) return;
+        // Vorher/Nachher: wer das Original sichert, hängt vom Denoising ab – dann auch die UVE-Stufe neu schreiben.
+        // Sonst bleibt sie unangetastet.
+        if (m_params.compare) { writeShader(); return; }
+        m_denoise->setRunning(m_params.enabled);
+        m_denoise->apply(false);
+    });
     loadPresets();
     loadState();
     // Sprachwechsel: QCoreApplication::installTranslator sendet LanguageChange an die Anwendung
@@ -93,6 +104,7 @@ bool UveController::eventFilter(QObject *o, QEvent *e)
         emit valuesChanged();
         emit presetsChanged();
         emit galleryChanged();
+        m_denoise->retranslate();
     }
     return QObject::eventFilter(o, e);
 }
@@ -185,6 +197,7 @@ void UveController::resetValue(const QString &key)
 
 void UveController::resetSection(const QString &section)
 {
+    if (section == QLatin1String("Denoising / Rauschreduzierung")) { m_denoise->reset(); return; }
     Params next = m_params;
     for (const auto &c : controls()) {
         const auto m = c.toMap();
@@ -279,8 +292,15 @@ void UveController::setCompareSplit(double split)
 void UveController::setActive(bool active)
 {
     m_active = active;
-    if (active) writeShader();
-    else { m_host->setShaderStage(m_id, QString()); setCompareActive(false); }
+    if (active) {
+        m_denoise->registerStage();   // vor der ersten UVE-Stufe: Denoising läuft vor Farbe und Schärfe
+        writeShader();
+    } else {
+        m_host->setShaderStage(m_id, QString());
+        setCompareActive(false);
+        m_denoise->setRunning(false);
+        m_denoise->apply(false);
+    }
     updateAutoLoop();
 }
 
@@ -592,9 +612,20 @@ void UveController::scheduleShader()
 void UveController::writeShader()
 {
     if (!m_active) return;
-    if (!m_params.enabled) { m_host->setShaderStage(m_id, QString()); setCompareActive(false); return; }
+    m_denoise->setRunning(m_params.enabled);
+    if (!m_params.enabled) {
+        m_host->setShaderStage(m_id, QString());
+        setCompareActive(false);
+        m_denoise->apply(false);
+        return;
+    }
+    // Reihenfolge so, dass UVEORIG nie fehlt: mit Denoising-Shader zuerst dessen Stufe (sichert das Original),
+    // ohne ihn zuerst die UVE-Stufe (sichert es wieder selbst), dann erst die Denoising-Stufe abbauen.
+    const bool denoiseFirst = m_denoise->usesShader();
+    if (denoiseFirst) m_denoise->apply(m_params.compare);
     ShaderBuildInput in;
     in.params = m_params;
+    in.originalSaved = m_denoise->stageSavesOriginal();
     in.lut = m_lut.get();
     const LutProfile *lp = m_params.lutProfile.isEmpty() ? nullptr : m_library->find(m_params.lutProfile);
     if (lp) in.lutMatrix = &lp->matrix;
@@ -628,6 +659,7 @@ void UveController::writeShader()
     files << file;
     // Mehrere Dateien einer Stufe: durch Zeilenumbruch getrennt (siehe PluginApi.h)
     m_host->setShaderStage(m_id, files.join('\n'));
+    if (!denoiseFirst) m_denoise->apply(m_params.compare);
     setCompareActive(m_params.compare);   // Oberfläche erst jetzt umschalten (Shader und Layout gleichzeitig)
 
     // Ältere Dateien aufräumen (mpv hat sie bereits eingelesen bzw. nutzt sie nicht mehr)
@@ -639,6 +671,9 @@ void UveController::writeShader()
 
 void UveController::onShaderError(const QString &message)
 {
+    // Fehler der Denoising-Stufe (vom Host mit Stufennamen gemeldet) betreffen die UVE-Effekte nicht
+    const QString denoisePrefix = QString::fromLatin1(kDenoiseStageOwner) + QStringLiteral(": ");
+    if (message.startsWith(denoisePrefix)) { m_denoise->onShaderError(message.mid(denoisePrefix.size())); return; }
     setError(tr("Shaderfehler – Effekte vorübergehend deaktiviert, Wiedergabe läuft weiter: ") + message);
 }
 
@@ -653,6 +688,7 @@ QString UveController::pipelineInfo() const
     if (!m_params.enabled) return tr("Aus – Originalbild");
     QStringList parts;
     if (m_params.compare) parts << tr("Original sichern");
+    if (const QString dn = m_denoise->pipelineLabel(); !dn.isEmpty()) parts << dn;
     if (std::fabs(m_params.sl) > 0.005) parts << tr("Unschärfemaske");
     parts << tr("Farbkorrektur");
     parts << tr("Detail/Kanten");
@@ -1009,7 +1045,8 @@ void UveController::persist()
 {
     QJsonObject o{{"params", paramsToJson(m_params)}, {"activePreset", m_activePreset}, {"defaultPreset", m_defaultPreset},
                   {"mediaPresets", m_mediaPresets}, {"passthrough", m_passthrough}, {"schemaVersion", 1},
-                  {"expert", expertDiff(m_expert)}};   // wie gvf_expert_settings: nur geänderte Werte
+                  {"expert", expertDiff(m_expert)},    // wie gvf_expert_settings: nur geänderte Werte
+                  {"denoising", m_denoise->toJson()}};
     m_host->savePluginSettings(m_id, o);
 }
 
@@ -1028,6 +1065,7 @@ void UveController::loadState()
     expertMerge(m_expert, o.value("expert").toObject());
     setExpert(m_expert);
     reloadLut();
+    m_denoise->load(o.value("denoising").toObject());   // fehlt bei älteren Installationen → Aus
 }
 
 } // namespace uve::fx

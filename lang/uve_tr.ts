@@ -64,7 +64,7 @@
     </message>
     <message>
         <source>Neue Commits auf GitHub</source>
-        <translation>GitHub'da yeni commit'ler</translation>
+        <translation>GitHub&apos;da yeni commit&apos;ler</translation>
     </message>
     <message>
         <source> MB</source>
@@ -88,7 +88,7 @@
     </message>
     <message>
         <source>Auf GitHub ansehen</source>
-        <translation>GitHub'da görüntüle</translation>
+        <translation>GitHub&apos;da görüntüle</translation>
     </message>
     <message>
         <source>Später</source>
@@ -120,15 +120,15 @@
     </message>
     <message>
         <source>Neue Commits (die letzten %1):</source>
-        <translation>Yeni commit'ler (son %1):</translation>
+        <translation>Yeni commit&apos;ler (son %1):</translation>
     </message>
     <message>
         <source>Neue Commits: %1</source>
-        <translation>Yeni commit'ler: %1</translation>
+        <translation>Yeni commit&apos;ler: %1</translation>
     </message>
     <message>
         <source>Diese Commits sind noch nicht als Installationspaket veröffentlicht. Sobald es ein Release gibt, kann es hier installiert werden.</source>
-        <translation>Bu commit'ler henüz kurulum paketi olarak yayımlanmadı. Bir sürüm yayımlandığında buradan kurulabilir.</translation>
+        <translation>Bu commit&apos;ler henüz kurulum paketi olarak yayımlanmadı. Bir sürüm yayımlandığında buradan kurulabilir.</translation>
     </message>
     <message>
         <source>„Jetzt installieren“ lädt das Update, prüft es per SHA-256, beendet den Player und startet ihn danach neu. Bei „Später“ erscheint dieser Hinweis beim nächsten Start wieder.</source>
@@ -144,7 +144,7 @@
     </message>
     <message>
         <source>Das Update wurde nicht installiert: %1. Der Download wird beim nächsten Versuch fortgesetzt; alternativ lässt sich das Paket über „Auf GitHub ansehen“ im Browser laden.</source>
-        <translation>Güncelleme kurulmadı: %1. İndirme bir sonraki denemede devam eder; paketi “GitHub'da görüntüle” ile tarayıcıdan da indirebilirsiniz.</translation>
+        <translation>Güncelleme kurulmadı: %1. İndirme bir sonraki denemede devam eder; paketi “GitHub&apos;da görüntüle” ile tarayıcıdan da indirebilirsiniz.</translation>
     </message>
 </context>
 <context>
@@ -336,6 +336,10 @@
         <translation>Otomatik</translation>
     </message>
     <message>
+        <source>Denoising / Rauschreduzierung</source>
+        <translation>Gürültü azaltma</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>3D LUT yükle (.cube)</translation>
     </message>
@@ -490,6 +494,46 @@
     <message>
         <source>Abschnitt zurücksetzen</source>
         <translation>Bölümü sıfırla</translation>
+    </message>
+    <message>
+        <source>Denoising-Modus</source>
+        <translation>Gürültü azaltma modu</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Güç</translation>
+    </message>
+    <message>
+        <source>Details erhalten</source>
+        <translation>Ayrıntıları koru</translation>
+    </message>
+    <message>
+        <source>Höher = Kanten und feine Strukturen bleiben besser erhalten, es bleibt aber mehr Rauschen</source>
+        <translation>Daha yüksek = kenarlar ve ince yapılar daha iyi korunur ancak daha fazla gürültü kalır</translation>
+    </message>
+    <message>
+        <source>Debanding</source>
+        <translation>Debanding</translation>
+    </message>
+    <message>
+        <source>Nur bei „Adaptive Bilateral + Debanding“: glättet Farbstufen in Verläufen</source>
+        <translation>Yalnızca “Adaptive Bilateral + Debanding” ile: geçişlerdeki renk basamaklarını yumuşatır</translation>
+    </message>
+    <message>
+        <source>Voreinstellung</source>
+        <translation>Ön ayar</translation>
+    </message>
+    <message>
+        <source>Mäßige Werte für die Auflösung des Videos; Profile und Presets bleiben unverändert</source>
+        <translation>Video çözünürlüğü için ölçülü değerler; profiller ve ön ayarlar değişmez</translation>
+    </message>
+    <message>
+        <source>Status: </source>
+        <translation>Durum: </translation>
+    </message>
+    <message>
+        <source>Temporal rechnet auf der CPU vor dem Renderer und mischt benachbarte Frames. Hardware-Decodierung läuft währenddessen im Copy-Modus; im Vorher/Nachher ist es auf beiden Seiten aktiv.</source>
+        <translation>Temporal, oluşturucudan önce CPU üzerinde çalışır ve komşu kareleri karıştırır. Bu sırada donanımsal çözme kopyalama modunu kullanır; önce/sonra görünümünde iki tarafta da etkindir.</translation>
     </message>
     <message>
         <source>wartet auf Wiedergabe …</source>
@@ -943,7 +987,7 @@
     </message>
     <message>
         <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen</source>
-        <translation>GitHub'da yeni UVE Player commit'leri var (henüz sürüm yok) – bkz. Yardım → Güncellemeleri denetle</translation>
+        <translation>GitHub&apos;da yeni UVE Player commit&apos;leri var (henüz sürüm yok) – bkz. Yardım → Güncellemeleri denetle</translation>
     </message>
     <message>
         <source>Suche nach Updates …</source>
@@ -1758,7 +1802,7 @@
     </message>
     <message>
         <source>Beim Start nach Updates für UVE Player suchen (Netzwerkzugriff auf GitHub)</source>
-        <translation>Başlangıçta UVE Player güncellemelerini denetle (GitHub'a ağ erişimi)</translation>
+        <translation>Başlangıçta UVE Player güncellemelerini denetle (GitHub&apos;a ağ erişimi)</translation>
     </message>
     <message>
         <source>Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)</source>
@@ -2450,11 +2494,11 @@
     <name>uve::AppUpdater</name>
     <message>
         <source>GitHub ist nicht erreichbar</source>
-        <translation>GitHub'a ulaşılamıyor</translation>
+        <translation>GitHub&apos;a ulaşılamıyor</translation>
     </message>
     <message>
         <source>Unerwartete Antwort von GitHub</source>
-        <translation>GitHub'dan beklenmeyen yanıt</translation>
+        <translation>GitHub&apos;dan beklenmeyen yanıt</translation>
     </message>
     <message>
         <source>Release-Dateien sind gerade nicht abrufbar</source>
@@ -2478,7 +2522,7 @@
     </message>
     <message>
         <source>Das Installations-Image wurde geöffnet. Bitte UVE Player beenden und das Programm in den Ordner „Programme“ ziehen.</source>
-        <translation>Kurulum kalıbı açıldı. Lütfen UVE Player'dan çıkın ve uygulamayı Uygulamalar klasörüne sürükleyin.</translation>
+        <translation>Kurulum kalıbı açıldı. Lütfen UVE Player&apos;dan çıkın ve uygulamayı Uygulamalar klasörüne sürükleyin.</translation>
     </message>
     <message>
         <source>Diese Installationsart kann nicht automatisch aktualisiert werden</source>
@@ -2829,6 +2873,77 @@
     <message>
         <source> installiert – wird nach einem Neustart verwendet</source>
         <translation> yüklendi – yeniden başlatmadan sonra kullanılacak</translation>
+    </message>
+</context>
+<context>
+    <name>uve::fx::DenoiseController</name>
+    <message>
+        <source>Aus</source>
+        <translation>Kapalı</translation>
+    </message>
+    <message>
+        <source>1. Bilateral Filter</source>
+        <translation>1. Bilateral filtre</translation>
+    </message>
+    <message>
+        <source>2. Adaptive Bilateral + Debanding</source>
+        <translation>2. Uyarlamalı bilateral + debanding</translation>
+    </message>
+    <message>
+        <source>3. Temporal Denoising</source>
+        <translation>3. Zamansal gürültü azaltma</translation>
+    </message>
+    <message>
+        <source>4. NLMeans (GLSL-Shader)</source>
+        <translation>4. NLMeans (GLSL gölgelendirici)</translation>
+    </message>
+    <message>
+        <source>Wartet – Effekte sind aus</source>
+        <translation>Bekliyor – efektler kapalı</translation>
+    </message>
+    <message>
+        <source>Keine Wirkung – Stärke ist 0</source>
+        <translation>Etkisiz – güç 0</translation>
+    </message>
+    <message>
+        <source>Initialisiert</source>
+        <translation>Başlatıldı</translation>
+    </message>
+    <message>
+        <source>Aktiv</source>
+        <translation>Etkin</translation>
+    </message>
+    <message>
+        <source>Fallback auf Aus: Shaderdatei nicht schreibbar</source>
+        <translation>Kapalı&apos;ya dönüldü: gölgelendirici dosyası yazılamıyor</translation>
+    </message>
+    <message>
+        <source>Temporal nicht verfügbar, Fallback auf Bilateral: %1</source>
+        <translation>Temporal kullanılamıyor, Bilateral&apos;e dönüldü: %1</translation>
+    </message>
+    <message>
+        <source>Player zu alt</source>
+        <translation>Oynatıcı çok eski</translation>
+    </message>
+    <message>
+        <source>Aktiv – CPU-Filter, Decoder: %1</source>
+        <translation>Etkin – CPU filtresi, çözücü: %1</translation>
+    </message>
+    <message>
+        <source>Software</source>
+        <translation>Yazılım</translation>
+    </message>
+    <message>
+        <source>Temporal überlastet (Frames verworfen), Fallback auf Bilateral</source>
+        <translation>Temporal aşırı yüklendi (kareler atıldı), Bilateral&apos;e dönüldü</translation>
+    </message>
+    <message>
+        <source>Temporal überlastet – Frames werden verworfen</source>
+        <translation>Temporal aşırı yüklendi – kareler atılıyor</translation>
+    </message>
+    <message>
+        <source>Fallback auf Aus: GPU-Shader nicht unterstützt (%1)</source>
+        <translation>Kapalı&apos;ya dönüldü: GPU gölgelendiricisi desteklenmiyor (%1)</translation>
     </message>
 </context>
 <context>

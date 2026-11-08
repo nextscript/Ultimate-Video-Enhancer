@@ -11,7 +11,8 @@ uvecore (src/, static library)
 ├── player/     MpvController (client API, state machine), MpvVideoItem (render API → Qt Quick FBO)
 ├── plugins/    PluginApi.h (contract), PluginManifest (validation before loading), PluginManager (lifecycle,
 │               host services, events/commands, contributions), PluginBridge (QML access for plugin pages)
-├── rendering/  ShaderChain (mpv "glsl-shaders", error attribution, disabling faulty stages)
+├── rendering/  ShaderChain (mpv "glsl-shaders", error attribution, disabling faulty stages),
+│               VideoFilterStage (mpv "vf" stage with frame history, decoder copy mode while active)
 └── services/   PlaylistModel, MediaFiles, HotkeyModel, ToolUpdater, AppUpdater, ResumableDownload, SingleInstance, ProxyConfig, ProxyBridge
 
 plugins/
@@ -32,8 +33,10 @@ plugins/
   depends on driver/backend and was not measured.
 
 ## Frame pipeline (native)
-Decode (HW/SW) → YUV→RGB (mpv) → **hook MAIN: UVE passes** (save original · color correction · detail/edges/LUT/split)
-→ scaling → mpv color management/tone mapping → output into the Qt FBO.
+Decode (HW/SW) → optional temporal denoising (video filter) → YUV→RGB (mpv) → **hook MAIN: denoising stage**
+(bilateral, adaptive + debanding, NLMeans; optional) → **hook MAIN: UVE passes** (save original · color correction ·
+detail/edges/LUT/split) → scaling → mpv color management/tone mapping → output into the Qt FBO.
+Details: [DENOISING.md](DENOISING.md).
 
 ## Plugins
 - Discovery in the user plugin folder (takes precedence) and the program folder: single libraries with an embedded

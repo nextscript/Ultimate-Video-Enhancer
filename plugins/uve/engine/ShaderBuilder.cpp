@@ -350,7 +350,7 @@ QString buildShader(const ShaderBuildInput &in)
     const CurveConstants &k = curveConstants();
     QString out = QStringLiteral("// UVE Player – Ultimate Video Enhancer (nativer Port), automatisch erzeugt\n\n");
     const CubeLut *lut = (in.lut && in.lut->isValid()) ? in.lut : nullptr;
-    if (p.compare) out += passOriginal();
+    if (p.compare && !in.originalSaved) out += passOriginal();
     if (s.usmAmount > 0.0001 || s.usmBlur > 0.0001) out += passUnsharp(s);
     out += passGrading(s, k);
     const QVector<double> *mx = (in.lutMatrix && in.lutMatrix->size() == 20) ? in.lutMatrix : nullptr;

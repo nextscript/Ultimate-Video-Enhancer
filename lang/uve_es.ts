@@ -336,6 +336,10 @@
         <translation>Auto</translation>
     </message>
     <message>
+        <source>Denoising / Rauschreduzierung</source>
+        <translation>Eliminación de ruido</translation>
+    </message>
+    <message>
         <source>3D-LUT laden (.cube)</source>
         <translation>Cargar LUT 3D (.cube)</translation>
     </message>
@@ -490,6 +494,46 @@
     <message>
         <source>Abschnitt zurücksetzen</source>
         <translation>Restablecer sección</translation>
+    </message>
+    <message>
+        <source>Denoising-Modus</source>
+        <translation>Modo de eliminación de ruido</translation>
+    </message>
+    <message>
+        <source>Stärke</source>
+        <translation>Intensidad</translation>
+    </message>
+    <message>
+        <source>Details erhalten</source>
+        <translation>Conservar detalles</translation>
+    </message>
+    <message>
+        <source>Höher = Kanten und feine Strukturen bleiben besser erhalten, es bleibt aber mehr Rauschen</source>
+        <translation>Más alto = los bordes y las estructuras finas se conservan mejor, pero queda más ruido</translation>
+    </message>
+    <message>
+        <source>Debanding</source>
+        <translation>Debanding</translation>
+    </message>
+    <message>
+        <source>Nur bei „Adaptive Bilateral + Debanding“: glättet Farbstufen in Verläufen</source>
+        <translation>Solo con «Adaptive Bilateral + Debanding»: suaviza los escalones de color en los degradados</translation>
+    </message>
+    <message>
+        <source>Voreinstellung</source>
+        <translation>Ajuste predefinido</translation>
+    </message>
+    <message>
+        <source>Mäßige Werte für die Auflösung des Videos; Profile und Presets bleiben unverändert</source>
+        <translation>Valores moderados para la resolución del vídeo; los perfiles y ajustes no cambian</translation>
+    </message>
+    <message>
+        <source>Status: </source>
+        <translation>Estado: </translation>
+    </message>
+    <message>
+        <source>Temporal rechnet auf der CPU vor dem Renderer und mischt benachbarte Frames. Hardware-Decodierung läuft währenddessen im Copy-Modus; im Vorher/Nachher ist es auf beiden Seiten aktiv.</source>
+        <translation>Temporal se calcula en la CPU antes del renderizador y mezcla fotogramas vecinos. Mientras tanto, la decodificación por hardware usa el modo de copia; en antes/después está activo en ambos lados.</translation>
     </message>
     <message>
         <source>wartet auf Wiedergabe …</source>
@@ -2829,6 +2873,77 @@
     <message>
         <source> installiert – wird nach einem Neustart verwendet</source>
         <translation> instalada – se usará tras reiniciar</translation>
+    </message>
+</context>
+<context>
+    <name>uve::fx::DenoiseController</name>
+    <message>
+        <source>Aus</source>
+        <translation>Desactivado</translation>
+    </message>
+    <message>
+        <source>1. Bilateral Filter</source>
+        <translation>1. Filtro bilateral</translation>
+    </message>
+    <message>
+        <source>2. Adaptive Bilateral + Debanding</source>
+        <translation>2. Bilateral adaptativo + debanding</translation>
+    </message>
+    <message>
+        <source>3. Temporal Denoising</source>
+        <translation>3. Eliminación de ruido temporal</translation>
+    </message>
+    <message>
+        <source>4. NLMeans (GLSL-Shader)</source>
+        <translation>4. NLMeans (shader GLSL)</translation>
+    </message>
+    <message>
+        <source>Wartet – Effekte sind aus</source>
+        <translation>En espera: los efectos están desactivados</translation>
+    </message>
+    <message>
+        <source>Keine Wirkung – Stärke ist 0</source>
+        <translation>Sin efecto: la intensidad es 0</translation>
+    </message>
+    <message>
+        <source>Initialisiert</source>
+        <translation>Inicializado</translation>
+    </message>
+    <message>
+        <source>Aktiv</source>
+        <translation>Activo</translation>
+    </message>
+    <message>
+        <source>Fallback auf Aus: Shaderdatei nicht schreibbar</source>
+        <translation>Se vuelve a Desactivado: no se puede escribir el archivo de shader</translation>
+    </message>
+    <message>
+        <source>Temporal nicht verfügbar, Fallback auf Bilateral: %1</source>
+        <translation>Temporal no disponible, se vuelve a Bilateral: %1</translation>
+    </message>
+    <message>
+        <source>Player zu alt</source>
+        <translation>Reproductor demasiado antiguo</translation>
+    </message>
+    <message>
+        <source>Aktiv – CPU-Filter, Decoder: %1</source>
+        <translation>Activo: filtro de CPU, decodificador: %1</translation>
+    </message>
+    <message>
+        <source>Software</source>
+        <translation>Software</translation>
+    </message>
+    <message>
+        <source>Temporal überlastet (Frames verworfen), Fallback auf Bilateral</source>
+        <translation>Temporal sobrecargado (fotogramas descartados), se vuelve a Bilateral</translation>
+    </message>
+    <message>
+        <source>Temporal überlastet – Frames werden verworfen</source>
+        <translation>Temporal sobrecargado: se descartan fotogramas</translation>
+    </message>
+    <message>
+        <source>Fallback auf Aus: GPU-Shader nicht unterstützt (%1)</source>
+        <translation>Se vuelve a Desactivado: shader de GPU no compatible (%1)</translation>
     </message>
 </context>
 <context>

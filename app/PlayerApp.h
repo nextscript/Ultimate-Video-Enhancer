@@ -130,6 +130,7 @@ public:
     Q_INVOKABLE void simulateClick(qreal x, qreal y, int button = 1, bool doubleClick = false);
     // Selbsttest: mittlere Farbe/Sättigung eines Fensterbereichs (echte Pixel aus dem Fenster-Framebuffer)
     Q_INVOKABLE QString selftestPath(const QString &name) const { return QFileInfo(m_selftestOut).absoluteDir().filePath(name); }
+    Q_INVOKABLE bool selftestOnly(const QString &part) const { return m_selftest && qEnvironmentVariable("UVE_SELFTEST_ONLY") == part; }
     Q_INVOKABLE bool saveWindowShot(const QString &file) const { return m_window && !m_selftestOut.isEmpty() && m_window->grabWindow().save(file); }
     // Selbsttest: Fenster aufnehmen, verkleinert im Hintergrund speichern (schnelle Bildfolgen, z. B. Übergänge)
     Q_INVOKABLE void saveWindowShotAsync(const QString &file) const

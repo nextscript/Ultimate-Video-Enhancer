@@ -19,6 +19,7 @@ struct ShaderBuildInput
     Params params;
     const CubeLut *lut = nullptr;   // nullptr = kein LUT
     const QVector<double> *lutMatrix = nullptr; // UVE-LUT-Profil (20 Werte, 4x5), nullptr = keins
+    bool originalSaved = false;     // UVEORIG liefert schon die Denoising-Stufe (läuft davor): nicht überschreiben
 };
 
 // Pässe ohne LUT-Textur. Ist in.lut gesetzt, bindet der letzte Pass die Textur UVELUT,

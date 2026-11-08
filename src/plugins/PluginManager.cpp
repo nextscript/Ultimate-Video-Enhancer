@@ -4,6 +4,7 @@
 #include "../core/Logger.h"
 #include "../player/MpvController.h"
 #include "../rendering/ShaderChain.h"
+#include "../rendering/VideoFilterStage.h"
 #include "../../plugins/uve/engine/MiniZip.h"
 
 #include <QCoreApplication>
@@ -49,12 +50,15 @@ PluginManager::PluginManager(AppSettings *settings, MpvController *mpv, ShaderCh
     : QObject(parent), m_settings(settings), m_mpv(mpv), m_shaders(shaders), m_dirs(searchDirs), m_safeMode(safeMode)
 {
     connect(m_shaders, &ShaderChain::errorOccurred, this, [this](const QString &owner, const QString &msg) {
-        if (auto *e = find(owner)) {
+        const QString pluginId = owner.section(QLatin1Char('#'), 0, 0);
+        if (auto *e = find(pluginId)) {
             writeErrorLog(owner, tr("Shaderfehler, Stufe deaktiviert: ") + msg);
-            if (e->instance) e->instance->onShaderError(msg);
+            // Weitere Stufe eines Plugins: die Meldung nennt die Stufe, damit das Plugin sie zuordnen kann
+            if (e->instance) e->instance->onShaderError(owner == pluginId ? msg : owner + QStringLiteral(": ") + msg);
             emit pluginsChanged();
         }
     });
+    if (m_mpv) m_filters = new VideoFilterStage(m_mpv, this);
     if (m_mpv) connect(m_mpv, &MpvController::pausedChanged, this, [this] { emitEvent(QStringLiteral("playback.paused"), {{"paused", m_mpv->paused()}}); });
     registerBuiltinCommands();
 }
@@ -304,6 +308,8 @@ void PluginManager::deactivateEntry(Entry &e, PluginState newState)
         else if (e.object && e.object->metaObject()->indexOfMethod("deactivate()") >= 0) QMetaObject::invokeMethod(e.object, "deactivate");
     } catch (...) {}
     setShaderStage(e.manifest.id, QString());
+    m_shaders->removeSubStages(e.manifest.id);
+    if (m_filters) m_filters->clear(e.manifest.id);
     setVideoEqualizer(e.manifest.id, 0, 0, 0, 0);
     e.state = newState;
 }
@@ -317,6 +323,8 @@ void PluginManager::fail(Entry &e, const QString &error)
         try { e.instance->deactivate(); } catch (...) {}
     }
     setShaderStage(e.manifest.id, QString());
+    m_shaders->removeSubStages(e.manifest.id);
+    if (m_filters) m_filters->clear(e.manifest.id);
     setVideoEqualizer(e.manifest.id, 0, 0, 0, 0);
     e.instance = nullptr;
     if (e.isQml() && e.object) e.object->deleteLater();
@@ -664,6 +672,14 @@ void PluginManager::registerBuiltinCommands()
     });
     registerCommand(QStringLiteral("mpv.command"), [this](const QString &, const QVariantMap &a, QString *) {
         return QVariant(m_mpv ? m_mpv->command(a.value("args").toStringList()) : false);
+    });
+    // Videofilter mit Frame-Historie (Temporal Denoising): eigene Stufe, Decoder-Umschaltung und Aufräumen beim Entladen
+    registerCommand(QStringLiteral("video.filter.set"), [this](const QString &id, const QVariantMap &a, QString *error) {
+        if (!m_filters) { if (error) *error = QStringLiteral("no player"); return QVariant(false); }
+        return QVariant(m_filters->set(id, a.value("graph").toString(), error));
+    });
+    registerCommand(QStringLiteral("video.filter.status"), [this](const QString &, const QVariantMap &, QString *) {
+        return m_filters ? QVariant(m_filters->status()) : QVariant(QVariantMap{});
     });
     // Antwort auf "media.resolve": url = abzuspielende Adresse, leer + error = Fehler
     registerCommand(QStringLiteral("media.resolved"), [this](const QString &id, const QVariantMap &a, QString *error) {

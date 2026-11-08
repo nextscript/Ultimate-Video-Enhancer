@@ -14,6 +14,8 @@ ShaderChain::ShaderChain(MpvController *mpv, QObject *parent) : QObject(parent),
 void ShaderChain::setStage(const QString &owner, const QString &file)
 {
     if (!m_order.contains(owner)) m_order << owner;
+    // Eigene Stufe eines Plugins ("<pluginId>#<name>"): eine neue Datei darf nach einem Fehler wieder laufen
+    if (owner.contains(QLatin1Char('#'))) m_disabled.remove(owner);
     if (file.isEmpty()) m_files.remove(owner);
     else m_files.insert(owner, file);
     m_lastChanged = owner;
@@ -38,6 +40,18 @@ void ShaderChain::apply()
     // Liste komplett setzen (mpv lädt geänderte Dateien neu)
     m_mpv->setProperty(QStringLiteral("glsl-shaders"), QVariant(list));
     emit changed();
+}
+
+void ShaderChain::removeSubStages(const QString &pluginId)
+{
+    const QString prefix = pluginId + QLatin1Char('#');
+    bool any = false;
+    for (const auto &o : m_order) {
+        if (!o.startsWith(prefix)) continue;
+        if (m_files.remove(o)) any = true;
+        m_disabled.remove(o);
+    }
+    if (any) apply();
 }
 
 void ShaderChain::reenable(const QString &owner)
