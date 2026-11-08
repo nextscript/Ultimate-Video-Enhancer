@@ -12,7 +12,7 @@ Dialog {
     height: Math.min(560, parent ? parent.height - 40 : 560)
     anchors.centerIn: parent
     standardButtons: Dialog.Close
-    Component.onCompleted: { var b = standardButton(Dialog.Close); if (b) b.text = qsTr("Schließen") }
+    Component.onCompleted: { var b = standardButton(Dialog.Close); if (b) b.text = Qt.binding(() => qsTr("Schließen")) }
     onAboutToShow: info = app.mediaInfo()
 
     ScrollView {

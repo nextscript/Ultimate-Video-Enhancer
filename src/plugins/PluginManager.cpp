@@ -22,6 +22,7 @@
 #include <QQmlEngine>
 #include <QSet>
 #include <QTranslator>
+#include <algorithm>
 
 namespace uve {
 
@@ -90,6 +91,8 @@ QString PluginManager::text(const Entry &e, const QJsonValue &v) const
 // ---------------------------------------------------------------- Entdecken
 void PluginManager::discoverAndStart()
 {
+    // Zum Entfernen vorgemerkte Plugins löschen, solange nichts davon geladen ist
+    applyPendingRemovals();
     // Über "Plugin installieren" vorgemerkte Pakete jetzt an ihren Platz bringen (DLLs sind noch nicht geladen)
     const QString pending = pendingDir(userPluginDir());
     for (const auto &fi : QDir(pending).entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
@@ -100,6 +103,8 @@ void PluginManager::discoverAndStart()
 
     for (auto &e : m_entries) {
         if (e.state != PluginState::Verified) continue;
+        // Löschen ist fehlgeschlagen (Ordner gesperrt): nicht laden, nächster Versuch beim nächsten Start
+        if (removalPending(e.manifest.id)) { e.state = PluginState::Deactivated; continue; }
         if (m_safeMode) { e.state = PluginState::SafeMode; continue; }
         if (!enabledInSettings(e)) { e.state = PluginState::Deactivated; continue; }
         if (loadAndInit(e) && activateEntry(e))
@@ -107,6 +112,98 @@ void PluginManager::discoverAndStart()
     }
     emit pluginsChanged();
     emit hotkeysChanged();
+}
+
+// ---------------------------------------------------------------- Entfernen
+static bool safeIdSegment(const QString &id)
+{
+    return !id.isEmpty() && id != QLatin1String(".") && id != QLatin1String("..") && !id.contains(QLatin1Char('/'))
+           && !id.contains(QLatin1Char('\\')) && !id.contains(QLatin1Char(':'));
+}
+
+// Liegt der Pfad direkt im Benutzer-Plugin-Ordner? Mitgelieferte Plugins kämen sonst mit jedem Update zurück.
+static bool directlyInside(const QString &path, const QString &root)
+{
+    if (path.isEmpty() || root.isEmpty()) return false;
+    return QDir::cleanPath(QFileInfo(path).absolutePath()).compare(QDir::cleanPath(QFileInfo(root).absoluteFilePath()), Qt::CaseInsensitive) == 0;
+}
+
+static QString installedPath(const QString &folder, const QString &file) { return folder.isEmpty() ? file : folder; }
+
+bool PluginManager::isRemovable(const Entry &e) const
+{
+    return safeIdSegment(e.manifest.id) && directlyInside(installedPath(e.folder, e.file), userPluginDir());
+}
+
+bool PluginManager::removalPending(const QString &id) const
+{
+    return m_settings->object(QStringLiteral("pluginRemovals")).contains(id);
+}
+
+QVariantMap PluginManager::removePlugin(const QString &id, bool deleteData)
+{
+    const auto result = [](const QString &error) { return QVariantMap{{"ok", error.isEmpty()}, {"error", error}}; };
+    Entry *e = find(id);
+    if (!e) return result(tr("Plugin nicht gefunden"));
+    if (!isRemovable(*e)) return result(tr("Mitgelieferte Plugins können nur deaktiviert werden"));
+    if (e->state == PluginState::Active || e->state == PluginState::Suspended) deactivateEntry(*e, PluginState::Deactivated);
+    QDir(QDir(pendingDir(userPluginDir())).filePath(id)).removeRecursively();   // vorgemerkte neue Version verwerfen
+    auto marks = m_settings->object(QStringLiteral("pluginRemovals"));
+    marks.insert(id, QJsonObject{{"path", installedPath(e->folder, e->file)}, {"deleteData", deleteData}});
+    m_settings->setObject(QStringLiteral("pluginRemovals"), marks);
+    Logger::write("plugin", QStringLiteral("zum Entfernen vorgemerkt: %1").arg(id));
+    emit pluginsChanged();
+    emit hotkeysChanged();
+    return result({});
+}
+
+bool PluginManager::cancelRemoval(const QString &id)
+{
+    auto marks = m_settings->object(QStringLiteral("pluginRemovals"));
+    if (!marks.contains(id)) return false;
+    marks.remove(id);
+    m_settings->setObject(QStringLiteral("pluginRemovals"), marks);
+    const Entry *e = find(id);
+    if (e && enabledInSettings(*e)) return setEnabled(id, true);
+    emit pluginsChanged();
+    return true;
+}
+
+void PluginManager::applyPendingRemovals()
+{
+    auto marks = m_settings->object(QStringLiteral("pluginRemovals"));
+    if (marks.isEmpty()) return;
+    for (const auto &id : marks.keys()) {
+        const QJsonObject mark = marks.value(id).toObject();
+        const QString path = mark.value("path").toString();
+        if (!safeIdSegment(id) || !directlyInside(path, userPluginDir())) {   // nur im Benutzerordner löschen
+            writeErrorLog(id, tr("Plugin konnte nicht entfernt werden: %1").arg(path));
+            marks.remove(id);
+            continue;
+        }
+        const QFileInfo fi(path);
+        bool ok = true;
+        // Verknüpfungen entfernen, nicht ihr Ziel
+        if (fi.isSymLink() || fi.isJunction()) ok = fi.isDir() ? QDir().rmdir(path) : QFile::remove(path);
+        else if (fi.isDir()) ok = QDir(path).removeRecursively();
+        else if (fi.exists()) ok = QFile::remove(path);
+        if (!ok) {
+            writeErrorLog(id, tr("Plugin konnte nicht entfernt werden: %1").arg(path));
+            continue;   // Vormerkung bleibt: nächster Versuch beim nächsten Start
+        }
+        auto states = m_settings->object(QStringLiteral("plugins"));
+        states.remove(id);
+        m_settings->setObject(QStringLiteral("plugins"), states);
+        if (mark.value("deleteData").toBool()) {
+            auto all = m_settings->object(QStringLiteral("pluginSettings"));
+            all.remove(id);
+            m_settings->setObject(QStringLiteral("pluginSettings"), all);
+            QDir(QDir(m_settings->dataDir()).filePath(QStringLiteral("plugin-data/") + id)).removeRecursively();
+        }
+        marks.remove(id);
+        Logger::write("plugin", QStringLiteral("entfernt: %1").arg(id));
+    }
+    m_settings->setObject(QStringLiteral("pluginRemovals"), marks);
 }
 
 // Neue Version an den Platz der alten bringen. Die alte wird erst gelöscht, wenn die neue liegt: Bei einem
@@ -457,6 +554,7 @@ QVariantList PluginManager::plugins() const
             {"enabled", enabledInSettings(e)}, {"error", e.error}, {"file", e.file}, {"folder", e.folder},
             {"kind", e.isQml() ? QStringLiteral("qml") : QStringLiteral("native")},
             {"shaderDisabled", m_shaders->disabledOwners().contains(e.manifest.id)},
+            {"removable", isRemovable(e)}, {"pendingRemoval", removalPending(e.manifest.id)},
         };
         if (e.state == PluginState::Active || e.state == PluginState::Suspended) {
             if (e.instance) {
@@ -502,6 +600,7 @@ QVariantList PluginManager::panels() const
             p.insert("title", text(e, o.value("title")).isEmpty() ? e.manifest.name : text(e, o.value("title")));
             p.insert("url", url);
             p.insert("location", o.value("location").toString(QStringLiteral("sidebar")));
+            p.insert("modal", o.value("modal").toObject().toVariantMap());
             out << p;
         }
     }
@@ -635,6 +734,42 @@ QVariant PluginManager::call(const QString &pluginId, const QString &command, co
     return {};
 }
 
+// Nur eigene Seiten eines laufenden Plugins. Werte aus dem Manifest ("modal") sind Vorgaben, die Argumente haben Vorrang.
+QVariantMap PluginManager::modalRequest(const QString &pluginId, const QVariantMap &args, QString *error) const
+{
+    const auto refuse = [error](const QString &text) { if (error) *error = text; return QVariantMap(); };
+    const QString panelId = args.value("panel").toString();
+    const QString key = pluginId + QLatin1Char('/') + panelId;
+    QVariantMap out;
+    for (const auto &v : panels()) {
+        if (v.toMap().value("key").toString() == key) { out = v.toMap(); break; }
+    }
+    if (out.isEmpty()) return refuse(QStringLiteral("modal.open: unknown panel: ") + panelId);
+
+    QVariantMap options = out.value("modal").toMap();
+    for (auto it = args.constBegin(); it != args.constEnd(); ++it) options.insert(it.key(), it.value());
+    const QString scope = options.value("scope", QStringLiteral("player")).toString();
+    const QString mode = options.value("mode", QStringLiteral("movable")).toString();
+    if (scope != QLatin1String("player") && scope != QLatin1String("video") && scope != QLatin1String("sidebar"))
+        return refuse(QStringLiteral("modal.open: unknown scope: ") + scope);
+    if (mode != QLatin1String("movable") && mode != QLatin1String("fixed") && mode != QLatin1String("fill"))
+        return refuse(QStringLiteral("modal.open: unknown mode: ") + mode);
+
+    out.insert("scope", scope);
+    out.insert("mode", mode);
+    for (const char *name : {"width", "height", "maxWidth", "maxHeight"})
+        out.insert(QString::fromLatin1(name), std::max(0.0, options.value(QString::fromLatin1(name)).toDouble()));
+    out.insert("closeOnOutsideClick", options.value("closeOnOutsideClick").toBool());
+    out.insert("data", options.value("data"));
+    if (options.contains("title")) out.insert("title", options.value("title").toString());
+    return out;
+}
+
+void PluginManager::notifyModalClosed(const QString &key, const QVariant &result)
+{
+    emitEvent(QStringLiteral("modal.closed"), {{"panel", key.section(QLatin1Char('/'), 1)}, {"result", result}}, key.section(QLatin1Char('/'), 0, 0));
+}
+
 void PluginManager::registerBuiltinCommands()
 {
     registerCommand(QStringLiteral("commands"), [this](const QString &, const QVariantMap &, QString *) { return QVariant(commands()); });
@@ -660,6 +795,17 @@ void PluginManager::registerBuiltinCommands()
     registerCommand(QStringLiteral("plugin.dataDir"), [this](const QString &id, const QVariantMap &, QString *) { return QVariant(pluginDataDir(id)); });
     registerCommand(QStringLiteral("panel.open"), [this](const QString &id, const QVariantMap &a, QString *) {
         emit panelRequested(id + QLatin1Char('/') + a.value("panel", QStringLiteral("main")).toString());
+        return QVariant(true);
+    });
+    registerCommand(QStringLiteral("modal.open"), [this](const QString &id, const QVariantMap &a, QString *error) {
+        const QVariantMap request = modalRequest(id, a, error);
+        if (request.isEmpty()) return QVariant();
+        emit modalRequested(request);
+        return QVariant(true);
+    });
+    registerCommand(QStringLiteral("modal.close"), [this](const QString &id, const QVariantMap &a, QString *) {
+        const QString panel = a.value("panel").toString();
+        emit modalCloseRequested(id, panel.isEmpty() ? QString() : id + QLatin1Char('/') + panel);
         return QVariant(true);
     });
     // mpv-Zugriff für alles, wofür es (noch) keinen eigenen Befehl gibt
@@ -771,6 +917,12 @@ QString PluginManager::installPackage(const QString &path, QVariantMap *info)
             return tr("Schreiben fehlgeschlagen: %1").arg(out);
     }
     Logger::write("plugin", QStringLiteral("Paket vorgemerkt: %1 %2 → %3").arg(m.id, m.version, target));
+    if (removalPending(m.id)) {   // neu installiert: nicht mehr entfernen
+        auto marks = m_settings->object(QStringLiteral("pluginRemovals"));
+        marks.remove(m.id);
+        m_settings->setObject(QStringLiteral("pluginRemovals"), marks);
+        emit pluginsChanged();
+    }
     if (info) {
         QString previous;
         for (const auto &e : std::as_const(m_entries))

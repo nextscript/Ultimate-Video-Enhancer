@@ -16,10 +16,29 @@ Dialog {
     height: Math.min(640, parent ? parent.height - 40 : 640)
     anchors.centerIn: parent
     standardButtons: Dialog.Close
-    Component.onCompleted: { var b = standardButton(Dialog.Close); if (b) b.text = qsTr("Schließen") }
-    property alias page: nav.currentIndex
+    Component.onCompleted: { var b = standardButton(Dialog.Close); if (b) b.text = Qt.binding(() => qsTr("Schließen")) }
+    // Eigene Eigenschaft statt nav.currentIndex: Die Liste setzt ihn zurück, sobald ihr Modell neu aufgebaut wird
+    property int page: 0
     property string capturingId: ""
     property string conflictMsg: ""
+
+    // Einstellungsseiten der Plugins (contributes.panels mit location "settings") folgen als eigene Einträge auf die festen Seiten
+    readonly property int builtinPages: 12
+    readonly property var pluginPanels: (app.plugins ? app.plugins.panels : []).filter(p => p.location === "settings")
+    readonly property var currentPluginPanel: page >= builtinPages ? (pluginPanels[page - builtinPages] || null) : null
+    readonly property alias pageCount: nav.count
+    readonly property alias pluginPage: pluginPage
+    onPluginPanelsChanged: if (page >= builtinPages + pluginPanels.length) page = 5
+    function pluginPageTitle(p) {
+        return pluginPanels.filter(q => q.pluginId === p.pluginId).length > 1 ? p.pluginName + " – " + p.title : p.pluginName
+    }
+    function openPluginPage(key) {
+        var i = pluginPanels.findIndex(p => p.key === key)
+        if (i < 0) return false
+        open()
+        page = builtinPages + i
+        return true
+    }
 
     onAboutToShow: { audioBox.reload(); capturingId = ""; conflictMsg = "" }
 
@@ -33,15 +52,15 @@ Dialog {
             id: nav
             Layout.preferredWidth: 180
             Layout.fillHeight: true
-            model: [qsTr("Allgemein"), qsTr("Wiedergabe"), qsTr("Video & GPU"), qsTr("Audio"), qsTr("Untertitel"), qsTr("Plugins"), qsTr("Effekte"), qsTr("Tastenkürzel"), qsTr("Datenschutz"), qsTr("Netzwerk"), qsTr("Erweitert"), qsTr("Expert Settings")]
-            currentIndex: 0
+            model: [qsTr("Allgemein"), qsTr("Wiedergabe"), qsTr("Video & GPU"), qsTr("Audio"), qsTr("Untertitel"), qsTr("Plugins"), qsTr("Effekte"), qsTr("Tastenkürzel"), qsTr("Datenschutz"), qsTr("Netzwerk"), qsTr("Erweitert"), qsTr("Expert Settings")].concat(dlg.pluginPanels.map(p => dlg.pluginPageTitle(p)))
+            clip: true
             delegate: ItemDelegate {
                 required property string modelData
                 required property int index
                 width: ListView.view.width
                 text: modelData.replace("&", "&&")   // "&" sonst als Tastenkürzel-Markierung gedeutet
-                highlighted: ListView.isCurrentItem
-                onClicked: nav.currentIndex = index
+                highlighted: index === dlg.page
+                onClicked: dlg.page = index
             }
         }
         Rectangle { Layout.fillHeight: true; width: 1; color: theme.line }
@@ -49,7 +68,7 @@ Dialog {
             Layout.fillWidth: true
             Layout.fillHeight: true
             Layout.leftMargin: 16
-            currentIndex: nav.currentIndex
+            currentIndex: Math.min(dlg.page, dlg.builtinPages)
 
             // Allgemein
             ColumnLayout {
@@ -353,6 +372,36 @@ Dialog {
             }
             // Expert Settings (Grading-Kurven des Ultimate Video Enhancer)
             ExpertSettingsPage { theme: dlg.theme; effects: dlg.effects }
+            // Einstellungsseite eines Plugins; lange Seiten lassen sich über ihre implicitHeight scrollen
+            Flickable {
+                id: pluginFlick
+                clip: true
+                contentWidth: width
+                contentHeight: Math.max(height, pluginPage.item ? pluginPage.item.implicitHeight : 0)
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: ScrollBar {}
+                Loader {
+                    id: pluginPage
+                    width: pluginFlick.width
+                    height: pluginFlick.contentHeight
+                    active: dlg.visible && dlg.currentPluginPanel !== null
+                    source: dlg.currentPluginPanel ? dlg.currentPluginPanel.url : ""
+                    onLoaded: {
+                        var p = dlg.currentPluginPanel
+                        if ("theme" in item) item.theme = dlg.theme
+                        if ("host" in item) item.host = app
+                        if ("controller" in item) item.controller = p.controller
+                        if ("plugin" in item) item.plugin = p.plugin
+                    }
+                    Label {
+                        anchors.fill: parent
+                        visible: pluginPage.status === Loader.Error
+                        wrapMode: Text.Wrap
+                        color: theme.error
+                        text: qsTr("Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).")
+                    }
+                }
+            }
         }
     }
 }

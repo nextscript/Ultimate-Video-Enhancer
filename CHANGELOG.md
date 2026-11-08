@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.3 – 2026-11-08
+
+### Plugins
+- **Plugin windows over the whole player:** plugins can open windows over the entire player, or limit them to the video or the sidebar, where
+  the rest of the player stays usable. Sizes can also be limited.
+- **Three window modes:** *movable* (drag the title bar, the default), *fixed* and *fill*. Windows always stay inside their area.
+- **Plugin settings in Settings:** a plugin's settings page now has its own entry in *Settings*.
+- **Remove plugins:** *Plugins → Manage plugins → Remove* asks for confirmation, disables the plugin immediately and deletes it at the next start,
+  optionally with its settings and data. This can be undone until then. Bundled plugins can only be disabled.
+- For plugin authors: `docs/PLUGIN_API.md` and the example `plugins/examples/modaldemo/`.
+
+### Language switching
+- **Menu titles no longer disappear:** after switching the language, *Plugins* or *Audio* could turn blank in the menu bar when the mouse
+  moved over them, and stayed blank until the next start. This affected English, German, Spanish, Italian and Polish, depending on the switch.
+- **Consistent underlines:** the shortcut letters in the menu bar now stay underlined after a language switch.
+- **No more German words in other languages:** the *Repeat* entry in the *Playback* menu and the shuffle message were partly German.
+- **Close and Cancel buttons follow the language:** they kept the language the player was started with.
+- **Settings stay on the current page** when the list of pages is rebuilt, for example after a language switch.
+
 ## 1.1.2 – 2026-11-08
 
 ### Live denoising

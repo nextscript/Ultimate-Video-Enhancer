@@ -10,7 +10,7 @@ Dialog {
     width: Math.min(620, parent ? parent.width - 40 : 620)
     anchors.centerIn: parent
     standardButtons: Dialog.Close
-    Component.onCompleted: { var b = standardButton(Dialog.Close); if (b) b.text = qsTr("Schließen") }
+    Component.onCompleted: { var b = standardButton(Dialog.Close); if (b) b.text = Qt.binding(() => qsTr("Schließen")) }
 
     ColumnLayout {
         anchors.fill: parent

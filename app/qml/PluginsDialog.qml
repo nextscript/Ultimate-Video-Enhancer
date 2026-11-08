@@ -15,18 +15,19 @@ Dialog {
     // Zustandsnamen aus PluginManager (Schlüssel) für die Übersetzung
     readonly property var stateNames: [QT_TR_NOOP("gefunden"), QT_TR_NOOP("abgelehnt"), QT_TR_NOOP("geprüft"), QT_TR_NOOP("geladen"), QT_TR_NOOP("initialisiert"), QT_TR_NOOP("aktiv"), QT_TR_NOOP("pausiert"), QT_TR_NOOP("deaktiviert"), QT_TR_NOOP("entladen"), QT_TR_NOOP("Fehler"), QT_TR_NOOP("Safe Mode")]
     standardButtons: Dialog.Close
-    Component.onCompleted: { var b = standardButton(Dialog.Close); if (b) b.text = qsTr("Schließen") }
+    Component.onCompleted: { var b = standardButton(Dialog.Close); if (b) b.text = Qt.binding(() => qsTr("Schließen")) }
 
+    signal openPluginSettings(string key)
     // Einstellungsseiten der Plugins (contributes.panels mit location "settings")
     function settingsPanelsFor(pluginId) {
         return (app.plugins ? app.plugins.panels : []).filter(p => p.location === "settings" && p.pluginId === pluginId)
     }
-    function openSettings(key) {
-        var ps = (app.plugins ? app.plugins.panels : []).filter(p => p.key === key)
-        if (ps.length === 0) return
-        if (!dlg.visible) dlg.open()
-        settingsPopup.panel = ps[0]
-        settingsPopup.open()
+    // Entfernen mit Rückfrage; die Dateien werden beim nächsten Start gelöscht
+    function askRemove(plugin) { removeDialog.pluginInfo = plugin; removeData.checked = false; removeDialog.open() }
+    function confirmRemove() {
+        var r = app.plugins.removePlugin(removeDialog.pluginInfo.id, removeData.checked)
+        removeDialog.close()
+        dlg.installMessage = r.ok ? "" : qsTr("Entfernen fehlgeschlagen: ") + r.error
     }
     property string installMessage: ""
 
@@ -77,7 +78,7 @@ Dialog {
                         }
                         Switch {
                             checked: modelData.enabled
-                            enabled: !app.safeMode && modelData.state !== "abgelehnt"
+                            enabled: !app.safeMode && modelData.state !== "abgelehnt" && !modelData.pendingRemoval
                             onToggled: app.plugins.setEnabled(modelData.id, checked)
                         }
                     }
@@ -95,11 +96,25 @@ Dialog {
                                 required property var modelData
                                 text: modelData.title
                                 icon.name: "configure"
-                                onClicked: { settingsPopup.panel = modelData; settingsPopup.open() }
+                                onClicked: dlg.openPluginSettings(modelData.key)
                             }
                         }
                     }
                     Label { visible: modelData.shaderDisabled === true; text: qsTr("GPU-Stufe nach Shaderfehler deaktiviert (Wiedergabe läuft ohne Effekte weiter)"); color: theme.error }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.Wrap
+                            font.pixelSize: 11
+                            color: modelData.pendingRemoval ? theme.error : theme.muted
+                            text: modelData.pendingRemoval ? qsTr("Wird beim nächsten Start entfernt")
+                                  : modelData.removable ? "" : qsTr("Mitgeliefert – kann nur deaktiviert werden")
+                        }
+                        Button { visible: modelData.removable && !modelData.pendingRemoval; text: qsTr("Entfernen"); onClicked: dlg.askRemove(modelData) }
+                        Button { visible: modelData.pendingRemoval; text: qsTr("Entfernen rückgängig"); onClicked: app.plugins.cancelRemoval(modelData.id) }
+                        Button { visible: modelData.pendingRemoval; text: qsTr("Jetzt neu starten"); onClicked: app.restartApp() }
+                    }
                 }
             }
         }
@@ -190,35 +205,29 @@ Dialog {
         }
     }
 
-    Popup {
-        id: settingsPopup
-        property var panel: null
+    Dialog {
+        id: removeDialog
+        property var pluginInfo: ({})
         parent: Overlay.overlay
         anchors.centerIn: parent
-        width: Math.min(560, dlg.width)
-        height: Math.min(620, dlg.height)
+        width: Math.min(480, parent ? parent.width - 40 : 480)
         modal: true
-        padding: 0
-        background: Rectangle { color: theme.panel; border.color: theme.line; radius: 8 }
+        closePolicy: Popup.CloseOnEscape
+        title: qsTr("Plugin entfernen")
         ColumnLayout {
             anchors.fill: parent
-            spacing: 0
-            RowLayout {
-                Layout.fillWidth: true; Layout.margins: 10
-                Label { text: settingsPopup.panel ? settingsPopup.panel.pluginName + " – " + settingsPopup.panel.title : ""; font.bold: true; color: theme.text; Layout.fillWidth: true; elide: Text.ElideRight }
-                Button { text: qsTr("Schließen"); onClicked: settingsPopup.close() }
+            spacing: 8
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                color: theme.text
+                text: qsTr("„%1“ wirklich entfernen? Das Plugin wird sofort deaktiviert und beim nächsten Start gelöscht.").arg(removeDialog.pluginInfo.name || "")
             }
-            Loader {
-                Layout.fillWidth: true; Layout.fillHeight: true
-                active: settingsPopup.opened && settingsPopup.panel !== null
-                source: settingsPopup.panel ? settingsPopup.panel.url : ""
-                onLoaded: {
-                    if ("theme" in item) item.theme = theme
-                    if ("host" in item) item.host = app
-                    if ("controller" in item) item.controller = settingsPopup.panel.controller
-                    if ("plugin" in item) item.plugin = settingsPopup.panel.plugin
-                }
-            }
+            CheckBox { id: removeData; text: qsTr("Auch Einstellungen und Daten des Plugins löschen") }
+        }
+        footer: DialogButtonBox {
+            Button { text: qsTr("Abbrechen"); DialogButtonBox.buttonRole: DialogButtonBox.RejectRole }
+            Button { text: qsTr("Entfernen"); highlighted: true; onClicked: dlg.confirmRemove() }
         }
     }
 }

@@ -694,8 +694,12 @@
         <translation>Ripeti: uno</translation>
     </message>
     <message>
-        <source>Zufall: </source>
-        <translation>Casuale: </translation>
+        <source>Zufall: an</source>
+        <translation>Casuale: on</translation>
+    </message>
+    <message>
+        <source>Zufall: aus</source>
+        <translation>Casuale: off</translation>
     </message>
     <message>
         <source>Ton an</source>
@@ -828,10 +832,6 @@
     <message>
         <source>A-B-Wiederholung</source>
         <translation>Ripetizione A-B</translation>
-    </message>
-    <message>
-        <source>Wiederholen: </source>
-        <translation>Ripeti: </translation>
     </message>
     <message>
         <source>Zufallswiedergabe</source>
@@ -1508,6 +1508,42 @@
 <context>
     <name>PluginsDialog</name>
     <message>
+        <source>Entfernen</source>
+        <translation>Rimuovi</translation>
+    </message>
+    <message>
+        <source>Entfernen rückgängig</source>
+        <translation>Annulla rimozione</translation>
+    </message>
+    <message>
+        <source>Wird beim nächsten Start entfernt</source>
+        <translation>Verrà rimosso al prossimo avvio</translation>
+    </message>
+    <message>
+        <source>Mitgeliefert – kann nur deaktiviert werden</source>
+        <translation>Incluso: può solo essere disattivato</translation>
+    </message>
+    <message>
+        <source>Plugin entfernen</source>
+        <translation>Rimuovi plugin</translation>
+    </message>
+    <message>
+        <source>„%1“ wirklich entfernen? Das Plugin wird sofort deaktiviert und beim nächsten Start gelöscht.</source>
+        <translation>Rimuovere davvero “%1”? Il plugin viene disattivato subito ed eliminato al prossimo avvio.</translation>
+    </message>
+    <message>
+        <source>Auch Einstellungen und Daten des Plugins löschen</source>
+        <translation>Elimina anche impostazioni e dati del plugin</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Annulla</translation>
+    </message>
+    <message>
+        <source>Entfernen fehlgeschlagen: </source>
+        <translation>Rimozione non riuscita: </translation>
+    </message>
+    <message>
         <source>Plugins</source>
         <translation>Plugin</translation>
     </message>
@@ -1716,6 +1752,10 @@
 </context>
 <context>
     <name>SettingsDialog</name>
+    <message>
+        <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
+        <translation>Impossibile caricare la pagina delle impostazioni del plugin (vedi il registro errori dei plugin).</translation>
+    </message>
     <message>
         <source>Einstellungen</source>
         <translation>Impostazioni</translation>
@@ -2720,6 +2760,18 @@
 </context>
 <context>
     <name>uve::PluginManager</name>
+    <message>
+        <source>Plugin nicht gefunden</source>
+        <translation>Plugin non trovato</translation>
+    </message>
+    <message>
+        <source>Mitgelieferte Plugins können nur deaktiviert werden</source>
+        <translation>I plugin inclusi possono solo essere disattivati</translation>
+    </message>
+    <message>
+        <source>Plugin konnte nicht entfernt werden: %1</source>
+        <translation>Impossibile rimuovere il plugin: %1</translation>
+    </message>
     <message>
         <source>Shaderfehler, Stufe deaktiviert: </source>
         <translation>Errore shader, stadio disattivato: </translation>
@@ -3858,6 +3910,17 @@
     <message>
         <source>UVE-Profil exportiert</source>
         <translation>Profilo UVE esportato</translation>
+    </message>
+</context>
+<context>
+    <name>PluginModal</name>
+    <message>
+        <source>Schließen</source>
+        <translation>Chiudi</translation>
+    </message>
+    <message>
+        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>Impossibile caricare la finestra del plugin (vedi il registro errori dei plugin). La riproduzione non è interessata.</translation>
     </message>
 </context>
 </TS>

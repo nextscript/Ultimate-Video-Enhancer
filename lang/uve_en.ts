@@ -694,8 +694,12 @@
         <translation>Repeat: one</translation>
     </message>
     <message>
-        <source>Zufall: </source>
-        <translation>Shuffle: </translation>
+        <source>Zufall: an</source>
+        <translation>Shuffle: on</translation>
+    </message>
+    <message>
+        <source>Zufall: aus</source>
+        <translation>Shuffle: off</translation>
     </message>
     <message>
         <source>Ton an</source>
@@ -828,10 +832,6 @@
     <message>
         <source>A-B-Wiederholung</source>
         <translation>A-B loop</translation>
-    </message>
-    <message>
-        <source>Wiederholen: </source>
-        <translation>Repeat: </translation>
     </message>
     <message>
         <source>Zufallswiedergabe</source>
@@ -1508,6 +1508,42 @@
 <context>
     <name>PluginsDialog</name>
     <message>
+        <source>Entfernen</source>
+        <translation>Remove</translation>
+    </message>
+    <message>
+        <source>Entfernen rückgängig</source>
+        <translation>Undo removal</translation>
+    </message>
+    <message>
+        <source>Wird beim nächsten Start entfernt</source>
+        <translation>Will be removed at the next start</translation>
+    </message>
+    <message>
+        <source>Mitgeliefert – kann nur deaktiviert werden</source>
+        <translation>Bundled – can only be disabled</translation>
+    </message>
+    <message>
+        <source>Plugin entfernen</source>
+        <translation>Remove plugin</translation>
+    </message>
+    <message>
+        <source>„%1“ wirklich entfernen? Das Plugin wird sofort deaktiviert und beim nächsten Start gelöscht.</source>
+        <translation>Really remove “%1”? The plugin is disabled now and deleted at the next start.</translation>
+    </message>
+    <message>
+        <source>Auch Einstellungen und Daten des Plugins löschen</source>
+        <translation>Also delete the settings and data of the plugin</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <source>Entfernen fehlgeschlagen: </source>
+        <translation>Removal failed: </translation>
+    </message>
+    <message>
         <source>Plugins</source>
         <translation>Plugins</translation>
     </message>
@@ -1716,6 +1752,10 @@
 </context>
 <context>
     <name>SettingsDialog</name>
+    <message>
+        <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
+        <translation>The settings page of the plugin could not be loaded (see the plugin error log).</translation>
+    </message>
     <message>
         <source>Einstellungen</source>
         <translation>Settings</translation>
@@ -2720,6 +2760,18 @@
 </context>
 <context>
     <name>uve::PluginManager</name>
+    <message>
+        <source>Plugin nicht gefunden</source>
+        <translation>Plugin not found</translation>
+    </message>
+    <message>
+        <source>Mitgelieferte Plugins können nur deaktiviert werden</source>
+        <translation>Bundled plugins can only be disabled</translation>
+    </message>
+    <message>
+        <source>Plugin konnte nicht entfernt werden: %1</source>
+        <translation>Could not remove plugin: %1</translation>
+    </message>
     <message>
         <source>Shaderfehler, Stufe deaktiviert: </source>
         <translation>Shader error, stage disabled: </translation>
@@ -3858,6 +3910,17 @@
     <message>
         <source>UVE-Profil exportiert</source>
         <translation>UVE profile exported</translation>
+    </message>
+</context>
+<context>
+    <name>PluginModal</name>
+    <message>
+        <source>Schließen</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>The window of the plugin could not be loaded (see the plugin error log). Playback is not affected.</translation>
     </message>
 </context>
 </TS>

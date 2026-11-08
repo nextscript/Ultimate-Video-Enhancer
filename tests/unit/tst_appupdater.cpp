@@ -81,6 +81,7 @@ public:
                     m_buffers[s] += s->readAll();
                     const QByteArray req = m_buffers[s];
                     if (!req.contains("\r\n\r\n")) return;
+                    m_buffers.remove(s);   // Ein neuer Socket kann dieselbe Adresse bekommen und bekäme sonst die alte Anfrage
                     const auto lines = req.split('\n');
                     const auto first = lines.first().trimmed().split(' ');
                     QByteArray range;
@@ -384,6 +385,7 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(ready.count() + failed.count() > 0, 15000);
         const QString file = data.filePath("updates/UVE-Player-1.2.0-setup.exe");
         if (good) {
+            QCOMPARE(ready.count(), 1);
             QCOMPARE(ready.first().at(0).toString(), file);
             QFile f(file);
             QVERIFY(f.open(QIODevice::ReadOnly));

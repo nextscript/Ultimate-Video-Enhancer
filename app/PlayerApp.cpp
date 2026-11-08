@@ -1061,6 +1061,46 @@ void PlayerApp::simulateClick(qreal x, qreal y, int button, bool doubleClick)
     }
 }
 
+void PlayerApp::simulateMove(qreal x, qreal y)
+{
+    if (!m_window) return;
+    const QPointF local(x, y);
+    QMouseEvent e(QEvent::MouseMove, local, local, m_window->mapToGlobal(local), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(m_window, &e);
+}
+
+void PlayerApp::simulateDrag(qreal x1, qreal y1, qreal x2, qreal y2)
+{
+    if (!m_window) return;
+    auto send = [this](QEvent::Type t, QPointF local, Qt::MouseButton button, Qt::MouseButtons buttons) {
+        QMouseEvent e(t, local, local, m_window->mapToGlobal(local), button, buttons, Qt::NoModifier);
+        QCoreApplication::sendEvent(m_window, &e);
+    };
+    send(QEvent::MouseMove, {x1, y1}, Qt::NoButton, Qt::NoButton);
+    send(QEvent::MouseButtonPress, {x1, y1}, Qt::LeftButton, Qt::LeftButton);
+    for (int i = 1; i <= 8; ++i)
+        send(QEvent::MouseMove, {x1 + (x2 - x1) * i / 8, y1 + (y2 - y1) * i / 8}, Qt::NoButton, Qt::LeftButton);
+    send(QEvent::MouseButtonRelease, {x2, y2}, Qt::LeftButton, Qt::NoButton);
+}
+
+double PlayerApp::selftestInkShare(qreal x, qreal y, qreal w, qreal h) const
+{
+    if (!m_window) return 0;
+    const QImage img = m_window->grabWindow();
+    const qreal dpr = img.devicePixelRatio();
+    const QRect r = QRectF(x * dpr, y * dpr, w * dpr, h * dpr).toRect().intersected(img.rect());
+    if (r.isEmpty()) return 0;
+    const QColor bg = img.pixelColor(r.topLeft());
+    qint64 ink = 0;
+    for (int py = r.top(); py <= r.bottom(); ++py) {
+        for (int px = r.left(); px <= r.right(); ++px) {
+            const QColor c = img.pixelColor(px, py);
+            if (std::abs(c.redF() - bg.redF()) + std::abs(c.greenF() - bg.greenF()) + std::abs(c.blueF() - bg.blueF()) > 0.5) ++ink;
+        }
+    }
+    return double(ink) / (qint64(r.width()) * r.height());
+}
+
 QVariantMap PlayerApp::sampleWindow(qreal x, qreal y, qreal w, qreal h) const
 {
     if (!m_window) return {};

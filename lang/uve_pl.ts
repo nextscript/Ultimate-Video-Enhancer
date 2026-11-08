@@ -694,8 +694,12 @@
         <translation>Powtarzanie: jeden</translation>
     </message>
     <message>
-        <source>Zufall: </source>
-        <translation>Losowo: </translation>
+        <source>Zufall: an</source>
+        <translation>Losowo: wł.</translation>
+    </message>
+    <message>
+        <source>Zufall: aus</source>
+        <translation>Losowo: wył.</translation>
     </message>
     <message>
         <source>Ton an</source>
@@ -828,10 +832,6 @@
     <message>
         <source>A-B-Wiederholung</source>
         <translation>Pętla A-B</translation>
-    </message>
-    <message>
-        <source>Wiederholen: </source>
-        <translation>Powtarzanie: </translation>
     </message>
     <message>
         <source>Zufallswiedergabe</source>
@@ -1508,6 +1508,42 @@
 <context>
     <name>PluginsDialog</name>
     <message>
+        <source>Entfernen</source>
+        <translation>Usuń</translation>
+    </message>
+    <message>
+        <source>Entfernen rückgängig</source>
+        <translation>Cofnij usunięcie</translation>
+    </message>
+    <message>
+        <source>Wird beim nächsten Start entfernt</source>
+        <translation>Zostanie usunięta przy następnym uruchomieniu</translation>
+    </message>
+    <message>
+        <source>Mitgeliefert – kann nur deaktiviert werden</source>
+        <translation>Dołączona – można ją tylko wyłączyć</translation>
+    </message>
+    <message>
+        <source>Plugin entfernen</source>
+        <translation>Usuń wtyczkę</translation>
+    </message>
+    <message>
+        <source>„%1“ wirklich entfernen? Das Plugin wird sofort deaktiviert und beim nächsten Start gelöscht.</source>
+        <translation>Czy na pewno usunąć „%1”? Wtyczka zostanie od razu wyłączona, a przy następnym uruchomieniu usunięta.</translation>
+    </message>
+    <message>
+        <source>Auch Einstellungen und Daten des Plugins löschen</source>
+        <translation>Usuń też ustawienia i dane wtyczki</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Anuluj</translation>
+    </message>
+    <message>
+        <source>Entfernen fehlgeschlagen: </source>
+        <translation>Usuwanie nie powiodło się: </translation>
+    </message>
+    <message>
         <source>Plugins</source>
         <translation>Wtyczki</translation>
     </message>
@@ -1716,6 +1752,10 @@
 </context>
 <context>
     <name>SettingsDialog</name>
+    <message>
+        <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
+        <translation>Nie można wczytać strony ustawień wtyczki (zobacz dziennik błędów wtyczek).</translation>
+    </message>
     <message>
         <source>Einstellungen</source>
         <translation>Ustawienia</translation>
@@ -2720,6 +2760,18 @@
 </context>
 <context>
     <name>uve::PluginManager</name>
+    <message>
+        <source>Plugin nicht gefunden</source>
+        <translation>Nie znaleziono wtyczki</translation>
+    </message>
+    <message>
+        <source>Mitgelieferte Plugins können nur deaktiviert werden</source>
+        <translation>Wtyczki dołączone można tylko wyłączyć</translation>
+    </message>
+    <message>
+        <source>Plugin konnte nicht entfernt werden: %1</source>
+        <translation>Nie można usunąć wtyczki: %1</translation>
+    </message>
     <message>
         <source>Shaderfehler, Stufe deaktiviert: </source>
         <translation>Błąd shadera, etap wyłączony: </translation>
@@ -3858,6 +3910,17 @@
     <message>
         <source>UVE-Profil exportiert</source>
         <translation>Wyeksportowano profil UVE</translation>
+    </message>
+</context>
+<context>
+    <name>PluginModal</name>
+    <message>
+        <source>Schließen</source>
+        <translation>Zamknij</translation>
+    </message>
+    <message>
+        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>Nie można wczytać okna wtyczki (zobacz dziennik błędów wtyczek). Nie wpływa to na odtwarzanie.</translation>
     </message>
 </context>
 </TS>

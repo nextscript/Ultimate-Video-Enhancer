@@ -694,8 +694,12 @@
         <translation>Tekrarla: bir</translation>
     </message>
     <message>
-        <source>Zufall: </source>
-        <translation>Karıştır: </translation>
+        <source>Zufall: an</source>
+        <translation>Karıştır: açık</translation>
+    </message>
+    <message>
+        <source>Zufall: aus</source>
+        <translation>Karıştır: kapalı</translation>
     </message>
     <message>
         <source>Ton an</source>
@@ -828,10 +832,6 @@
     <message>
         <source>A-B-Wiederholung</source>
         <translation>A-B döngüsü</translation>
-    </message>
-    <message>
-        <source>Wiederholen: </source>
-        <translation>Tekrarla: </translation>
     </message>
     <message>
         <source>Zufallswiedergabe</source>
@@ -1508,6 +1508,42 @@
 <context>
     <name>PluginsDialog</name>
     <message>
+        <source>Entfernen</source>
+        <translation>Kaldır</translation>
+    </message>
+    <message>
+        <source>Entfernen rückgängig</source>
+        <translation>Kaldırmayı geri al</translation>
+    </message>
+    <message>
+        <source>Wird beim nächsten Start entfernt</source>
+        <translation>Sonraki başlatmada kaldırılacak</translation>
+    </message>
+    <message>
+        <source>Mitgeliefert – kann nur deaktiviert werden</source>
+        <translation>Birlikte gelir – yalnızca devre dışı bırakılabilir</translation>
+    </message>
+    <message>
+        <source>Plugin entfernen</source>
+        <translation>Eklentiyi kaldır</translation>
+    </message>
+    <message>
+        <source>„%1“ wirklich entfernen? Das Plugin wird sofort deaktiviert und beim nächsten Start gelöscht.</source>
+        <translation>“%1” kaldırılsın mı? Eklenti hemen devre dışı bırakılır ve sonraki başlatmada silinir.</translation>
+    </message>
+    <message>
+        <source>Auch Einstellungen und Daten des Plugins löschen</source>
+        <translation>Eklentinin ayarlarını ve verilerini de sil</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>İptal</translation>
+    </message>
+    <message>
+        <source>Entfernen fehlgeschlagen: </source>
+        <translation>Kaldırma başarısız: </translation>
+    </message>
+    <message>
         <source>Plugins</source>
         <translation>Eklentiler</translation>
     </message>
@@ -1716,6 +1752,10 @@
 </context>
 <context>
     <name>SettingsDialog</name>
+    <message>
+        <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
+        <translation>Eklentinin ayar sayfası yüklenemedi (eklenti hata günlüğüne bakın).</translation>
+    </message>
     <message>
         <source>Einstellungen</source>
         <translation>Ayarlar</translation>
@@ -2720,6 +2760,18 @@
 </context>
 <context>
     <name>uve::PluginManager</name>
+    <message>
+        <source>Plugin nicht gefunden</source>
+        <translation>Eklenti bulunamadı</translation>
+    </message>
+    <message>
+        <source>Mitgelieferte Plugins können nur deaktiviert werden</source>
+        <translation>Birlikte gelen eklentiler yalnızca devre dışı bırakılabilir</translation>
+    </message>
+    <message>
+        <source>Plugin konnte nicht entfernt werden: %1</source>
+        <translation>Eklenti kaldırılamadı: %1</translation>
+    </message>
     <message>
         <source>Shaderfehler, Stufe deaktiviert: </source>
         <translation>Shader hatası, aşama devre dışı: </translation>
@@ -3858,6 +3910,17 @@
     <message>
         <source>UVE-Profil exportiert</source>
         <translation>UVE profili dışa aktarıldı</translation>
+    </message>
+</context>
+<context>
+    <name>PluginModal</name>
+    <message>
+        <source>Schließen</source>
+        <translation>Kapat</translation>
+    </message>
+    <message>
+        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>Eklentinin penceresi yüklenemedi (eklenti hata günlüğüne bakın). Oynatma bundan etkilenmez.</translation>
     </message>
 </context>
 </TS>

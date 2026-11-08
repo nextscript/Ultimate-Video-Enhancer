@@ -32,6 +32,11 @@ menus or translations can be changed without recompiling.
 subfolder) or the `manifest.json` of a folder. The package is validated (manifest, paths) and moved to `plugins/<id>/` on
 the **next start** (loaded DLLs are locked on Windows).
 
+**Removing (since 1.1.3):** plugin manager → *Remove*. Plugins from the user folder are disabled immediately and deleted at the
+**next start**; until then the removal can be undone. Their settings and data are only deleted when the user selects that
+option. Bundled plugins (program folder) can only be disabled. If a user plugin replaced a bundled one with the same id, the bundled
+one is active again after the removal.
+
 ### 2. Pure QML plugin (no compiler needed)
 
 `"main": "Main.qml"` – a non-visual QML object. Optional: `property var plugin` (the bridge, see below) and the functions
@@ -89,7 +94,9 @@ Same compiler and Qt version as the player (1.0.x: Qt 6.12, MSVC 2022, 64 bit).
   "supportedPlatforms": ["windows", "linux", "macos"], "requiredBackends": [], "permissions": [],
   "contributes": {
     "panels":   [ { "id": "main", "title": { "de": "Beispiel", "en": "Example" }, "qml": "Panel.qml", "location": "sidebar" },
-                  { "id": "settings", "title": "Settings", "qml": "Settings.qml", "location": "settings" } ],
+                  { "id": "settings", "title": "Settings", "qml": "Settings.qml", "location": "settings" },
+                  { "id": "dialog", "title": "Dialog", "qml": "Dialog.qml", "location": "modal",
+                    "modal": { "scope": "player", "mode": "movable", "width": 460, "height": 260 } } ],
     "menu":     [ { "id": "doit", "title": { "de": "Ausführen", "en": "Run" } } ],
     "hotkeys":  [ { "id": "doit", "title": "Run", "default": "Ctrl+Alt+B" } ],
     "translations": "lang",
@@ -104,14 +111,34 @@ Same compiler and Qt version as the player (1.0.x: Qt 6.12, MSVC 2022, 64 bit).
 
 | Contribution | Effect |
 |---|---|
-| `panels` | `location: "sidebar"` → tab in the sidebar; `"settings"` → button in the plugin manager. `qml` relative to the folder or `qrc:/…` |
+| `panels` | `location: "sidebar"` → tab in the sidebar; `"settings"` → own entry in *Settings* (since 1.1.3) and a button in the plugin manager; `"modal"` → window opened with `modal.open` (since 1.1.3). `qml` relative to the folder or `qrc:/…` |
 | `menu` | entry in the *Plugins* menu → event `action.triggered {id}` |
 | `hotkeys` | entry in *Settings → Shortcuts* (editable) → event `action.triggered {id}`. A default shortcut that is already taken is not applied |
 | `translations` | folder with `*_<code>.qm` (default `lang`), switched together with the player language; source language German, fallback English |
 | `urlHandlers` | regular expressions; matching addresses go to the plugin before loading (event `media.resolve`) |
 
 Pages receive the properties `theme`, `host` (player object), `controller` (plugin object or QML logic) and `plugin`
-(the bridge) – each only if the page declares it.
+(the bridge) – each only if the page declares it. Settings pages can scroll: give the page an `implicitHeight`.
+
+## Modal windows (since 1.1.3)
+
+`plugin.call("modal.open", { panel: "dialog", scope: "video", mode: "movable", data: { … } })` opens one of the plugin's own
+pages in a window with a title bar and a close button. Defaults come from `"modal"` in the manifest; arguments take precedence.
+Opening the same page again updates the open window. *Esc* and the close button always work, so a window cannot trap the user.
+
+| Option | Values |
+|---|---|
+| `scope` | `player` (default): over the whole player including the menu bar, blocks the player. `video`: limited to the picture, without the control bar. `sidebar`: limited to the sidebar (in fullscreen, where it is hidden: the picture). With `video` and `sidebar` the rest of the player stays usable |
+| `mode` | `movable` (default): drag the title bar, it stays inside the scope. `fixed`: centred, not movable. `fill`: fills the scope |
+| `width`, `height` | size in pixels (default: 720 wide, height of the page or 480); never larger than the scope |
+| `maxWidth`, `maxHeight` | upper limit in pixels, also for `fill` |
+| `title` | replaces the title of the panel |
+| `closeOnOutsideClick` | `true`: a click next to the window closes it (default `false`) |
+| `data` | any value for the page, available as `modal.data` |
+
+The page can declare `property var modal`: `modal.data`, `modal.scope`, `modal.mode`, `modal.close(result)`. When the window closes,
+the plugin receives `modal.closed`. Windows close automatically when the plugin is disabled or removed.
+Complete example: `plugins/examples/modaldemo/` (pure QML, copy the folder to the user plugin folder).
 
 ## Bridge (`plugin` in QML)
 
@@ -133,6 +160,7 @@ signal `event(name, data)`.
 | `playback.paused` | `paused` |
 | `language.changed` | `code` |
 | `action.triggered` | `id` – menu entry or hotkey of this plugin |
+| `modal.closed` | `panel`, `result` (value of `modal.close(result)`, otherwise empty) – since 1.1.3 |
 | `app.quit` | – program exit |
 
 Ignore unknown events – later versions may send more.
@@ -147,7 +175,9 @@ Ignore unknown events – later versions may send more.
 | `log` | `message`, `level` |
 | `settings.get` / `settings.set` | → plugin settings / `settings` (object) |
 | `plugin.dataDir` | → data folder of the plugin |
-| `panel.open` | `panel` (id from `contributes.panels`) – show the page |
+| `panel.open` | `panel` (id from `contributes.panels`) – show the page in the sidebar or in *Settings* |
+| `modal.open` | `panel`, optional `scope`, `mode`, `width`, `height`, `maxWidth`, `maxHeight`, `title`, `closeOnOutsideClick`, `data` – since 1.1.3, see *Modal windows* |
+| `modal.close` | `panel` (without: all windows of this plugin) – since 1.1.3 |
 | `media.resolved` | `requestId`, `url` (to play) or `error` |
 | `player.state` | → `path`, `source`, `title`, `position`, `duration`, `paused`, `state`, `playlistIndex` |
 | `player.load` | `url` or `urls`, `next` – add to the playlist and play |
@@ -187,4 +217,4 @@ since 1.0.7 the command `webview.available` (embedded web views via Qt WebEngine
 Plugins (native and QML) run in the main process and are **trusted code**; `mpv.*` gives full access to mpv.
 There is no signature verification and no process isolation; only install plugins from trustworthy sources.
 
-Examples: `plugins/examples/sleeptimer/` (native, previous format), `tests/unit/tst_plugins.cpp` (QML plugin folder).
+Examples: `plugins/examples/sleeptimer/` (native, previous format), `plugins/examples/modaldemo/` (QML, modal windows and settings page), `tests/unit/tst_plugins.cpp` (QML plugin folder).

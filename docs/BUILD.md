@@ -31,6 +31,10 @@ To run from `build\bin`, execute `windeployqt --release --qmldir app\qml --qmldi
 $env:UVE_DATA_DIR="C:\temp\uve-test"; .\build\bin\UVEPlayer.exe --selftest C:\temp\result.json file1.mkv https://…
 # UI self-test with real mouse events
 $env:UVE_SELFTEST_UI=1; .\build\bin\UVEPlayer.exe --selftest C:\temp\ui.json tests\media\test-legacy.avi tests\media\test-2audio-sub.mkv
+# Plugin windows, settings pages and removal: copy plugins\examples\modaldemo to <data folder>\plugins first
+$env:UVE_SELFTEST_UI=1; $env:UVE_SELFTEST_ONLY="plugins"; .\build\bin\UVEPlayer.exe --selftest C:\temp\plugins.json tests\media\test-legacy.avi
+# Language switching: all language pairs, every menu title checked by its pixels (exit code 1 on failure)
+$env:UVE_SELFTEST_UI=1; $env:UVE_SELFTEST_ONLY="language"; .\build\bin\UVEPlayer.exe --selftest C:\temp\lang.json tests\media\test-legacy.avi
 ```
 
 ## Release

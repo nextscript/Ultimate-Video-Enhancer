@@ -694,8 +694,12 @@
         <translation>Επανάληψη: ένα</translation>
     </message>
     <message>
-        <source>Zufall: </source>
-        <translation>Τυχαία σειρά: </translation>
+        <source>Zufall: an</source>
+        <translation>Τυχαία σειρά: ναι</translation>
+    </message>
+    <message>
+        <source>Zufall: aus</source>
+        <translation>Τυχαία σειρά: όχι</translation>
     </message>
     <message>
         <source>Ton an</source>
@@ -828,10 +832,6 @@
     <message>
         <source>A-B-Wiederholung</source>
         <translation>Επανάληψη A-B</translation>
-    </message>
-    <message>
-        <source>Wiederholen: </source>
-        <translation>Επανάληψη: </translation>
     </message>
     <message>
         <source>Zufallswiedergabe</source>
@@ -1508,6 +1508,42 @@
 <context>
     <name>PluginsDialog</name>
     <message>
+        <source>Entfernen</source>
+        <translation>Αφαίρεση</translation>
+    </message>
+    <message>
+        <source>Entfernen rückgängig</source>
+        <translation>Αναίρεση αφαίρεσης</translation>
+    </message>
+    <message>
+        <source>Wird beim nächsten Start entfernt</source>
+        <translation>Θα αφαιρεθεί στην επόμενη εκκίνηση</translation>
+    </message>
+    <message>
+        <source>Mitgeliefert – kann nur deaktiviert werden</source>
+        <translation>Ενσωματωμένο – μπορεί μόνο να απενεργοποιηθεί</translation>
+    </message>
+    <message>
+        <source>Plugin entfernen</source>
+        <translation>Αφαίρεση προσθέτου</translation>
+    </message>
+    <message>
+        <source>„%1“ wirklich entfernen? Das Plugin wird sofort deaktiviert und beim nächsten Start gelöscht.</source>
+        <translation>Να αφαιρεθεί σίγουρα το «%1»; Το πρόσθετο απενεργοποιείται αμέσως και διαγράφεται στην επόμενη εκκίνηση.</translation>
+    </message>
+    <message>
+        <source>Auch Einstellungen und Daten des Plugins löschen</source>
+        <translation>Διαγραφή και των ρυθμίσεων και δεδομένων του προσθέτου</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Άκυρο</translation>
+    </message>
+    <message>
+        <source>Entfernen fehlgeschlagen: </source>
+        <translation>Η αφαίρεση απέτυχε: </translation>
+    </message>
+    <message>
         <source>Plugins</source>
         <translation>Πρόσθετα</translation>
     </message>
@@ -1716,6 +1752,10 @@
 </context>
 <context>
     <name>SettingsDialog</name>
+    <message>
+        <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
+        <translation>Δεν ήταν δυνατή η φόρτωση της σελίδας ρυθμίσεων του προσθέτου (δείτε το αρχείο σφαλμάτων προσθέτων).</translation>
+    </message>
     <message>
         <source>Einstellungen</source>
         <translation>Ρυθμίσεις</translation>
@@ -2720,6 +2760,18 @@
 </context>
 <context>
     <name>uve::PluginManager</name>
+    <message>
+        <source>Plugin nicht gefunden</source>
+        <translation>Το πρόσθετο δεν βρέθηκε</translation>
+    </message>
+    <message>
+        <source>Mitgelieferte Plugins können nur deaktiviert werden</source>
+        <translation>Τα ενσωματωμένα πρόσθετα μπορούν μόνο να απενεργοποιηθούν</translation>
+    </message>
+    <message>
+        <source>Plugin konnte nicht entfernt werden: %1</source>
+        <translation>Δεν ήταν δυνατή η αφαίρεση του προσθέτου: %1</translation>
+    </message>
     <message>
         <source>Shaderfehler, Stufe deaktiviert: </source>
         <translation>Σφάλμα shader, το στάδιο απενεργοποιήθηκε: </translation>
@@ -3858,6 +3910,17 @@
     <message>
         <source>UVE-Profil exportiert</source>
         <translation>Το προφίλ UVE εξήχθη</translation>
+    </message>
+</context>
+<context>
+    <name>PluginModal</name>
+    <message>
+        <source>Schließen</source>
+        <translation>Κλείσιμο</translation>
+    </message>
+    <message>
+        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>Δεν ήταν δυνατή η φόρτωση του παραθύρου του προσθέτου (δείτε το αρχείο σφαλμάτων προσθέτων). Η αναπαραγωγή δεν επηρεάζεται.</translation>
     </message>
 </context>
 </TS>

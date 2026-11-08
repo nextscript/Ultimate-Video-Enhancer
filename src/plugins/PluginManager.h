@@ -67,6 +67,12 @@ public:
     QString installPackage(const QString &path, QVariantMap *info = nullptr);
     // Für die Oberfläche: {ok, error, id, name, version, previousVersion, kind: update|reinstall|downgrade|new}
     Q_INVOKABLE QVariantMap installPackageInfo(const QString &path);
+    // Plugin aus dem Benutzerordner entfernen: sofort deaktiviert, Dateien werden beim nächsten Start gelöscht
+    // (geladene DLLs sind unter Windows gesperrt). Rückgabe: {ok, error}
+    Q_INVOKABLE QVariantMap removePlugin(const QString &id, bool deleteData = false);
+    Q_INVOKABLE bool cancelRemoval(const QString &id);
+    // Oberfläche: Fenster eines Plugins wurde geschlossen → Ereignis "modal.closed" an das Plugin
+    Q_INVOKABLE void notifyModalClosed(const QString &key, const QVariant &result = {});
 
     // Ereignis an alle aktiven Plugins (oder nur an eines)
     void emitEvent(const QString &name, const QVariantMap &data = {}, const QString &onlyPluginId = {});
@@ -111,6 +117,8 @@ signals:
     void mediaResolved(quint64 requestId, const QString &resolvedUrl, const QString &error, const QString &pluginName);
     void panelRequested(const QString &panelKey);   // Befehl "panel.open"
     void hotkeysChanged();
+    void modalRequested(const QVariantMap &request);                       // Befehl "modal.open"
+    void modalCloseRequested(const QString &pluginId, const QString &key);  // Befehl "modal.close" (key leer = alle des Plugins)
 
 private:
     struct Entry
@@ -131,6 +139,10 @@ private:
     };
 
     void applyPendingPackage(const QString &pendingFolder, const QString &id);
+    void applyPendingRemovals();
+    bool isRemovable(const Entry &e) const;
+    bool removalPending(const QString &id) const;
+    QVariantMap modalRequest(const QString &pluginId, const QVariantMap &args, QString *error) const;
     void discoverIn(const QString &dir, QSet<QString> &seenIds);
     void addCandidate(Entry e, QSet<QString> &seenIds);
     bool enabledInSettings(const Entry &e) const;

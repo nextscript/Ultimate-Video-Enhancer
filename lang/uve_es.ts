@@ -694,8 +694,12 @@
         <translation>Repetir: uno</translation>
     </message>
     <message>
-        <source>Zufall: </source>
-        <translation>Aleatorio: </translation>
+        <source>Zufall: an</source>
+        <translation>Aleatorio: sí</translation>
+    </message>
+    <message>
+        <source>Zufall: aus</source>
+        <translation>Aleatorio: no</translation>
     </message>
     <message>
         <source>Ton an</source>
@@ -828,10 +832,6 @@
     <message>
         <source>A-B-Wiederholung</source>
         <translation>Bucle A-B</translation>
-    </message>
-    <message>
-        <source>Wiederholen: </source>
-        <translation>Repetir: </translation>
     </message>
     <message>
         <source>Zufallswiedergabe</source>
@@ -1508,6 +1508,42 @@
 <context>
     <name>PluginsDialog</name>
     <message>
+        <source>Entfernen</source>
+        <translation>Quitar</translation>
+    </message>
+    <message>
+        <source>Entfernen rückgängig</source>
+        <translation>Deshacer</translation>
+    </message>
+    <message>
+        <source>Wird beim nächsten Start entfernt</source>
+        <translation>Se quitará en el próximo inicio</translation>
+    </message>
+    <message>
+        <source>Mitgeliefert – kann nur deaktiviert werden</source>
+        <translation>Incluido: solo se puede desactivar</translation>
+    </message>
+    <message>
+        <source>Plugin entfernen</source>
+        <translation>Quitar plugin</translation>
+    </message>
+    <message>
+        <source>„%1“ wirklich entfernen? Das Plugin wird sofort deaktiviert und beim nächsten Start gelöscht.</source>
+        <translation>¿Quitar «%1»? El plugin se desactiva ahora y se elimina en el próximo inicio.</translation>
+    </message>
+    <message>
+        <source>Auch Einstellungen und Daten des Plugins löschen</source>
+        <translation>Eliminar también los ajustes y datos del plugin</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Entfernen fehlgeschlagen: </source>
+        <translation>Error al quitar: </translation>
+    </message>
+    <message>
         <source>Plugins</source>
         <translation>Plugins</translation>
     </message>
@@ -1716,6 +1752,10 @@
 </context>
 <context>
     <name>SettingsDialog</name>
+    <message>
+        <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
+        <translation>No se pudo cargar la página de ajustes del plugin (consulte el registro de errores de plugins).</translation>
+    </message>
     <message>
         <source>Einstellungen</source>
         <translation>Configuración</translation>
@@ -2720,6 +2760,18 @@
 </context>
 <context>
     <name>uve::PluginManager</name>
+    <message>
+        <source>Plugin nicht gefunden</source>
+        <translation>Plugin no encontrado</translation>
+    </message>
+    <message>
+        <source>Mitgelieferte Plugins können nur deaktiviert werden</source>
+        <translation>Los plugins incluidos solo se pueden desactivar</translation>
+    </message>
+    <message>
+        <source>Plugin konnte nicht entfernt werden: %1</source>
+        <translation>No se pudo quitar el plugin: %1</translation>
+    </message>
     <message>
         <source>Shaderfehler, Stufe deaktiviert: </source>
         <translation>Error de shader, etapa desactivada: </translation>
@@ -3858,6 +3910,17 @@
     <message>
         <source>UVE-Profil exportiert</source>
         <translation>Perfil UVE exportado</translation>
+    </message>
+</context>
+<context>
+    <name>PluginModal</name>
+    <message>
+        <source>Schließen</source>
+        <translation>Cerrar</translation>
+    </message>
+    <message>
+        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>No se pudo cargar la ventana del plugin (consulte el registro de errores de plugins). La reproducción no se ve afectada.</translation>
     </message>
 </context>
 </TS>

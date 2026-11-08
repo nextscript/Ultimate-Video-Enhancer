@@ -128,6 +128,8 @@ public:
     Q_INVOKABLE void reportSelftestUi(const QVariantMap &ui);
     // Selbsttest der Oberfläche: echte Mausereignisse an das Fenster senden (Fensterkoordinaten)
     Q_INVOKABLE void simulateClick(qreal x, qreal y, int button = 1, bool doubleClick = false);
+    Q_INVOKABLE void simulateMove(qreal x, qreal y);   // Selbsttest: Mausbewegung ohne Taste
+    Q_INVOKABLE void simulateDrag(qreal x1, qreal y1, qreal x2, qreal y2);   // Selbsttest: Ziehen mit gedrückter linker Taste
     // Selbsttest: mittlere Farbe/Sättigung eines Fensterbereichs (echte Pixel aus dem Fenster-Framebuffer)
     Q_INVOKABLE QString selftestPath(const QString &name) const { return QFileInfo(m_selftestOut).absoluteDir().filePath(name); }
     Q_INVOKABLE bool selftestOnly(const QString &part) const { return m_selftest && qEnvironmentVariable("UVE_SELFTEST_ONLY") == part; }
@@ -140,6 +142,8 @@ public:
         (void)QtConcurrent::run([img, file] { img.scaled(img.width() / 4, img.height() / 4, Qt::IgnoreAspectRatio, Qt::SmoothTransformation).save(file); });
     }
     Q_INVOKABLE QVariantMap sampleWindow(qreal x, qreal y, qreal w, qreal h) const;
+    // Selbsttest: Anteil der Pixel eines Bereichs, die sich deutlich vom Hintergrund (Ecke oben links) abheben
+    Q_INVOKABLE double selftestInkShare(qreal x, qreal y, qreal w, qreal h) const;
     void setWindow(QQuickWindow *w);   // stellt Fensterposition/-größe wieder her und zeigt das Fenster
     bool selftestUiMode() const { return m_selftestUiMode; }
     Q_PROPERTY(bool selftestUiMode READ selftestUiMode CONSTANT)

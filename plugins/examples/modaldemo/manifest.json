@@ -1,0 +1,26 @@
+{
+  "id": "org.uveplayer.example.modal-demo",
+  "name": "Modal demo (example plugin)",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "minHostVersion": "1.1.3",
+  "type": "utility",
+  "description": "Reference for plugin modals and settings pages. Copy this folder to the user plugin folder to try it.",
+  "author": "UVE Player",
+  "license": "MIT",
+  "main": "Main.qml",
+  "contributes": {
+    "panels": [
+      { "id": "dialog", "title": { "de": "Beispielfenster", "en": "Example window" }, "qml": "DialogPage.qml", "location": "modal",
+        "modal": { "scope": "player", "mode": "movable", "width": 460, "height": 260 } },
+      { "id": "settings", "title": { "de": "Einstellungen", "en": "Settings" }, "qml": "SettingsPage.qml", "location": "settings" }
+    ],
+    "menu": [
+      { "id": "open-player", "title": { "de": "Modal: ganzer Player", "en": "Modal: whole player" } },
+      { "id": "open-video", "title": { "de": "Modal: nur Video", "en": "Modal: video only" } },
+      { "id": "open-sidebar", "title": { "de": "Modal: nur Seitenleiste", "en": "Modal: sidebar only" } },
+      { "id": "open-fixed", "title": { "de": "Modal: feste Position", "en": "Modal: fixed position" } },
+      { "id": "open-fill", "title": { "de": "Modal: ganzer Bereich", "en": "Modal: fill the area" } }
+    ]
+  }
+}

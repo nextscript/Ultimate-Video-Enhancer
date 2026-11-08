@@ -246,6 +246,152 @@ private slots:
     }
 
     // Neue Version eines installierten Plugins ersetzt die alte, auch wenn deren Ordner anders heißt
+    void modalRequests()
+    {
+        QTemporaryDir user, data;
+        writeFile(user.filePath("m/manifest.json"), R"({"id":"org.test.modal","name":"M","version":"1.0.0","apiVersion":1,"main":"Main.qml",
+            "contributes":{"panels":[{"id":"dlg","title":"Dialog","qml":"Dlg.qml","location":"modal","modal":{"scope":"video","mode":"fixed","width":300}}]}})");
+        writeFile(user.filePath("m/Main.qml"), R"(import QtQml
+QtObject {
+    property var plugin
+    property var closed: []
+    property Connections c: Connections { target: plugin; function onEvent(name, data) { if (name === "modal.closed") closed = closed.concat([data.panel + ":" + data.result]) } }
+}
+)");
+        writeFile(user.filePath("m/Dlg.qml"), "import QtQuick\nItem {}\n");
+        AppSettings settings(data.path());
+        MpvController mpv;
+        ShaderChain shaders(&mpv);
+        QQmlEngine engine;
+        PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+        pm.setQmlEngine(&engine);
+        pm.discoverAndStart();
+
+        QSignalSpy opened(&pm, &PluginManager::modalRequested);
+        QSignalSpy closed(&pm, &PluginManager::modalCloseRequested);
+        const QString id = "org.test.modal";
+        QString err;
+
+        // Vorgaben aus dem Manifest
+        QVERIFY(pm.call(id, "modal.open", {{"panel", "dlg"}}, &err).toBool());
+        auto r = opened.last().at(0).toMap();
+        QCOMPARE(r.value("key").toString(), QString("org.test.modal/dlg"));
+        QCOMPARE(r.value("scope").toString(), QString("video"));
+        QCOMPARE(r.value("mode").toString(), QString("fixed"));
+        QCOMPARE(r.value("width").toDouble(), 300.0);
+
+        // Argumente haben Vorrang; ohne Vorgabe gilt der ganze Player und verschiebbar
+        QVERIFY(pm.call(id, "modal.open", {{"panel", "dlg"}, {"scope", "player"}, {"mode", "movable"}, {"maxWidth", 500}, {"width", -5},
+                                            {"title", "T"}, {"data", QVariantMap{{"a", 1}}}}, &err).toBool());
+        r = opened.last().at(0).toMap();
+        QCOMPARE(r.value("scope").toString(), QString("player"));
+        QCOMPARE(r.value("mode").toString(), QString("movable"));
+        QCOMPARE(r.value("maxWidth").toDouble(), 500.0);
+        QCOMPARE(r.value("width").toDouble(), 0.0);
+        QCOMPARE(r.value("title").toString(), QString("T"));
+        QCOMPARE(r.value("data").toMap().value("a").toInt(), 1);
+
+        // Abgelehnt: unbekannte Seite, fremdes Plugin, unbekannter Bereich oder Modus
+        const int before = opened.count();
+        QVERIFY(!pm.call(id, "modal.open", {{"panel", "nope"}}, &err).isValid());
+        QVERIFY(err.contains("unknown panel"));
+        QVERIFY(!pm.call("org.test.other", "modal.open", {{"panel", "dlg"}}, &err).isValid());
+        QVERIFY(!pm.call(id, "modal.open", {{"panel", "dlg"}, {"scope", "desktop"}}, &err).isValid());
+        QVERIFY(err.contains("unknown scope"));
+        QVERIFY(!pm.call(id, "modal.open", {{"panel", "dlg"}, {"mode", "wild"}}, &err).isValid());
+        QVERIFY(err.contains("unknown mode"));
+        QCOMPARE(opened.count(), before);
+
+        QVERIFY(pm.call(id, "modal.close", {{"panel", "dlg"}}, &err).toBool());
+        QCOMPARE(closed.last().at(1).toString(), QString("org.test.modal/dlg"));
+        QVERIFY(pm.call(id, "modal.close", {}, &err).toBool());
+        QCOMPARE(closed.last().at(1).toString(), QString());
+
+        // Ereignis an das Plugin
+        pm.notifyModalClosed("org.test.modal/dlg", "ok");
+        QObject *logic = pm.plugins().first().toMap().value("controller").value<QObject *>();
+        QVERIFY(logic);
+        QCOMPARE(logic->property("closed").toStringList(), QStringList{"dlg:ok"});
+    }
+
+    void removePluginFromUserFolder()
+    {
+        const auto manifest = [](const char *id) {
+            return "{\"id\":\"" + QByteArray(id) + "\",\"name\":\"X\",\"version\":\"1.0.0\",\"apiVersion\":1,\"main\":\"Main.qml\","
+                   "\"contributes\":{\"panels\":[{\"id\":\"s\",\"title\":\"S\",\"qml\":\"S.qml\",\"location\":\"settings\"}]}}";
+        };
+        QTemporaryDir user, bundled, data, outside;
+        for (const auto &[dir, id] : QList<QPair<QString, const char *>>{{user.filePath("own"), "org.test.own"}, {user.filePath("keep"), "org.test.keep"},
+                                                                          {bundled.filePath("shipped"), "org.test.shipped"}}) {
+            writeFile(dir + "/manifest.json", manifest(id));
+            writeFile(dir + "/Main.qml", "import QtQml\nQtObject {}\n");
+        }
+        writeFile(outside.filePath("wichtig.txt"), "bleibt");
+        AppSettings settings(data.path());
+        MpvController mpv;
+        ShaderChain shaders(&mpv);
+        QQmlEngine engine;
+        const auto info = [](const PluginManager &pm, const QString &id) {
+            for (const auto &v : pm.plugins())
+                if (v.toMap().value("id") == id) return v.toMap();
+            return QVariantMap();
+        };
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {user.path(), bundled.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            QVERIFY(info(pm, "org.test.own").value("removable").toBool());
+            QVERIFY(!info(pm, "org.test.shipped").value("removable").toBool());
+            QVERIFY(!pm.removePlugin("org.test.shipped").value("ok").toBool());
+            QVERIFY(!pm.removePlugin("org.test.gibtsnicht").value("ok").toBool());
+
+            pm.savePluginSettings("org.test.own", QJsonObject{{"a", 1}});
+            pm.savePluginSettings("org.test.keep", QJsonObject{{"b", 2}});
+            writeFile(QDir(pm.pluginDataDir("org.test.own")).filePath("x.txt"), "x");
+            writeFile(QDir(pm.pluginDataDir("org.test.keep")).filePath("y.txt"), "y");
+
+            // Sofort deaktiviert, Seiten weg; rückgängig machen stellt alles wieder her
+            QVERIFY(pm.removePlugin("org.test.own", true).value("ok").toBool());
+            QCOMPARE(info(pm, "org.test.own").value("state").toString(), QString("deaktiviert"));
+            QVERIFY(info(pm, "org.test.own").value("pendingRemoval").toBool());
+            QVERIFY(QFileInfo::exists(user.filePath("own/manifest.json")));
+            const auto hasPanel = [&pm](const QString &id) {
+                for (const auto &v : pm.panels()) if (v.toMap().value("pluginId") == id) return true;
+                return false;
+            };
+            QVERIFY(!hasPanel("org.test.own"));
+            QVERIFY(pm.cancelRemoval("org.test.own"));
+            QCOMPARE(info(pm, "org.test.own").value("state").toString(), QString("aktiv"));
+            QVERIFY(!info(pm, "org.test.own").value("pendingRemoval").toBool());
+            QVERIFY(hasPanel("org.test.own"));
+            QVERIFY(!pm.cancelRemoval("org.test.own"));
+
+            QVERIFY(pm.removePlugin("org.test.own", true).value("ok").toBool());
+            QVERIFY(pm.removePlugin("org.test.keep", false).value("ok").toBool());
+        }
+        // Eine manipulierte Vormerkung darf nichts außerhalb des Benutzerordners löschen
+        auto marks = settings.object("pluginRemovals");
+        marks.insert("org.test.evil", QJsonObject{{"path", outside.path()}, {"deleteData", true}});
+        marks.insert("..", QJsonObject{{"path", user.filePath("keep")}, {"deleteData", true}});
+        settings.setObject("pluginRemovals", marks);
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {user.path(), bundled.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            QVERIFY(!QFileInfo::exists(user.filePath("own")));
+            QVERIFY(!QFileInfo::exists(user.filePath("keep")));
+            QVERIFY(info(pm, "org.test.own").isEmpty());
+            QVERIFY(info(pm, "org.test.keep").isEmpty());
+            QCOMPARE(info(pm, "org.test.shipped").value("state").toString(), QString("aktiv"));
+            QVERIFY(pm.loadPluginSettings("org.test.own").isEmpty());
+            QCOMPARE(pm.loadPluginSettings("org.test.keep").value("b").toInt(), 2);
+            QVERIFY(!QFileInfo::exists(QDir(data.path()).filePath("plugin-data/org.test.own/x.txt")));
+            QVERIFY(QFileInfo::exists(QDir(data.path()).filePath("plugin-data/org.test.keep/y.txt")));
+            QVERIFY(QFileInfo::exists(outside.filePath("wichtig.txt")));
+            QVERIFY(settings.object("pluginRemovals").isEmpty());
+        }
+    }
+
     void updateReplacesOldVersion()
     {
         const auto manifest = [](const char *version) {

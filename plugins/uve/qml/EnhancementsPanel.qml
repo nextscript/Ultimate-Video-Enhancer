@@ -119,7 +119,7 @@ Item {
         modal: true
         anchors.centerIn: Overlay.overlay
         standardButtons: Dialog.Ok | Dialog.Cancel
-        Component.onCompleted: { var c = standardButton(Dialog.Cancel); if (c) c.text = qsTr("Abbrechen") }
+        Component.onCompleted: { var c = standardButton(Dialog.Cancel); if (c) c.text = Qt.binding(() => qsTr("Abbrechen")) }
         TextField { id: presetName; width: 260; placeholderText: qsTr("Name des Presets") }
         onAccepted: if (presetName.text.trim().length) controller.savePreset(presetName.text)
         onOpened: { presetName.text = controller.activePreset; presetName.forceActiveFocus() }

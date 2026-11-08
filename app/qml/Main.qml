@@ -49,6 +49,19 @@ ApplicationWindow {
         placeholderText: theme.muted; mid: theme.line; dark: theme.line; light: theme.panel2
     }
 
+    // Menütitel "A&udio" → "A<u>u</u>dio"; "&&" ist ein echtes "&"
+    function menuTitleMarkup(title) {
+        var out = ""
+        for (var i = 0; i < title.length; ++i) {
+            var c = title[i]
+            var mnemonic = c === "&" && i + 1 < title.length && title[i + 1] !== "&"
+            if (c === "&" && i + 1 < title.length) c = title[++i]
+            var escaped = c === "&" ? "&amp;" : c === "<" ? "&lt;" : c === ">" ? "&gt;" : c
+            out += mnemonic ? "<u>" + escaped + "</u>" : escaped
+        }
+        return out
+    }
+
     // ------------------------------------------------------------- Aktionen
     function osd(text, ms) { osdLabel.text = text; osdBox.opacity = 1; osdTimer.interval = ms || 1500; osdTimer.restart() }
     function seekBy(s) { if (player.state !== 0) { player.seekRelative(s); osd((s < 0 ? "◀◀ " : "▶▶ ") + app.formatTime(Math.max(0, player.position + s))) } }
@@ -81,7 +94,7 @@ ApplicationWindow {
         case "speed.reset": setSpeed(1); break
         case "abloop": player.cycleAbLoop(); Qt.callLater(() => osd(player.abLoopActive ? qsTr("A-B: ") + player.abLoopText : qsTr("A-B-Wiederholung aus"))); break
         case "repeat.cycle": var r = playlist.cycleRepeat(); osd(r === "none" ? qsTr("Wiederholen: aus") : (r === "all" ? qsTr("Wiederholen: alle") : qsTr("Wiederholen: eins"))); break
-        case "shuffle.toggle": playlist.shuffle = !playlist.shuffle; osd(qsTr("Zufall: ") + (playlist.shuffle ? "an" : "aus")); break
+        case "shuffle.toggle": playlist.shuffle = !playlist.shuffle; osd(playlist.shuffle ? qsTr("Zufall: an") : qsTr("Zufall: aus")); break
         case "goto": if (player.duration > 0) gotoDialog.open(); break
         case "volume.up": setVolume(player.volume + 5); break
         case "volume.down": setVolume(player.volume - 5); break
@@ -140,8 +153,21 @@ ApplicationWindow {
 
     // ------------------------------------------------------------- Menüleiste
     menuBar: MenuBar {
+        id: mainMenuBar
         visible: !win.overlayControls
         height: visible ? implicitHeight : 0
+        // Eigene Beschriftung: Qts Titel-Label zeichnet nach einem Sprachwechsel nichts mehr, wenn der sichtbare Text gleich bleibt
+        // und nur das Tastenkürzel wandert ("&Audio" ↔ "A&udio", "&Plugins" ↔ "Pl&ugins"). Alt+Buchstabe hängt an barItem.text.
+        delegate: MenuBarItem {
+            id: barItem
+            contentItem: Text {
+                text: win.menuTitleMarkup(barItem.text)
+                textFormat: Text.StyledText
+                font: barItem.font
+                color: barItem.down || barItem.highlighted ? barItem.palette.highlightedText : barItem.palette.text
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
         Menu {
             title: qsTr("&Datei")
             MenuItem { text: qsTr("Datei öffnen…"); onTriggered: act("open.file") }
@@ -180,7 +206,7 @@ ApplicationWindow {
             MenuItem { text: qsTr("Normale Geschwindigkeit"); onTriggered: act("speed.reset") }
             MenuSeparator {}
             MenuItem { text: qsTr("A-B-Wiederholung"); onTriggered: act("abloop") }
-            MenuItem { text: qsTr("Wiederholen: ") + (playlist.repeat === "none" ? "aus" : playlist.repeat === "all" ? "alle" : "eins"); onTriggered: act("repeat.cycle") }
+            MenuItem { text: playlist.repeat === "none" ? qsTr("Wiederholen: aus") : (playlist.repeat === "all" ? qsTr("Wiederholen: alle") : qsTr("Wiederholen: eins")); onTriggered: act("repeat.cycle") }
             MenuItem { text: qsTr("Zufallswiedergabe"); checkable: true; checked: playlist.shuffle; onTriggered: act("shuffle.toggle") }
         }
         Menu {
@@ -287,6 +313,13 @@ ApplicationWindow {
             anchors { left: parent.left; top: safeBanner.bottom; bottom: parent.bottom
                       right: sidebar.visible ? sidebar.left : parent.right }
             Rectangle { anchors.fill: parent; color: "black" }
+
+            // Bereich für Plugin-Fenster mit scope "video": das Bild ohne die Bedienleiste
+            Item {
+                id: videoScope
+                anchors { left: parent.left; right: parent.right; top: parent.top }
+                height: parent.height - (win.overlayControls ? 0 : controls.height)
+            }
 
             // Sichtbare Videofläche (Bezug für Maus, Startbildschirm, Overlays)
             Item {
@@ -742,7 +775,13 @@ ApplicationWindow {
     OpenUrlDialog { id: urlDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
     MediaInfoDialog { id: mediaInfoDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
     AboutDialog { id: aboutDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
-    PluginsDialog { id: pluginsDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
+    PluginsDialog {
+        id: pluginsDialog
+        theme: theme
+        onOpened: win.modalCount++
+        onClosed: win.modalCount = Math.max(0, win.modalCount - 1)
+        onOpenPluginSettings: (key) => { close(); settingsDialog.openPluginPage(key) }
+    }
     UpdateDialog { id: updateDialog; theme: theme; onOpened: win.modalCount++; onClosed: { win.modalCount = Math.max(0, win.modalCount - 1); updateCheck.showNext() } }
     AppUpdateDialog { id: appUpdateDialog; theme: theme; onOpened: win.modalCount++; onClosed: { win.modalCount = Math.max(0, win.modalCount - 1); updateCheck.showNext() } }
     SettingsDialog {
@@ -762,7 +801,7 @@ ApplicationWindow {
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Ok | Dialog.Cancel
-        Component.onCompleted: { var c = standardButton(Dialog.Cancel); if (c) c.text = qsTr("Abbrechen") }
+        Component.onCompleted: { var c = standardButton(Dialog.Cancel); if (c) c.text = Qt.binding(() => qsTr("Abbrechen")) }
         onAboutToShow: gotoField.text = app.formatTime(player.position)
         onAccepted: {
             var parts = gotoField.text.trim().split(":").map(Number)
@@ -840,9 +879,47 @@ ApplicationWindow {
         function onToolUpdatesAvailable(updates) { updateCheck.enqueue(() => updateDialog.show(updates)) }
         function onRequestRaise() { win.raise(); win.requestActivate() }
         function onPluginPanelRequested(key) {
-            // Seitenleisten-Seite eines Plugins zeigen, sonst dessen Einstellungsseite in der Plugin-Verwaltung
+            // Seitenleisten-Seite eines Plugins zeigen, sonst dessen Einstellungsseite
             if (tabs.selectPanel(key)) { win.sidebarVisible = true; app.setSetting("showSidebar", true) }
-            else pluginsDialog.openSettings(key)
+            else settingsDialog.openPluginPage(key)
+        }
+    }
+
+    // ------------------------------------------------------------- Fenster von Plugins (Befehl "modal.open")
+    property var pluginModals: ({})   // Schlüssel "<plugin-id>/<panel-id>" → PluginModal
+    Component {
+        id: pluginModalComponent
+        PluginModal {
+            id: pluginModal
+            area: scope === "player" ? overlayItem : (scope === "sidebar" && sidebar.visible ? sidebar : videoScope)
+            onOpened: if (blocking) win.modalCount++
+            onFinished: (key, result) => {
+                if (blocking) win.modalCount = Math.max(0, win.modalCount - 1)
+                delete win.pluginModals[key]
+                if (app.plugins) app.plugins.notifyModalClosed(key, result)
+                pluginModal.destroy()
+            }
+        }
+    }
+    Connections {
+        target: app.plugins
+        function onModalRequested(request) {
+            var open = win.pluginModals[request.key]
+            if (open) { open.request = request; return }
+            if (request.scope === "sidebar" && !win.overlayControls) { win.sidebarVisible = true; app.setSetting("showSidebar", true) }
+            var modal = pluginModalComponent.createObject(win, { request: request, theme: theme })
+            win.pluginModals[request.key] = modal
+            modal.open()
+        }
+        function onModalCloseRequested(pluginId, key) {
+            for (var k of Object.keys(win.pluginModals))
+                if (k === key || (key === "" && win.pluginModals[k].request.pluginId === pluginId)) win.pluginModals[k].closeWith(undefined)
+        }
+        function onPluginsChanged() {
+            // Fenster verschwinden mit dem Plugin (deaktiviert oder entfernt)
+            var panels = app.plugins.panels
+            for (var k of Object.keys(win.pluginModals))
+                if (!panels.some(p => p.key === k)) win.pluginModals[k].closeWith(undefined)
         }
     }
     Component.onCompleted: {
@@ -873,6 +950,256 @@ ApplicationWindow {
         var l = win.stDenoiseLog; l.push(e); win.stDenoiseLog = l
         app.saveWindowShot(app.selftestPath("denoise-" + name + ".png"))
         return e
+    }
+    // Selbsttest Plugin-Fenster, -Einstellungen und Entfernen (UVE_SELFTEST_ONLY=plugins, plugins/examples/modaldemo im Benutzerordner)
+    property int stPluginStep: 0
+    function pluginsSelftestStep(ui) {
+        selftestUi.interval = 300
+        if (ui.failures === undefined) ui.failures = []
+        var demo = "org.uveplayer.example.modal-demo"
+        var key = demo + "/dialog"
+        var m = win.pluginModals[key]
+        var check = (name, ok) => { if (!ok) ui.failures.push(win.stPluginStep + ": " + name) }
+        var shot = (name) => app.saveWindowShot(app.selftestPath("plugins-" + name + ".png"))
+        var trigger = (id) => app.plugins.triggerAction("plugin:" + demo + ":" + id)
+        var root = win.contentItem.parent
+        var dragTitle = (dx, dy) => {
+            var p = m.titleBar.mapToItem(root, m.titleBar.width / 3, m.titleBar.height / 2)
+            app.simulateDrag(p.x, p.y, p.x + dx, p.y + dy)
+        }
+        var closeByButton = () => {
+            var p = m.closeButton.mapToItem(root, m.closeButton.width / 2, m.closeButton.height / 2)
+            app.simulateClick(p.x, p.y)
+        }
+        var inside = (area) => {
+            var a = area.mapToItem(root, 0, 0), c = m.card.mapToItem(root, 0, 0)
+            return c.x >= a.x - 1 && c.y >= a.y - 1 && c.x + m.card.width <= a.x + area.width + 1 && c.y + m.card.height <= a.y + area.height + 1
+        }
+        var demoInfo = () => app.plugins.plugins.find(p => p.id === demo)
+        switch (win.stPluginStep) {
+        case 0:
+            check("demo active", demoInfo() && demoInfo().state === "aktiv")
+            check("demo removable", demoInfo() && demoInfo().removable)
+            check("uve bundled", app.plugins.plugins.find(p => p.id === "org.nextscript.ultimate-video-enhancer").removable === false)
+            trigger("open-player")
+            break
+        case 1:
+            check("player opened", m && m.opened)
+            check("player blocking", m && m.modal && win.modalCount > 0)
+            check("player over menu bar", m && m.area === m.overlayItem)
+            check("page loaded", m && m.page.status === Loader.Ready)
+            shot("player")
+            ui.x0 = m.card.x; ui.y0 = m.card.y
+            dragTitle(150, 90)
+            break
+        case 2:
+            check("moved", Math.abs(m.card.x - ui.x0 - 150) <= 2 && Math.abs(m.card.y - ui.y0 - 90) <= 2)
+            shot("player-moved")
+            dragTitle(-5000, -5000)
+            break
+        case 3:
+            check("clamped top left", m.card.x === 0 && m.card.y === 0)
+            closeByButton()
+            break
+        case 4:
+            check("closed", win.pluginModals[key] === undefined)
+            check("hotkeys free again", win.modalCount === 0)
+            trigger("open-video")
+            break
+        case 5:
+            check("video opened", m && m.opened && m.area === videoScope && !m.modal)
+            shot("video")
+            dragTitle(5000, 5000)
+            break
+        case 6:
+            check("video clamped", inside(videoScope))
+            shot("video-moved")
+            // Der Rest des Players bleibt bedienbar
+            var tab = tabs.itemAt(1)
+            var tp = tab.mapToItem(root, tab.width / 2, tab.height / 2)
+            app.simulateClick(tp.x, tp.y)
+            break
+        case 7:
+            check("player usable next to video modal", tabs.currentIndex === 1 && m.opened)
+            tabs.currentIndex = 0
+            m.closeWith("x")
+            trigger("open-sidebar")
+            break
+        case 8:
+            check("sidebar opened", m && m.opened && m.area === sidebar)
+            check("sidebar size", m && inside(sidebar) && m.card.width <= 280)
+            shot("sidebar")
+            dragTitle(-5000, 5000)
+            break
+        case 9:
+            check("sidebar clamped", inside(sidebar))
+            m.closeWith("x")
+            trigger("open-fixed")
+            break
+        case 10:
+            ui.x0 = m.card.x; ui.y0 = m.card.y
+            dragTitle(100, 100)
+            break
+        case 11:
+            check("fixed does not move", m.card.x === ui.x0 && m.card.y === ui.y0)
+            m.closeWith("x")
+            trigger("open-fill")
+            break
+        case 12:
+            check("fill covers player", m.card.width === m.overlayItem.width && m.card.height === m.overlayItem.height)
+            shot("fill")
+            m.closeWith("x")
+            break
+        case 13:
+            check("modal.closed delivered", demoInfo().plugin.settings().closedCount === 5)
+            check("settings panel listed", settingsDialog.openPluginPage(demo + "/settings"))
+            break
+        case 14:
+            check("settings entry", settingsDialog.pageCount === settingsDialog.builtinPages + 1)
+            check("settings page", settingsDialog.page === settingsDialog.builtinPages && settingsDialog.pluginPage.status === Loader.Ready)
+            shot("settings")
+            app.setLanguage(app.language === "de" ? "en" : "de")   // Listen werden neu aufgebaut
+            break
+        case 15:
+            check("settings page kept", settingsDialog.page === settingsDialog.builtinPages && settingsDialog.pluginPage.status === Loader.Ready)
+            settingsDialog.close()
+            trigger("open-video")
+            break
+        case 16:
+            pluginsDialog.open()
+            break
+        case 17:
+            shot("manager")
+            pluginsDialog.askRemove(demoInfo())
+            break
+        case 18:
+            shot("remove-confirm")
+            pluginsDialog.confirmRemove()
+            break
+        case 19:
+            check("pending", demoInfo().pendingRemoval === true && demoInfo().state === "deaktiviert")
+            check("panels gone", !app.plugins.panels.some(p => p.pluginId === demo))
+            check("modal closed with plugin", win.pluginModals[key] === undefined)
+            shot("manager-pending")
+            app.plugins.cancelRemoval(demo)
+            break
+        case 20:
+            check("undo", demoInfo().pendingRemoval === false && demoInfo().state === "aktiv")
+            check("removal", app.plugins.removePlugin(demo, true).ok)
+            pluginsDialog.close()
+            ui.ok = ui.failures.length === 0
+            ui.done = true
+            selftestUi.stop()
+            app.reportSelftestUi(ui)
+            return
+        }
+        win.stPluginStep++
+    }
+    // Selbsttest Sprachwechsel (UVE_SELFTEST_ONLY=language): alle Sprachpaare, jeder Menütitel mit echten Mausereignissen.
+    // Prüft die Pixel: Qt zeigt manche Titel nach einem Wechsel leer an, das steht in keiner QML-Eigenschaft.
+    property int stLangPhase: 0
+    property int stLangPair: 0
+    property int stLangMenu: 0
+    property int stLangShot: 0
+    readonly property var stLangPairs: {
+        var codes = ["de", "en", "el", "es", "it", "pl", "tr"]
+        var out = []
+        for (var a = 0; a < codes.length; ++a)
+            for (var b = 0; b < codes.length; ++b)
+                if (a !== b) out.push([codes[a], codes[b]])
+        return out
+    }
+    function stBarItems() {
+        var out = []
+        var kids = mainMenuBar.contentItem.children
+        for (var i = 0; i < kids.length; ++i) if (kids[i].menu) out.push(kids[i])
+        return out
+    }
+    function stCheckTitle(ui, pair, item, state) {
+        var r = item.mapToItem(win.contentItem.parent, 0, 0)
+        var ink = app.selftestInkShare(r.x + 2, r.y + 2, item.width - 4, item.height - 4)
+        ui.titlesChecked++
+        if (ink < 0.002) ui.failures.push({ from: pair[0], to: pair[1], title: item.text, state: state, ink: ink })
+    }
+    function languageSelftestStep(ui) {
+        selftestUi.interval = 100
+        if (ui.failures === undefined) { ui.failures = []; ui.titlesChecked = 0; ui.pairs = 0 }
+        var bar = win.stBarItems()
+        var centreOf = (it) => it.mapToItem(win.contentItem.parent, it.width / 2, it.height / 2)
+        if (win.stLangPair >= win.stLangPairs.length && win.stLangShot < 28) {
+            // Aufnahmen je Sprache zur Sichtkontrolle: Menü "Plugins" und Einstellungen. Klick erst im Schritt nach dem Sprachwechsel,
+            // vorher ist die Menüleiste noch nicht neu angeordnet.
+            var shotCode = ["de", "en", "el", "es", "it", "pl", "tr"][Math.floor(win.stLangShot / 4)]
+            selftestUi.interval = 500
+            switch (win.stLangShot % 4) {
+            case 0: app.setLanguage(shotCode); break
+            case 1:
+                var pluginsBar = bar.find(b => b.menu === pluginsMenu)
+                var at = centreOf(pluginsBar)
+                app.simulateMove(at.x, at.y)
+                app.simulateClick(at.x, at.y)
+                break
+            case 2:
+                if (!pluginsMenu.opened) ui.failures.push({ to: shotCode, title: pluginsMenu.title, state: "menu not open" })
+                app.saveWindowShot(app.selftestPath("language-" + shotCode + "-menu.png"))
+                pluginsMenu.close()
+                settingsDialog.open()
+                settingsDialog.page = 5
+                break
+            case 3:
+                app.saveWindowShot(app.selftestPath("language-" + shotCode + "-settings.png"))
+                settingsDialog.close()
+                break
+            }
+            win.stLangShot++
+            return
+        }
+        if (win.stLangPair >= win.stLangPairs.length) {
+            ui.ok = ui.failures.length === 0 && ui.pairs === win.stLangPairs.length
+            ui.done = true
+            selftestUi.stop()
+            app.reportSelftestUi(ui)
+            return
+        }
+        var pair = win.stLangPairs[win.stLangPair]
+        switch (win.stLangPhase) {
+        case 0:
+            app.setLanguage(pair[0])
+            app.setLanguage(pair[1])
+            win.stLangMenu = 0
+            win.stLangPhase = 1
+            break
+        case 1:
+            var first = centreOf(bar[0])
+            app.simulateMove(first.x, first.y)
+            app.simulateClick(first.x, first.y)
+            win.stLangPhase = 2
+            break
+        case 2:
+            var cur = bar[win.stLangMenu]
+            if (!cur.menu.opened) ui.failures.push({ from: pair[0], to: pair[1], title: cur.text, state: "menu not open" })
+            win.stCheckTitle(ui, pair, cur, "hover")
+            for (var e = 0; e < cur.menu.count; ++e) {
+                var entry = cur.menu.itemAt(e)
+                if (entry.text && entry.visible && entry.enabled) win.stCheckTitle(ui, pair, entry, "entry")
+            }
+            if (++win.stLangMenu < bar.length) {
+                var next = centreOf(bar[win.stLangMenu])
+                app.simulateMove(next.x, next.y)
+            } else {
+                for (var i = 0; i < bar.length; ++i) bar[i].menu.close()
+                app.simulateMove(win.width / 2, win.height / 2)
+                win.stLangPhase = 3
+            }
+            break
+        case 3:
+            // Nach dem Überfahren bleibt ein leerer Titel leer: auch im Ruhezustand prüfen
+            for (var j = 0; j < bar.length; ++j) win.stCheckTitle(ui, pair, bar[j], "idle")
+            ui.pairs++
+            win.stLangPair++
+            win.stLangPhase = 0
+            break
+        }
     }
     function denoiseSelftestStep(ui) {
         var d = win.effects ? win.effects.denoise : null
@@ -946,6 +1273,18 @@ ApplicationWindow {
                 ui.sidebarTabs = tabs.count
                 ui.hotkeys = app.hotkeys.items.length
                 app.reportSelftestUi(ui)
+                return
+            }
+            if (app.selftestOnly("plugins")) {
+                win.pluginsSelftestStep(ui)
+                win.stUi = ui
+                if (!ui.done) restart()
+                return
+            }
+            if (app.selftestOnly("language")) {
+                win.languageSelftestStep(ui)
+                win.stUi = ui
+                if (!ui.done) restart()
                 return
             }
             if (app.selftestOnly("denoise")) {

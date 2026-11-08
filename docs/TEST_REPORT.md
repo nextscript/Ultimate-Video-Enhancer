@@ -9,7 +9,7 @@ Anything not tested is explicitly marked as such.
 | Suite | Content | Result |
 |---|---|---|
 | tst_manifest | Manifest validation (id, version, apiVersion, minHostVersion, platform, backends) | passed |
-| tst_plugins | Plugin folders, pure QML plugin, contributions (pages, menu, hotkeys, localized titles), commands, events, URL resolution, enabling/disabling at runtime, package installation from a folder and from ZIP (incl. backslash paths and path-traversal rejection) | passed |
+| tst_plugins | Plugin folders, pure QML plugin, contributions (pages, menu, hotkeys, localized titles), commands, events, URL resolution, enabling/disabling at runtime, package installation from a folder and from ZIP (incl. backslash paths and path-traversal rejection), `modal.open`/`modal.close` (defaults, overrides, rejected input), removing plugins (bundled refused, undo, deletion at the next start, data kept or deleted, forged entries outside the user folder ignored) | passed |
 | tst_playlist | Adding, moving, sorting, repeat/shuffle, M3U/PLS, network path detection | passed |
 | tst_hotkeys | Default bindings, conflict detection, reset | passed |
 | tst_proxy | URL encoding, validation, DPAPI storage; bridge against a local SOCKS5 server (407 without access, CONNECT tunnel, resolution at the proxy, tcp forwarding); optional live proxy | passed (live: public IP direct 84.118.8.160, via proxy 88.151.59.152) |
@@ -20,6 +20,14 @@ Anything not tested is explicitly marked as such.
 | tst_thumbnailer | Explorer thumbnail provider: file stream, memory stream, STA-bound stream (no access from other threads) | passed |
 
 Result: **10/10 passed**.
+
+## 1.1.3 self-tests (2026-11-08, real mouse events)
+
+| Check | Result |
+|---|---|
+| `UVE_SELFTEST_ONLY=language`: all 42 language pairs, every menu title (hover and idle) and every enabled menu entry checked by its pixels | 0 failures; before the fix 36 failures on *Audio* and *Plugins* |
+| `UVE_SELFTEST_ONLY=plugins` with `plugins/examples/modaldemo`: scopes player/video/sidebar, modes movable/fixed/fill, dragging and limits at the edges, player usable next to a limited window, `modal.closed`, settings entry and page, removal with undo | ok |
+| Second start after the removal: plugin folder and plugin data deleted | ok |
 
 ## UI self-test (`UVE_SELFTEST_UI=1 UVEPlayer.exe --selftest …`, real mouse events)
 
