@@ -28,9 +28,13 @@
 #endif
 
 #include <clocale>
+#include <cstring>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
+#else
+#include <signal.h>
+#include <unistd.h>
 #endif
 
 static void fatal(const QString &title, const QString &text)
@@ -63,6 +67,20 @@ static QString preloadMpv(const QString &appDir, const QString &dataDir, QString
 #else
     Q_UNUSED(appDir); Q_UNUSED(dataDir); Q_UNUSED(error);
     return QCoreApplication::translate("main", "libmpv (System)");
+#endif
+}
+
+static void waitForProcessExit(qint64 pid)
+{
+    if (pid <= 0) return;
+    const int timeoutMs = 30000;
+#ifdef Q_OS_WIN
+    if (HANDLE h = OpenProcess(SYNCHRONIZE, FALSE, DWORD(pid))) {
+        WaitForSingleObject(h, timeoutMs);
+        CloseHandle(h);
+    }
+#else
+    for (int waited = 0; waited < timeoutMs && kill(pid_t(pid), 0) == 0; waited += 100) usleep(100000);
 #endif
 }
 
@@ -113,6 +131,13 @@ int main(int argc, char *argv[])
     if (st >= 0) {
         selftestOut = args.value(st + 1);
         args = args.mid(st + 2);
+    }
+
+    // Neustart aus dem Player: erst warten, bis der alte Prozess beendet ist, sonst übernähme er diesen Start
+    for (qsizetype i = args.size() - 1; i >= 0; --i) {
+        if (!args[i].startsWith(QLatin1String("--wait-for-pid="))) continue;
+        waitForProcessExit(args[i].mid(int(strlen("--wait-for-pid="))).toLongLong());
+        args.removeAt(i);
     }
 
     // Einzelinstanz (nicht im Selbsttest)

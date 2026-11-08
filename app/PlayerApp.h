@@ -23,6 +23,7 @@ class PluginManager;
 class PlaylistModel;
 class HotkeyModel;
 class ToolUpdater;
+class AppUpdater;
 class SafeMode;
 }
 class QQuickWindow;
@@ -37,6 +38,7 @@ class PlayerApp : public QObject
     Q_PROPERTY(QObject *plugins READ pluginsObject CONSTANT)
     Q_PROPERTY(QObject *hotkeys READ hotkeysObject CONSTANT)
     Q_PROPERTY(QObject *updater READ updaterObject CONSTANT)
+    Q_PROPERTY(QObject *appUpdater READ appUpdaterObject CONSTANT)
     Q_PROPERTY(QObject *shaders READ shadersObject CONSTANT)
     Q_PROPERTY(QObject *settings READ settingsObject CONSTANT)
     Q_PROPERTY(QString version READ version CONSTANT)
@@ -72,6 +74,7 @@ public:
     QObject *pluginsObject() const;
     QObject *hotkeysObject() const;
     QObject *updaterObject() const;
+    QObject *appUpdaterObject() const;
     QObject *shadersObject() const;
     QObject *settingsObject() const;
     uve::MpvController *player() const { return m_player; }
@@ -112,6 +115,8 @@ public:
     Q_INVOKABLE void showInExplorer(const QString &path) const;
     Q_INVOKABLE void copyText(const QString &text) const;
     Q_INVOKABLE void resetSafeMode();
+    // Beendet den Player und startet ihn neu (z. B. nach einem Plugin-Update)
+    Q_INVOKABLE void restartApp();
     Q_INVOKABLE QVariant setting(const QString &key, const QVariant &def = {}) const;
     Q_INVOKABLE void setSetting(const QString &key, const QVariant &value);
     Q_INVOKABLE void applyHwdec(const QString &mode);
@@ -221,6 +226,7 @@ private:
     uve::PlaylistModel *m_playlist = nullptr;
     uve::HotkeyModel *m_hotkeys = nullptr;
     uve::ToolUpdater *m_updater = nullptr;
+    uve::AppUpdater *m_appUpdater = nullptr;
     QTimer m_resumeTimer;
     QString m_loadedPath;
     bool m_stoppedByUser = false;

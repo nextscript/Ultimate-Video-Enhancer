@@ -57,6 +57,97 @@
     </message>
 </context>
 <context>
+    <name>AppUpdateDialog</name>
+    <message>
+        <source>Update für UVE Player verfügbar</source>
+        <translation>UVE Player için güncelleme var</translation>
+    </message>
+    <message>
+        <source>Neue Commits auf GitHub</source>
+        <translation>GitHub'da yeni commit'ler</translation>
+    </message>
+    <message>
+        <source> MB</source>
+        <translation> MB</translation>
+    </message>
+    <message>
+        <source>Update wird heruntergeladen …</source>
+        <translation>Güncelleme indiriliyor …</translation>
+    </message>
+    <message>
+        <source>GitHub antwortet gerade nicht – neuer Versuch in %1 s (der Download wird fortgesetzt)</source>
+        <translation>GitHub şu anda yanıt vermiyor – %1 sn sonra yeniden denenecek (indirme devam edecek)</translation>
+    </message>
+    <message>
+        <source>Installation wird gestartet – der Player wird neu gestartet …</source>
+        <translation>Kurulum başlatılıyor – oynatıcı yeniden başlatılacak …</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>İptal</translation>
+    </message>
+    <message>
+        <source>Auf GitHub ansehen</source>
+        <translation>GitHub'da görüntüle</translation>
+    </message>
+    <message>
+        <source>Später</source>
+        <translation>Daha sonra</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Kapat</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Yeniden dene</translation>
+    </message>
+    <message>
+        <source>Jetzt installieren</source>
+        <translation>Şimdi kur</translation>
+    </message>
+    <message>
+        <source>Installiert</source>
+        <translation>Kurulu</translation>
+    </message>
+    <message>
+        <source>Neue Version</source>
+        <translation>Yeni sürüm</translation>
+    </message>
+    <message>
+        <source>Neuester Commit</source>
+        <translation>Son commit</translation>
+    </message>
+    <message>
+        <source>Neue Commits (die letzten %1):</source>
+        <translation>Yeni commit'ler (son %1):</translation>
+    </message>
+    <message>
+        <source>Neue Commits: %1</source>
+        <translation>Yeni commit'ler: %1</translation>
+    </message>
+    <message>
+        <source>Diese Commits sind noch nicht als Installationspaket veröffentlicht. Sobald es ein Release gibt, kann es hier installiert werden.</source>
+        <translation>Bu commit'ler henüz kurulum paketi olarak yayımlanmadı. Bir sürüm yayımlandığında buradan kurulabilir.</translation>
+    </message>
+    <message>
+        <source>„Jetzt installieren“ lädt das Update, prüft es per SHA-256, beendet den Player und startet ihn danach neu. Bei „Später“ erscheint dieser Hinweis beim nächsten Start wieder.</source>
+        <translation>“Şimdi kur” güncellemeyi indirir, SHA-256 ile doğrular, oynatıcıyı kapatır ve ardından yeniden başlatır. “Daha sonra” seçilirse bu bildirim bir sonraki başlatmada yeniden görünür.</translation>
+    </message>
+    <message>
+        <source>Für diese Installation gibt es kein automatisches Update. Das neue Paket liegt auf der GitHub-Seite des Releases.</source>
+        <translation>Bu kurulum otomatik olarak güncellenemez. Yeni paket, sürümün GitHub sayfasındadır.</translation>
+    </message>
+    <message>
+        <source>Diese Version überspringen</source>
+        <translation>Bu sürümü atla</translation>
+    </message>
+    <message>
+        <source>Das Update wurde nicht installiert: %1. Der Download wird beim nächsten Versuch fortgesetzt; alternativ lässt sich das Paket über „Auf GitHub ansehen“ im Browser laden.</source>
+        <translation>Güncelleme kurulmadı: %1. İndirme bir sonraki denemede devam eder; paketi “GitHub'da görüntüle” ile tarayıcıdan da indirebilirsiniz.</translation>
+    </message>
+</context>
+<context>
     <name>ControlBar</name>
     <message>
         <source>Einpassen</source>
@@ -607,10 +698,6 @@
         <translation>Sığdır</translation>
     </message>
     <message>
-        <source>Füllen</source>
-        <translation>Doldur</translation>
-    </message>
-    <message>
         <source>Strecken</source>
         <translation>Uzat</translation>
     </message>
@@ -851,8 +938,12 @@
         <translation>Klavye kısayolları</translation>
     </message>
     <message>
-        <source>Nach Updates für yt-dlp und libmpv suchen</source>
-        <translation>yt-dlp ve libmpv güncellemelerini denetle</translation>
+        <source>UVE Player, yt-dlp und libmpv sind aktuell</source>
+        <translation>UVE Player, yt-dlp ve libmpv güncel</translation>
+    </message>
+    <message>
+        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen</source>
+        <translation>GitHub'da yeni UVE Player commit'leri var (henüz sürüm yok) – bkz. Yardım → Güncellemeleri denetle</translation>
     </message>
     <message>
         <source>Suche nach Updates …</source>
@@ -861,6 +952,10 @@
     <message>
         <source>Über UVE Player</source>
         <translation>UVE Player hakkında</translation>
+    </message>
+    <message>
+        <source>Nach Updates suchen</source>
+        <translation>Güncellemeleri denetle</translation>
     </message>
     <message>
         <source>Safe Mode – Plugins nicht geladen. </source>
@@ -966,10 +1061,6 @@
         <source>Update-Prüfung fehlgeschlagen: </source>
         <translation>Güncelleme denetimi başarısız: </translation>
     </message>
-    <message>
-        <source>yt-dlp und libmpv sind aktuell</source>
-        <translation>yt-dlp ve libmpv güncel</translation>
-    </message>
 </context>
 <context>
     <name>MediaInfoDialog</name>
@@ -1070,6 +1161,10 @@
     <message>
         <source>Plugin</source>
         <translation>Eklenti</translation>
+    </message>
+    <message>
+        <source>Neustart fehlgeschlagen – bitte den Player selbst neu starten</source>
+        <translation>Yeniden başlatılamadı – lütfen oynatıcıyı kendiniz yeniden başlatın</translation>
     </message>
     <message>
         <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
@@ -1497,8 +1592,44 @@
         <translation>Eklenti bildirimi (manifest.json)</translation>
     </message>
     <message>
-        <source>Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.</source>
-        <translation>Eklenti, oynatıcı bir sonraki açılışında yüklenecek. Lütfen oynatıcıyı yeniden başlat.</translation>
+        <source>Plugin aktualisiert</source>
+        <translation>Eklenti güncellendi</translation>
+    </message>
+    <message>
+        <source>Plugin installiert</source>
+        <translation>Eklenti kuruldu</translation>
+    </message>
+    <message>
+        <source>Plugin ersetzt</source>
+        <translation>Eklenti değiştirildi</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 wird beim nächsten Start des Players aktiv.</source>
+        <translation>“%1” %2, oynatıcının bir sonraki başlatılışında etkinleşir.</translation>
+    </message>
+    <message>
+        <source>„%1“ wurde von Version %2 auf %3 aktualisiert.</source>
+        <translation>“%1”, %2 sürümünden %3 sürümüne güncellendi.</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 wurde installiert.</source>
+        <translation>“%1” %2 kuruldu.</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 ersetzt die bisherige Version %3.</source>
+        <translation>“%1” %2, önceki %3 sürümünün yerini alır.</translation>
+    </message>
+    <message>
+        <source>Die Änderung wird nach einem Neustart des Players aktiv. Einstellungen des Plugins bleiben erhalten.</source>
+        <translation>Değişiklik, oynatıcı yeniden başlatıldıktan sonra etkinleşir. Eklentinin ayarları korunur.</translation>
+    </message>
+    <message>
+        <source>Später</source>
+        <translation>Daha sonra</translation>
+    </message>
+    <message>
+        <source>Jetzt neu starten</source>
+        <translation>Şimdi yeniden başlat</translation>
     </message>
     <message>
         <source>Installation fehlgeschlagen: </source>
@@ -1624,6 +1755,10 @@
     <message>
         <source>Letzte Wiedergabeliste beim Start wiederherstellen</source>
         <translation>Başlangıçta son oynatma listesini geri yükle</translation>
+    </message>
+    <message>
+        <source>Beim Start nach Updates für UVE Player suchen (Netzwerkzugriff auf GitHub)</source>
+        <translation>Başlangıçta UVE Player güncellemelerini denetle (GitHub'a ağ erişimi)</translation>
     </message>
     <message>
         <source>Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)</source>
@@ -2113,10 +2248,6 @@
         <translation>Sığdır</translation>
     </message>
     <message>
-        <source>Füllen (zuschneiden)</source>
-        <translation>Doldur (kırp)</translation>
-    </message>
-    <message>
         <source>Strecken</source>
         <translation>Uzat</translation>
     </message>
@@ -2316,6 +2447,49 @@
     </message>
 </context>
 <context>
+    <name>uve::AppUpdater</name>
+    <message>
+        <source>GitHub ist nicht erreichbar</source>
+        <translation>GitHub'a ulaşılamıyor</translation>
+    </message>
+    <message>
+        <source>Unerwartete Antwort von GitHub</source>
+        <translation>GitHub'dan beklenmeyen yanıt</translation>
+    </message>
+    <message>
+        <source>Release-Dateien sind gerade nicht abrufbar</source>
+        <translation>Sürüm dosyaları şu anda alınamıyor</translation>
+    </message>
+    <message>
+        <source>Keine Update-Information – bitte erneut prüfen</source>
+        <translation>Güncelleme bilgisi yok – lütfen yeniden denetleyin</translation>
+    </message>
+    <message>
+        <source>Prüfsumme stimmt nicht – Download verworfen</source>
+        <translation>Sağlama toplamı uyuşmuyor – indirme silindi</translation>
+    </message>
+    <message>
+        <source>Schreiben fehlgeschlagen: %1</source>
+        <translation>Yazma başarısız: %1</translation>
+    </message>
+    <message>
+        <source>Datei konnte nicht geöffnet werden: %1</source>
+        <translation>Dosya açılamadı: %1</translation>
+    </message>
+    <message>
+        <source>Das Installations-Image wurde geöffnet. Bitte UVE Player beenden und das Programm in den Ordner „Programme“ ziehen.</source>
+        <translation>Kurulum kalıbı açıldı. Lütfen UVE Player'dan çıkın ve uygulamayı Uygulamalar klasörüne sürükleyin.</translation>
+    </message>
+    <message>
+        <source>Diese Installationsart kann nicht automatisch aktualisiert werden</source>
+        <translation>Bu kurulum türü otomatik olarak güncellenemez</translation>
+    </message>
+    <message>
+        <source>Das Update konnte nicht gestartet werden: %1</source>
+        <translation>Güncelleme başlatılamadı: %1</translation>
+    </message>
+</context>
+<context>
     <name>uve::HotkeyModel</name>
     <message>
         <source>Wiedergabe / Pause</source>
@@ -2511,6 +2685,10 @@
         <translation>Yükleme başarısız: %1 klasörü kilitli</translation>
     </message>
     <message>
+        <source>Alte Version konnte nicht entfernt werden: %1</source>
+        <translation>Eski sürüm kaldırılamadı: %1</translation>
+    </message>
+    <message>
         <source>manifest.json fehlerhaft: %1</source>
         <translation>manifest.json hatalı: %1</translation>
     </message>
@@ -2601,6 +2779,21 @@
     <message>
         <source>Schreiben fehlgeschlagen: %1</source>
         <translation>Yazma başarısız: %1</translation>
+    </message>
+</context>
+<context>
+    <name>uve::ResumableDownload</name>
+    <message>
+        <source>Download abgebrochen</source>
+        <translation>İndirme iptal edildi</translation>
+    </message>
+    <message>
+        <source>HTTP 416</source>
+        <translation>HTTP 416</translation>
+    </message>
+    <message>
+        <source>HTTP-Fehler %1</source>
+        <translation>HTTP hatası %1</translation>
     </message>
 </context>
 <context>

@@ -143,9 +143,50 @@ Dialog {
         title: qsTr("Plugin installieren")
         nameFilters: [qsTr("Plugin-Paket (*.zip)"), qsTr("Plugin-Manifest (manifest.json)")]
         onAccepted: {
-            var err = app.plugins.installPackage(selectedFile.toString())
-            dlg.installMessage = err === "" ? qsTr("Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.")
-                                            : qsTr("Installation fehlgeschlagen: ") + err
+            var r = app.plugins.installPackageInfo(selectedFile.toString())
+            if (r.ok) { dlg.installMessage = ""; installedDialog.show(r) }
+            else dlg.installMessage = qsTr("Installation fehlgeschlagen: ") + r.error
+        }
+    }
+
+    // Rückmeldung nach der Installation: Eine neue Plugin-Version wird erst mit einem Neustart aktiv
+    Dialog {
+        id: installedDialog
+        property var pluginInfo: ({})
+        function show(r) { pluginInfo = r; open() }
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(480, parent ? parent.width - 40 : 480)
+        modal: true
+        closePolicy: Popup.CloseOnEscape
+        title: pluginInfo.kind === "update" ? qsTr("Plugin aktualisiert")
+             : pluginInfo.kind === "new" ? qsTr("Plugin installiert")
+             : qsTr("Plugin ersetzt")
+        onRejected: dlg.installMessage = qsTr("„%1“ %2 wird beim nächsten Start des Players aktiv.").arg(pluginInfo.name).arg(pluginInfo.version)
+
+        ColumnLayout {
+            anchors.fill: parent
+            spacing: 8
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                color: theme.text
+                text: installedDialog.pluginInfo.kind === "update"
+                      ? qsTr("„%1“ wurde von Version %2 auf %3 aktualisiert.").arg(installedDialog.pluginInfo.name).arg(installedDialog.pluginInfo.previousVersion).arg(installedDialog.pluginInfo.version)
+                      : installedDialog.pluginInfo.kind === "new"
+                        ? qsTr("„%1“ %2 wurde installiert.").arg(installedDialog.pluginInfo.name).arg(installedDialog.pluginInfo.version)
+                        : qsTr("„%1“ %2 ersetzt die bisherige Version %3.").arg(installedDialog.pluginInfo.name).arg(installedDialog.pluginInfo.version).arg(installedDialog.pluginInfo.previousVersion)
+            }
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.Wrap
+                color: theme.muted
+                text: qsTr("Die Änderung wird nach einem Neustart des Players aktiv. Einstellungen des Plugins bleiben erhalten.")
+            }
+        }
+        footer: DialogButtonBox {
+            Button { text: qsTr("Später"); DialogButtonBox.buttonRole: DialogButtonBox.RejectRole }
+            Button { text: qsTr("Jetzt neu starten"); highlighted: true; onClicked: app.restartApp() }
         }
     }
 

@@ -15,7 +15,25 @@ set_target_properties(uve-player PROPERTIES
     MACOSX_BUNDLE_GUI_IDENTIFIER "com.nextscript.uveplayer"
     MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION}")
-target_compile_definitions(uve-player PRIVATE UVE_PLAYER_VERSION="${PROJECT_VERSION}")
+# Commit dieses Builds: Die Update-Prüfung vergleicht ihn mit dem Stand auf GitHub.
+# Ohne Git (z. B. Quellarchiv) bleibt er leer, dann zählt nur die Versionsnummer.
+set(UVE_GIT_COMMIT "")
+set(UVE_GIT_COMMIT_TIME "")
+find_package(Git QUIET)
+if(GIT_FOUND)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" log -1 --format=%H WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE UVE_GIT_COMMIT OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    execute_process(COMMAND "${GIT_EXECUTABLE}" log -1 --format=%cI WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        OUTPUT_VARIABLE UVE_GIT_COMMIT_TIME OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+    # Bei jedem neuen Commit neu konfigurieren, damit die Kennung nicht veraltet
+    if(EXISTS "${CMAKE_SOURCE_DIR}/.git/logs/HEAD")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_SOURCE_DIR}/.git/logs/HEAD")
+    endif()
+endif()
+target_compile_definitions(uve-player PRIVATE
+    UVE_PLAYER_VERSION="${PROJECT_VERSION}"
+    UVE_GIT_COMMIT="${UVE_GIT_COMMIT}"
+    UVE_GIT_COMMIT_TIME="${UVE_GIT_COMMIT_TIME}")
 
 qt_add_qml_module(uve-player
     URI UvePlayer
@@ -31,6 +49,7 @@ qt_add_qml_module(uve-player
         qml/ExpertSettingsPage.qml
         qml/PluginsDialog.qml
         qml/UpdateDialog.qml
+        qml/AppUpdateDialog.qml
         qml/AboutDialog.qml
         qml/OpenUrlDialog.qml
         qml/MediaInfoDialog.qml

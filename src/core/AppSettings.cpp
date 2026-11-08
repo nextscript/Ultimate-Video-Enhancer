@@ -68,6 +68,8 @@ void AppSettings::load()
     }
     const auto stored = doc.object();
     for (auto it = stored.begin(); it != stored.end(); ++it) m_data.insert(it.key(), it.value());
+    // Die Bildeinstellung "Füllen" gibt es seit 1.1.1 nicht mehr
+    if (m_data.value("keepAspect").toString() == QLatin1String("fill")) m_data.insert("keepAspect", QStringLiteral("fit"));
     const int ver = stored.value("schemaVersion").toInt(0);
     if (ver < kSchemaVersion) migrate(ver);
 }

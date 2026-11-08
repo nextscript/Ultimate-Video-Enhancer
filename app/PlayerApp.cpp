@@ -10,6 +10,7 @@
 #include "services/MediaFiles.h"
 #include "services/PlaylistModel.h"
 #include "services/ToolUpdater.h"
+#include "services/AppUpdater.h"
 
 #include <QClipboard>
 #include <QCoreApplication>
@@ -47,6 +48,10 @@ PlayerApp::PlayerApp(AppSettings *settings, SafeMode *safe, const QString &mpvLi
     m_playlist = new PlaylistModel(this);
     m_hotkeys = new HotkeyModel(m_settings, this);
     m_updater = new ToolUpdater(QCoreApplication::applicationDirPath(), m_settings->dataDir(), this);
+    m_appUpdater = new AppUpdater({QStringLiteral(UVE_PLAYER_VERSION), QStringLiteral(UVE_GIT_COMMIT), QStringLiteral(UVE_GIT_COMMIT_TIME)},
+                                  QCoreApplication::applicationDirPath(), m_settings->dataDir(), this);
+    connect(m_appUpdater, &AppUpdater::quitRequested, qApp, &QCoreApplication::quit, Qt::QueuedConnection);
+    connect(m_appUpdater, &AppUpdater::restartRequested, this, &PlayerApp::restartApp, Qt::QueuedConnection);
 
     m_playlist->setRepeat(m_settings->value("repeat").toString());
     m_playlist->setShuffle(m_settings->value("shuffle").toBool());
@@ -90,6 +95,7 @@ QObject *PlayerApp::playlistObject() const { return m_playlist; }
 QObject *PlayerApp::pluginsObject() const { return m_plugins; }
 QObject *PlayerApp::hotkeysObject() const { return m_hotkeys; }
 QObject *PlayerApp::updaterObject() const { return m_updater; }
+QObject *PlayerApp::appUpdaterObject() const { return m_appUpdater; }
 QObject *PlayerApp::shadersObject() const { return m_shaders; }
 QObject *PlayerApp::settingsObject() const { return m_settings; }
 QString PlayerApp::version() const { return QCoreApplication::applicationVersion(); }
@@ -586,6 +592,34 @@ void PlayerApp::startPlugins()
 
     if (m_settings->value("checkToolUpdates", true).toBool() && !m_selftest)
         QTimer::singleShot(2500, m_updater, &ToolUpdater::check);
+    if (m_settings->value("checkPlayerUpdates", true).toBool() && !m_selftest)
+        QTimer::singleShot(3000, m_appUpdater, &AppUpdater::check);
+}
+
+void PlayerApp::restartApp()
+{
+    // Portable EXE und AppImage entpacken sich in einen temporären Ordner: Neu starten muss die Datei selbst
+    QString program = qEnvironmentVariable("UVE_PORTABLE_EXE");
+    if (program.isEmpty()) program = qEnvironmentVariable("APPIMAGE");
+    if (program.isEmpty()) program = QCoreApplication::applicationFilePath();
+
+    QProcess p;
+    p.setProgram(program);
+    p.setArguments({QStringLiteral("--wait-for-pid=%1").arg(QCoreApplication::applicationPid())});
+    p.setWorkingDirectory(QFileInfo(program).absolutePath());
+#ifndef Q_OS_WIN
+    // Variablen des AppImage-Starters dürfen nicht an den neuen Start vererbt werden
+    auto env = QProcessEnvironment::systemEnvironment();
+    for (const char *name : {"LD_LIBRARY_PATH", "QT_PLUGIN_PATH", "QML2_IMPORT_PATH", "APPDIR", "APPIMAGE", "ARGV0", "OWD"})
+        if (!qEnvironmentVariableIsEmpty("APPIMAGE")) env.remove(QString::fromLatin1(name));
+    p.setProcessEnvironment(env);
+#endif
+    if (!p.startDetached()) {
+        Logger::write("restart", program + ": " + p.errorString());
+        emit osd(tr("Neustart fehlgeschlagen – bitte den Player selbst neu starten"), 5000);
+        return;
+    }
+    QMetaObject::invokeMethod(qApp, &QCoreApplication::quit, Qt::QueuedConnection);
 }
 
 void PlayerApp::resetSafeMode()

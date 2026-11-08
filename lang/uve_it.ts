@@ -57,6 +57,97 @@
     </message>
 </context>
 <context>
+    <name>AppUpdateDialog</name>
+    <message>
+        <source>Update für UVE Player verfügbar</source>
+        <translation>Aggiornamento disponibile per UVE Player</translation>
+    </message>
+    <message>
+        <source>Neue Commits auf GitHub</source>
+        <translation>Nuovi commit su GitHub</translation>
+    </message>
+    <message>
+        <source> MB</source>
+        <translation> MB</translation>
+    </message>
+    <message>
+        <source>Update wird heruntergeladen …</source>
+        <translation>Download dell'aggiornamento …</translation>
+    </message>
+    <message>
+        <source>GitHub antwortet gerade nicht – neuer Versuch in %1 s (der Download wird fortgesetzt)</source>
+        <translation>GitHub non risponde al momento – nuovo tentativo tra %1 s (il download riprenderà)</translation>
+    </message>
+    <message>
+        <source>Installation wird gestartet – der Player wird neu gestartet …</source>
+        <translation>Avvio dell'installazione – il player verrà riavviato …</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Annulla</translation>
+    </message>
+    <message>
+        <source>Auf GitHub ansehen</source>
+        <translation>Vedi su GitHub</translation>
+    </message>
+    <message>
+        <source>Später</source>
+        <translation>Più tardi</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Chiudi</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Riprova</translation>
+    </message>
+    <message>
+        <source>Jetzt installieren</source>
+        <translation>Installa ora</translation>
+    </message>
+    <message>
+        <source>Installiert</source>
+        <translation>Installata</translation>
+    </message>
+    <message>
+        <source>Neue Version</source>
+        <translation>Nuova versione</translation>
+    </message>
+    <message>
+        <source>Neuester Commit</source>
+        <translation>Ultimo commit</translation>
+    </message>
+    <message>
+        <source>Neue Commits (die letzten %1):</source>
+        <translation>Nuovi commit (ultimi %1):</translation>
+    </message>
+    <message>
+        <source>Neue Commits: %1</source>
+        <translation>Nuovi commit: %1</translation>
+    </message>
+    <message>
+        <source>Diese Commits sind noch nicht als Installationspaket veröffentlicht. Sobald es ein Release gibt, kann es hier installiert werden.</source>
+        <translation>Questi commit non sono ancora stati pubblicati come pacchetto di installazione. Quando ci sarà una release, potrà essere installata da qui.</translation>
+    </message>
+    <message>
+        <source>„Jetzt installieren“ lädt das Update, prüft es per SHA-256, beendet den Player und startet ihn danach neu. Bei „Später“ erscheint dieser Hinweis beim nächsten Start wieder.</source>
+        <translation>«Installa ora» scarica l'aggiornamento, lo verifica con SHA-256, chiude il player e poi lo riavvia. Con «Più tardi» questo avviso riapparirà al prossimo avvio.</translation>
+    </message>
+    <message>
+        <source>Für diese Installation gibt es kein automatisches Update. Das neue Paket liegt auf der GitHub-Seite des Releases.</source>
+        <translation>Questa installazione non può essere aggiornata automaticamente. Il nuovo pacchetto si trova nella pagina della release su GitHub.</translation>
+    </message>
+    <message>
+        <source>Diese Version überspringen</source>
+        <translation>Salta questa versione</translation>
+    </message>
+    <message>
+        <source>Das Update wurde nicht installiert: %1. Der Download wird beim nächsten Versuch fortgesetzt; alternativ lässt sich das Paket über „Auf GitHub ansehen“ im Browser laden.</source>
+        <translation>L'aggiornamento non è stato installato: %1. Il download riprenderà al prossimo tentativo; in alternativa puoi scaricare il pacchetto nel browser tramite «Vedi su GitHub».</translation>
+    </message>
+</context>
+<context>
     <name>ControlBar</name>
     <message>
         <source>Einpassen</source>
@@ -607,10 +698,6 @@
         <translation>Adatta</translation>
     </message>
     <message>
-        <source>Füllen</source>
-        <translation>Riempi</translation>
-    </message>
-    <message>
         <source>Strecken</source>
         <translation>Allunga</translation>
     </message>
@@ -851,8 +938,12 @@
         <translation>Scorciatoie da tastiera</translation>
     </message>
     <message>
-        <source>Nach Updates für yt-dlp und libmpv suchen</source>
-        <translation>Cerca aggiornamenti di yt-dlp e libmpv</translation>
+        <source>UVE Player, yt-dlp und libmpv sind aktuell</source>
+        <translation>UVE Player, yt-dlp e libmpv sono aggiornati</translation>
+    </message>
+    <message>
+        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen</source>
+        <translation>Nuovi commit di UVE Player su GitHub (nessuna release per ora) – vedi Aiuto → Cerca aggiornamenti</translation>
     </message>
     <message>
         <source>Suche nach Updates …</source>
@@ -861,6 +952,10 @@
     <message>
         <source>Über UVE Player</source>
         <translation>Informazioni su UVE Player</translation>
+    </message>
+    <message>
+        <source>Nach Updates suchen</source>
+        <translation>Cerca aggiornamenti</translation>
     </message>
     <message>
         <source>Safe Mode – Plugins nicht geladen. </source>
@@ -966,10 +1061,6 @@
         <source>Update-Prüfung fehlgeschlagen: </source>
         <translation>Controllo aggiornamenti non riuscito: </translation>
     </message>
-    <message>
-        <source>yt-dlp und libmpv sind aktuell</source>
-        <translation>yt-dlp e libmpv sono aggiornati</translation>
-    </message>
 </context>
 <context>
     <name>MediaInfoDialog</name>
@@ -1070,6 +1161,10 @@
     <message>
         <source>Plugin</source>
         <translation>Plugin</translation>
+    </message>
+    <message>
+        <source>Neustart fehlgeschlagen – bitte den Player selbst neu starten</source>
+        <translation>Riavvio non riuscito – riavvia il player manualmente</translation>
     </message>
     <message>
         <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
@@ -1497,8 +1592,44 @@
         <translation>Manifest del plugin (manifest.json)</translation>
     </message>
     <message>
-        <source>Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.</source>
-        <translation>Il plugin verrà installato al prossimo avvio del lettore. Riavvia il lettore.</translation>
+        <source>Plugin aktualisiert</source>
+        <translation>Plugin aggiornato</translation>
+    </message>
+    <message>
+        <source>Plugin installiert</source>
+        <translation>Plugin installato</translation>
+    </message>
+    <message>
+        <source>Plugin ersetzt</source>
+        <translation>Plugin sostituito</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 wird beim nächsten Start des Players aktiv.</source>
+        <translation>«%1» %2 sarà attivo al prossimo avvio del player.</translation>
+    </message>
+    <message>
+        <source>„%1“ wurde von Version %2 auf %3 aktualisiert.</source>
+        <translation>«%1» è stato aggiornato dalla versione %2 alla %3.</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 wurde installiert.</source>
+        <translation>«%1» %2 è stato installato.</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 ersetzt die bisherige Version %3.</source>
+        <translation>«%1» %2 sostituisce la versione precedente %3.</translation>
+    </message>
+    <message>
+        <source>Die Änderung wird nach einem Neustart des Players aktiv. Einstellungen des Plugins bleiben erhalten.</source>
+        <translation>La modifica avrà effetto dopo il riavvio del player. Le impostazioni del plugin vengono mantenute.</translation>
+    </message>
+    <message>
+        <source>Später</source>
+        <translation>Più tardi</translation>
+    </message>
+    <message>
+        <source>Jetzt neu starten</source>
+        <translation>Riavvia ora</translation>
     </message>
     <message>
         <source>Installation fehlgeschlagen: </source>
@@ -1624,6 +1755,10 @@
     <message>
         <source>Letzte Wiedergabeliste beim Start wiederherstellen</source>
         <translation>Ripristina l&apos;ultima playlist all&apos;avvio</translation>
+    </message>
+    <message>
+        <source>Beim Start nach Updates für UVE Player suchen (Netzwerkzugriff auf GitHub)</source>
+        <translation>Cerca aggiornamenti di UVE Player all'avvio (accesso di rete a GitHub)</translation>
     </message>
     <message>
         <source>Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)</source>
@@ -2113,10 +2248,6 @@
         <translation>Adatta</translation>
     </message>
     <message>
-        <source>Füllen (zuschneiden)</source>
-        <translation>Riempi (ritaglia)</translation>
-    </message>
-    <message>
         <source>Strecken</source>
         <translation>Allunga</translation>
     </message>
@@ -2316,6 +2447,49 @@
     </message>
 </context>
 <context>
+    <name>uve::AppUpdater</name>
+    <message>
+        <source>GitHub ist nicht erreichbar</source>
+        <translation>GitHub non è raggiungibile</translation>
+    </message>
+    <message>
+        <source>Unerwartete Antwort von GitHub</source>
+        <translation>Risposta imprevista da GitHub</translation>
+    </message>
+    <message>
+        <source>Release-Dateien sind gerade nicht abrufbar</source>
+        <translation>I file della release non sono disponibili al momento</translation>
+    </message>
+    <message>
+        <source>Keine Update-Information – bitte erneut prüfen</source>
+        <translation>Nessuna informazione sugli aggiornamenti – ricontrolla</translation>
+    </message>
+    <message>
+        <source>Prüfsumme stimmt nicht – Download verworfen</source>
+        <translation>Checksum non corrispondente – download scartato</translation>
+    </message>
+    <message>
+        <source>Schreiben fehlgeschlagen: %1</source>
+        <translation>Scrittura non riuscita: %1</translation>
+    </message>
+    <message>
+        <source>Datei konnte nicht geöffnet werden: %1</source>
+        <translation>Impossibile aprire il file: %1</translation>
+    </message>
+    <message>
+        <source>Das Installations-Image wurde geöffnet. Bitte UVE Player beenden und das Programm in den Ordner „Programme“ ziehen.</source>
+        <translation>L'immagine di installazione è stata aperta. Chiudi UVE Player e trascina l'app nella cartella Applicazioni.</translation>
+    </message>
+    <message>
+        <source>Diese Installationsart kann nicht automatisch aktualisiert werden</source>
+        <translation>Questo tipo di installazione non può essere aggiornato automaticamente</translation>
+    </message>
+    <message>
+        <source>Das Update konnte nicht gestartet werden: %1</source>
+        <translation>Impossibile avviare l'aggiornamento: %1</translation>
+    </message>
+</context>
+<context>
     <name>uve::HotkeyModel</name>
     <message>
         <source>Wiedergabe / Pause</source>
@@ -2511,6 +2685,10 @@
         <translation>Installazione non riuscita: la cartella %1 è bloccata</translation>
     </message>
     <message>
+        <source>Alte Version konnte nicht entfernt werden: %1</source>
+        <translation>Impossibile rimuovere la versione precedente: %1</translation>
+    </message>
+    <message>
         <source>manifest.json fehlerhaft: %1</source>
         <translation>manifest.json non valido: %1</translation>
     </message>
@@ -2601,6 +2779,21 @@
     <message>
         <source>Schreiben fehlgeschlagen: %1</source>
         <translation>Scrittura non riuscita: %1</translation>
+    </message>
+</context>
+<context>
+    <name>uve::ResumableDownload</name>
+    <message>
+        <source>Download abgebrochen</source>
+        <translation>Download annullato</translation>
+    </message>
+    <message>
+        <source>HTTP 416</source>
+        <translation>HTTP 416</translation>
+    </message>
+    <message>
+        <source>HTTP-Fehler %1</source>
+        <translation>Errore HTTP %1</translation>
     </message>
 </context>
 <context>

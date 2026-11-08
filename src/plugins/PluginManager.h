@@ -61,8 +61,11 @@ public:
     // Menüeintrag oder Tastenkürzel eines Plugins ("plugin:<id>:<eintrag>")
     Q_INVOKABLE void triggerAction(const QString &actionId);
     // Plugin-Paket (.zip mit manifest.json oder Ordner) in den Benutzer-Plugin-Ordner kopieren.
+    // Eine vorhandene Version derselben ID wird beim nächsten Start ersetzt.
     // Rückgabe: leer = ok (Neustart nötig), sonst Fehlermeldung
-    Q_INVOKABLE QString installPackage(const QString &path);
+    QString installPackage(const QString &path, QVariantMap *info = nullptr);
+    // Für die Oberfläche: {ok, error, id, name, version, previousVersion, kind: update|reinstall|downgrade|new}
+    Q_INVOKABLE QVariantMap installPackageInfo(const QString &path);
 
     // Ereignis an alle aktiven Plugins (oder nur an eines)
     void emitEvent(const QString &name, const QVariantMap &data = {}, const QString &onlyPluginId = {});
@@ -126,6 +129,7 @@ private:
         bool running() const { return state == PluginState::Active; }
     };
 
+    void applyPendingPackage(const QString &pendingFolder, const QString &id);
     void discoverIn(const QString &dir, QSet<QString> &seenIds);
     void addCandidate(Entry e, QSet<QString> &seenIds);
     bool enabledInSettings(const Entry &e) const;

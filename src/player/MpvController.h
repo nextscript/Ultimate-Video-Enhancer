@@ -113,7 +113,7 @@ public:
     Q_INVOKABLE void setSubDelay(double seconds);
     Q_INVOKABLE void setAudioDelay(double seconds);
     Q_INVOKABLE void cycleAbLoop();
-    Q_INVOKABLE void setAspect(const QString &mode); // fit|fill|stretch|16:9|4:3|21:9
+    Q_INVOKABLE void setAspect(const QString &mode); // fit|stretch|16:9|4:3|21:9
     // Vorher/Nachher-Ansicht: der UVE-Shader liefert ein doppelt breites Bild (links Original, rechts mit Effekten).
     // mpv zeigt es mit doppeltem Seitenverhältnis an; die Oberfläche setzt beide Hälften am Schieber zusammen.
     // Dadurch ändert das Ziehen des Schiebers nichts an mpv (jede Shader-Änderung baut mpvs Render-Kette neu auf).

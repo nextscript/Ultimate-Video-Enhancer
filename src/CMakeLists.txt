@@ -16,6 +16,8 @@ add_library(uvecore STATIC
     services/PlaylistModel.cpp services/PlaylistModel.h
     services/HotkeyModel.cpp services/HotkeyModel.h
     services/ToolUpdater.cpp services/ToolUpdater.h
+    services/AppUpdater.cpp services/AppUpdater.h
+    services/ResumableDownload.cpp services/ResumableDownload.h
     services/SingleInstance.cpp services/SingleInstance.h
     services/ProxyConfig.cpp services/ProxyConfig.h
     services/ProxyBridge.cpp services/ProxyBridge.h

@@ -57,6 +57,97 @@
     </message>
 </context>
 <context>
+    <name>AppUpdateDialog</name>
+    <message>
+        <source>Update für UVE Player verfügbar</source>
+        <translation>Διαθέσιμη ενημέρωση για το UVE Player</translation>
+    </message>
+    <message>
+        <source>Neue Commits auf GitHub</source>
+        <translation>Νέα commit στο GitHub</translation>
+    </message>
+    <message>
+        <source> MB</source>
+        <translation> MB</translation>
+    </message>
+    <message>
+        <source>Update wird heruntergeladen …</source>
+        <translation>Λήψη ενημέρωσης …</translation>
+    </message>
+    <message>
+        <source>GitHub antwortet gerade nicht – neuer Versuch in %1 s (der Download wird fortgesetzt)</source>
+        <translation>Το GitHub δεν αποκρίνεται αυτή τη στιγμή – νέα προσπάθεια σε %1 δευτ. (η λήψη θα συνεχιστεί)</translation>
+    </message>
+    <message>
+        <source>Installation wird gestartet – der Player wird neu gestartet …</source>
+        <translation>Έναρξη εγκατάστασης – το πρόγραμμα θα επανεκκινηθεί …</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Άκυρο</translation>
+    </message>
+    <message>
+        <source>Auf GitHub ansehen</source>
+        <translation>Προβολή στο GitHub</translation>
+    </message>
+    <message>
+        <source>Später</source>
+        <translation>Αργότερα</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Κλείσιμο</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Δοκιμή ξανά</translation>
+    </message>
+    <message>
+        <source>Jetzt installieren</source>
+        <translation>Εγκατάσταση τώρα</translation>
+    </message>
+    <message>
+        <source>Installiert</source>
+        <translation>Εγκατεστημένη</translation>
+    </message>
+    <message>
+        <source>Neue Version</source>
+        <translation>Νέα έκδοση</translation>
+    </message>
+    <message>
+        <source>Neuester Commit</source>
+        <translation>Τελευταίο commit</translation>
+    </message>
+    <message>
+        <source>Neue Commits (die letzten %1):</source>
+        <translation>Νέα commit (τα τελευταία %1):</translation>
+    </message>
+    <message>
+        <source>Neue Commits: %1</source>
+        <translation>Νέα commit: %1</translation>
+    </message>
+    <message>
+        <source>Diese Commits sind noch nicht als Installationspaket veröffentlicht. Sobald es ein Release gibt, kann es hier installiert werden.</source>
+        <translation>Αυτά τα commit δεν έχουν δημοσιευτεί ακόμη ως πακέτο εγκατάστασης. Μόλις υπάρξει έκδοση, θα μπορεί να εγκατασταθεί από εδώ.</translation>
+    </message>
+    <message>
+        <source>„Jetzt installieren“ lädt das Update, prüft es per SHA-256, beendet den Player und startet ihn danach neu. Bei „Später“ erscheint dieser Hinweis beim nächsten Start wieder.</source>
+        <translation>Η επιλογή «Εγκατάσταση τώρα» κατεβάζει την ενημέρωση, την ελέγχει με SHA-256, κλείνει το πρόγραμμα και το επανεκκινεί. Με την επιλογή «Αργότερα», η ειδοποίηση εμφανίζεται ξανά στην επόμενη εκκίνηση.</translation>
+    </message>
+    <message>
+        <source>Für diese Installation gibt es kein automatisches Update. Das neue Paket liegt auf der GitHub-Seite des Releases.</source>
+        <translation>Αυτή η εγκατάσταση δεν ενημερώνεται αυτόματα. Το νέο πακέτο βρίσκεται στη σελίδα της έκδοσης στο GitHub.</translation>
+    </message>
+    <message>
+        <source>Diese Version überspringen</source>
+        <translation>Παράλειψη αυτής της έκδοσης</translation>
+    </message>
+    <message>
+        <source>Das Update wurde nicht installiert: %1. Der Download wird beim nächsten Versuch fortgesetzt; alternativ lässt sich das Paket über „Auf GitHub ansehen“ im Browser laden.</source>
+        <translation>Η ενημέρωση δεν εγκαταστάθηκε: %1. Η λήψη θα συνεχιστεί στην επόμενη προσπάθεια· μπορείτε επίσης να κατεβάσετε το πακέτο στο πρόγραμμα περιήγησης μέσω της επιλογής «Προβολή στο GitHub».</translation>
+    </message>
+</context>
+<context>
     <name>ControlBar</name>
     <message>
         <source>Einpassen</source>
@@ -607,10 +698,6 @@
         <translation>Προσαρμογή</translation>
     </message>
     <message>
-        <source>Füllen</source>
-        <translation>Γέμισμα</translation>
-    </message>
-    <message>
         <source>Strecken</source>
         <translation>Τέντωμα</translation>
     </message>
@@ -851,8 +938,12 @@
         <translation>Συντομεύσεις πληκτρολογίου</translation>
     </message>
     <message>
-        <source>Nach Updates für yt-dlp und libmpv suchen</source>
-        <translation>Έλεγχος για ενημερώσεις των yt-dlp και libmpv</translation>
+        <source>UVE Player, yt-dlp und libmpv sind aktuell</source>
+        <translation>Τα UVE Player, yt-dlp και libmpv είναι ενημερωμένα</translation>
+    </message>
+    <message>
+        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen</source>
+        <translation>Νέα commit του UVE Player στο GitHub (χωρίς έκδοση ακόμη) – δείτε Βοήθεια → Έλεγχος για ενημερώσεις</translation>
     </message>
     <message>
         <source>Suche nach Updates …</source>
@@ -861,6 +952,10 @@
     <message>
         <source>Über UVE Player</source>
         <translation>Σχετικά με το UVE Player</translation>
+    </message>
+    <message>
+        <source>Nach Updates suchen</source>
+        <translation>Έλεγχος για ενημερώσεις</translation>
     </message>
     <message>
         <source>Safe Mode – Plugins nicht geladen. </source>
@@ -966,10 +1061,6 @@
         <source>Update-Prüfung fehlgeschlagen: </source>
         <translation>Ο έλεγχος ενημερώσεων απέτυχε: </translation>
     </message>
-    <message>
-        <source>yt-dlp und libmpv sind aktuell</source>
-        <translation>Τα yt-dlp και libmpv είναι ενημερωμένα</translation>
-    </message>
 </context>
 <context>
     <name>MediaInfoDialog</name>
@@ -1070,6 +1161,10 @@
     <message>
         <source>Plugin</source>
         <translation>Πρόσθετο</translation>
+    </message>
+    <message>
+        <source>Neustart fehlgeschlagen – bitte den Player selbst neu starten</source>
+        <translation>Η επανεκκίνηση απέτυχε – επανεκκινήστε το πρόγραμμα χειροκίνητα</translation>
     </message>
     <message>
         <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
@@ -1497,8 +1592,44 @@
         <translation>Δήλωση πρόσθετου (manifest.json)</translation>
     </message>
     <message>
-        <source>Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.</source>
-        <translation>Το πρόσθετο θα εγκατασταθεί στην επόμενη εκκίνηση της εφαρμογής. Επανεκκίνησε την εφαρμογή.</translation>
+        <source>Plugin aktualisiert</source>
+        <translation>Το πρόσθετο ενημερώθηκε</translation>
+    </message>
+    <message>
+        <source>Plugin installiert</source>
+        <translation>Το πρόσθετο εγκαταστάθηκε</translation>
+    </message>
+    <message>
+        <source>Plugin ersetzt</source>
+        <translation>Το πρόσθετο αντικαταστάθηκε</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 wird beim nächsten Start des Players aktiv.</source>
+        <translation>Το «%1» %2 θα ενεργοποιηθεί στην επόμενη εκκίνηση του προγράμματος.</translation>
+    </message>
+    <message>
+        <source>„%1“ wurde von Version %2 auf %3 aktualisiert.</source>
+        <translation>Το «%1» ενημερώθηκε από την έκδοση %2 στην %3.</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 wurde installiert.</source>
+        <translation>Το «%1» %2 εγκαταστάθηκε.</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 ersetzt die bisherige Version %3.</source>
+        <translation>Το «%1» %2 αντικαθιστά την προηγούμενη έκδοση %3.</translation>
+    </message>
+    <message>
+        <source>Die Änderung wird nach einem Neustart des Players aktiv. Einstellungen des Plugins bleiben erhalten.</source>
+        <translation>Η αλλαγή ισχύει μετά την επανεκκίνηση του προγράμματος. Οι ρυθμίσεις του προσθέτου διατηρούνται.</translation>
+    </message>
+    <message>
+        <source>Später</source>
+        <translation>Αργότερα</translation>
+    </message>
+    <message>
+        <source>Jetzt neu starten</source>
+        <translation>Επανεκκίνηση τώρα</translation>
     </message>
     <message>
         <source>Installation fehlgeschlagen: </source>
@@ -1624,6 +1755,10 @@
     <message>
         <source>Letzte Wiedergabeliste beim Start wiederherstellen</source>
         <translation>Επαναφορά της τελευταίας λίστας αναπαραγωγής κατά την εκκίνηση</translation>
+    </message>
+    <message>
+        <source>Beim Start nach Updates für UVE Player suchen (Netzwerkzugriff auf GitHub)</source>
+        <translation>Έλεγχος για ενημερώσεις του UVE Player κατά την εκκίνηση (πρόσβαση δικτύου στο GitHub)</translation>
     </message>
     <message>
         <source>Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)</source>
@@ -2113,10 +2248,6 @@
         <translation>Προσαρμογή</translation>
     </message>
     <message>
-        <source>Füllen (zuschneiden)</source>
-        <translation>Γέμισμα (περικοπή)</translation>
-    </message>
-    <message>
         <source>Strecken</source>
         <translation>Τέντωμα</translation>
     </message>
@@ -2316,6 +2447,49 @@
     </message>
 </context>
 <context>
+    <name>uve::AppUpdater</name>
+    <message>
+        <source>GitHub ist nicht erreichbar</source>
+        <translation>Το GitHub δεν είναι προσβάσιμο</translation>
+    </message>
+    <message>
+        <source>Unerwartete Antwort von GitHub</source>
+        <translation>Μη αναμενόμενη απόκριση από το GitHub</translation>
+    </message>
+    <message>
+        <source>Release-Dateien sind gerade nicht abrufbar</source>
+        <translation>Τα αρχεία της έκδοσης δεν είναι διαθέσιμα αυτή τη στιγμή</translation>
+    </message>
+    <message>
+        <source>Keine Update-Information – bitte erneut prüfen</source>
+        <translation>Δεν υπάρχουν πληροφορίες ενημέρωσης – ελέγξτε ξανά</translation>
+    </message>
+    <message>
+        <source>Prüfsumme stimmt nicht – Download verworfen</source>
+        <translation>Το άθροισμα ελέγχου δεν ταιριάζει – η λήψη απορρίφθηκε</translation>
+    </message>
+    <message>
+        <source>Schreiben fehlgeschlagen: %1</source>
+        <translation>Η εγγραφή απέτυχε: %1</translation>
+    </message>
+    <message>
+        <source>Datei konnte nicht geöffnet werden: %1</source>
+        <translation>Δεν ήταν δυνατό το άνοιγμα του αρχείου: %1</translation>
+    </message>
+    <message>
+        <source>Das Installations-Image wurde geöffnet. Bitte UVE Player beenden und das Programm in den Ordner „Programme“ ziehen.</source>
+        <translation>Το αρχείο εγκατάστασης άνοιξε. Κλείστε το UVE Player και σύρετε την εφαρμογή στον φάκελο «Εφαρμογές».</translation>
+    </message>
+    <message>
+        <source>Diese Installationsart kann nicht automatisch aktualisiert werden</source>
+        <translation>Αυτός ο τύπος εγκατάστασης δεν ενημερώνεται αυτόματα</translation>
+    </message>
+    <message>
+        <source>Das Update konnte nicht gestartet werden: %1</source>
+        <translation>Δεν ήταν δυνατή η έναρξη της ενημέρωσης: %1</translation>
+    </message>
+</context>
+<context>
     <name>uve::HotkeyModel</name>
     <message>
         <source>Wiedergabe / Pause</source>
@@ -2511,6 +2685,10 @@
         <translation>Η εγκατάσταση απέτυχε: ο φάκελος %1 είναι κλειδωμένος</translation>
     </message>
     <message>
+        <source>Alte Version konnte nicht entfernt werden: %1</source>
+        <translation>Δεν ήταν δυνατή η κατάργηση της παλιάς έκδοσης: %1</translation>
+    </message>
+    <message>
         <source>manifest.json fehlerhaft: %1</source>
         <translation>Το manifest.json δεν είναι έγκυρο: %1</translation>
     </message>
@@ -2601,6 +2779,21 @@
     <message>
         <source>Schreiben fehlgeschlagen: %1</source>
         <translation>Η εγγραφή απέτυχε: %1</translation>
+    </message>
+</context>
+<context>
+    <name>uve::ResumableDownload</name>
+    <message>
+        <source>Download abgebrochen</source>
+        <translation>Η λήψη ακυρώθηκε</translation>
+    </message>
+    <message>
+        <source>HTTP 416</source>
+        <translation>HTTP 416</translation>
+    </message>
+    <message>
+        <source>HTTP-Fehler %1</source>
+        <translation>Σφάλμα HTTP %1</translation>
     </message>
 </context>
 <context>

@@ -57,6 +57,97 @@
     </message>
 </context>
 <context>
+    <name>AppUpdateDialog</name>
+    <message>
+        <source>Update für UVE Player verfügbar</source>
+        <translation>Actualización disponible para UVE Player</translation>
+    </message>
+    <message>
+        <source>Neue Commits auf GitHub</source>
+        <translation>Nuevos commits en GitHub</translation>
+    </message>
+    <message>
+        <source> MB</source>
+        <translation> MB</translation>
+    </message>
+    <message>
+        <source>Update wird heruntergeladen …</source>
+        <translation>Descargando la actualización …</translation>
+    </message>
+    <message>
+        <source>GitHub antwortet gerade nicht – neuer Versuch in %1 s (der Download wird fortgesetzt)</source>
+        <translation>GitHub no responde en este momento: nuevo intento en %1 s (la descarga continuará)</translation>
+    </message>
+    <message>
+        <source>Installation wird gestartet – der Player wird neu gestartet …</source>
+        <translation>Iniciando la instalación: el reproductor se reiniciará …</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <source>Auf GitHub ansehen</source>
+        <translation>Ver en GitHub</translation>
+    </message>
+    <message>
+        <source>Später</source>
+        <translation>Más tarde</translation>
+    </message>
+    <message>
+        <source>Schließen</source>
+        <translation>Cerrar</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Reintentar</translation>
+    </message>
+    <message>
+        <source>Jetzt installieren</source>
+        <translation>Instalar ahora</translation>
+    </message>
+    <message>
+        <source>Installiert</source>
+        <translation>Instalada</translation>
+    </message>
+    <message>
+        <source>Neue Version</source>
+        <translation>Nueva versión</translation>
+    </message>
+    <message>
+        <source>Neuester Commit</source>
+        <translation>Último commit</translation>
+    </message>
+    <message>
+        <source>Neue Commits (die letzten %1):</source>
+        <translation>Nuevos commits (los últimos %1):</translation>
+    </message>
+    <message>
+        <source>Neue Commits: %1</source>
+        <translation>Nuevos commits: %1</translation>
+    </message>
+    <message>
+        <source>Diese Commits sind noch nicht als Installationspaket veröffentlicht. Sobald es ein Release gibt, kann es hier installiert werden.</source>
+        <translation>Estos commits aún no se han publicado como paquete de instalación. Cuando haya una versión publicada, podrá instalarse aquí.</translation>
+    </message>
+    <message>
+        <source>„Jetzt installieren“ lädt das Update, prüft es per SHA-256, beendet den Player und startet ihn danach neu. Bei „Später“ erscheint dieser Hinweis beim nächsten Start wieder.</source>
+        <translation>«Instalar ahora» descarga la actualización, la verifica con SHA-256, cierra el reproductor y lo reinicia después. Con «Más tarde», este aviso volverá a aparecer en el próximo inicio.</translation>
+    </message>
+    <message>
+        <source>Für diese Installation gibt es kein automatisches Update. Das neue Paket liegt auf der GitHub-Seite des Releases.</source>
+        <translation>Esta instalación no se puede actualizar automáticamente. El nuevo paquete está en la página de la versión en GitHub.</translation>
+    </message>
+    <message>
+        <source>Diese Version überspringen</source>
+        <translation>Omitir esta versión</translation>
+    </message>
+    <message>
+        <source>Das Update wurde nicht installiert: %1. Der Download wird beim nächsten Versuch fortgesetzt; alternativ lässt sich das Paket über „Auf GitHub ansehen“ im Browser laden.</source>
+        <translation>La actualización no se instaló: %1. La descarga continuará en el próximo intento; también puede obtener el paquete en el navegador con «Ver en GitHub».</translation>
+    </message>
+</context>
+<context>
     <name>ControlBar</name>
     <message>
         <source>Einpassen</source>
@@ -607,10 +698,6 @@
         <translation>Ajustar</translation>
     </message>
     <message>
-        <source>Füllen</source>
-        <translation>Rellenar</translation>
-    </message>
-    <message>
         <source>Strecken</source>
         <translation>Estirar</translation>
     </message>
@@ -851,8 +938,12 @@
         <translation>Atajos de teclado</translation>
     </message>
     <message>
-        <source>Nach Updates für yt-dlp und libmpv suchen</source>
-        <translation>Buscar actualizaciones de yt-dlp y libmpv</translation>
+        <source>UVE Player, yt-dlp und libmpv sind aktuell</source>
+        <translation>UVE Player, yt-dlp y libmpv están actualizados</translation>
+    </message>
+    <message>
+        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen</source>
+        <translation>Nuevos commits de UVE Player en GitHub (aún sin versión): consulte Ayuda → Buscar actualizaciones</translation>
     </message>
     <message>
         <source>Suche nach Updates …</source>
@@ -861,6 +952,10 @@
     <message>
         <source>Über UVE Player</source>
         <translation>Acerca de UVE Player</translation>
+    </message>
+    <message>
+        <source>Nach Updates suchen</source>
+        <translation>Buscar actualizaciones</translation>
     </message>
     <message>
         <source>Safe Mode – Plugins nicht geladen. </source>
@@ -966,10 +1061,6 @@
         <source>Update-Prüfung fehlgeschlagen: </source>
         <translation>Error al buscar actualizaciones: </translation>
     </message>
-    <message>
-        <source>yt-dlp und libmpv sind aktuell</source>
-        <translation>yt-dlp y libmpv están actualizados</translation>
-    </message>
 </context>
 <context>
     <name>MediaInfoDialog</name>
@@ -1070,6 +1161,10 @@
     <message>
         <source>Plugin</source>
         <translation>Complemento</translation>
+    </message>
+    <message>
+        <source>Neustart fehlgeschlagen – bitte den Player selbst neu starten</source>
+        <translation>Error al reiniciar: reinicie el reproductor manualmente</translation>
     </message>
     <message>
         <source>Safe Mode beendet – Plugins werden beim nächsten Start geladen</source>
@@ -1497,8 +1592,44 @@
         <translation>Manifiesto del complemento (manifest.json)</translation>
     </message>
     <message>
-        <source>Plugin wird beim nächsten Start des Players installiert. Bitte den Player neu starten.</source>
-        <translation>El complemento se instalará la próxima vez que se inicie el reproductor. Reinicia el reproductor.</translation>
+        <source>Plugin aktualisiert</source>
+        <translation>Complemento actualizado</translation>
+    </message>
+    <message>
+        <source>Plugin installiert</source>
+        <translation>Complemento instalado</translation>
+    </message>
+    <message>
+        <source>Plugin ersetzt</source>
+        <translation>Complemento reemplazado</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 wird beim nächsten Start des Players aktiv.</source>
+        <translation>«%1» %2 se activará la próxima vez que se inicie el reproductor.</translation>
+    </message>
+    <message>
+        <source>„%1“ wurde von Version %2 auf %3 aktualisiert.</source>
+        <translation>«%1» se actualizó de la versión %2 a la %3.</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 wurde installiert.</source>
+        <translation>«%1» %2 se instaló.</translation>
+    </message>
+    <message>
+        <source>„%1“ %2 ersetzt die bisherige Version %3.</source>
+        <translation>«%1» %2 reemplaza la versión anterior %3.</translation>
+    </message>
+    <message>
+        <source>Die Änderung wird nach einem Neustart des Players aktiv. Einstellungen des Plugins bleiben erhalten.</source>
+        <translation>El cambio se aplicará al reiniciar el reproductor. Se conservan los ajustes del complemento.</translation>
+    </message>
+    <message>
+        <source>Später</source>
+        <translation>Más tarde</translation>
+    </message>
+    <message>
+        <source>Jetzt neu starten</source>
+        <translation>Reiniciar ahora</translation>
     </message>
     <message>
         <source>Installation fehlgeschlagen: </source>
@@ -1624,6 +1755,10 @@
     <message>
         <source>Letzte Wiedergabeliste beim Start wiederherstellen</source>
         <translation>Restaurar la última lista de reproducción al iniciar</translation>
+    </message>
+    <message>
+        <source>Beim Start nach Updates für UVE Player suchen (Netzwerkzugriff auf GitHub)</source>
+        <translation>Buscar actualizaciones de UVE Player al iniciar (acceso de red a GitHub)</translation>
     </message>
     <message>
         <source>Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)</source>
@@ -2113,10 +2248,6 @@
         <translation>Ajustar</translation>
     </message>
     <message>
-        <source>Füllen (zuschneiden)</source>
-        <translation>Rellenar (recortar)</translation>
-    </message>
-    <message>
         <source>Strecken</source>
         <translation>Estirar</translation>
     </message>
@@ -2316,6 +2447,49 @@
     </message>
 </context>
 <context>
+    <name>uve::AppUpdater</name>
+    <message>
+        <source>GitHub ist nicht erreichbar</source>
+        <translation>No se puede acceder a GitHub</translation>
+    </message>
+    <message>
+        <source>Unerwartete Antwort von GitHub</source>
+        <translation>Respuesta inesperada de GitHub</translation>
+    </message>
+    <message>
+        <source>Release-Dateien sind gerade nicht abrufbar</source>
+        <translation>Los archivos de la versión no están disponibles en este momento</translation>
+    </message>
+    <message>
+        <source>Keine Update-Information – bitte erneut prüfen</source>
+        <translation>Sin información de actualización – vuelva a comprobarlo</translation>
+    </message>
+    <message>
+        <source>Prüfsumme stimmt nicht – Download verworfen</source>
+        <translation>La suma de comprobación no coincide – descarga descartada</translation>
+    </message>
+    <message>
+        <source>Schreiben fehlgeschlagen: %1</source>
+        <translation>Error al escribir: %1</translation>
+    </message>
+    <message>
+        <source>Datei konnte nicht geöffnet werden: %1</source>
+        <translation>No se pudo abrir el archivo: %1</translation>
+    </message>
+    <message>
+        <source>Das Installations-Image wurde geöffnet. Bitte UVE Player beenden und das Programm in den Ordner „Programme“ ziehen.</source>
+        <translation>Se abrió la imagen de instalación. Cierre UVE Player y arrastre la aplicación a la carpeta Aplicaciones.</translation>
+    </message>
+    <message>
+        <source>Diese Installationsart kann nicht automatisch aktualisiert werden</source>
+        <translation>Este tipo de instalación no se puede actualizar automáticamente</translation>
+    </message>
+    <message>
+        <source>Das Update konnte nicht gestartet werden: %1</source>
+        <translation>No se pudo iniciar la actualización: %1</translation>
+    </message>
+</context>
+<context>
     <name>uve::HotkeyModel</name>
     <message>
         <source>Wiedergabe / Pause</source>
@@ -2511,6 +2685,10 @@
         <translation>Error en la instalación: la carpeta %1 está bloqueada</translation>
     </message>
     <message>
+        <source>Alte Version konnte nicht entfernt werden: %1</source>
+        <translation>No se pudo eliminar la versión anterior: %1</translation>
+    </message>
+    <message>
         <source>manifest.json fehlerhaft: %1</source>
         <translation>manifest.json no es válido: %1</translation>
     </message>
@@ -2601,6 +2779,21 @@
     <message>
         <source>Schreiben fehlgeschlagen: %1</source>
         <translation>Error al escribir: %1</translation>
+    </message>
+</context>
+<context>
+    <name>uve::ResumableDownload</name>
+    <message>
+        <source>Download abgebrochen</source>
+        <translation>Descarga cancelada</translation>
+    </message>
+    <message>
+        <source>HTTP 416</source>
+        <translation>HTTP 416</translation>
+    </message>
+    <message>
+        <source>HTTP-Fehler %1</source>
+        <translation>Error HTTP %1</translation>
     </message>
 </context>
 <context>

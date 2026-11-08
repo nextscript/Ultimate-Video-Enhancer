@@ -12,7 +12,7 @@ uvecore (src/, static library)
 ├── plugins/    PluginApi.h (contract), PluginManifest (validation before loading), PluginManager (lifecycle,
 │               host services, events/commands, contributions), PluginBridge (QML access for plugin pages)
 ├── rendering/  ShaderChain (mpv "glsl-shaders", error attribution, disabling faulty stages)
-└── services/   PlaylistModel, MediaFiles, HotkeyModel, ToolUpdater, SingleInstance, ProxyConfig, ProxyBridge
+└── services/   PlaylistModel, MediaFiles, HotkeyModel, ToolUpdater, AppUpdater, ResumableDownload, SingleInstance, ProxyConfig, ProxyBridge
 
 plugins/
 ├── uve/                Ultimate Video Enhancer: engine/ (parameters, shader generator, .cube parser), controller, QML panel

@@ -35,6 +35,8 @@ Section
     ${EndIf}
     ; data folder next to the portable EXE
     System::Call 'kernel32::SetEnvironmentVariable(t "UVE_DATA_DIR", t "$EXEDIR\UVE Player Data")'
+    ; the player needs this EXE to restart and to replace it during an update (its own folder is temporary)
+    System::Call 'kernel32::SetEnvironmentVariable(t "UVE_PORTABLE_EXE", t "$EXEPATH")'
     ; pass command line arguments (e.g. a file dropped onto the EXE)
     ${GetParameters} $3
     ExecWait '"$1\UVEPlayer.exe" $3' $4

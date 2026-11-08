@@ -1,4 +1,5 @@
 #include "ToolUpdater.h"
+#include "ResumableDownload.h"
 #include "../core/Logger.h"
 
 #include <QCryptographicHash>
@@ -115,14 +116,90 @@ void ToolUpdater::setBusy(bool b)
     emit busyChanged();
 }
 
-QNetworkReply *ToolUpdater::get(const QString &url)
+QNetworkReply *ToolUpdater::get(const QString &url, bool followRedirects)
 {
     QNetworkRequest req{QUrl(url)};
     req.setHeader(QNetworkRequest::UserAgentHeader, "UVE-Player");
-    req.setRawHeader("Accept", "application/vnd.github+json");
-    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+    req.setRawHeader("Accept", url.contains(QLatin1String("api.github.com")) ? "application/vnd.github+json" : "*/*");
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, followRedirects ? QNetworkRequest::NoLessSafeRedirectPolicy : QNetworkRequest::ManualRedirectPolicy);
     req.setTransferTimeout(30000);
     return m_net->get(req);
+}
+
+void ToolUpdater::latestTagWithoutApi(const QString &repo, std::function<void(const QString &tag)> done)
+{
+    auto *r = get("https://github.com/" + repo + "/releases/latest", false);
+    connect(r, &QNetworkReply::finished, this, [r, done] {
+        r->deleteLater();
+        static const QRegularExpression re(QStringLiteral("/releases/tag/([^/?#]+)$"));
+        done(re.match(QString::fromLatin1(r->rawHeader("Location")).trimmed()).captured(1));
+    });
+}
+
+void ToolUpdater::addYtdlp(const QString &tag, const QString &exeUrl, const QString &sumsUrl, qint64 size, const QString &date)
+{
+    const QString cur = installed().value("yt-dlp").toMap().value("version").toString();
+    QVariantMap info{{"tool", "yt-dlp"}, {"name", "yt-dlp"}, {"current", cur.isEmpty() ? tr("nicht installiert") : cur},
+                     {"latest", tag}, {"id", tag}, {"size", size}, {"url", exeUrl}, {"sums", sumsUrl}, {"date", date}};
+    m_latest.insert("yt-dlp", info);
+    if (!exeUrl.isEmpty() && (cur.isEmpty() || compareToolVersions(tag, cur) > 0)) m_updates << info;
+}
+
+void ToolUpdater::addMpv(const QString &tag, const QString &url, const QString &digest, qint64 size, const QString &date)
+{
+    const QString cur = installed().value("libmpv").toMap().value("version").toString();
+    QVariantMap info{{"tool", "libmpv"}, {"name", "libmpv (mpv-Wiedergabe-Engine)"}, {"current", cur.isEmpty() ? tr("nicht installiert") : cur},
+                     {"latest", tag}, {"id", tag}, {"size", size}, {"url", url}, {"digest", digest}, {"date", date}};
+    m_latest.insert("libmpv", info);
+    if (!url.isEmpty() && (cur.isEmpty() || compareToolVersions(tag, cur) > 0)) m_updates << info;
+}
+
+// API-Limit erreicht oder API nicht erreichbar: Adressen der Release-Dateien sind auch ohne API bekannt
+void ToolUpdater::ytdlpWithoutApi(const QString &apiError)
+{
+    latestTagWithoutApi(QStringLiteral("yt-dlp/yt-dlp"), [this, apiError](const QString &tag) {
+        if (tag.isEmpty()) m_errors << "yt-dlp: " + apiError;
+        else {
+            const QString base = "https://github.com/yt-dlp/yt-dlp/releases/download/" + tag + "/";
+            addYtdlp(tag, base + kYtdlpAsset, base + "SHA2-256SUMS", 0, {});
+        }
+        finishCheckIfDone();
+    });
+}
+
+// libmpv: Der Dateiname enthält eine Commit-Kennung → aus der Asset-Liste der Release-Seite lesen (samt SHA-256)
+void ToolUpdater::mpvWithoutApi(const QString &apiError)
+{
+    latestTagWithoutApi(QStringLiteral("shinchiro/mpv-winbuild-cmake"), [this, apiError](const QString &tag) {
+        if (tag.isEmpty()) { m_errors << "libmpv: " + apiError; finishCheckIfDone(); return; }
+        auto *r = get("https://github.com/shinchiro/mpv-winbuild-cmake/releases/expanded_assets/" + tag);
+        connect(r, &QNetworkReply::finished, this, [this, r, tag, apiError] {
+            r->deleteLater();
+            const auto page = parseMpvAssetPage(QString::fromUtf8(r->readAll()), tag);
+            if (r->error() != QNetworkReply::NoError || page.value("url").toString().isEmpty()) m_errors << "libmpv: " + apiError;
+            else addMpv(tag, page.value("url").toString(), page.value("digest").toString(), page.value("size").toLongLong(), {});
+            finishCheckIfDone();
+        });
+    });
+}
+
+QVariantMap ToolUpdater::parseMpvAssetPage(const QString &html, const QString &tag)
+{
+    const QRegularExpression href(QStringLiteral("href=\"(/shinchiro/mpv-winbuild-cmake/releases/download/%1/mpv-dev-x86_64-\\d{8}-git-[0-9a-f]+\\.7z)\"")
+                                      .arg(QRegularExpression::escape(tag)));
+    const auto m = href.match(html);
+    if (!m.hasMatch()) return {};
+    QVariantMap out{{"url", QStringLiteral("https://github.com") + m.captured(1)}};
+    // Prüfsumme und Größe stehen im selben Listeneintrag; der nächste Eintrag beginnt mit dem nächsten Download-Link
+    QString entry = html.mid(m.capturedEnd());
+    const auto next = entry.indexOf(QLatin1String("/releases/download/"));
+    if (next >= 0) entry.truncate(next);
+    static const QRegularExpression digest(QStringLiteral("sha256:[0-9a-f]{64}"));
+    out.insert("digest", digest.match(entry).captured(0));
+    static const QRegularExpression size(QStringLiteral(">\\s*(\\d+(?:\\.\\d+)?) MB\\s*<"));
+    const auto sm = size.match(entry);
+    if (sm.hasMatch()) out.insert("size", qint64(sm.captured(1).toDouble() * 1048576));
+    return out;
 }
 
 void ToolUpdater::check()
@@ -137,56 +214,40 @@ void ToolUpdater::check()
 #else
     m_pending = 1; // libmpv kommt auf Linux/macOS aus dem System bzw. App-Bundle
 #endif
-    const auto inst = installed();
 
     auto *yt = get(kYtdlpApi);
-    connect(yt, &QNetworkReply::finished, this, [this, yt, inst] {
+    connect(yt, &QNetworkReply::finished, this, [this, yt] {
         yt->deleteLater();
-        if (yt->error() != QNetworkReply::NoError) m_errors << "yt-dlp: " + yt->errorString();
-        else {
-            const auto rel = QJsonDocument::fromJson(yt->readAll()).object();
-            const QString tag = rel.value("tag_name").toString();
-            QString exeUrl, sumsUrl; qint64 size = 0;
-            for (const auto &a : rel.value("assets").toArray()) {
-                const auto o = a.toObject();
-                if (o.value("name").toString() == kYtdlpAsset) { exeUrl = o.value("browser_download_url").toString(); size = o.value("size").toInteger(); }
-                if (o.value("name").toString() == "SHA2-256SUMS") sumsUrl = o.value("browser_download_url").toString();
-            }
-            const QString cur = inst.value("yt-dlp").toMap().value("version").toString();
-            QVariantMap info{{"tool", "yt-dlp"}, {"name", "yt-dlp"}, {"current", cur.isEmpty() ? tr("nicht installiert") : cur},
-                             {"latest", tag}, {"id", tag}, {"size", size}, {"url", exeUrl}, {"sums", sumsUrl},
-                             {"date", rel.value("published_at").toString()}};
-            m_latest.insert("yt-dlp", info);
-            if (!exeUrl.isEmpty() && (cur.isEmpty() || compareToolVersions(tag, cur) > 0)) m_updates << info;
+        if (yt->error() != QNetworkReply::NoError) return ytdlpWithoutApi(yt->errorString());
+        const auto rel = QJsonDocument::fromJson(yt->readAll()).object();
+        QString exeUrl, sumsUrl; qint64 size = 0;
+        for (const auto &a : rel.value("assets").toArray()) {
+            const auto o = a.toObject();
+            if (o.value("name").toString() == kYtdlpAsset) { exeUrl = o.value("browser_download_url").toString(); size = o.value("size").toInteger(); }
+            if (o.value("name").toString() == "SHA2-256SUMS") sumsUrl = o.value("browser_download_url").toString();
         }
+        addYtdlp(rel.value("tag_name").toString(), exeUrl, sumsUrl, size, rel.value("published_at").toString());
         finishCheckIfDone();
     });
 
 #ifdef Q_OS_WIN
     auto *mp = get(kMpvApi);
-    connect(mp, &QNetworkReply::finished, this, [this, mp, inst] {
+    connect(mp, &QNetworkReply::finished, this, [this, mp] {
         mp->deleteLater();
-        if (mp->error() != QNetworkReply::NoError) m_errors << "libmpv: " + mp->errorString();
-        else {
-            const auto rel = QJsonDocument::fromJson(mp->readAll()).object();
-            const QString tag = rel.value("tag_name").toString(); // Builddatum, z. B. 20261102
-            static const QRegularExpression re(QStringLiteral("^mpv-dev-x86_64-(\\d{8})-git-[0-9a-f]+\\.7z$"));
-            QString url, digest; qint64 size = 0;
-            for (const auto &a : rel.value("assets").toArray()) {
-                const auto o = a.toObject();
-                if (re.match(o.value("name").toString()).hasMatch()) {
-                    url = o.value("browser_download_url").toString();
-                    size = o.value("size").toInteger();
-                    digest = o.value("digest").toString(); // "sha256:…", falls von GitHub geliefert
-                }
+        if (mp->error() != QNetworkReply::NoError) return mpvWithoutApi(mp->errorString());
+        const auto rel = QJsonDocument::fromJson(mp->readAll()).object();
+        static const QRegularExpression re(QStringLiteral("^mpv-dev-x86_64-(\\d{8})-git-[0-9a-f]+\\.7z$"));
+        QString url, digest; qint64 size = 0;
+        for (const auto &a : rel.value("assets").toArray()) {
+            const auto o = a.toObject();
+            if (re.match(o.value("name").toString()).hasMatch()) {
+                url = o.value("browser_download_url").toString();
+                size = o.value("size").toInteger();
+                digest = o.value("digest").toString(); // "sha256:…", falls von GitHub geliefert
             }
-            const QString cur = inst.value("libmpv").toMap().value("version").toString();
-            QVariantMap info{{"tool", "libmpv"}, {"name", "libmpv (mpv-Wiedergabe-Engine)"}, {"current", cur.isEmpty() ? tr("nicht installiert") : cur},
-                             {"latest", tag}, {"id", tag}, {"size", size}, {"url", url}, {"digest", digest},
-                             {"date", rel.value("published_at").toString()}};
-            m_latest.insert("libmpv", info);
-            if (!url.isEmpty() && (cur.isEmpty() || compareToolVersions(tag, cur) > 0)) m_updates << info;
         }
+        // tag_name ist das Builddatum, z. B. 20261102
+        addMpv(rel.value("tag_name").toString(), url, digest, size, rel.value("published_at").toString());
         finishCheckIfDone();
     });
 #endif
@@ -223,23 +284,23 @@ void ToolUpdater::installYtdlp(const QVariantMap &info)
     const QString dir = QDir(m_dataDir).filePath("tools/yt-dlp/" + ver);
     QDir().mkpath(dir);
     const QString part = QDir(dir).filePath(kYtdlpFile + ".part");
-    auto *file = new QFile(part, this);
-    if (!file->open(QIODevice::WriteOnly)) { setBusy(false); emit installFinished("yt-dlp", false, tr("Zielordner nicht beschreibbar"), false); return; }
-    auto *r = get(info.value("url").toString());
-    connect(r, &QNetworkReply::readyRead, this, [r, file] { file->write(r->readAll()); });
-    connect(r, &QNetworkReply::downloadProgress, this, [this](qint64 a, qint64 b) { emit progress("yt-dlp", a, b); });
-    connect(r, &QNetworkReply::finished, this, [this, r, file, part, dir, ver, info] {
-        r->deleteLater();
-        file->write(r->readAll());
-        file->close();
-        file->deleteLater();
+    if (!QFileInfo(dir).isWritable()) { setBusy(false); emit installFinished("yt-dlp", false, tr("Zielordner nicht beschreibbar"), false); return; }
+    auto *dl = new ResumableDownload(m_net, QUrl(info.value("url").toString()), part, this);
+    connect(dl, &ResumableDownload::progress, this, [this](qint64 a, qint64 b) { emit progress("yt-dlp", a, b); });
+    connect(dl, &ResumableDownload::finished, this, [this, dl, part, dir, ver, info](bool ok, const QString &error) {
+        dl->deleteLater();
         auto fail = [&](const QString &msg) { QDir(dir).removeRecursively(); setBusy(false); emit installFinished("yt-dlp", false, msg, false); };
-        if (r->error() != QNetworkReply::NoError) return fail(r->errorString());
+        if (!ok) return fail(error);
         // Prüfsumme gegen die offizielle SHA2-256SUMS
-        auto *s = get(info.value("sums").toString());
-        connect(s, &QNetworkReply::finished, this, [this, s, part, dir, ver] {
-            s->deleteLater();
-            const QString sums = QString::fromUtf8(s->readAll());
+        const QString sumsFile = QDir(dir).filePath("SHA2-256SUMS.part");
+        auto *sd = new ResumableDownload(m_net, QUrl(info.value("sums").toString()), sumsFile, this);
+        sd->setResume(false);
+        connect(sd, &ResumableDownload::finished, this, [this, sd, sumsFile, part, dir, ver](bool, const QString &) {
+            sd->deleteLater();
+            QFile sf(sumsFile);
+            const QString sums = sf.open(QIODevice::ReadOnly) ? QString::fromUtf8(sf.readAll()) : QString();
+            sf.close();
+            QFile::remove(sumsFile);
             QString expected;
             for (const auto &line : sums.split('\n')) {
                 const auto parts = line.trimmed().split(QRegularExpression("\\s+"));
@@ -261,7 +322,9 @@ void ToolUpdater::installYtdlp(const QVariantMap &info)
             emit installedChanged();
             emit installFinished("yt-dlp", true, "yt-dlp " + ver + " installiert", false);
         });
+        sd->start();
     });
+    dl->start();
 }
 
 void ToolUpdater::installMpv(const QVariantMap &info)
@@ -273,24 +336,19 @@ void ToolUpdater::installMpv(const QVariantMap &info)
     QDir().mkpath(toolsDir);
     auto *tmp = new QTemporaryDir(QDir(toolsDir).filePath(".tmp-mpv-XXXXXX"));
     const QString archive = QDir(tmp->path()).filePath("mpv-dev.7z");
-    auto *file = new QFile(archive, this);
-    if (!tmp->isValid() || !file->open(QIODevice::WriteOnly)) {
-        const QString why = !tmp->isValid() ? tmp->errorString() : file->errorString();
+    if (!tmp->isValid()) {
+        const QString why = tmp->errorString();
         Logger::write("update", "libmpv: temporärer Ordner unter " + toolsDir + " nicht beschreibbar: " + why);
         delete tmp; setBusy(false);
         emit installFinished("libmpv", false, tr("Temporärer Ordner nicht beschreibbar") + " (" + QDir::toNativeSeparators(toolsDir) + ": " + why + ")", false);
         return;
     }
-    auto *r = get(info.value("url").toString());
-    connect(r, &QNetworkReply::readyRead, this, [r, file] { file->write(r->readAll()); });
-    connect(r, &QNetworkReply::downloadProgress, this, [this](qint64 a, qint64 b) { emit progress("libmpv", a, b); });
-    connect(r, &QNetworkReply::finished, this, [this, r, file, tmp, archive, build, info] {
-        r->deleteLater();
-        file->write(r->readAll());
-        file->close();
-        file->deleteLater();
-        auto done = [&](bool ok, const QString &msg) { delete tmp; setBusy(false); if (ok) emit installedChanged(); emit installFinished("libmpv", ok, msg, ok); };
-        if (r->error() != QNetworkReply::NoError) return done(false, r->errorString());
+    auto *dl = new ResumableDownload(m_net, QUrl(info.value("url").toString()), archive, this);
+    connect(dl, &ResumableDownload::progress, this, [this](qint64 a, qint64 b) { emit progress("libmpv", a, b); });
+    connect(dl, &ResumableDownload::finished, this, [this, dl, tmp, archive, build, info](bool ok, const QString &error) {
+        dl->deleteLater();
+        auto done = [&](bool success, const QString &msg) { delete tmp; setBusy(false); if (success) emit installedChanged(); emit installFinished("libmpv", success, msg, success); };
+        if (!ok) return done(false, error);
         const QString digest = info.value("digest").toString();
         if (digest.startsWith("sha256:") && digest.mid(7).toLower() != sha256Of(archive))
             return done(false, tr("Prüfsumme stimmt nicht – Download verworfen"));
@@ -312,6 +370,7 @@ void ToolUpdater::installMpv(const QVariantMap &info)
         Logger::write("update", "libmpv " + build + " installiert (aktiv nach Neustart)");
         done(true, tr("libmpv-Build ") + build + tr(" installiert – wird nach einem Neustart verwendet"));
     });
+    dl->start();
 }
 
 } // namespace uve

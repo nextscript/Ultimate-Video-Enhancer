@@ -123,7 +123,7 @@ Menu {
     Menu {
         title: qsTr("Bild")
         Repeater {
-            model: [["fit", qsTr("Einpassen")], ["fill", qsTr("Füllen (zuschneiden)")], ["stretch", qsTr("Strecken")], ["16:9", "16:9"], ["4:3", "4:3"], ["21:9", "21:9"]]
+            model: [["fit", qsTr("Einpassen")], ["stretch", qsTr("Strecken")], ["16:9", "16:9"], ["4:3", "4:3"], ["21:9", "21:9"]]
             MenuItem {
                 required property var modelData
                 text: modelData[1]

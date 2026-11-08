@@ -85,7 +85,7 @@ Dialog {
                     spacing: 0
                     Label { text: modelData.name; font.bold: true; color: theme.text }
                     Label {
-                        text: modelData.current + "  →  " + modelData.latest + "   ·   " + dlg.fmtMB(modelData.size)
+                        text: modelData.current + "  →  " + modelData.latest + (modelData.size > 0 ? "   ·   " + dlg.fmtMB(modelData.size) : "")
                         color: theme.muted; font.family: "Consolas"
                     }
                 }

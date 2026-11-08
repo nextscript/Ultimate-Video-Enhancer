@@ -575,10 +575,9 @@ void MpvController::setAspect(const QString &mode)
 void MpvController::applyAspect()
 {
     const QString &mode = m_aspectMode;
-    // fit: Seitenverhältnis halten · fill: Füllen (Beschnitt) · stretch: Verzerren · feste Verhältnisse
+    // fit: Seitenverhältnis halten · stretch: Verzerren · feste Verhältnisse
     QString override = QStringLiteral("-1");
-    if (mode == "fill") { setProperty("keepaspect", true); setProperty("panscan", 1.0); }
-    else if (mode == "stretch") { setProperty("keepaspect", false); setProperty("panscan", 0.0); }
+    if (mode == "stretch") { setProperty("keepaspect", false); setProperty("panscan", 0.0); }
     else if (mode.contains(':')) { setProperty("keepaspect", true); setProperty("panscan", 0.0); override = mode; }
     else { setProperty("keepaspect", true); setProperty("panscan", 0.0); }
     if (m_splitView && mode != "stretch") {

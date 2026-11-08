@@ -95,11 +95,11 @@ ApplicationWindow {
         case "sub.add": if (player.state !== 0) subtitleDialog.open(); break
         case "fullscreen": toggleFullscreen(); break
         case "aspect.cycle":
-            var modes = ["fit", "fill", "stretch", "16:9", "4:3", "21:9"]
+            var modes = ["fit", "stretch", "16:9", "4:3", "21:9"]
             act("aspect.set", modes[(modes.indexOf(aspect) + 1) % modes.length]); break
         case "aspect.set":
             aspect = arg; player.setAspect(arg); app.setSetting("keepAspect", arg)
-            osd(qsTr("Bild: ") + ({ "fit": qsTr("Einpassen"), "fill": qsTr("Füllen"), "stretch": qsTr("Strecken") }[arg] || arg)); break
+            osd(qsTr("Bild: ") + ({ "fit": qsTr("Einpassen"), "stretch": qsTr("Strecken") }[arg] || arg)); break
         case "snapshot": if (player.state !== 0) app.snapshot(); break
         case "diagnostics": diagnosticsVisible = !diagnosticsVisible; break
         case "effects.toggle": if (effects) effects.toggleEnabled(); else osd(qsTr("Effekt-Plugin nicht aktiv")); break
@@ -258,7 +258,7 @@ ApplicationWindow {
         Menu {
             title: qsTr("&Hilfe")
             MenuItem { text: qsTr("Tastenkürzel"); onTriggered: { settingsDialog.open(); settingsDialog.page = 7 } }
-            MenuItem { text: qsTr("Nach Updates für yt-dlp und libmpv suchen"); onTriggered: { app.updater.check(); osd(qsTr("Suche nach Updates …"), 2500); updateCheckManual.active = true } }
+            MenuItem { text: qsTr("Nach Updates suchen"); onTriggered: win.checkForUpdates() }
             MenuItem { text: qsTr("Über UVE Player"); onTriggered: aboutDialog.open() }
         }
     }
@@ -566,7 +566,7 @@ ApplicationWindow {
                 Behavior on opacity { NumberAnimation { duration: 220 } }
                 effectsAvailable: win.effects !== null
                 effectsOn: win.effects ? win.effects.enabled : false
-                aspectText: ({ "fit": qsTr("Einpassen"), "fill": qsTr("Füllen"), "stretch": qsTr("Strecken") })[win.aspect] || win.aspect
+                aspectText: ({ "fit": qsTr("Einpassen"), "stretch": qsTr("Strecken") })[win.aspect] || win.aspect
                 onAction: (id) => win.act(id)
                 onOpenSpeedMenu: (a) => speedPopup.popup(a, 0, -speedPopup.implicitHeight)
                 onOpenSubtitleMenu: (a) => subPopup.popup(a, 0, -subPopup.implicitHeight)
@@ -743,10 +743,12 @@ ApplicationWindow {
     MediaInfoDialog { id: mediaInfoDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
     AboutDialog { id: aboutDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
     PluginsDialog { id: pluginsDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
-    UpdateDialog { id: updateDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
+    UpdateDialog { id: updateDialog; theme: theme; onOpened: win.modalCount++; onClosed: { win.modalCount = Math.max(0, win.modalCount - 1); updateCheck.showNext() } }
+    AppUpdateDialog { id: appUpdateDialog; theme: theme; onOpened: win.modalCount++; onClosed: { win.modalCount = Math.max(0, win.modalCount - 1); updateCheck.showNext() } }
     SettingsDialog {
         id: settingsDialog
         theme: theme
+        onCheckUpdatesRequested: win.checkForUpdates()
         effects: win.effects
         onOpened: win.modalCount++
         onClosed: win.modalCount = Math.max(0, win.modalCount - 1)
@@ -774,20 +776,68 @@ ApplicationWindow {
         }
     }
 
-    // Manuelle Update-Prüfung: Ergebnis auch melden, wenn alles aktuell ist
-    QtObject { id: updateCheckManual; property bool active: false }
+    // Update-Prüfung von Player und Werkzeugen. Manuell: Ergebnis immer melden, auch wenn alles aktuell ist.
+    // Es ist immer nur ein Update-Fenster offen; das nächste folgt, wenn das vorige geschlossen wurde.
+    QtObject {
+        id: updateCheck
+        property int pendingManual: 0
+        property var messages: []
+        property int found: 0
+        property var queue: []
+        function enqueue(fn) {
+            queue = queue.concat([fn])
+            if (!updateDialog.visible && !appUpdateDialog.visible) showNext()
+        }
+        function showNext() {
+            if (queue.length === 0) return
+            var fn = queue[0]
+            queue = queue.slice(1)
+            fn()
+        }
+        function finishedOne(count, errorText) {
+            if (pendingManual === 0) return
+            pendingManual--
+            found += count
+            if (errorText) messages = messages.concat([errorText])
+            if (pendingManual === 0 && found === 0)
+                win.osd(messages.length ? qsTr("Update-Prüfung fehlgeschlagen: ") + messages.join("; ") : qsTr("UVE Player, yt-dlp und libmpv sind aktuell"), 3500)
+        }
+    }
+    function checkForUpdates() {
+        if (app.updater.busy || app.appUpdater.busy) return
+        updateCheck.pendingManual = 2
+        updateCheck.messages = []
+        updateCheck.found = 0
+        osd(qsTr("Suche nach Updates …"), 2500)
+        app.updater.check()
+        app.appUpdater.check()
+    }
     Connections {
         target: app.updater
-        function onCheckFinished(updates, errors) {
-            if (!updateCheckManual.active) return
-            updateCheckManual.active = false
-            if (updates.length === 0) win.osd(errors.length ? qsTr("Update-Prüfung fehlgeschlagen: ") + errors.join("; ") : qsTr("yt-dlp und libmpv sind aktuell"), 3500)
+        function onCheckFinished(updates, errors) { updateCheck.finishedOne(updates.length, errors.join("; ")) }
+    }
+    Connections {
+        target: app.appUpdater
+        function onCheckFinished(result, error) {
+            var manual = updateCheck.pendingManual > 0
+            var relevant = result.updateAvailable === true || result.newerCommits === true
+            if (manual) {
+                if (relevant) updateCheck.enqueue(() => appUpdateDialog.show(result))
+            } else if (result.updateAvailable === true) {
+                // Automatische Prüfung: übersprungene Version nicht erneut anbieten
+                if (app.setting("skippedPlayerVersion", "") !== result.latestVersion) updateCheck.enqueue(() => appUpdateDialog.show(result))
+            } else if (result.newerCommits === true && app.setting("seenPlayerCommit", "") !== result.branchCommit) {
+                // Ohne installierbares Paket kein Fenster beim Start, nur einmal je Commit ein Hinweis
+                app.setSetting("seenPlayerCommit", result.branchCommit)
+                win.osd(qsTr("Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen"), 5000)
+            }
+            updateCheck.finishedOne(relevant ? 1 : 0, error ? "UVE Player: " + error : "")
         }
     }
     Connections {
         target: app
         function onOsd(text, ms) { win.osd(text, ms) }
-        function onToolUpdatesAvailable(updates) { updateDialog.show(updates) }
+        function onToolUpdatesAvailable(updates) { updateCheck.enqueue(() => updateDialog.show(updates)) }
         function onRequestRaise() { win.raise(); win.requestActivate() }
         function onPluginPanelRequested(key) {
             // Seitenleisten-Seite eines Plugins zeigen, sonst dessen Einstellungsseite in der Plugin-Verwaltung

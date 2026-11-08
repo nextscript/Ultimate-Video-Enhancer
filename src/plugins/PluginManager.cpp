@@ -88,12 +88,8 @@ void PluginManager::discoverAndStart()
 {
     // Über "Plugin installieren" vorgemerkte Pakete jetzt an ihren Platz bringen (DLLs sind noch nicht geladen)
     const QString pending = pendingDir(userPluginDir());
-    for (const auto &fi : QDir(pending).entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
-        const QString target = QDir(userPluginDir()).filePath(fi.fileName());
-        QDir(target).removeRecursively();
-        if (QDir().rename(fi.absoluteFilePath(), target)) Logger::write("plugin", "installiert: " + target);
-        else writeErrorLog(fi.fileName(), tr("Installation fehlgeschlagen: Ordner %1 ist gesperrt").arg(target));
-    }
+    for (const auto &fi : QDir(pending).entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot))
+        applyPendingPackage(fi.absoluteFilePath(), fi.fileName());
 
     QSet<QString> seenIds;
     for (const auto &dir : m_dirs) discoverIn(dir, seenIds);
@@ -107,6 +103,55 @@ void PluginManager::discoverAndStart()
     }
     emit pluginsChanged();
     emit hotkeysChanged();
+}
+
+// Neue Version an den Platz der alten bringen. Die alte wird erst gelöscht, wenn die neue liegt: Bei einem
+// gesperrten Ordner bleibt sie nutzbar und die neue vorgemerkt (nächster Versuch beim nächsten Start).
+void PluginManager::applyPendingPackage(const QString &pendingFolder, const QString &id)
+{
+    const QDir user(userPluginDir());
+    const QString target = user.filePath(id);
+    const QString backup = user.filePath(QStringLiteral(".pending-backup/") + id);
+    QDir(backup).removeRecursively();
+    QDir().mkpath(QFileInfo(backup).absolutePath());
+
+    const bool hadOld = QFileInfo::exists(target);
+    if (hadOld && !QDir().rename(target, backup)) {
+        writeErrorLog(id, tr("Installation fehlgeschlagen: Ordner %1 ist gesperrt").arg(target));
+        return;
+    }
+    if (!QDir().rename(pendingFolder, target)) {
+        if (hadOld) QDir().rename(backup, target);
+        writeErrorLog(id, tr("Installation fehlgeschlagen: Ordner %1 ist gesperrt").arg(target));
+        return;
+    }
+    QDir(backup).removeRecursively();
+    Logger::write("plugin", "installiert: " + target);
+
+    // Die alte Version kann auch anders heißen (von Hand abgelegter Ordner, einzelne Bibliothek). Bliebe sie liegen,
+    // würde sie weiter geladen, denn die zuerst gefundene Fassung einer ID gewinnt.
+    for (const auto &sub : user.entryInfoList(QDir::Dirs | QDir::NoDotAndDotDot)) {
+        if (sub.absoluteFilePath() == QFileInfo(target).absoluteFilePath()) continue;
+        QFile mf(QDir(sub.absoluteFilePath()).filePath(QStringLiteral("manifest.json")));
+        if (!mf.open(QIODevice::ReadOnly)) continue;
+        const bool same = PluginManifest::fromJson(QJsonDocument::fromJson(mf.readAll()).object()).id == id;
+        mf.close();
+        if (same && !QDir(sub.absoluteFilePath()).removeRecursively())
+            writeErrorLog(id, tr("Alte Version konnte nicht entfernt werden: %1").arg(sub.absoluteFilePath()));
+    }
+#if defined(Q_OS_WIN)
+    const QStringList libs{QStringLiteral("*.dll")};
+#elif defined(Q_OS_MACOS)
+    const QStringList libs{QStringLiteral("*.dylib")};
+#else
+    const QStringList libs{QStringLiteral("*.so")};
+#endif
+    for (const auto &lib : user.entryInfoList(libs, QDir::Files)) {
+        const auto meta = QPluginLoader(lib.absoluteFilePath()).metaData();
+        if (meta.value("IID").toString() != QLatin1String(UVE_PLAYER_PLUGIN_IID)) continue;
+        if (PluginManifest::fromJson(meta.value("MetaData").toObject()).id == id && !QFile::remove(lib.absoluteFilePath()))
+            writeErrorLog(id, tr("Alte Version konnte nicht entfernt werden: %1").arg(lib.absoluteFilePath()));
+    }
 }
 
 void PluginManager::discoverIn(const QString &dir, QSet<QString> &seenIds)
@@ -640,7 +685,16 @@ void PluginManager::registerBuiltinCommands()
 }
 
 // ---------------------------------------------------------------- Installation
-QString PluginManager::installPackage(const QString &path)
+QVariantMap PluginManager::installPackageInfo(const QString &path)
+{
+    QVariantMap info;
+    const QString error = installPackage(path, &info);
+    info.insert("ok", error.isEmpty());
+    info.insert("error", error);
+    return info;
+}
+
+QString PluginManager::installPackage(const QString &path, QVariantMap *info)
 {
     const QString userDir = userPluginDir();
     if (userDir.isEmpty()) return tr("Kein Benutzer-Plugin-Ordner");
@@ -701,6 +755,20 @@ QString PluginManager::installPackage(const QString &path)
             return tr("Schreiben fehlgeschlagen: %1").arg(out);
     }
     Logger::write("plugin", QStringLiteral("Paket vorgemerkt: %1 %2 → %3").arg(m.id, m.version, target));
+    if (info) {
+        QString previous;
+        for (const auto &e : std::as_const(m_entries))
+            if (e.manifest.id == m.id) { previous = e.manifest.version; break; }
+        info->insert("id", m.id);
+        info->insert("name", m.name.isEmpty() ? m.id : m.name);
+        info->insert("version", m.version);
+        info->insert("previousVersion", previous);
+        // update | reinstall | downgrade | new
+        info->insert("kind", previous.isEmpty() ? QStringLiteral("new")
+                             : compareVersions(m.version, previous) > 0 ? QStringLiteral("update")
+                             : compareVersions(m.version, previous) == 0 ? QStringLiteral("reinstall")
+                                                                         : QStringLiteral("downgrade"));
+    }
     return {};
 }
 

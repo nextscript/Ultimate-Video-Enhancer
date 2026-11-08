@@ -29,6 +29,7 @@ uve_add_test(tst_toolupdater SOURCES unit/tst_toolupdater.cpp LIBS uvecore)
 if(TARGET uve-player)
     add_dependencies(tst_toolupdater uve-player)   # kopiert tools/7zr.exe nach bin
 endif()
+uve_add_test(tst_appupdater SOURCES unit/tst_appupdater.cpp LIBS uvecore)
 uve_add_test(tst_i18n SOURCES unit/tst_i18n.cpp LIBS uvecore Qt6::Xml)
 add_dependencies(tst_i18n uve_translations)
 uve_add_test(tst_uve SOURCES unit/tst_uve.cpp LIBS uve_engine)

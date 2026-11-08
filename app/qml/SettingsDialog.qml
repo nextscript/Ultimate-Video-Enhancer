@@ -7,6 +7,7 @@ Dialog {
     id: dlg
     property var theme
     property var effects      // UVE-Controller für die Seite "Expert Settings"
+    signal checkUpdatesRequested()
     signal openPlugins()
     signal openEffects()
     title: qsTr("Einstellungen")
@@ -80,8 +81,9 @@ Dialog {
                 Row2 { Label { text: qsTr("Farbschema"); color: theme.text; Layout.fillWidth: true }
                     ComboBox { model: [qsTr("Dunkel"), qsTr("Hell")]; currentIndex: app.theme === "light" ? 1 : 0; onActivated: (i) => app.theme = i === 1 ? "light" : "dark" } }
                 CheckBox { text: qsTr("Letzte Wiedergabeliste beim Start wiederherstellen"); checked: app.setting("restoreSession", true); onToggled: app.setSetting("restoreSession", checked) }
+                CheckBox { text: qsTr("Beim Start nach Updates für UVE Player suchen (Netzwerkzugriff auf GitHub)"); checked: app.setting("checkPlayerUpdates", true); onToggled: app.setSetting("checkPlayerUpdates", checked) }
                 CheckBox { text: qsTr("Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)"); checked: app.setting("checkToolUpdates", true); onToggled: app.setSetting("checkToolUpdates", checked) }
-                Button { text: qsTr("Jetzt nach Updates suchen"); enabled: !app.updater.busy; onClicked: app.updater.check() }
+                Button { text: qsTr("Jetzt nach Updates suchen"); enabled: !app.updater.busy && !app.appUpdater.busy; onClicked: dlg.checkUpdatesRequested() }
                 Item { Layout.fillHeight: true }
             }
             // Wiedergabe

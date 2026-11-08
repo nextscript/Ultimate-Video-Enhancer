@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.1.1 – 2026-11-08
+
+### Player updates through GitHub
+- **Check for updates now includes the player:** *Help → Check for updates* compares the installed version and commit
+  with GitHub and shows the new version and the new commits.
+- **You decide when:** choose *Install now* or *Later*, or skip a version. Commits that are not published as a release yet
+  are only shown, because there is no package to install for them.
+- **Works beyond the GitHub limit:** the player check does not use the limited GitHub API. yt-dlp and libmpv fall back to
+  the release pages when the API limit is reached. Interrupted or rate-limited downloads retry and continue where they
+  stopped, and every player package is checked against its SHA-256 sum.
+
+### Plugin updates
+- **A new version replaces the old one:** installing a plugin package updates the installed version, even if the old
+  version lies in a differently named folder or is a single library. Plugin settings are kept. If the folder is locked,
+  the old version stays usable and the update is retried at the next start.
+- **New dialog after installing:** it confirms the update and offers *Restart now* or *Later*.
+
+### Picture format
+- **"Fill" removed:** the picture format no longer offers *Fill*. *Fit* is the default, and a saved *Fill* setting
+  changes to *Fit*.
+
 ## 1.1.0 – 2026-11-07
 
 ### Stream resolutions with plugins

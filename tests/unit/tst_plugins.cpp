@@ -221,6 +221,60 @@ private slots:
         QVERIFY(found);
         pm.shutdown();
     }
+
+    // Neue Version eines installierten Plugins ersetzt die alte, auch wenn deren Ordner anders heißt
+    void updateReplacesOldVersion()
+    {
+        const auto manifest = [](const char *version) {
+            return "{\"id\":\"org.test.upd\",\"name\":\"Upd\",\"version\":\"" + QByteArray(version) + "\",\"apiVersion\":1,\"main\":\"Main.qml\"}";
+        };
+        QTemporaryDir user, data;
+        writeFile(user.filePath("von-hand-abgelegt/manifest.json"), manifest("1.0.0"));
+        writeFile(user.filePath("von-hand-abgelegt/Main.qml"), "import QtQml\nQtObject {}\n");
+        writeFile(user.filePath("von-hand-abgelegt/nur-alt.txt"), "alt");
+
+        AppSettings settings(data.path());
+        MpvController mpv;
+        ShaderChain shaders(&mpv);
+        QQmlEngine engine;
+        const auto version = [](PluginManager &pm) {
+            for (const auto &v : pm.plugins())
+                if (v.toMap().value("id") == "org.test.upd") return v.toMap().value("version").toString();
+            return QString();
+        };
+        const auto install = [&](PluginManager &pm, const char *v) {
+            QTemporaryDir pkg;
+            writeFile(pkg.filePath("manifest.json"), manifest(v));
+            writeFile(pkg.filePath("Main.qml"), "import QtQml\nQtObject {}\n");
+            return pm.installPackageInfo(pkg.path());
+        };
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            QCOMPARE(version(pm), QStringLiteral("1.0.0"));
+            const auto r = install(pm, "2.0.0");
+            QVERIFY2(r.value("ok").toBool(), qPrintable(r.value("error").toString()));
+            QCOMPARE(r.value("kind").toString(), QStringLiteral("update"));
+            QCOMPARE(r.value("previousVersion").toString(), QStringLiteral("1.0.0"));
+            QCOMPARE(r.value("version").toString(), QStringLiteral("2.0.0"));
+            QCOMPARE(r.value("name").toString(), QStringLiteral("Upd"));
+            pm.shutdown();
+        }
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            QCOMPARE(version(pm), QStringLiteral("2.0.0"));
+            QVERIFY(!QFileInfo::exists(user.filePath("von-hand-abgelegt")));
+            QVERIFY(!QFileInfo::exists(user.filePath("org.test.upd/nur-alt.txt")));
+            QVERIFY(!QFileInfo::exists(user.filePath(".pending/org.test.upd")));
+            QVERIFY(!QFileInfo::exists(user.filePath(".pending-backup/org.test.upd")));
+            QCOMPARE(install(pm, "2.0.0").value("kind").toString(), QStringLiteral("reinstall"));
+            QCOMPARE(install(pm, "1.5.0").value("kind").toString(), QStringLiteral("downgrade"));
+            pm.shutdown();
+        }
+    }
 };
 
 const char *kManifest = R"({

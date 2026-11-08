@@ -1,6 +1,7 @@
 #pragma once
 #include <QObject>
 #include <QVariantList>
+#include <functional>
 
 class QNetworkAccessManager;
 class QNetworkReply;
@@ -31,6 +32,8 @@ public:
     static QString preferredYtdlp(const QString &appDir, const QString &dataDir);
     static QString versionOf(const QString &toolDir);
     static int compareToolVersions(const QString &a, const QString &b);
+    // Asset-Liste der Release-Seite von libmpv: {url, digest, size} des passenden Archivs
+    static QVariantMap parseMpvAssetPage(const QString &html, const QString &tag);
 
 signals:
     void busyChanged();
@@ -42,7 +45,13 @@ signals:
 private:
     void finishCheckIfDone();
     void setBusy(bool b);
-    QNetworkReply *get(const QString &url);
+    QNetworkReply *get(const QString &url, bool followRedirects = true);
+    // Rückfall ohne api.github.com: neueste Version aus der Weiterleitung von <repo>/releases/latest
+    void latestTagWithoutApi(const QString &repo, std::function<void(const QString &tag)> done);
+    void addYtdlp(const QString &tag, const QString &exeUrl, const QString &sumsUrl, qint64 size, const QString &date);
+    void addMpv(const QString &tag, const QString &url, const QString &digest, qint64 size, const QString &date);
+    void ytdlpWithoutApi(const QString &apiError);
+    void mpvWithoutApi(const QString &apiError);
     void installYtdlp(const QVariantMap &info);
     void installMpv(const QVariantMap &info);
 
