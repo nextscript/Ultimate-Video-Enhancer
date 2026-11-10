@@ -9,8 +9,7 @@ function(uve_add_test name)
         UVE_TEST_REF_DIR="${CMAKE_CURRENT_SOURCE_DIR}/reference"
         UVE_LANG_DIR="${CMAKE_SOURCE_DIR}/lang"
         UVE_QM_DIR="${CMAKE_BINARY_DIR}/bin/lang"
-        UVE_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
-        UVE_LEGACY_SCRIPT="${CMAKE_SOURCE_DIR}/legacy-electron/plugins/uve/uve.user.js")
+        UVE_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
     add_test(NAME ${name} COMMAND ${name})
     # libmpv-2.dll neben die Test-EXE (Tests laden libmpv direkt, ohne Verzögerung)
     if(WIN32)
@@ -35,3 +34,7 @@ add_dependencies(tst_i18n uve_translations)
 uve_add_test(tst_uve SOURCES unit/tst_uve.cpp LIBS uve_engine)
 uve_add_test(tst_mpv_integration SOURCES integration/tst_mpv_integration.cpp LIBS uvecore uve_engine)
 uve_add_test(tst_denoise_render SOURCES integration/tst_denoise_render.cpp LIBS uvecore uve_engine Qt6::OpenGL)
+# Optische Medien (1.1.8): ohne Laufwerk; DVD-Fälle mit selbst erzeugter Testdisc (UVE_TEST_DVD_DIR, siehe tests/fixtures)
+uve_add_test(tst_optical_sources SOURCES unit/tst_optical_sources.cpp LIBS uvecore)
+uve_add_test(tst_disc_navigation SOURCES unit/tst_disc_navigation.cpp LIBS uvecore)
+uve_add_test(tst_optical_playback SOURCES integration/tst_optical_playback.cpp LIBS uvecore)

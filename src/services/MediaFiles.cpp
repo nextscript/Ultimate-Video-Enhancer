@@ -50,6 +50,8 @@ bool isUrl(const QString &s)
     return re.match(s).hasMatch();
 }
 
+bool isDiscEntry(const QString &s) { return s.startsWith(QLatin1String("uve-disc://")); }
+
 bool isAllowedUrlScheme(const QString &s)
 {
     const QUrl u(s);
@@ -143,6 +145,7 @@ QStringList expand(const QStringList &inputs)
         if (raw.isEmpty()) continue;
         QString in = raw;
         if (in.startsWith("file:", Qt::CaseInsensitive)) in = QUrl(in).toLocalFile();
+        if (isDiscEntry(in)) { out << in; continue; }
         if (isUrl(in)) { if (isAllowedUrlScheme(in)) out << in; continue; }
         const QFileInfo fi(in);
         if (!fi.exists()) continue;

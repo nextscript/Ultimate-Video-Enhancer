@@ -20,6 +20,12 @@ By installing or using UVE Player you accept the license terms of the components
   available for the complete distribution.
   Sources: https://github.com/mpv-player/mpv, https://github.com/shinchiro/mpv-winbuild-cmake
 
+## libdvdnav / libdvdread / libbluray (included in libmpv, 1.1.8)
+- License: GPL v2+ (libdvdnav, libdvdread), LGPL v2.1+ (libbluray)
+- Usage: inside mpv\libmpv-2.dll of the shinchiro build (`mpv-configuration`: `-Ddvdnav=enabled -Dlibbluray=enabled`); no separate files
+- Not included: libaacs, libbdplus (no decryption), the libbluray BD-J jar and a Java runtime, libcdio (audio CDs are read by UVE itself)
+- Sources: https://code.videolan.org/videolan/libdvdnav, https://code.videolan.org/videolan/libdvdread, https://code.videolan.org/videolan/libbluray
+
 ## FFmpeg (included in libmpv)
 - License: LGPL / GPL, depending on the build
 - Usage: via libmpv (see above)

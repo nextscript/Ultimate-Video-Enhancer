@@ -22,8 +22,21 @@ add_library(uvecore STATIC
     services/SingleInstance.cpp services/SingleInstance.h
     services/ProxyConfig.cpp services/ProxyConfig.h
     services/ProxyBridge.cpp services/ProxyBridge.h
+    # Optische Medien (1.1.8): DVD-Video, Blu-ray, Audio-CD – Quellen, Fähigkeiten, Navigation; Wiedergabe über libmpv
+    services/optical/OpticalMediaTypes.h
+    services/optical/DiscCapabilities.cpp services/optical/DiscCapabilities.h
+    services/optical/DiscSourceResolver.cpp services/optical/DiscSourceResolver.h
+    services/optical/DiscNavigationBridge.cpp services/optical/DiscNavigationBridge.h
+    services/optical/OpticalDriveEnumerator.cpp services/optical/OpticalDriveEnumerator.h
+    services/optical/CdAudioStream.cpp services/optical/CdAudioStream.h
+    services/optical/OpticalMediaService.cpp services/optical/OpticalMediaService.h
 )
 target_include_directories(uvecore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+# BD-J (Blu-ray-Java-Menüs) nur mit ausdrücklich mitgelieferter Java-Laufzeit und libbluray-j2se-*.jar
+option(UVE_WITH_BDJ "BD-J-Laufzeit für Blu-ray-Java-Menüs erwarten (Java + libbluray-j2se-*.jar im Paket)" OFF)
+if(UVE_WITH_BDJ)
+    target_compile_definitions(uvecore PUBLIC UVE_WITH_BDJ=1)
+endif()
 target_link_libraries(uvecore PUBLIC
     Qt6::Core Qt6::Gui Qt6::Quick Qt6::Qml Qt6::Network Qt6::OpenGL Qt6::Concurrent mpv::mpv)
 

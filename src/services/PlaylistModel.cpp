@@ -12,6 +12,13 @@ namespace uve {
 
 static QString displayName(const QString &path)
 {
+    if (media::isDiscEntry(path)) {
+        // Name steht im Eintrag (…&name=…), sonst der Disc-Typ
+        const QString q = path.section(QLatin1Char('?'), 1);
+        for (const QString &pair : q.split(QLatin1Char('&')))
+            if (pair.startsWith(QLatin1String("name="))) return QUrl::fromPercentEncoding(pair.mid(5).toLatin1());
+        return path.mid(11).section(QLatin1Char('?'), 0, 0).toUpper();
+    }
     if (media::isUrl(path)) {
         const QUrl u(path);
         const QString host = u.host().remove(QStringLiteral("www."));

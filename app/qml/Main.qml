@@ -147,6 +147,9 @@ ApplicationWindow {
         case "open.file": openFileDialog.open(); break
         case "open.folder": openFolderDialog.open(); break
         case "open.url": urlDialog.playNow = true; urlDialog.open(); break
+        case "open.disc": discDialog.openTab(0); break
+        case "open.discImage": discDialog.openTab(1); break
+        case "disc.menu": if (!app.disc.navigate("menu")) osd(app.disc.active ? qsTr("Disc-Menü nicht verfügbar") : qsTr("Keine DVD oder Blu-ray aktiv")); break
         case "playlist.save": if (playlist.count > 0) savePlaylistDialog.open(); break
         case "sidebar.toggle": sidebarVisible = !sidebarVisible; app.setSetting("showSidebar", sidebarVisible); break
         case "mediainfo": if (player.state !== 0) mediaInfoDialog.open(); break
@@ -168,8 +171,24 @@ ApplicationWindow {
                 sequence: modelData.shortcut
                 enabled: modelData.shortcut !== "" && win.modalCount === 0
                          && !(win.textEditing && modelData.shortcut.indexOf("Ctrl") < 0 && modelData.shortcut.indexOf("Alt") < 0)
+                         && !(app.disc.menuActive && win.discMenuKeys.indexOf(modelData.shortcut) >= 0)
                 context: Qt.ApplicationShortcut
                 onActivated: win.act(modelData.id)
+            }
+        }
+    }
+    // Disc-Menü aktiv (DVD/Blu-ray): Pfeiltasten, Enter und Rücktaste steuern das Menü statt Spulen/Lautstärke.
+    // Danach gelten wieder die normalen (frei belegbaren) Tastenkürzel.
+    readonly property var discMenuKeys: app.disc.menuKeys()
+    Repeater {
+        model: win.discMenuKeys
+        delegate: Item {
+            required property string modelData
+            Shortcut {
+                sequence: modelData
+                enabled: app.disc.menuActive && win.modalCount === 0 && !win.textEditing
+                context: Qt.ApplicationShortcut
+                onActivated: app.disc.navigate(app.disc.menuKeyAction(modelData))
             }
         }
     }
@@ -198,6 +217,8 @@ ApplicationWindow {
             MenuItem { text: qsTr("Datei öffnen…"); onTriggered: act("open.file") }
             MenuItem { text: qsTr("Ordner öffnen…"); onTriggered: act("open.folder") }
             MenuItem { text: qsTr("Netzwerkstream öffnen…"); onTriggered: act("open.url") }
+            MenuItem { text: qsTr("Disc öffnen…"); onTriggered: act("open.disc") }
+            MenuItem { text: qsTr("Disc-Image/Disc-Ordner öffnen…"); onTriggered: act("open.discImage") }
             Menu {
                 id: recentMenu
                 title: qsTr("Zuletzt geöffnet")
@@ -233,6 +254,8 @@ ApplicationWindow {
             MenuItem { text: qsTr("A-B-Wiederholung"); onTriggered: act("abloop") }
             MenuItem { text: playlist.repeat === "none" ? qsTr("Wiederholen: aus") : (playlist.repeat === "all" ? qsTr("Wiederholen: alle") : qsTr("Wiederholen: eins")); onTriggered: act("repeat.cycle") }
             MenuItem { text: qsTr("Zufallswiedergabe"); checkable: true; checked: playlist.shuffle; onTriggered: act("shuffle.toggle") }
+            MenuSeparator {}
+            DiscNavigationMenu { theme: theme }
         }
         Menu {
             title: qsTr("&Video")
@@ -331,7 +354,6 @@ ApplicationWindow {
         Menu {
             title: qsTr("&Hilfe")
             MenuItem { text: qsTr("Tastenkürzel"); onTriggered: { settingsDialog.open(); settingsDialog.page = 7 } }
-            MenuItem { text: qsTr("Nach Updates suchen"); onTriggered: win.checkForUpdates() }
             MenuItem { text: qsTr("Über UVE Player"); onTriggered: aboutDialog.open() }
         }
     }
@@ -629,6 +651,14 @@ ApplicationWindow {
                 Timer { id: osdTimer; onTriggered: osdBox.opacity = 0 }
             }
 
+            // DVD/Blu-ray: Navigation (sichtbar im Disc-Menü oder mit der Bedienleiste)
+            DiscNavigationControls {
+                theme: theme
+                visible: app.disc.navigationAvailable && (app.disc.menuActive || !win.overlayControls || win.controlsVisible)
+                anchors { left: parent.left; bottom: videoArea.bottom; margins: 14 }
+                onUsed: win.poke()
+            }
+
             DiagnosticsOverlay {
                 visible: win.diagnosticsVisible
                 anchors { top: parent.top; left: parent.left; margins: 12 }
@@ -830,9 +860,16 @@ ApplicationWindow {
         onAccepted: app.savePlaylist(selectedFile)
     }
 
+    OpenDiscDialog { id: discDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
     OpenUrlDialog { id: urlDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
     MediaInfoDialog { id: mediaInfoDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
-    AboutDialog { id: aboutDialog; theme: theme; onOpened: win.modalCount++; onClosed: win.modalCount = Math.max(0, win.modalCount - 1) }
+    AboutDialog {
+        id: aboutDialog; theme: theme
+        onOpened: win.modalCount++
+        onClosed: win.modalCount = Math.max(0, win.modalCount - 1)
+        onToolUpdatesRequested: (updates) => updateDialog.show(updates)
+        onCommitsRequested: (result) => appUpdateDialog.show(result)
+    }
     UpdateDialog { id: updateDialog; theme: theme; onOpened: win.modalCount++; onClosed: { win.modalCount = Math.max(0, win.modalCount - 1); updateCheck.showNext() } }
     AppUpdateDialog { id: appUpdateDialog; theme: theme; onOpened: win.modalCount++; onClosed: { win.modalCount = Math.max(0, win.modalCount - 1); updateCheck.showNext() } }
     SettingsDialog {
@@ -913,6 +950,7 @@ ApplicationWindow {
         target: app.appUpdater
         function onCheckFinished(result, error) {
             var manual = updateCheck.pendingManual > 0
+            if (aboutDialog.visible && !manual) return   // „Über UVE Player“ zeigt das Ergebnis selbst
             var relevant = result.updateAvailable === true || result.newerCommits === true
             if (manual) {
                 if (relevant) updateCheck.enqueue(() => appUpdateDialog.show(result))
@@ -922,7 +960,7 @@ ApplicationWindow {
             } else if (result.newerCommits === true && app.setting("seenPlayerCommit", "") !== result.branchCommit) {
                 // Ohne installierbares Paket kein Fenster beim Start, nur einmal je Commit ein Hinweis
                 app.setSetting("seenPlayerCommit", result.branchCommit)
-                win.osd(qsTr("Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen"), 5000)
+                win.osd(qsTr("Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Über UVE Player"), 5000)
             }
             updateCheck.finishedOne(relevant ? 1 : 0, error ? "UVE Player: " + error : "")
         }
@@ -930,7 +968,7 @@ ApplicationWindow {
     Connections {
         target: app
         function onOsd(text, ms) { win.osd(text, ms) }
-        function onToolUpdatesAvailable(updates) { updateCheck.enqueue(() => updateDialog.show(updates)) }
+        function onToolUpdatesAvailable(updates) { if (!aboutDialog.visible) updateCheck.enqueue(() => updateDialog.show(updates)) }
         function onRequestRaise() { win.raise(); win.requestActivate() }
         function onPluginPanelRequested(key) {
             win.showPanel(key, false)

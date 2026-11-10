@@ -19,7 +19,7 @@ Anything not tested is explicitly marked as such.
 | tst_mpv_integration | Load libmpv, open a file, switch tracks, seek, EOF | passed |
 | tst_thumbnailer | Explorer thumbnail provider: file stream, memory stream, STA-bound stream (no access from other threads) | passed |
 
-Result: **10/10 passed**.
+Result: **10/10 passed** (1.1.8: 15 suites incl. `tst_optical_sources`, `tst_disc_navigation`, `tst_optical_playback` – see below).
 
 ## 1.1.3 self-tests (2026-11-08, real mouse events)
 
@@ -47,6 +47,52 @@ Result: **10/10 passed**.
 | Settings → Network | ok |
 | English (default) and Greek language, 0 warnings in the log | ok |
 | Clean exit (exit code 0) | ok |
+
+## Optical media (1.1.8)
+
+Run on 2026-11-10 on the test system above. **No optical drive is attached to this system** – nothing below was tested with a physical
+DVD, Blu-ray or CD. Labels: **PASS** = executed with real data, **SIMULATED** = executed with a synthetic disc or mock,
+**NOT TESTED** = not executed, **BLOCKED** = missing hardware/tool/feature.
+
+Synthetic DVD: `tests/fixtures/make-dvd-fixture.sh` (ffmpeg + dvdauthor/spumux 0.7.2 + genisoimage from Ubuntu 24.04, run in WSL without
+root): VMGM menu with two buttons (first play → menu), title 1 = 12 s PAL test picture with AC-3 sound and chapters at 0:00 and 0:06,
+as `VIDEO_TS` folder and as ISO. Synthetic audio CD: `createSyntheticCd()` / `UVE_TEST_FAKE_CD=1` (3 tracks of sine tones, 9–11 s).
+
+| Check | How | Result |
+|---|---|---|
+| Capabilities of the bundled libmpv (mpv v0.41.0-1386, shinchiro 20261102) | `tst_optical_playback` against the real DLL | PASS: `dvd`/`dvdnav`, `bd`/`bluray`, `disc-menu`, `disc-menu-active`, `discnav` present; `cdda` absent; BD-J not available |
+| Source detection: DVD/BD folders, `VIDEO_TS`/`BDMV` chosen directly, AACS, BD-J (`JAR`), ISO 9660, UDF, garbage/truncated images, schemes rejected | `tst_optical_sources` (in-memory images, temp folders) | SIMULATED, passed |
+| Playlist entries (special characters, Unicode), session restore, load plans incl. `%len%` quoting, degradation without menus/libraries | `tst_optical_sources` | SIMULATED, passed |
+| `discnav` only with an active DVD/BD and the command present, unknown actions refused; menu keys (arrows, Enter, Backspace) only while a menu is shown | `tst_disc_navigation` | SIMULATED, passed |
+| DVD folder: start in the disc menu, `disc-menu-active`, titles from `edition-list`, title selection leaves the menu, `discnav title-menu` returns to the menu (53 ms) | `tst_optical_playback` (vo=null) | SIMULATED, passed |
+| DVD ISO: main title, 720×576, 12.0 s, 2 chapters, chapter jump to 0:06 | `tst_optical_playback` | SIMULATED, passed |
+| DVD in the real player (`UVEPlayer.exe` with the folder as argument): menu picture shown, disc bar visible, Enter → `discnav select`, ← → `discnav left` (not seek), Ctrl+M → `discnav menu` | real window, keys sent to the player | SIMULATED, passed |
+| Selecting a **menu button** (`discnav select`) jumps into the title | synthetic DVD, headless and in the player | **not passed**: libmpv accepts the command and the disc resyncs, but stays in the menu; button highlights are not visible. Cause open (synthetic disc or libmpv). Needs a real DVD |
+| Audio CD via `uvecdda://`: WAV header, byte-exact data, seeking across sector/cache boundaries, data tracks refused, read error when the medium disappears | `tst_optical_sources` | SIMULATED, passed |
+| Audio CD in libmpv: `pcm_s16le`, length 9.0 s, seek, track change without early end, no navigation/video | `tst_optical_playback` | SIMULATED, passed |
+| Audio CD in the real player: *Open disc* dialog lists the test CD with badge and 3 tracks, *Open* → 3 playlist entries with lengths, playback, N → next track | real window | SIMULATED, passed |
+| Unknown `.iso` refused with message, nothing added; missing device → libmpv error, no crash; removed image → "disc was removed" | `tst_optical_playback` | SIMULATED, passed |
+| Windows drive enumeration (`GetDriveType`, empty drive without system dialog), raw CD reading via `IOCTL_CDROM_RAW_READ` | – | BLOCKED (no drive) |
+| Blu-ray titles and HDMV menus (folder/ISO) | – | BLOCKED (no open-source tool here to author a valid BDMV with playlists/menus); not claimed |
+| BD-J | – | BLOCKED (not shipped) |
+| Encrypted Blu-ray | – | refused by design (AACS folder → message); NOT TESTED with a real disc |
+| Linux (`/dev/sr*`, distribution libmpv) and macOS (mounted volumes, Homebrew mpv) | – | NOT TESTED (only built by CI) |
+| Physical DVD, Blu-ray, audio CD on any platform | – | NOT TESTED |
+
+Regression (same day): all 15 CTest suites passed, including the existing ones (`tst_mpv_integration`, `tst_denoise_render`, `tst_i18n`
+with 6 languages × 1079 strings, …). UI self-test (`UVE_SELFTEST_UI=1`, real mouse events: playlist, click/double-click, context menu,
+effects, LUT gallery, before/after, Auto Scene Match, transitions): passed in 3 consecutive runs; it failed in 3 earlier runs on
+`autoInfo` (Auto Scene Match text empty) and passed with 1.1.7 in between – after a clean rebuild 1.1.8 passed again, so this is noted
+as possibly timing-dependent, not as solved.
+
+## About UVE Player – update check (1.1.8)
+
+| Check | Result |
+|---|---|
+| *Help* menu contains only *Keyboard shortcuts* and *About UVE Player* | PASS (real window) |
+| Opening *About* starts the check and shows the result in the dialog: "New commits on GitHub (no release yet)" with *Details*, "Tool updates available: libmpv" with *Show* | PASS (real GitHub answer at the time of the test) |
+| Automatic start-up check does not open a second window while *About* is open | code review |
+| *Update now* inside the dialog (download, SHA-256, restart) | NOT TESTED (no newer release existed); uses the unchanged `AppUpdater::install()` covered by `tst_appupdater` |
 
 ## Playback of real sources
 

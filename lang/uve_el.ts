@@ -12,12 +12,120 @@
         <translation>Κλείσιμο</translation>
     </message>
     <message>
+        <source> MB</source>
+        <translation> MB</translation>
+    </message>
+    <message>
+        <source>Update wird heruntergeladen …</source>
+        <translation>Λήψη ενημέρωσης …</translation>
+    </message>
+    <message>
+        <source>Suche nach Updates …</source>
+        <translation>Αναζήτηση ενημερώσεων …</translation>
+    </message>
+    <message>
+        <source>UVE Player ist auf dem neuesten Stand</source>
+        <translation>Το UVE Player είναι ενημερωμένο</translation>
+    </message>
+    <message>
+        <source>Update verfügbar: UVE Player %1</source>
+        <translation>Διαθέσιμη ενημέρωση: UVE Player %1</translation>
+    </message>
+    <message>
+        <source>Neue Commits auf GitHub (noch kein Release)</source>
+        <translation>Νέα commits στο GitHub (χωρίς έκδοση ακόμη)</translation>
+    </message>
+    <message>
+        <source>Update-Prüfung fehlgeschlagen</source>
+        <translation>Ο έλεγχος ενημερώσεων απέτυχε</translation>
+    </message>
+    <message>
+        <source>UVE Player wird aktualisiert …</source>
+        <translation>Ενημέρωση του UVE Player …</translation>
+    </message>
+    <message>
+        <source>Installation wird gestartet – der Player wird neu gestartet …</source>
+        <translation>Έναρξη εγκατάστασης – η εφαρμογή θα επανεκκινηθεί …</translation>
+    </message>
+    <message>
+        <source>Update bereit</source>
+        <translation>Η ενημέρωση είναι έτοιμη</translation>
+    </message>
+    <message>
+        <source>Das Update wurde nicht installiert</source>
+        <translation>Η ενημέρωση δεν εγκαταστάθηκε</translation>
+    </message>
+    <message>
+        <source>Version %1</source>
+        <translation>Έκδοση %1</translation>
+    </message>
+    <message>
+        <source>Version %1 · %2 – wird per SHA-256 geprüft, danach startet der Player neu.</source>
+        <translation>Έκδοση %1 · %2 – ελέγχεται με SHA-256 και μετά η εφαρμογή επανεκκινείται.</translation>
+    </message>
+    <message>
+        <source>Für diese Installation gibt es kein automatisches Update. Das neue Paket liegt auf der GitHub-Seite des Releases.</source>
+        <translation>Δεν υπάρχει αυτόματη ενημέρωση για αυτή την εγκατάσταση. Το νέο πακέτο βρίσκεται στη σελίδα της έκδοσης στο GitHub.</translation>
+    </message>
+    <message>
+        <source>Neue Commits: %1 – sobald es ein Release gibt, kann es hier installiert werden.</source>
+        <translation>Νέα commits: %1 – μόλις υπάρξει έκδοση, θα μπορεί να εγκατασταθεί εδώ.</translation>
+    </message>
+    <message>
+        <source>GitHub antwortet gerade nicht – neuer Versuch in %1 s (der Download wird fortgesetzt)</source>
+        <translation>Το GitHub δεν αποκρίνεται – νέα προσπάθεια σε %1 s (η λήψη θα συνεχιστεί)</translation>
+    </message>
+    <message>
         <source>UVE Player </source>
         <translation>UVE Player </translation>
     </message>
     <message>
         <source>Medienplayer mit libmpv und Ultimate-Video-Enhancer-Plugin</source>
         <translation>Πρόγραμμα αναπαραγωγής πολυμέσων με libmpv και το πρόσθετο Ultimate Video Enhancer</translation>
+    </message>
+    <message>
+        <source>Jetzt aktualisieren</source>
+        <translation>Ενημέρωση τώρα</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Δοκιμή ξανά</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Ακύρωση</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Λεπτομέρειες</translation>
+    </message>
+    <message>
+        <source>Erneut prüfen</source>
+        <translation>Νέος έλεγχος</translation>
+    </message>
+    <message>
+        <source>Auf GitHub ansehen</source>
+        <translation>Προβολή στο GitHub</translation>
+    </message>
+    <message>
+        <source>yt-dlp und libmpv werden geprüft …</source>
+        <translation>Έλεγχος yt-dlp και libmpv …</translation>
+    </message>
+    <message>
+        <source>Updates für Werkzeuge verfügbar: %1</source>
+        <translation>Διαθέσιμες ενημερώσεις εργαλείων: %1</translation>
+    </message>
+    <message>
+        <source>Werkzeug-Prüfung fehlgeschlagen: %1</source>
+        <translation>Ο έλεγχος εργαλείων απέτυχε: %1</translation>
+    </message>
+    <message>
+        <source>yt-dlp und libmpv sind aktuell</source>
+        <translation>Τα yt-dlp και libmpv είναι ενημερωμένα</translation>
+    </message>
+    <message>
+        <source>Anzeigen</source>
+        <translation>Εμφάνιση</translation>
     </message>
     <message>
         <source>mpv / libmpv</source>
@@ -307,6 +415,120 @@
     <message>
         <source>Shader-Kette:      </source>
         <translation>Αλυσίδα shader:      </translation>
+    </message>
+</context>
+<context>
+    <name>DiscNavigationControls</name>
+    <message>
+        <source>Disc-Menü</source>
+        <translation>Μενού δίσκου</translation>
+    </message>
+    <message>
+        <source>Disc</source>
+        <translation>Δίσκος</translation>
+    </message>
+    <message>
+        <source>Links</source>
+        <translation>Αριστερά</translation>
+    </message>
+    <message>
+        <source>Hoch</source>
+        <translation>Πάνω</translation>
+    </message>
+    <message>
+        <source>Runter</source>
+        <translation>Κάτω</translation>
+    </message>
+    <message>
+        <source>Rechts</source>
+        <translation>Δεξιά</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Auswählen (Enter)</source>
+        <translation>Επιλογή (Enter)</translation>
+    </message>
+    <message>
+        <source>Zurück (Rücktaste)</source>
+        <translation>Πίσω (Backspace)</translation>
+    </message>
+    <message>
+        <source>Menü</source>
+        <translation>Μενού</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Άνοιγμα μενού δίσκου</translation>
+    </message>
+</context>
+<context>
+    <name>DiscNavigationMenu</name>
+    <message>
+        <source>Disc-Navigation</source>
+        <translation>Πλοήγηση δίσκου</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Άνοιγμα μενού δίσκου</translation>
+    </message>
+    <message>
+        <source>Titelmenü</source>
+        <translation>Μενού τίτλων</translation>
+    </message>
+    <message>
+        <source>Popup-Menü</source>
+        <translation>Αναδυόμενο μενού</translation>
+    </message>
+    <message>
+        <source>Hoch</source>
+        <translation>Πάνω</translation>
+    </message>
+    <message>
+        <source>Runter</source>
+        <translation>Κάτω</translation>
+    </message>
+    <message>
+        <source>Links</source>
+        <translation>Αριστερά</translation>
+    </message>
+    <message>
+        <source>Rechts</source>
+        <translation>Δεξιά</translation>
+    </message>
+    <message>
+        <source>Auswählen</source>
+        <translation>Επιλογή</translation>
+    </message>
+    <message>
+        <source>Zurück</source>
+        <translation>Πίσω</translation>
+    </message>
+    <message>
+        <source>Vorheriges Kapitel</source>
+        <translation>Προηγούμενο κεφάλαιο</translation>
+    </message>
+    <message>
+        <source>Nächstes Kapitel</source>
+        <translation>Επόμενο κεφάλαιο</translation>
+    </message>
+    <message>
+        <source>Kapitel (%1)</source>
+        <translation>Κεφάλαια (%1)</translation>
+    </message>
+    <message>
+        <source>Kapitel %1</source>
+        <translation>Κεφάλαιο %1</translation>
+    </message>
+    <message>
+        <source>Titel (%1)</source>
+        <translation>Τίτλοι (%1)</translation>
+    </message>
+    <message>
+        <source>Titel %1</source>
+        <translation>Τίτλος %1</translation>
     </message>
 </context>
 <context>
@@ -762,6 +984,14 @@
         <translation>Το πρόσθετο εφέ δεν είναι ενεργό</translation>
     </message>
     <message>
+        <source>Disc-Menü nicht verfügbar</source>
+        <translation>Το μενού δίσκου δεν είναι διαθέσιμο</translation>
+    </message>
+    <message>
+        <source>Keine DVD oder Blu-ray aktiv</source>
+        <translation>Δεν αναπαράγεται DVD ή Blu-ray</translation>
+    </message>
+    <message>
         <source>&amp;Datei</source>
         <translation>&amp;Αρχείο</translation>
     </message>
@@ -776,6 +1006,14 @@
     <message>
         <source>Netzwerkstream öffnen…</source>
         <translation>Άνοιγμα ροής δικτύου…</translation>
+    </message>
+    <message>
+        <source>Disc öffnen…</source>
+        <translation>Άνοιγμα δίσκου…</translation>
+    </message>
+    <message>
+        <source>Disc-Image/Disc-Ordner öffnen…</source>
+        <translation>Άνοιγμα εικόνας/φακέλου δίσκου…</translation>
     </message>
     <message>
         <source>Zuletzt geöffnet</source>
@@ -994,8 +1232,8 @@
         <translation>Τα UVE Player, yt-dlp και libmpv είναι ενημερωμένα</translation>
     </message>
     <message>
-        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen</source>
-        <translation>Νέα commit του UVE Player στο GitHub (χωρίς έκδοση ακόμη) – δείτε Βοήθεια → Έλεγχος για ενημερώσεις</translation>
+        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Über UVE Player</source>
+        <translation>Νέα commits του UVE Player στο GitHub (χωρίς έκδοση ακόμη) – δείτε Βοήθεια → Σχετικά με το UVE Player</translation>
     </message>
     <message>
         <source>Suche nach Updates …</source>
@@ -1004,10 +1242,6 @@
     <message>
         <source>Über UVE Player</source>
         <translation>Σχετικά με το UVE Player</translation>
-    </message>
-    <message>
-        <source>Nach Updates suchen</source>
-        <translation>Έλεγχος για ενημερώσεις</translation>
     </message>
     <message>
         <source>Safe Mode – Plugins nicht geladen. </source>
@@ -1123,6 +1357,97 @@
     <message>
         <source>Schließen</source>
         <translation>Κλείσιμο</translation>
+    </message>
+</context>
+<context>
+    <name>OpenDiscDialog</name>
+    <message>
+        <source>Disc öffnen</source>
+        <translation>Άνοιγμα δίσκου</translation>
+    </message>
+    <message>
+        <source>%1 Spuren</source>
+        <translation>%1 κομμάτια</translation>
+    </message>
+    <message>
+        <source>verschlüsselt (AACS)</source>
+        <translation>κρυπτογραφημένο (AACS)</translation>
+    </message>
+    <message>
+        <source>Disc-Image wählen</source>
+        <translation>Επιλογή εικόνας δίσκου</translation>
+    </message>
+    <message>
+        <source>Disc-Images (*.iso *.img *.udf)</source>
+        <translation>Εικόνες δίσκου (*.iso *.img *.udf)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>Όλα τα αρχεία (*)</translation>
+    </message>
+    <message>
+        <source>Disc-Ordner wählen (enthält VIDEO_TS oder BDMV)</source>
+        <translation>Επιλογή φακέλου δίσκου (περιέχει VIDEO_TS ή BDMV)</translation>
+    </message>
+    <message>
+        <source>Informationen ausblenden</source>
+        <translation>Απόκρυψη πληροφοριών</translation>
+    </message>
+    <message>
+        <source>Disc-Informationen</source>
+        <translation>Πληροφορίες δίσκου</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Ακύρωση</translation>
+    </message>
+    <message>
+        <source>Öffnen</source>
+        <translation>Άνοιγμα</translation>
+    </message>
+    <message>
+        <source>Laufwerk</source>
+        <translation>Μονάδα</translation>
+    </message>
+    <message>
+        <source>ISO/Ordner</source>
+        <translation>ISO/φάκελος</translation>
+    </message>
+    <message>
+        <source>Laufwerke werden abgefragt …</source>
+        <translation>Αναζήτηση μονάδων …</translation>
+    </message>
+    <message>
+        <source>Optische Laufwerke</source>
+        <translation>Οπτικές μονάδες</translation>
+    </message>
+    <message>
+        <source>Aktualisieren</source>
+        <translation>Ανανέωση</translation>
+    </message>
+    <message>
+        <source>Image wählen …</source>
+        <translation>Επιλογή εικόνας …</translation>
+    </message>
+    <message>
+        <source>Ordner wählen …</source>
+        <translation>Επιλογή φακέλου …</translation>
+    </message>
+    <message>
+        <source>Unterstützt: DVD-Video (ISO oder Ordner mit VIDEO_TS) und unverschlüsselte Blu-ray (ISO oder Ordner mit BDMV). Der Typ wird am Inhalt erkannt, nicht an der Dateiendung.</source>
+        <translation>Υποστηρίζονται: DVD-Video (ISO ή φάκελος με VIDEO_TS) και μη κρυπτογραφημένα Blu-ray (ISO ή φάκελος με BDMV). Ο τύπος αναγνωρίζεται από το περιεχόμενο, όχι από την επέκταση.</translation>
+    </message>
+    <message>
+        <source>Im Disc-Menü starten</source>
+        <translation>Έναρξη στο μενού δίσκου</translation>
+    </message>
+    <message>
+        <source>Im Disc-Menü starten (von diesem Build nicht unterstützt – Haupttitel)</source>
+        <translation>Έναρξη στο μενού δίσκου (δεν υποστηρίζεται από αυτή την έκδοση – κύριος τίτλος)</translation>
+    </message>
+    <message>
+        <source>Der Haupttitel wird direkt abgespielt.</source>
+        <translation>Ο κύριος τίτλος αναπαράγεται απευθείας.</translation>
     </message>
 </context>
 <context>
@@ -1523,6 +1848,17 @@
     <message>
         <source>Benötigtes Backend fehlt: %1</source>
         <translation>Λείπει το απαιτούμενο backend: %1</translation>
+    </message>
+</context>
+<context>
+    <name>PluginModal</name>
+    <message>
+        <source>Schließen</source>
+        <translation>Κλείσιμο</translation>
+    </message>
+    <message>
+        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>Δεν ήταν δυνατή η φόρτωση του παραθύρου του προσθέτου (δείτε το αρχείο σφαλμάτων προσθέτων). Η αναπαραγωγή δεν επηρεάζεται.</translation>
     </message>
 </context>
 <context>
@@ -2732,6 +3068,18 @@
         <translation>Άνοιγμα ροής δικτύου…</translation>
     </message>
     <message>
+        <source>Disc öffnen…</source>
+        <translation>Άνοιγμα δίσκου…</translation>
+    </message>
+    <message>
+        <source>Disc-Image/Disc-Ordner öffnen…</source>
+        <translation>Άνοιγμα εικόνας/φακέλου δίσκου…</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Άνοιγμα μενού δίσκου</translation>
+    </message>
+    <message>
         <source>Wiedergabeliste speichern…</source>
         <translation>Αποθήκευση λίστας αναπαραγωγής…</translation>
     </message>
@@ -2761,6 +3109,169 @@
     <message>
         <source>A-B %1 – %2</source>
         <translation>A-B %1 – %2</translation>
+    </message>
+</context>
+<context>
+    <name>uve::OpticalMediaService</name>
+    <message>
+        <source>Track %1</source>
+        <translation>Κομμάτι %1</translation>
+    </message>
+    <message>
+        <source>DVD</source>
+        <translation>DVD</translation>
+    </message>
+    <message>
+        <source>Blu-ray</source>
+        <translation>Blu-ray</translation>
+    </message>
+    <message>
+        <source>Audio-CD</source>
+        <translation>CD ήχου</translation>
+    </message>
+    <message>
+        <source>Unbekannt</source>
+        <translation>Άγνωστο</translation>
+    </message>
+    <message>
+        <source>Kein optisches Laufwerk gefunden</source>
+        <translation>Δεν βρέθηκε οπτική μονάδα</translation>
+    </message>
+    <message>
+        <source>Kein Medium im Laufwerk</source>
+        <translation>Δεν υπάρχει δίσκος στη μονάδα</translation>
+    </message>
+    <message>
+        <source>Kein unterstützter Disc-Typ (DVD-Video, Blu-ray oder Audio-CD)</source>
+        <translation>Μη υποστηριζόμενος τύπος δίσκου (DVD-Video, Blu-ray ή CD ήχου)</translation>
+    </message>
+    <message>
+        <source>Kein Lesezugriff auf das Laufwerk oder die Datei</source>
+        <translation>Δεν υπάρχει δικαίωμα ανάγνωσης της μονάδας ή του αρχείου</translation>
+    </message>
+    <message>
+        <source>Die mitgelieferte libmpv kann diesen Disc-Typ nicht öffnen</source>
+        <translation>Η ενσωματωμένη libmpv δεν μπορεί να ανοίξει αυτόν τον τύπο δίσκου</translation>
+    </message>
+    <message>
+        <source>Disc-Menüs werden von diesem Build nicht unterstützt – der Haupttitel wird abgespielt</source>
+        <translation>Τα μενού δίσκου δεν υποστηρίζονται από αυτή την έκδοση – αναπαράγεται ο κύριος τίτλος</translation>
+    </message>
+    <message>
+        <source>BD-J-Menüs benötigen Java und libbluray-j2se – der Haupttitel wird abgespielt</source>
+        <translation>Τα μενού BD-J χρειάζονται Java και libbluray-j2se – αναπαράγεται ο κύριος τίτλος</translation>
+    </message>
+    <message>
+        <source>Verschlüsselte Blu-ray in dieser Konfiguration nicht unterstützt</source>
+        <translation>Τα κρυπτογραφημένα Blu-ray δεν υποστηρίζονται σε αυτή τη διαμόρφωση</translation>
+    </message>
+    <message>
+        <source>Die Disc wurde während der Wiedergabe entfernt</source>
+        <translation>Ο δίσκος αφαιρέθηκε κατά την αναπαραγωγή</translation>
+    </message>
+    <message>
+        <source>Image beschädigt oder kein DVD-/Blu-ray-Image</source>
+        <translation>Η εικόνα είναι κατεστραμμένη ή δεν είναι εικόνα DVD/Blu-ray</translation>
+    </message>
+    <message>
+        <source>Disc nicht abspielbar (beschädigt, kopiergeschützt oder vom Build nicht unterstützt)</source>
+        <translation>Ο δίσκος δεν αναπαράγεται (κατεστραμμένος, με προστασία αντιγραφής ή μη υποστηριζόμενος)</translation>
+    </message>
+    <message>
+        <source>ja</source>
+        <translation>ναι</translation>
+    </message>
+    <message>
+        <source>nein</source>
+        <translation>όχι</translation>
+    </message>
+    <message>
+        <source>Quelltyp</source>
+        <translation>Τύπος πηγής</translation>
+    </message>
+    <message>
+        <source>Gerät / Image</source>
+        <translation>Συσκευή / εικόνα</translation>
+    </message>
+    <message>
+        <source>Spur</source>
+        <translation>Κομμάτι</translation>
+    </message>
+    <message>
+        <source>Titel / Kapitel</source>
+        <translation>Τίτλοι / κεφάλαια</translation>
+    </message>
+    <message>
+        <source>Menümodus</source>
+        <translation>Λειτουργία μενού</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aktiv</source>
+        <translation>Μενού δίσκου ενεργό</translation>
+    </message>
+    <message>
+        <source>Start im Disc-Menü</source>
+        <translation>Έναρξη στο μενού δίσκου</translation>
+    </message>
+    <message>
+        <source>Titelwiedergabe</source>
+        <translation>Αναπαραγωγή τίτλου</translation>
+    </message>
+    <message>
+        <source>Aktiv</source>
+        <translation>Ενεργό</translation>
+    </message>
+    <message>
+        <source>libmpv</source>
+        <translation>libmpv</translation>
+    </message>
+    <message>
+        <source>DVD-Video</source>
+        <translation>DVD-Video</translation>
+    </message>
+    <message>
+        <source>DVD-Menüs</source>
+        <translation>Μενού DVD</translation>
+    </message>
+    <message>
+        <source>Blu-ray (Titel)</source>
+        <translation>Blu-ray (τίτλοι)</translation>
+    </message>
+    <message>
+        <source>Blu-ray-Menüs (HDMV)</source>
+        <translation>Μενού Blu-ray (HDMV)</translation>
+    </message>
+    <message>
+        <source>BD-J</source>
+        <translation>BD-J</translation>
+    </message>
+    <message>
+        <source>nein – libbluray-j2se-*.jar fehlt</source>
+        <translation>όχι – λείπει το libbluray-j2se-*.jar</translation>
+    </message>
+    <message>
+        <source>nein – keine Java-Laufzeit</source>
+        <translation>όχι – δεν υπάρχει Java runtime</translation>
+    </message>
+    <message>
+        <source>nein – nicht in diesem Paket enthalten</source>
+        <translation>όχι – δεν περιλαμβάνεται σε αυτό το πακέτο</translation>
+    </message>
+    <message>
+        <source>ja (eigener CD-Leser über libmpv)</source>
+        <translation>ναι (ενσωματωμένος αναγνώστης CD μέσω libmpv)</translation>
+    </message>
+    <message>
+        <source>ja (libmpv cdda://)</source>
+        <translation>ναι (libmpv cdda://)</translation>
+    </message>
+    <message>
+        <source>Disc-Navigation (discnav)</source>
+        <translation>Πλοήγηση δίσκου (discnav)</translation>
+    </message>
+    <message>
+        <source>libmpv-Build</source>
+        <translation>Έκδοση libmpv</translation>
     </message>
 </context>
 <context>
@@ -3922,17 +4433,6 @@
     <message>
         <source>UVE-Profil exportiert</source>
         <translation>Το προφίλ UVE εξήχθη</translation>
-    </message>
-</context>
-<context>
-    <name>PluginModal</name>
-    <message>
-        <source>Schließen</source>
-        <translation>Κλείσιμο</translation>
-    </message>
-    <message>
-        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
-        <translation>Δεν ήταν δυνατή η φόρτωση του παραθύρου του προσθέτου (δείτε το αρχείο σφαλμάτων προσθέτων). Η αναπαραγωγή δεν επηρεάζεται.</translation>
     </message>
 </context>
 </TS>

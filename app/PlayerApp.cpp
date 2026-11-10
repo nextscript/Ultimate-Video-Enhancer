@@ -11,6 +11,8 @@
 #include "services/PlaylistModel.h"
 #include "services/ToolUpdater.h"
 #include "services/AppUpdater.h"
+#include "services/optical/OpticalMediaService.h"
+#include "services/optical/DiscSourceResolver.h"
 
 #include <QClipboard>
 #include <QCoreApplication>
@@ -47,6 +49,13 @@ PlayerApp::PlayerApp(AppSettings *settings, SafeMode *safe, const QString &mpvLi
     m_shaders = new ShaderChain(m_player, this);
     m_playlist = new PlaylistModel(this);
     m_hotkeys = new HotkeyModel(m_settings, this);
+    m_disc = new OpticalMediaService(m_player, m_playlist, QCoreApplication::applicationDirPath(), this);
+    connect(m_disc, &OpticalMediaService::playRequested, this, [this](int index) { playIndex(index); });
+    connect(m_disc, &OpticalMediaService::osd, this, &PlayerApp::osd);
+    connect(m_disc, &OpticalMediaService::openFailed, this, [this](const QString &message) {
+        showOsd(message, 5000);
+        Logger::write("disc", "nicht geöffnet: " + message);
+    });
     m_updater = new ToolUpdater(QCoreApplication::applicationDirPath(), m_settings->dataDir(), this);
     m_appUpdater = new AppUpdater({QStringLiteral(UVE_PLAYER_VERSION), QStringLiteral(UVE_GIT_COMMIT), QStringLiteral(UVE_GIT_COMMIT_TIME)},
                                   QCoreApplication::applicationDirPath(), m_settings->dataDir(), this);
@@ -66,7 +75,7 @@ PlayerApp::PlayerApp(AppSettings *settings, SafeMode *safe, const QString &mpvLi
     connect(m_player, &MpvController::mediaTitleChanged, this, [this] {
         // Netzwerkstreams: lesbaren Titel (z. B. YouTube-Videotitel) übernehmen
         const int i = m_playlist->currentIndex();
-        if (i >= 0 && media::isUrl(m_playlist->pathAt(i)) && !m_player->mediaTitle().isEmpty())
+        if (i >= 0 && media::isUrl(m_playlist->pathAt(i)) && !media::isDiscEntry(m_playlist->pathAt(i)) && !m_player->mediaTitle().isEmpty())
             m_playlist->setTitle(i, m_player->mediaTitle());
     });
     connect(m_player, &MpvController::pausedChanged, this, [this] { if (m_player->paused()) saveResume(); });
@@ -98,6 +107,7 @@ QObject *PlayerApp::updaterObject() const { return m_updater; }
 QObject *PlayerApp::appUpdaterObject() const { return m_appUpdater; }
 QObject *PlayerApp::shadersObject() const { return m_shaders; }
 QObject *PlayerApp::settingsObject() const { return m_settings; }
+QObject *PlayerApp::discObject() const { return m_disc; }
 QString PlayerApp::version() const { return QCoreApplication::applicationVersion(); }
 QString PlayerApp::mpvVersion() const { return m_player->mpvVersion(); }
 QString PlayerApp::qtVersion() const { return QString::fromLatin1(qVersion()); }
@@ -149,6 +159,7 @@ bool PlayerApp::initializePlayer(QString *error)
     }
     const QVariantMap &opts2 = optsDiag;
     if (!m_player->initialize(opts2, error)) return false;
+    m_disc->attach();   // Disc-Fähigkeiten der geladenen libmpv, CD-Leser anmelden
     applyRenderQuality(m_settings->value("renderQuality", "balanced").toString());
     m_proxy = uve::ProxyConfig::fromJson(QJsonObject::fromVariantMap(m_settings->value("proxy").toMap()));
     applyYtdlOptions();
@@ -194,6 +205,18 @@ QString PlayerApp::ytdlFormatFor(const QString &id) const
 void PlayerApp::loadPath(const QString &path, double start, bool paused)
 {
     cancelPendingResolve();
+    if (media::isDiscEntry(path)) {
+        // Optische Disc: eigener Ladeplan (dvd://, bd://, Audio-CD), nicht über Plugin-Auflösung, yt-dlp oder Proxy
+        m_sourcePath = path;
+        if (m_plugins) m_plugins->emitEvent(QStringLiteral("media.loading"), {{"url", path}});
+        clearStreamQualities();
+        QString error;
+        if (!m_disc->load(path, start, paused, &error)) {
+            m_playlist->setError(m_playlist->currentIndex(), true);
+            showOsd(error, 5000);
+        }
+        return;
+    }
     if (m_plugins) {
         m_sourcePath = path;
         m_plugins->emitEvent(QStringLiteral("media.loading"), {{"url", path}});
@@ -658,6 +681,15 @@ void PlayerApp::openPaths(const QStringList &pathsOrUrls, bool play, bool insert
         const QString local = p.startsWith("file:", Qt::CaseInsensitive) ? QUrl(p).toLocalFile() : p;
         media::YoutubePlaylistLink link;
         if (media::parseYoutubePlaylist(local, &link)) { openYoutubePlaylist(local, link, play, insertNext); continue; }
+        if (!media::isUrl(local)) {
+            // DVD-/Blu-ray-Ordner und Disc-Images: als Disc öffnen (Erkennung am Inhalt, nicht an der Endung)
+            const QFileInfo fi(local);
+            const bool image = fi.isFile() && QStringList{"iso", "img", "udf"}.contains(fi.suffix().toLower());
+            if (image || (fi.isDir() && optical::resolver::detectFolder(local).kind != optical::DiscKind::Unknown)) {
+                m_disc->openSource(local, m_settings->value("discStartInMenu", true).toBool());
+                continue;
+            }
+        }
         if (media::isSubtitleFile(local) && !media::isUrl(local)) subs << local; else rest << local;
     }
     if (subs.isEmpty() && rest.isEmpty()) return;   // nur YouTube-Listen: werden im Hintergrund aufgelöst
@@ -797,8 +829,10 @@ void PlayerApp::onFileLoaded()
     m_retryCount = 0;
     if (m_player->duration() > 0) m_playlist->setDuration(i, m_player->duration());
     QTimer::singleShot(1500, this, [this, i] { if (m_player->duration() > 0) m_playlist->setDuration(i, m_player->duration()); });
-    m_settings->addRecentFile(m_playlist->pathAt(i));
-    emit recentFilesChanged();
+    if (!media::isDiscEntry(m_playlist->pathAt(i))) {   // Discs sind nicht dauerhaft da
+        m_settings->addRecentFile(m_playlist->pathAt(i));
+        emit recentFilesChanged();
+    }
     if (m_plugins) {
         m_plugins->notifyMediaChanged(m_loadedPath);
         m_plugins->emitEvent(QStringLiteral("media.loaded"), {{"path", m_loadedPath}, {"source", m_playlist->pathAt(i)},
@@ -838,6 +872,14 @@ void PlayerApp::onEndOfFile(const QString &reason)
         }
         m_retryPath.clear();
         m_retryCount = 0;
+        if (media::isDiscEntry(m_playlist->pathAt(i))) {
+            // Disc: Ursache nennen (z. B. entfernt) und nicht automatisch die übrigen Spuren durchprobieren
+            const QString why = m_disc->failureText();
+            m_playlist->setError(i, true);
+            showOsd(why.isEmpty() ? m_player->errorString() : why, 5000);
+            Logger::write("disc", "Fehler: " + m_playlist->pathAt(i) + " – " + m_player->errorString() + " – " + why);
+            return;
+        }
         m_playlist->setError(i, true);
         showOsd(tr("Nicht abspielbar: %1 (%2)").arg(m_playlist->titleAt(i), m_player->errorString()), 4000);
         Logger::write("play", "Fehler: " + m_playlist->pathAt(i) + " – " + m_player->errorString());
@@ -846,6 +888,8 @@ void PlayerApp::onEndOfFile(const QString &reason)
         return;
     }
     if (reason != "eof" || m_stoppedByUser) return;
+    // DVD-/Blu-ray-Menü als Standbild: libmpv meldet das Ende des Menü-Abschnitts, die Disc wartet aber auf eine Auswahl
+    if (media::isDiscEntry(m_playlist->pathAt(i)) && m_disc->menuActive()) return;
     m_settings->clearResumePosition(m_playlist->pathAt(i));
     const int n = m_playlist->nextIndex(true);
     if (n >= 0) playIndex(n, 0);

@@ -37,9 +37,23 @@ $env:UVE_SELFTEST_UI=1; $env:UVE_SELFTEST_ONLY="plugins"; .\build\bin\UVEPlayer.
 $env:UVE_SELFTEST_UI=1; $env:UVE_SELFTEST_ONLY="language"; .\build\bin\UVEPlayer.exe --selftest C:\temp\lang.json tests\media\test-legacy.avi
 ```
 
+## Optical media (1.1.8)
+| Platform | Disc support comes from | Notes |
+|---|---|---|
+| Windows | bundled shinchiro libmpv (contains libdvdnav/libdvdread and libbluray; no libcdio) + UVE's own CD reader | no extra DLLs, package size unchanged |
+| Linux | the distribution's libmpv (CI: Ubuntu `libmpv-dev`) | DVD/Blu-ray/CDDA and menus depend on that build; *Disc information* shows what is present |
+| macOS | Homebrew `mpv` | same; not verified |
+
+- BD-J: `-DUVE_WITH_BDJ=ON` only makes the player look for `libbluray-j2se-*.jar` and Java next to the program; the release does not
+  ship them (size, licence review). Nothing is downloaded at runtime.
+- DVD test disc (dev dependency, not shipped): `tests/fixtures/make-dvd-fixture.sh <out>` needs ffmpeg, dvdauthor/spumux and genisoimage
+  (e.g. in WSL Ubuntu without root: `apt-get download dvdauthor libdvdread8t64 genisoimage`, then `dpkg -x`). Then
+  `$env:UVE_TEST_DVD_DIR="<out>"; ctest -R optical`. Without it the DVD cases of `tst_optical_playback` are skipped.
+- Audio CD without hardware: `UVE_TEST_FAKE_CD=1` adds a synthetic test CD ("UVE Test-CD (synthetisch)", sine tones) to the drive list.
+
 ## Release
 `powershell -ExecutionPolicy Bypass -File scripts\package.ps1` → `release\`: setup EXE, portable EXE, portable ZIP, `SHA256SUMS.txt`.
 The script aborts if a test fails.
 
 ## Regenerating the UVE reference values
-`node scripts/uve-reference.mjs legacy-electron/plugins/uve/uve.user.js tests/reference/uve_reference.json`
+`node scripts/uve-reference.mjs <uve.user.js> tests/reference/uve_reference.json` – the UVE 1.17.5 userscript is no longer in this repository (the Electron version `legacy-electron/` was removed); take it from the Ultimate Video Enhancer release.

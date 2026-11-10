@@ -270,6 +270,7 @@ void MpvController::handleEvent(mpv_event *e)
 
 void MpvController::handlePropertyChange(const QString &name, const QVariant &v)
 {
+    if (m_extraObserved.contains(name)) emit observedPropertyChanged(name, v);
     if (name == "time-pos") {
         m_position = v.isValid() ? v.toDouble() : 0;
         emit positionChanged();
@@ -477,6 +478,13 @@ void MpvController::setPropertyAsync(const QString &name, const QVariant &value)
     if (!m_mpv) return;
     NodeBuilder nb(value);
     mpv_set_property_async(m_mpv, 0, name.toUtf8().constData(), MPV_FORMAT_NODE, &nb.node);
+}
+
+void MpvController::observe(const QString &name)
+{
+    if (!m_mpv || name.isEmpty() || m_extraObserved.contains(name)) return;
+    m_extraObserved << name;
+    mpv_observe_property(m_mpv, 0, name.toUtf8().constData(), MPV_FORMAT_NODE);
 }
 
 bool MpvController::command(const QStringList &args)

@@ -1,5 +1,37 @@
 # Changelog
 
+## 1.1.8 – 2026-11-10
+
+### Optical media (DVD, Blu-ray, audio CD)
+- **File → Open disc… (Ctrl+Shift+D)** lists the optical drives with the detected disc type (DVD / Blu-ray / Audio CD badge only after
+  real detection). **File → Open disc image/disc folder…** opens a DVD or Blu-ray ISO or a folder with `VIDEO_TS`/`BDMV`. The type is
+  detected from the content, not from the extension; unknown images are refused with a message. Dropping such a folder or `.iso` on the
+  player opens it as a disc.
+- **DVD-Video** plays through libmpv (`dvd://` with `dvd-device` for this file only). *Start in the disc menu* uses `disc-menu`; without
+  menu support in the libmpv build the main title plays and the dialog says so.
+- **Disc navigation:** *Playback → Disc navigation* and the video context menu send `discnav` (menu, title menu, pop-up menu, arrows,
+  select, back) – only while a DVD/Blu-ray plays and only if the loaded libmpv has the command. Titles (`edition-list`) and chapters
+  (`chapter-list`) can be chosen there. While the disc shows a menu, the arrow keys, Enter and Backspace steer the menu instead of seeking
+  and volume; afterwards your own key bindings apply again. **Ctrl+M** opens the disc menu. A small bar at the bottom left of the
+  picture offers the same buttons.
+- **Blu-ray** (unencrypted) plays titles through `bd://` with `bluray-device`; HDMV menus are offered when the libmpv build supports
+  them. BD-J menus need a Java runtime and `libbluray-j2se-*.jar`, which this package does not include – the main title plays instead.
+  Encrypted discs (AACS/BD+) are refused with a message; there is no decryption.
+- **Audio CD:** the bundled Windows libmpv has no `cdda://`, so UVE reads the tracks itself (`IOCTL_CDROM_READ_TOC`/`RAW_READ`, no
+  administrator rights) and hands each track to libmpv as a WAV stream (`uvecdda://`). Every track is its own playlist entry
+  ("Track 01" …) with its length, so next/previous, shuffle and repeat work as usual. No online lookups, no automatic eject.
+- *Disc information* shows the source, titles/chapters, menu mode and what the loaded libmpv can do.
+- Disc entries are not sent through yt-dlp, the proxy or the network-drive retry; a removed disc is reported as such.
+- Tested with a synthetic DVD and a synthetic audio CD, not with a physical drive – see the test report for what was and was not tested.
+
+### Repository
+- The old Electron version (`legacy-electron/`) is no longer part of the repository.
+
+### About UVE Player
+- **Update check like in Chrome:** *Help → About UVE Player* checks for updates as soon as it opens and shows the result right there –
+  up to date, update available with **Update now** (download with SHA-256 check and restart, progress in the dialog), new commits without a
+  release, or the error. The state of yt-dlp and libmpv is shown below it. The separate menu entry *Help → Check for updates* is gone.
+
 ## 1.1.7 – 2026-11-10
 
 ### Streaming

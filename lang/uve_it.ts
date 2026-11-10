@@ -12,12 +12,120 @@
         <translation>Chiudi</translation>
     </message>
     <message>
+        <source> MB</source>
+        <translation> MB</translation>
+    </message>
+    <message>
+        <source>Update wird heruntergeladen …</source>
+        <translation>Download dell&apos;aggiornamento …</translation>
+    </message>
+    <message>
+        <source>Suche nach Updates …</source>
+        <translation>Ricerca aggiornamenti …</translation>
+    </message>
+    <message>
+        <source>UVE Player ist auf dem neuesten Stand</source>
+        <translation>UVE Player è aggiornato</translation>
+    </message>
+    <message>
+        <source>Update verfügbar: UVE Player %1</source>
+        <translation>Aggiornamento disponibile: UVE Player %1</translation>
+    </message>
+    <message>
+        <source>Neue Commits auf GitHub (noch kein Release)</source>
+        <translation>Nuovi commit su GitHub (ancora nessuna release)</translation>
+    </message>
+    <message>
+        <source>Update-Prüfung fehlgeschlagen</source>
+        <translation>Verifica degli aggiornamenti non riuscita</translation>
+    </message>
+    <message>
+        <source>UVE Player wird aktualisiert …</source>
+        <translation>Aggiornamento di UVE Player …</translation>
+    </message>
+    <message>
+        <source>Installation wird gestartet – der Player wird neu gestartet …</source>
+        <translation>Avvio dell&apos;installazione – il player verrà riavviato …</translation>
+    </message>
+    <message>
+        <source>Update bereit</source>
+        <translation>Aggiornamento pronto</translation>
+    </message>
+    <message>
+        <source>Das Update wurde nicht installiert</source>
+        <translation>L&apos;aggiornamento non è stato installato</translation>
+    </message>
+    <message>
+        <source>Version %1</source>
+        <translation>Versione %1</translation>
+    </message>
+    <message>
+        <source>Version %1 · %2 – wird per SHA-256 geprüft, danach startet der Player neu.</source>
+        <translation>Versione %1 · %2 – verificata con SHA-256, poi il player si riavvia.</translation>
+    </message>
+    <message>
+        <source>Für diese Installation gibt es kein automatisches Update. Das neue Paket liegt auf der GitHub-Seite des Releases.</source>
+        <translation>Per questa installazione non esiste un aggiornamento automatico. Il nuovo pacchetto si trova sulla pagina GitHub della release.</translation>
+    </message>
+    <message>
+        <source>Neue Commits: %1 – sobald es ein Release gibt, kann es hier installiert werden.</source>
+        <translation>Nuovi commit: %1 – quando ci sarà una release, potrà essere installata qui.</translation>
+    </message>
+    <message>
+        <source>GitHub antwortet gerade nicht – neuer Versuch in %1 s (der Download wird fortgesetzt)</source>
+        <translation>GitHub non risponde – nuovo tentativo tra %1 s (il download riprenderà)</translation>
+    </message>
+    <message>
         <source>UVE Player </source>
         <translation>UVE Player </translation>
     </message>
     <message>
         <source>Medienplayer mit libmpv und Ultimate-Video-Enhancer-Plugin</source>
         <translation>Lettore multimediale con libmpv e il plugin Ultimate Video Enhancer</translation>
+    </message>
+    <message>
+        <source>Jetzt aktualisieren</source>
+        <translation>Aggiorna ora</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Riprova</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Annulla</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Dettagli</translation>
+    </message>
+    <message>
+        <source>Erneut prüfen</source>
+        <translation>Verifica di nuovo</translation>
+    </message>
+    <message>
+        <source>Auf GitHub ansehen</source>
+        <translation>Vedi su GitHub</translation>
+    </message>
+    <message>
+        <source>yt-dlp und libmpv werden geprüft …</source>
+        <translation>Verifica di yt-dlp e libmpv …</translation>
+    </message>
+    <message>
+        <source>Updates für Werkzeuge verfügbar: %1</source>
+        <translation>Aggiornamenti degli strumenti disponibili: %1</translation>
+    </message>
+    <message>
+        <source>Werkzeug-Prüfung fehlgeschlagen: %1</source>
+        <translation>Verifica degli strumenti non riuscita: %1</translation>
+    </message>
+    <message>
+        <source>yt-dlp und libmpv sind aktuell</source>
+        <translation>yt-dlp e libmpv sono aggiornati</translation>
+    </message>
+    <message>
+        <source>Anzeigen</source>
+        <translation>Mostra</translation>
     </message>
     <message>
         <source>mpv / libmpv</source>
@@ -307,6 +415,120 @@
     <message>
         <source>Shader-Kette:      </source>
         <translation>Catena shader:      </translation>
+    </message>
+</context>
+<context>
+    <name>DiscNavigationControls</name>
+    <message>
+        <source>Disc-Menü</source>
+        <translation>Menu del disco</translation>
+    </message>
+    <message>
+        <source>Disc</source>
+        <translation>Disco</translation>
+    </message>
+    <message>
+        <source>Links</source>
+        <translation>Sinistra</translation>
+    </message>
+    <message>
+        <source>Hoch</source>
+        <translation>Su</translation>
+    </message>
+    <message>
+        <source>Runter</source>
+        <translation>Giù</translation>
+    </message>
+    <message>
+        <source>Rechts</source>
+        <translation>Destra</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Auswählen (Enter)</source>
+        <translation>Seleziona (Invio)</translation>
+    </message>
+    <message>
+        <source>Zurück (Rücktaste)</source>
+        <translation>Indietro (Backspace)</translation>
+    </message>
+    <message>
+        <source>Menü</source>
+        <translation>Menu</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Apri il menu del disco</translation>
+    </message>
+</context>
+<context>
+    <name>DiscNavigationMenu</name>
+    <message>
+        <source>Disc-Navigation</source>
+        <translation>Navigazione del disco</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Apri il menu del disco</translation>
+    </message>
+    <message>
+        <source>Titelmenü</source>
+        <translation>Menu dei titoli</translation>
+    </message>
+    <message>
+        <source>Popup-Menü</source>
+        <translation>Menu pop-up</translation>
+    </message>
+    <message>
+        <source>Hoch</source>
+        <translation>Su</translation>
+    </message>
+    <message>
+        <source>Runter</source>
+        <translation>Giù</translation>
+    </message>
+    <message>
+        <source>Links</source>
+        <translation>Sinistra</translation>
+    </message>
+    <message>
+        <source>Rechts</source>
+        <translation>Destra</translation>
+    </message>
+    <message>
+        <source>Auswählen</source>
+        <translation>Seleziona</translation>
+    </message>
+    <message>
+        <source>Zurück</source>
+        <translation>Indietro</translation>
+    </message>
+    <message>
+        <source>Vorheriges Kapitel</source>
+        <translation>Capitolo precedente</translation>
+    </message>
+    <message>
+        <source>Nächstes Kapitel</source>
+        <translation>Capitolo successivo</translation>
+    </message>
+    <message>
+        <source>Kapitel (%1)</source>
+        <translation>Capitoli (%1)</translation>
+    </message>
+    <message>
+        <source>Kapitel %1</source>
+        <translation>Capitolo %1</translation>
+    </message>
+    <message>
+        <source>Titel (%1)</source>
+        <translation>Titoli (%1)</translation>
+    </message>
+    <message>
+        <source>Titel %1</source>
+        <translation>Titolo %1</translation>
     </message>
 </context>
 <context>
@@ -762,6 +984,14 @@
         <translation>Plugin effetti non attivo</translation>
     </message>
     <message>
+        <source>Disc-Menü nicht verfügbar</source>
+        <translation>Menu del disco non disponibile</translation>
+    </message>
+    <message>
+        <source>Keine DVD oder Blu-ray aktiv</source>
+        <translation>Nessun DVD o Blu-ray in riproduzione</translation>
+    </message>
+    <message>
         <source>&amp;Datei</source>
         <translation>&amp;File</translation>
     </message>
@@ -776,6 +1006,14 @@
     <message>
         <source>Netzwerkstream öffnen…</source>
         <translation>Apri stream di rete…</translation>
+    </message>
+    <message>
+        <source>Disc öffnen…</source>
+        <translation>Apri disco…</translation>
+    </message>
+    <message>
+        <source>Disc-Image/Disc-Ordner öffnen…</source>
+        <translation>Apri immagine/cartella del disco…</translation>
     </message>
     <message>
         <source>Zuletzt geöffnet</source>
@@ -994,8 +1232,8 @@
         <translation>UVE Player, yt-dlp e libmpv sono aggiornati</translation>
     </message>
     <message>
-        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen</source>
-        <translation>Nuovi commit di UVE Player su GitHub (nessuna release per ora) – vedi Aiuto → Cerca aggiornamenti</translation>
+        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Über UVE Player</source>
+        <translation>Nuovi commit di UVE Player su GitHub (ancora nessuna release) – vedi Aiuto → Informazioni su UVE Player</translation>
     </message>
     <message>
         <source>Suche nach Updates …</source>
@@ -1004,10 +1242,6 @@
     <message>
         <source>Über UVE Player</source>
         <translation>Informazioni su UVE Player</translation>
-    </message>
-    <message>
-        <source>Nach Updates suchen</source>
-        <translation>Cerca aggiornamenti</translation>
     </message>
     <message>
         <source>Safe Mode – Plugins nicht geladen. </source>
@@ -1123,6 +1357,97 @@
     <message>
         <source>Schließen</source>
         <translation>Chiudi</translation>
+    </message>
+</context>
+<context>
+    <name>OpenDiscDialog</name>
+    <message>
+        <source>Disc öffnen</source>
+        <translation>Apri disco</translation>
+    </message>
+    <message>
+        <source>%1 Spuren</source>
+        <translation>%1 tracce</translation>
+    </message>
+    <message>
+        <source>verschlüsselt (AACS)</source>
+        <translation>crittografato (AACS)</translation>
+    </message>
+    <message>
+        <source>Disc-Image wählen</source>
+        <translation>Scegli immagine del disco</translation>
+    </message>
+    <message>
+        <source>Disc-Images (*.iso *.img *.udf)</source>
+        <translation>Immagini del disco (*.iso *.img *.udf)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>Tutti i file (*)</translation>
+    </message>
+    <message>
+        <source>Disc-Ordner wählen (enthält VIDEO_TS oder BDMV)</source>
+        <translation>Scegli cartella del disco (contiene VIDEO_TS o BDMV)</translation>
+    </message>
+    <message>
+        <source>Informationen ausblenden</source>
+        <translation>Nascondi informazioni</translation>
+    </message>
+    <message>
+        <source>Disc-Informationen</source>
+        <translation>Informazioni sul disco</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Annulla</translation>
+    </message>
+    <message>
+        <source>Öffnen</source>
+        <translation>Apri</translation>
+    </message>
+    <message>
+        <source>Laufwerk</source>
+        <translation>Unità</translation>
+    </message>
+    <message>
+        <source>ISO/Ordner</source>
+        <translation>ISO/cartella</translation>
+    </message>
+    <message>
+        <source>Laufwerke werden abgefragt …</source>
+        <translation>Interrogazione delle unità …</translation>
+    </message>
+    <message>
+        <source>Optische Laufwerke</source>
+        <translation>Unità ottiche</translation>
+    </message>
+    <message>
+        <source>Aktualisieren</source>
+        <translation>Aggiorna</translation>
+    </message>
+    <message>
+        <source>Image wählen …</source>
+        <translation>Scegli immagine …</translation>
+    </message>
+    <message>
+        <source>Ordner wählen …</source>
+        <translation>Scegli cartella …</translation>
+    </message>
+    <message>
+        <source>Unterstützt: DVD-Video (ISO oder Ordner mit VIDEO_TS) und unverschlüsselte Blu-ray (ISO oder Ordner mit BDMV). Der Typ wird am Inhalt erkannt, nicht an der Dateiendung.</source>
+        <translation>Supportati: DVD-Video (ISO o cartella con VIDEO_TS) e Blu-ray non crittografati (ISO o cartella con BDMV). Il tipo viene riconosciuto dal contenuto, non dall&apos;estensione.</translation>
+    </message>
+    <message>
+        <source>Im Disc-Menü starten</source>
+        <translation>Avvia nel menu del disco</translation>
+    </message>
+    <message>
+        <source>Im Disc-Menü starten (von diesem Build nicht unterstützt – Haupttitel)</source>
+        <translation>Avvia nel menu del disco (non supportato da questa build – titolo principale)</translation>
+    </message>
+    <message>
+        <source>Der Haupttitel wird direkt abgespielt.</source>
+        <translation>Il titolo principale viene riprodotto direttamente.</translation>
     </message>
 </context>
 <context>
@@ -1523,6 +1848,17 @@
     <message>
         <source>Benötigtes Backend fehlt: %1</source>
         <translation>Backend richiesto mancante: %1</translation>
+    </message>
+</context>
+<context>
+    <name>PluginModal</name>
+    <message>
+        <source>Schließen</source>
+        <translation>Chiudi</translation>
+    </message>
+    <message>
+        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>Impossibile caricare la finestra del plugin (vedi il registro errori dei plugin). La riproduzione non è interessata.</translation>
     </message>
 </context>
 <context>
@@ -2732,6 +3068,18 @@
         <translation>Apri stream di rete…</translation>
     </message>
     <message>
+        <source>Disc öffnen…</source>
+        <translation>Apri disco…</translation>
+    </message>
+    <message>
+        <source>Disc-Image/Disc-Ordner öffnen…</source>
+        <translation>Apri immagine/cartella del disco…</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Apri il menu del disco</translation>
+    </message>
+    <message>
         <source>Wiedergabeliste speichern…</source>
         <translation>Salva playlist…</translation>
     </message>
@@ -2761,6 +3109,169 @@
     <message>
         <source>A-B %1 – %2</source>
         <translation>A-B %1 – %2</translation>
+    </message>
+</context>
+<context>
+    <name>uve::OpticalMediaService</name>
+    <message>
+        <source>Track %1</source>
+        <translation>Traccia %1</translation>
+    </message>
+    <message>
+        <source>DVD</source>
+        <translation>DVD</translation>
+    </message>
+    <message>
+        <source>Blu-ray</source>
+        <translation>Blu-ray</translation>
+    </message>
+    <message>
+        <source>Audio-CD</source>
+        <translation>CD audio</translation>
+    </message>
+    <message>
+        <source>Unbekannt</source>
+        <translation>Sconosciuto</translation>
+    </message>
+    <message>
+        <source>Kein optisches Laufwerk gefunden</source>
+        <translation>Nessuna unità ottica trovata</translation>
+    </message>
+    <message>
+        <source>Kein Medium im Laufwerk</source>
+        <translation>Nessun disco nell&apos;unità</translation>
+    </message>
+    <message>
+        <source>Kein unterstützter Disc-Typ (DVD-Video, Blu-ray oder Audio-CD)</source>
+        <translation>Tipo di disco non supportato (DVD-Video, Blu-ray o CD audio)</translation>
+    </message>
+    <message>
+        <source>Kein Lesezugriff auf das Laufwerk oder die Datei</source>
+        <translation>Nessun accesso in lettura all&apos;unità o al file</translation>
+    </message>
+    <message>
+        <source>Die mitgelieferte libmpv kann diesen Disc-Typ nicht öffnen</source>
+        <translation>La libmpv inclusa non può aprire questo tipo di disco</translation>
+    </message>
+    <message>
+        <source>Disc-Menüs werden von diesem Build nicht unterstützt – der Haupttitel wird abgespielt</source>
+        <translation>I menu del disco non sono supportati da questa build – viene riprodotto il titolo principale</translation>
+    </message>
+    <message>
+        <source>BD-J-Menüs benötigen Java und libbluray-j2se – der Haupttitel wird abgespielt</source>
+        <translation>I menu BD-J richiedono Java e libbluray-j2se – viene riprodotto il titolo principale</translation>
+    </message>
+    <message>
+        <source>Verschlüsselte Blu-ray in dieser Konfiguration nicht unterstützt</source>
+        <translation>Blu-ray crittografato non supportato in questa configurazione</translation>
+    </message>
+    <message>
+        <source>Die Disc wurde während der Wiedergabe entfernt</source>
+        <translation>Il disco è stato rimosso durante la riproduzione</translation>
+    </message>
+    <message>
+        <source>Image beschädigt oder kein DVD-/Blu-ray-Image</source>
+        <translation>Immagine danneggiata o non è un&apos;immagine DVD/Blu-ray</translation>
+    </message>
+    <message>
+        <source>Disc nicht abspielbar (beschädigt, kopiergeschützt oder vom Build nicht unterstützt)</source>
+        <translation>Disco non riproducibile (danneggiato, protetto da copia o non supportato da questa build)</translation>
+    </message>
+    <message>
+        <source>ja</source>
+        <translation>sì</translation>
+    </message>
+    <message>
+        <source>nein</source>
+        <translation>no</translation>
+    </message>
+    <message>
+        <source>Quelltyp</source>
+        <translation>Tipo di sorgente</translation>
+    </message>
+    <message>
+        <source>Gerät / Image</source>
+        <translation>Dispositivo / immagine</translation>
+    </message>
+    <message>
+        <source>Spur</source>
+        <translation>Traccia</translation>
+    </message>
+    <message>
+        <source>Titel / Kapitel</source>
+        <translation>Titoli / capitoli</translation>
+    </message>
+    <message>
+        <source>Menümodus</source>
+        <translation>Modalità menu</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aktiv</source>
+        <translation>Menu del disco attivo</translation>
+    </message>
+    <message>
+        <source>Start im Disc-Menü</source>
+        <translation>Avvio nel menu del disco</translation>
+    </message>
+    <message>
+        <source>Titelwiedergabe</source>
+        <translation>Riproduzione del titolo</translation>
+    </message>
+    <message>
+        <source>Aktiv</source>
+        <translation>Attivo</translation>
+    </message>
+    <message>
+        <source>libmpv</source>
+        <translation>libmpv</translation>
+    </message>
+    <message>
+        <source>DVD-Video</source>
+        <translation>DVD-Video</translation>
+    </message>
+    <message>
+        <source>DVD-Menüs</source>
+        <translation>Menu DVD</translation>
+    </message>
+    <message>
+        <source>Blu-ray (Titel)</source>
+        <translation>Blu-ray (titoli)</translation>
+    </message>
+    <message>
+        <source>Blu-ray-Menüs (HDMV)</source>
+        <translation>Menu Blu-ray (HDMV)</translation>
+    </message>
+    <message>
+        <source>BD-J</source>
+        <translation>BD-J</translation>
+    </message>
+    <message>
+        <source>nein – libbluray-j2se-*.jar fehlt</source>
+        <translation>no – manca libbluray-j2se-*.jar</translation>
+    </message>
+    <message>
+        <source>nein – keine Java-Laufzeit</source>
+        <translation>no – nessun runtime Java</translation>
+    </message>
+    <message>
+        <source>nein – nicht in diesem Paket enthalten</source>
+        <translation>no – non incluso in questo pacchetto</translation>
+    </message>
+    <message>
+        <source>ja (eigener CD-Leser über libmpv)</source>
+        <translation>sì (lettore CD integrato tramite libmpv)</translation>
+    </message>
+    <message>
+        <source>ja (libmpv cdda://)</source>
+        <translation>sì (libmpv cdda://)</translation>
+    </message>
+    <message>
+        <source>Disc-Navigation (discnav)</source>
+        <translation>Navigazione del disco (discnav)</translation>
+    </message>
+    <message>
+        <source>libmpv-Build</source>
+        <translation>Build di libmpv</translation>
     </message>
 </context>
 <context>
@@ -3922,17 +4433,6 @@
     <message>
         <source>UVE-Profil exportiert</source>
         <translation>Profilo UVE esportato</translation>
-    </message>
-</context>
-<context>
-    <name>PluginModal</name>
-    <message>
-        <source>Schließen</source>
-        <translation>Chiudi</translation>
-    </message>
-    <message>
-        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
-        <translation>Impossibile caricare la finestra del plugin (vedi il registro errori dei plugin). La riproduzione non è interessata.</translation>
     </message>
 </context>
 </TS>

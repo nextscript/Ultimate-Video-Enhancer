@@ -127,6 +127,9 @@ public:
     Q_INVOKABLE bool command(const QStringList &args);
     // Wie setProperty, blockiert den aufrufenden Thread aber nicht (mpv_set_property_async)
     void setPropertyAsync(const QString &name, const QVariant &value);
+    // Zusätzliche Eigenschaft beobachten (z. B. disc-menu-active, chapter-list für optische Medien);
+    // Änderungen kommen über observedPropertyChanged. Mehrfaches Anmelden ist wirkungslos.
+    void observe(const QString &name);
 
     // Kleine Bildprobe der Videoausgabe (GPU-Rücklesen im Render-Thread, ohne den mpv-Kern zu blockieren).
     // requestDisplaySample() fordert eine neue Probe an; displaySample() liefert die zuletzt fertige (96×54, RGB32).
@@ -167,6 +170,7 @@ signals:
     void endOfFile(const QString &reason);   // "eof", "error", "stop", "quit", "redirect"
     void logMessage(const QString &prefix, const QString &level, const QString &text);
     void shaderError(const QString &text);
+    void observedPropertyChanged(const QString &name, const QVariant &value);
 
 private slots:
     void processEvents();
@@ -204,6 +208,7 @@ private:
     bool m_eventsQueued = false;
     bool m_renderReady = false;
     QStringList m_pendingLoad; // zurückgestellter loadfile-Befehl bis zur Videoausgabe
+    QStringList m_extraObserved;
 };
 
 } // namespace uve

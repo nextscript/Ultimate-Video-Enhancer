@@ -16,6 +16,8 @@ Menu {
     MenuItem { text: qsTr("Stopp"); enabled: videoMenu.hasMedia; onTriggered: act("play.stop") }
     MenuItem { text: qsTr("Vorheriger Titel"); onTriggered: act("play.prev") }
     MenuItem { text: qsTr("Nächster Titel"); onTriggered: act("play.next") }
+    // DVD/Blu-ray/Audio-CD: nur aktiv, solange eine Disc läuft
+    DiscNavigationMenu { id: discNavMenu }
     MenuSeparator {}
 
     Menu {

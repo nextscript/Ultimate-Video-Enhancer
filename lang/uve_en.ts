@@ -12,12 +12,120 @@
         <translation>Close</translation>
     </message>
     <message>
+        <source> MB</source>
+        <translation> MB</translation>
+    </message>
+    <message>
+        <source>Update wird heruntergeladen …</source>
+        <translation>Downloading update …</translation>
+    </message>
+    <message>
+        <source>Suche nach Updates …</source>
+        <translation>Checking for updates …</translation>
+    </message>
+    <message>
+        <source>UVE Player ist auf dem neuesten Stand</source>
+        <translation>UVE Player is up to date</translation>
+    </message>
+    <message>
+        <source>Update verfügbar: UVE Player %1</source>
+        <translation>Update available: UVE Player %1</translation>
+    </message>
+    <message>
+        <source>Neue Commits auf GitHub (noch kein Release)</source>
+        <translation>New commits on GitHub (no release yet)</translation>
+    </message>
+    <message>
+        <source>Update-Prüfung fehlgeschlagen</source>
+        <translation>Update check failed</translation>
+    </message>
+    <message>
+        <source>UVE Player wird aktualisiert …</source>
+        <translation>Updating UVE Player …</translation>
+    </message>
+    <message>
+        <source>Installation wird gestartet – der Player wird neu gestartet …</source>
+        <translation>Starting installation – the player will restart …</translation>
+    </message>
+    <message>
+        <source>Update bereit</source>
+        <translation>Update ready</translation>
+    </message>
+    <message>
+        <source>Das Update wurde nicht installiert</source>
+        <translation>The update was not installed</translation>
+    </message>
+    <message>
+        <source>Version %1</source>
+        <translation>Version %1</translation>
+    </message>
+    <message>
+        <source>Version %1 · %2 – wird per SHA-256 geprüft, danach startet der Player neu.</source>
+        <translation>Version %1 · %2 – verified with SHA-256, then the player restarts.</translation>
+    </message>
+    <message>
+        <source>Für diese Installation gibt es kein automatisches Update. Das neue Paket liegt auf der GitHub-Seite des Releases.</source>
+        <translation>There is no automatic update for this installation. The new package is on the release&apos;s GitHub page.</translation>
+    </message>
+    <message>
+        <source>Neue Commits: %1 – sobald es ein Release gibt, kann es hier installiert werden.</source>
+        <translation>New commits: %1 – once there is a release, it can be installed here.</translation>
+    </message>
+    <message>
+        <source>GitHub antwortet gerade nicht – neuer Versuch in %1 s (der Download wird fortgesetzt)</source>
+        <translation>GitHub is not responding – retrying in %1 s (the download will resume)</translation>
+    </message>
+    <message>
         <source>UVE Player </source>
         <translation>UVE Player </translation>
     </message>
     <message>
         <source>Medienplayer mit libmpv und Ultimate-Video-Enhancer-Plugin</source>
         <translation>Media player with libmpv and the Ultimate Video Enhancer plugin</translation>
+    </message>
+    <message>
+        <source>Jetzt aktualisieren</source>
+        <translation>Update now</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Try again</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Details</translation>
+    </message>
+    <message>
+        <source>Erneut prüfen</source>
+        <translation>Check again</translation>
+    </message>
+    <message>
+        <source>Auf GitHub ansehen</source>
+        <translation>View on GitHub</translation>
+    </message>
+    <message>
+        <source>yt-dlp und libmpv werden geprüft …</source>
+        <translation>Checking yt-dlp and libmpv …</translation>
+    </message>
+    <message>
+        <source>Updates für Werkzeuge verfügbar: %1</source>
+        <translation>Tool updates available: %1</translation>
+    </message>
+    <message>
+        <source>Werkzeug-Prüfung fehlgeschlagen: %1</source>
+        <translation>Tool check failed: %1</translation>
+    </message>
+    <message>
+        <source>yt-dlp und libmpv sind aktuell</source>
+        <translation>yt-dlp and libmpv are up to date</translation>
+    </message>
+    <message>
+        <source>Anzeigen</source>
+        <translation>Show</translation>
     </message>
     <message>
         <source>mpv / libmpv</source>
@@ -307,6 +415,120 @@
     <message>
         <source>Shader-Kette:      </source>
         <translation>Shader chain:      </translation>
+    </message>
+</context>
+<context>
+    <name>DiscNavigationControls</name>
+    <message>
+        <source>Disc-Menü</source>
+        <translation>Disc menu</translation>
+    </message>
+    <message>
+        <source>Disc</source>
+        <translation>Disc</translation>
+    </message>
+    <message>
+        <source>Links</source>
+        <translation>Left</translation>
+    </message>
+    <message>
+        <source>Hoch</source>
+        <translation>Up</translation>
+    </message>
+    <message>
+        <source>Runter</source>
+        <translation>Down</translation>
+    </message>
+    <message>
+        <source>Rechts</source>
+        <translation>Right</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>OK</translation>
+    </message>
+    <message>
+        <source>Auswählen (Enter)</source>
+        <translation>Select (Enter)</translation>
+    </message>
+    <message>
+        <source>Zurück (Rücktaste)</source>
+        <translation>Back (Backspace)</translation>
+    </message>
+    <message>
+        <source>Menü</source>
+        <translation>Menu</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Open disc menu</translation>
+    </message>
+</context>
+<context>
+    <name>DiscNavigationMenu</name>
+    <message>
+        <source>Disc-Navigation</source>
+        <translation>Disc navigation</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Open disc menu</translation>
+    </message>
+    <message>
+        <source>Titelmenü</source>
+        <translation>Title menu</translation>
+    </message>
+    <message>
+        <source>Popup-Menü</source>
+        <translation>Pop-up menu</translation>
+    </message>
+    <message>
+        <source>Hoch</source>
+        <translation>Up</translation>
+    </message>
+    <message>
+        <source>Runter</source>
+        <translation>Down</translation>
+    </message>
+    <message>
+        <source>Links</source>
+        <translation>Left</translation>
+    </message>
+    <message>
+        <source>Rechts</source>
+        <translation>Right</translation>
+    </message>
+    <message>
+        <source>Auswählen</source>
+        <translation>Select</translation>
+    </message>
+    <message>
+        <source>Zurück</source>
+        <translation>Back</translation>
+    </message>
+    <message>
+        <source>Vorheriges Kapitel</source>
+        <translation>Previous chapter</translation>
+    </message>
+    <message>
+        <source>Nächstes Kapitel</source>
+        <translation>Next chapter</translation>
+    </message>
+    <message>
+        <source>Kapitel (%1)</source>
+        <translation>Chapters (%1)</translation>
+    </message>
+    <message>
+        <source>Kapitel %1</source>
+        <translation>Chapter %1</translation>
+    </message>
+    <message>
+        <source>Titel (%1)</source>
+        <translation>Titles (%1)</translation>
+    </message>
+    <message>
+        <source>Titel %1</source>
+        <translation>Title %1</translation>
     </message>
 </context>
 <context>
@@ -762,6 +984,14 @@
         <translation>Effects plugin not active</translation>
     </message>
     <message>
+        <source>Disc-Menü nicht verfügbar</source>
+        <translation>Disc menu not available</translation>
+    </message>
+    <message>
+        <source>Keine DVD oder Blu-ray aktiv</source>
+        <translation>No DVD or Blu-ray playing</translation>
+    </message>
+    <message>
         <source>&amp;Datei</source>
         <translation>&amp;File</translation>
     </message>
@@ -776,6 +1006,14 @@
     <message>
         <source>Netzwerkstream öffnen…</source>
         <translation>Open network stream…</translation>
+    </message>
+    <message>
+        <source>Disc öffnen…</source>
+        <translation>Open disc…</translation>
+    </message>
+    <message>
+        <source>Disc-Image/Disc-Ordner öffnen…</source>
+        <translation>Open disc image/disc folder…</translation>
     </message>
     <message>
         <source>Zuletzt geöffnet</source>
@@ -994,8 +1232,8 @@
         <translation>UVE Player, yt-dlp and libmpv are up to date</translation>
     </message>
     <message>
-        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen</source>
-        <translation>New UVE Player commits on GitHub (no release yet) – see Help → Check for updates</translation>
+        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Über UVE Player</source>
+        <translation>New UVE Player commits on GitHub (no release yet) – see Help → About UVE Player</translation>
     </message>
     <message>
         <source>Suche nach Updates …</source>
@@ -1004,10 +1242,6 @@
     <message>
         <source>Über UVE Player</source>
         <translation>About UVE Player</translation>
-    </message>
-    <message>
-        <source>Nach Updates suchen</source>
-        <translation>Check for updates</translation>
     </message>
     <message>
         <source>Safe Mode – Plugins nicht geladen. </source>
@@ -1123,6 +1357,97 @@
     <message>
         <source>Schließen</source>
         <translation>Close</translation>
+    </message>
+</context>
+<context>
+    <name>OpenDiscDialog</name>
+    <message>
+        <source>Disc öffnen</source>
+        <translation>Open disc</translation>
+    </message>
+    <message>
+        <source>%1 Spuren</source>
+        <translation>%1 tracks</translation>
+    </message>
+    <message>
+        <source>verschlüsselt (AACS)</source>
+        <translation>encrypted (AACS)</translation>
+    </message>
+    <message>
+        <source>Disc-Image wählen</source>
+        <translation>Choose disc image</translation>
+    </message>
+    <message>
+        <source>Disc-Images (*.iso *.img *.udf)</source>
+        <translation>Disc images (*.iso *.img *.udf)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>All files (*)</translation>
+    </message>
+    <message>
+        <source>Disc-Ordner wählen (enthält VIDEO_TS oder BDMV)</source>
+        <translation>Choose disc folder (contains VIDEO_TS or BDMV)</translation>
+    </message>
+    <message>
+        <source>Informationen ausblenden</source>
+        <translation>Hide information</translation>
+    </message>
+    <message>
+        <source>Disc-Informationen</source>
+        <translation>Disc information</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>Cancel</translation>
+    </message>
+    <message>
+        <source>Öffnen</source>
+        <translation>Open</translation>
+    </message>
+    <message>
+        <source>Laufwerk</source>
+        <translation>Drive</translation>
+    </message>
+    <message>
+        <source>ISO/Ordner</source>
+        <translation>ISO/folder</translation>
+    </message>
+    <message>
+        <source>Laufwerke werden abgefragt …</source>
+        <translation>Querying drives …</translation>
+    </message>
+    <message>
+        <source>Optische Laufwerke</source>
+        <translation>Optical drives</translation>
+    </message>
+    <message>
+        <source>Aktualisieren</source>
+        <translation>Refresh</translation>
+    </message>
+    <message>
+        <source>Image wählen …</source>
+        <translation>Choose image …</translation>
+    </message>
+    <message>
+        <source>Ordner wählen …</source>
+        <translation>Choose folder …</translation>
+    </message>
+    <message>
+        <source>Unterstützt: DVD-Video (ISO oder Ordner mit VIDEO_TS) und unverschlüsselte Blu-ray (ISO oder Ordner mit BDMV). Der Typ wird am Inhalt erkannt, nicht an der Dateiendung.</source>
+        <translation>Supported: DVD-Video (ISO or folder with VIDEO_TS) and unencrypted Blu-ray (ISO or folder with BDMV). The type is detected from the content, not from the file extension.</translation>
+    </message>
+    <message>
+        <source>Im Disc-Menü starten</source>
+        <translation>Start in the disc menu</translation>
+    </message>
+    <message>
+        <source>Im Disc-Menü starten (von diesem Build nicht unterstützt – Haupttitel)</source>
+        <translation>Start in the disc menu (not supported by this build – main title)</translation>
+    </message>
+    <message>
+        <source>Der Haupttitel wird direkt abgespielt.</source>
+        <translation>The main title is played directly.</translation>
     </message>
 </context>
 <context>
@@ -1523,6 +1848,17 @@
     <message>
         <source>Benötigtes Backend fehlt: %1</source>
         <translation>Required backend missing: %1</translation>
+    </message>
+</context>
+<context>
+    <name>PluginModal</name>
+    <message>
+        <source>Schließen</source>
+        <translation>Close</translation>
+    </message>
+    <message>
+        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>The window of the plugin could not be loaded (see the plugin error log). Playback is not affected.</translation>
     </message>
 </context>
 <context>
@@ -2732,6 +3068,18 @@
         <translation>Open network stream…</translation>
     </message>
     <message>
+        <source>Disc öffnen…</source>
+        <translation>Open disc…</translation>
+    </message>
+    <message>
+        <source>Disc-Image/Disc-Ordner öffnen…</source>
+        <translation>Open disc image/disc folder…</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Open disc menu</translation>
+    </message>
+    <message>
         <source>Wiedergabeliste speichern…</source>
         <translation>Save playlist…</translation>
     </message>
@@ -2761,6 +3109,169 @@
     <message>
         <source>A-B %1 – %2</source>
         <translation>A-B %1 – %2</translation>
+    </message>
+</context>
+<context>
+    <name>uve::OpticalMediaService</name>
+    <message>
+        <source>Track %1</source>
+        <translation>Track %1</translation>
+    </message>
+    <message>
+        <source>DVD</source>
+        <translation>DVD</translation>
+    </message>
+    <message>
+        <source>Blu-ray</source>
+        <translation>Blu-ray</translation>
+    </message>
+    <message>
+        <source>Audio-CD</source>
+        <translation>Audio CD</translation>
+    </message>
+    <message>
+        <source>Unbekannt</source>
+        <translation>Unknown</translation>
+    </message>
+    <message>
+        <source>Kein optisches Laufwerk gefunden</source>
+        <translation>No optical drive found</translation>
+    </message>
+    <message>
+        <source>Kein Medium im Laufwerk</source>
+        <translation>No disc in the drive</translation>
+    </message>
+    <message>
+        <source>Kein unterstützter Disc-Typ (DVD-Video, Blu-ray oder Audio-CD)</source>
+        <translation>Not a supported disc type (DVD-Video, Blu-ray or audio CD)</translation>
+    </message>
+    <message>
+        <source>Kein Lesezugriff auf das Laufwerk oder die Datei</source>
+        <translation>No read access to the drive or file</translation>
+    </message>
+    <message>
+        <source>Die mitgelieferte libmpv kann diesen Disc-Typ nicht öffnen</source>
+        <translation>The bundled libmpv cannot open this disc type</translation>
+    </message>
+    <message>
+        <source>Disc-Menüs werden von diesem Build nicht unterstützt – der Haupttitel wird abgespielt</source>
+        <translation>Disc menus are not supported by this build – playing the main title</translation>
+    </message>
+    <message>
+        <source>BD-J-Menüs benötigen Java und libbluray-j2se – der Haupttitel wird abgespielt</source>
+        <translation>BD-J menus need Java and libbluray-j2se – playing the main title</translation>
+    </message>
+    <message>
+        <source>Verschlüsselte Blu-ray in dieser Konfiguration nicht unterstützt</source>
+        <translation>Encrypted Blu-ray not supported in this configuration</translation>
+    </message>
+    <message>
+        <source>Die Disc wurde während der Wiedergabe entfernt</source>
+        <translation>The disc was removed during playback</translation>
+    </message>
+    <message>
+        <source>Image beschädigt oder kein DVD-/Blu-ray-Image</source>
+        <translation>Image damaged or not a DVD/Blu-ray image</translation>
+    </message>
+    <message>
+        <source>Disc nicht abspielbar (beschädigt, kopiergeschützt oder vom Build nicht unterstützt)</source>
+        <translation>Disc not playable (damaged, copy-protected or not supported by this build)</translation>
+    </message>
+    <message>
+        <source>ja</source>
+        <translation>yes</translation>
+    </message>
+    <message>
+        <source>nein</source>
+        <translation>no</translation>
+    </message>
+    <message>
+        <source>Quelltyp</source>
+        <translation>Source type</translation>
+    </message>
+    <message>
+        <source>Gerät / Image</source>
+        <translation>Device / image</translation>
+    </message>
+    <message>
+        <source>Spur</source>
+        <translation>Track</translation>
+    </message>
+    <message>
+        <source>Titel / Kapitel</source>
+        <translation>Titles / chapters</translation>
+    </message>
+    <message>
+        <source>Menümodus</source>
+        <translation>Menu mode</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aktiv</source>
+        <translation>Disc menu active</translation>
+    </message>
+    <message>
+        <source>Start im Disc-Menü</source>
+        <translation>Started in disc menu</translation>
+    </message>
+    <message>
+        <source>Titelwiedergabe</source>
+        <translation>Title playback</translation>
+    </message>
+    <message>
+        <source>Aktiv</source>
+        <translation>Active</translation>
+    </message>
+    <message>
+        <source>libmpv</source>
+        <translation>libmpv</translation>
+    </message>
+    <message>
+        <source>DVD-Video</source>
+        <translation>DVD-Video</translation>
+    </message>
+    <message>
+        <source>DVD-Menüs</source>
+        <translation>DVD menus</translation>
+    </message>
+    <message>
+        <source>Blu-ray (Titel)</source>
+        <translation>Blu-ray (titles)</translation>
+    </message>
+    <message>
+        <source>Blu-ray-Menüs (HDMV)</source>
+        <translation>Blu-ray menus (HDMV)</translation>
+    </message>
+    <message>
+        <source>BD-J</source>
+        <translation>BD-J</translation>
+    </message>
+    <message>
+        <source>nein – libbluray-j2se-*.jar fehlt</source>
+        <translation>no – libbluray-j2se-*.jar missing</translation>
+    </message>
+    <message>
+        <source>nein – keine Java-Laufzeit</source>
+        <translation>no – no Java runtime</translation>
+    </message>
+    <message>
+        <source>nein – nicht in diesem Paket enthalten</source>
+        <translation>no – not included in this package</translation>
+    </message>
+    <message>
+        <source>ja (eigener CD-Leser über libmpv)</source>
+        <translation>yes (built-in CD reader via libmpv)</translation>
+    </message>
+    <message>
+        <source>ja (libmpv cdda://)</source>
+        <translation>yes (libmpv cdda://)</translation>
+    </message>
+    <message>
+        <source>Disc-Navigation (discnav)</source>
+        <translation>Disc navigation (discnav)</translation>
+    </message>
+    <message>
+        <source>libmpv-Build</source>
+        <translation>libmpv build</translation>
     </message>
 </context>
 <context>
@@ -3922,17 +4433,6 @@
     <message>
         <source>UVE-Profil exportiert</source>
         <translation>UVE profile exported</translation>
-    </message>
-</context>
-<context>
-    <name>PluginModal</name>
-    <message>
-        <source>Schließen</source>
-        <translation>Close</translation>
-    </message>
-    <message>
-        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
-        <translation>The window of the plugin could not be loaded (see the plugin error log). Playback is not affected.</translation>
     </message>
 </context>
 </TS>

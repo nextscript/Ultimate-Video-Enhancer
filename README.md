@@ -1,4 +1,4 @@
-# UVE Player 1.1.7
+# UVE Player 1.1.8
 
 Native media player for Windows built with **C++20, Qt 6, and libmpv** – featuring **Ultimate Video Enhancer** as a GPU effects plugin, network streaming (YouTube, Twitch, HLS, tcp://) with proxy support, and seven languages.
 
@@ -6,9 +6,9 @@ Native media player for Windows built with **C++20, Qt 6, and libmpv** – featu
 
 | File | Description |
 |---|---|
-| `UVE-Player-1.1.7-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
-| `UVE-Player-1.1.7-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
-| `UVE-Player-1.1.7-portable.zip` | Portable folder archive (data stored in `.\data`) |
+| `UVE-Player-1.1.8-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
+| `UVE-Player-1.1.8-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
+| `UVE-Player-1.1.8-portable.zip` | Portable folder archive (data stored in `.\data`) |
 | `SHA256SUMS.txt` | SHA-256 checksums |
 
 All versions include libmpv, yt-dlp, and 7zr – no additional software installation is required.
@@ -22,6 +22,8 @@ All versions include libmpv, yt-dlp, and 7zr – no additional software installa
 - **Controls:** Single-click to pause, double-click for fullscreen, mouse wheel for volume adjustment, right-click context menu, and customizable keyboard shortcuts.
 - **Window:** Position, size, and maximized state are remembered between sessions.
 - **Network Streaming:** YouTube/Twitch (via yt-dlp, YouTube playlists start at the video given by `index=`), HTTP(S), HLS, DASH, TCP/UDP/RTMP/RTSP/SRT; automatic update checks for yt-dlp and libmpv.
+- **Optical media (1.1.8):** DVD-Video, unencrypted Blu-ray and audio CDs from a drive, plus DVD/Blu-ray ISO images and `VIDEO_TS`/`BDMV` folders (*File → Open disc…*). DVD/Blu-ray menus with keyboard and on-screen navigation where the bundled libmpv supports them (Windows build: DVD menus and Blu-ray HDMV menus; no BD-J); otherwise the main title plays. Encrypted Blu-rays are not supported. No physical drive was available for testing – see [TEST_REPORT](docs/TEST_REPORT.md#optical-media-118).
+- **Updates:** *Help → About UVE Player* checks for updates when it opens (like Chrome) and installs a release from there.
 - **Proxy Support:** None / Windows System / Manual (HTTP or SOCKS5, optional authentication) – applies to streams, yt-dlp, and downloads.
 - **Ultimate Video Enhancer:** Color correction, sharpening (SL/SR unsharp mask, detail sharpening), Teal & Orange split toning, HDR-like enhancement, film grain, edge enhancement, BL/WL controls; **Auto Scene Match** (Ctrl+Alt+A); **Expert Settings** for every grading curve; presets, before/after comparison with a draggable on-video divider (Ctrl+Alt+U), undo support; UVE profile import/export; **example profiles and LUT packages downloaded directly from GitHub**; **LUT Gallery** with previews based on the current video frame; `.cube` 3D LUT support.
 - **Live denoising (1.1.2):** *Effects → Denoising / noise reduction* switches between Bilateral, Adaptive + debanding, Temporal and NLMeans during playback ([docs/DENOISING.md](docs/DENOISING.md)).
@@ -38,6 +40,7 @@ All versions include libmpv, yt-dlp, and 7zr – no additional software installa
 | ← / → | Seek backward/forward | ↑ / ↓ | Volume |
 | N / P | Next/Previous track | V / B | Subtitle/Audio track |
 | Ctrl+Alt+E | Toggle effects | Ctrl+Alt+U | Before/After comparison |
+| Ctrl+Shift+D | Open disc | Ctrl+M | Disc menu (DVD/Blu-ray) |
 | Ctrl+L | Toggle sidebar | F1 | Customize keyboard shortcuts |
 
 ## Application Data
@@ -86,6 +89,7 @@ Qt 6.12 with the **WebEngine** component enables plugin web views; build with `-
 | Plugin API (manifest, lifecycle, Safe Mode, error logging, events/commands, contributions, QML plugins, ZIP install, embedded web views via `webview.available`) | Yes | Yes (tst_manifest, tst_plugins, self-test) | Native plugins execute trusted code; no digital signature verification; web views require the WebEngine build | PLUGIN_API.md |
 | Multilingual support (English default, German, Spanish, Italian, Polish, Greek, Turkish) and custom languages | Yes | Yes (tst_i18n, English/Greek UI) | Machine-generated translations; native-speaker review pending | lang/README.md |
 | Tool updater (yt-dlp, libmpv) with checksum verification | Yes | Partially (checks verified; libmpv update installation not tested end-to-end) | Updates take effect after restarting | ToolUpdater.cpp |
+| Optical media: DVD/Blu-ray from drive, ISO or folder, DVD/HDMV menus, audio CD | Yes (Windows; on Linux/macOS it depends on the distribution's/Homebrew libmpv) | Partially: synthetic DVD (menu start, title menu, titles, chapters, ISO and folder) and synthetic audio CD with the real libmpv; no physical drive, no Blu-ray test disc | With the synthetic DVD, selecting a menu button did not jump into the title (cause open); no BD-J; no encrypted Blu-rays | TEST_REPORT.md |
 | Installer, portable EXE, and ZIP with all required tools | Yes | Yes (package build, launch from staging) | Installer not tested on a clean system | scripts/package.ps1 |
 | No telemetry, no unsolicited downloads, no DRM circumvention | Yes | Code review | None | THIRD_PARTY_LICENSES.md |
 

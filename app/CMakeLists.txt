@@ -45,6 +45,9 @@ qt_add_qml_module(uve-player
         qml/SeekBar.qml
         qml/PlaylistPanel.qml
         qml/VideoContextMenu.qml
+        qml/OpenDiscDialog.qml
+        qml/DiscNavigationControls.qml
+        qml/DiscNavigationMenu.qml
         qml/SettingsDialog.qml
         qml/ExpertSettingsPage.qml
         qml/PluginsPage.qml

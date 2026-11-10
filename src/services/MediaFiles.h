@@ -9,7 +9,9 @@ QStringList subtitleExtensions();
 QStringList playlistExtensions();
 QString fileDialogFilter();
 
-bool isUrl(const QString &s);              // http(s), tcp, udp, rtmp, rtsp, srt, …
+bool isUrl(const QString &s);
+// Playlist-Eintrag einer optischen Disc ("uve-disc://…", siehe services/optical) – kein Netzwerkstream
+bool isDiscEntry(const QString &s);              // http(s), tcp, udp, rtmp, rtsp, srt, …
 bool isAllowedUrlScheme(const QString &s); // Validierung für Drag & Drop / URL-Dialog
 bool isMediaFile(const QString &path);
 bool isSubtitleFile(const QString &path);

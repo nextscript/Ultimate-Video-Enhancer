@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(UVEPlayer VERSION 1.1.7 LANGUAGES CXX
+project(UVEPlayer VERSION 1.1.8 LANGUAGES CXX
         DESCRIPTION "UVE Player – Medienplayer mit libmpv und Ultimate-Video-Enhancer-Plugin")
 
 set(CMAKE_CXX_STANDARD 20)

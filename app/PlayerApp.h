@@ -26,6 +26,7 @@ class HotkeyModel;
 class ToolUpdater;
 class AppUpdater;
 class SafeMode;
+class OpticalMediaService;
 }
 class QQuickWindow;
 
@@ -42,6 +43,7 @@ class PlayerApp : public QObject
     Q_PROPERTY(QObject *appUpdater READ appUpdaterObject CONSTANT)
     Q_PROPERTY(QObject *shaders READ shadersObject CONSTANT)
     Q_PROPERTY(QObject *settings READ settingsObject CONSTANT)
+    Q_PROPERTY(QObject *disc READ discObject CONSTANT)   // optische Medien (DVD, Blu-ray, Audio-CD)
     Q_PROPERTY(QString version READ version CONSTANT)
     Q_PROPERTY(QString mpvVersion READ mpvVersion CONSTANT)
     Q_PROPERTY(QString mpvLibrary READ mpvLibrary CONSTANT)
@@ -78,6 +80,7 @@ public:
     QObject *appUpdaterObject() const;
     QObject *shadersObject() const;
     QObject *settingsObject() const;
+    QObject *discObject() const;
     uve::MpvController *player() const { return m_player; }
 
     QString version() const;
@@ -234,6 +237,7 @@ private:
     uve::HotkeyModel *m_hotkeys = nullptr;
     uve::ToolUpdater *m_updater = nullptr;
     uve::AppUpdater *m_appUpdater = nullptr;
+    uve::OpticalMediaService *m_disc = nullptr;
     QTimer m_resumeTimer;
     QString m_loadedPath;
     bool m_stoppedByUser = false;

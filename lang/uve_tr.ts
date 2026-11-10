@@ -12,12 +12,120 @@
         <translation>Kapat</translation>
     </message>
     <message>
+        <source> MB</source>
+        <translation> MB</translation>
+    </message>
+    <message>
+        <source>Update wird heruntergeladen …</source>
+        <translation>Güncelleme indiriliyor …</translation>
+    </message>
+    <message>
+        <source>Suche nach Updates …</source>
+        <translation>Güncellemeler aranıyor …</translation>
+    </message>
+    <message>
+        <source>UVE Player ist auf dem neuesten Stand</source>
+        <translation>UVE Player güncel</translation>
+    </message>
+    <message>
+        <source>Update verfügbar: UVE Player %1</source>
+        <translation>Güncelleme mevcut: UVE Player %1</translation>
+    </message>
+    <message>
+        <source>Neue Commits auf GitHub (noch kein Release)</source>
+        <translation>GitHub&apos;da yeni commit&apos;ler (henüz sürüm yok)</translation>
+    </message>
+    <message>
+        <source>Update-Prüfung fehlgeschlagen</source>
+        <translation>Güncelleme denetimi başarısız</translation>
+    </message>
+    <message>
+        <source>UVE Player wird aktualisiert …</source>
+        <translation>UVE Player güncelleniyor …</translation>
+    </message>
+    <message>
+        <source>Installation wird gestartet – der Player wird neu gestartet …</source>
+        <translation>Kurulum başlatılıyor – oynatıcı yeniden başlatılacak …</translation>
+    </message>
+    <message>
+        <source>Update bereit</source>
+        <translation>Güncelleme hazır</translation>
+    </message>
+    <message>
+        <source>Das Update wurde nicht installiert</source>
+        <translation>Güncelleme yüklenmedi</translation>
+    </message>
+    <message>
+        <source>Version %1</source>
+        <translation>Sürüm %1</translation>
+    </message>
+    <message>
+        <source>Version %1 · %2 – wird per SHA-256 geprüft, danach startet der Player neu.</source>
+        <translation>Sürüm %1 · %2 – SHA-256 ile doğrulanır, ardından oynatıcı yeniden başlar.</translation>
+    </message>
+    <message>
+        <source>Für diese Installation gibt es kein automatisches Update. Das neue Paket liegt auf der GitHub-Seite des Releases.</source>
+        <translation>Bu kurulum için otomatik güncelleme yok. Yeni paket, sürümün GitHub sayfasında.</translation>
+    </message>
+    <message>
+        <source>Neue Commits: %1 – sobald es ein Release gibt, kann es hier installiert werden.</source>
+        <translation>Yeni commit'ler: %1 – bir sürüm yayımlandığında buradan yüklenebilir.</translation>
+    </message>
+    <message>
+        <source>GitHub antwortet gerade nicht – neuer Versuch in %1 s (der Download wird fortgesetzt)</source>
+        <translation>GitHub yanıt vermiyor – %1 sn sonra yeniden denenecek (indirme kaldığı yerden sürer)</translation>
+    </message>
+    <message>
         <source>UVE Player </source>
         <translation>UVE Player </translation>
     </message>
     <message>
         <source>Medienplayer mit libmpv und Ultimate-Video-Enhancer-Plugin</source>
         <translation>libmpv ve Ultimate Video Enhancer eklentisi içeren medya oynatıcı</translation>
+    </message>
+    <message>
+        <source>Jetzt aktualisieren</source>
+        <translation>Şimdi güncelle</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Yeniden dene</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>İptal</translation>
+    </message>
+    <message>
+        <source>Details</source>
+        <translation>Ayrıntılar</translation>
+    </message>
+    <message>
+        <source>Erneut prüfen</source>
+        <translation>Yeniden denetle</translation>
+    </message>
+    <message>
+        <source>Auf GitHub ansehen</source>
+        <translation>GitHub&apos;da görüntüle</translation>
+    </message>
+    <message>
+        <source>yt-dlp und libmpv werden geprüft …</source>
+        <translation>yt-dlp ve libmpv denetleniyor …</translation>
+    </message>
+    <message>
+        <source>Updates für Werkzeuge verfügbar: %1</source>
+        <translation>Araç güncellemeleri mevcut: %1</translation>
+    </message>
+    <message>
+        <source>Werkzeug-Prüfung fehlgeschlagen: %1</source>
+        <translation>Araç denetimi başarısız: %1</translation>
+    </message>
+    <message>
+        <source>yt-dlp und libmpv sind aktuell</source>
+        <translation>yt-dlp ve libmpv güncel</translation>
+    </message>
+    <message>
+        <source>Anzeigen</source>
+        <translation>Göster</translation>
     </message>
     <message>
         <source>mpv / libmpv</source>
@@ -307,6 +415,120 @@
     <message>
         <source>Shader-Kette:      </source>
         <translation>Shader zinciri:      </translation>
+    </message>
+</context>
+<context>
+    <name>DiscNavigationControls</name>
+    <message>
+        <source>Disc-Menü</source>
+        <translation>Disk menüsü</translation>
+    </message>
+    <message>
+        <source>Disc</source>
+        <translation>Disk</translation>
+    </message>
+    <message>
+        <source>Links</source>
+        <translation>Sol</translation>
+    </message>
+    <message>
+        <source>Hoch</source>
+        <translation>Yukarı</translation>
+    </message>
+    <message>
+        <source>Runter</source>
+        <translation>Aşağı</translation>
+    </message>
+    <message>
+        <source>Rechts</source>
+        <translation>Sağ</translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation>Tamam</translation>
+    </message>
+    <message>
+        <source>Auswählen (Enter)</source>
+        <translation>Seç (Enter)</translation>
+    </message>
+    <message>
+        <source>Zurück (Rücktaste)</source>
+        <translation>Geri (Geri tuşu)</translation>
+    </message>
+    <message>
+        <source>Menü</source>
+        <translation>Menü</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Disk menüsünü aç</translation>
+    </message>
+</context>
+<context>
+    <name>DiscNavigationMenu</name>
+    <message>
+        <source>Disc-Navigation</source>
+        <translation>Disk gezintisi</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Disk menüsünü aç</translation>
+    </message>
+    <message>
+        <source>Titelmenü</source>
+        <translation>Başlık menüsü</translation>
+    </message>
+    <message>
+        <source>Popup-Menü</source>
+        <translation>Açılır menü</translation>
+    </message>
+    <message>
+        <source>Hoch</source>
+        <translation>Yukarı</translation>
+    </message>
+    <message>
+        <source>Runter</source>
+        <translation>Aşağı</translation>
+    </message>
+    <message>
+        <source>Links</source>
+        <translation>Sol</translation>
+    </message>
+    <message>
+        <source>Rechts</source>
+        <translation>Sağ</translation>
+    </message>
+    <message>
+        <source>Auswählen</source>
+        <translation>Seç</translation>
+    </message>
+    <message>
+        <source>Zurück</source>
+        <translation>Geri</translation>
+    </message>
+    <message>
+        <source>Vorheriges Kapitel</source>
+        <translation>Önceki bölüm</translation>
+    </message>
+    <message>
+        <source>Nächstes Kapitel</source>
+        <translation>Sonraki bölüm</translation>
+    </message>
+    <message>
+        <source>Kapitel (%1)</source>
+        <translation>Bölümler (%1)</translation>
+    </message>
+    <message>
+        <source>Kapitel %1</source>
+        <translation>Bölüm %1</translation>
+    </message>
+    <message>
+        <source>Titel (%1)</source>
+        <translation>Başlıklar (%1)</translation>
+    </message>
+    <message>
+        <source>Titel %1</source>
+        <translation>Başlık %1</translation>
     </message>
 </context>
 <context>
@@ -762,6 +984,14 @@
         <translation>Efekt eklentisi etkin değil</translation>
     </message>
     <message>
+        <source>Disc-Menü nicht verfügbar</source>
+        <translation>Disk menüsü kullanılamıyor</translation>
+    </message>
+    <message>
+        <source>Keine DVD oder Blu-ray aktiv</source>
+        <translation>Oynatılan DVD veya Blu-ray yok</translation>
+    </message>
+    <message>
         <source>&amp;Datei</source>
         <translation>&amp;Dosya</translation>
     </message>
@@ -776,6 +1006,14 @@
     <message>
         <source>Netzwerkstream öffnen…</source>
         <translation>Ağ akışı aç…</translation>
+    </message>
+    <message>
+        <source>Disc öffnen…</source>
+        <translation>Disk aç…</translation>
+    </message>
+    <message>
+        <source>Disc-Image/Disc-Ordner öffnen…</source>
+        <translation>Disk görüntüsü/klasörü aç…</translation>
     </message>
     <message>
         <source>Zuletzt geöffnet</source>
@@ -994,8 +1232,8 @@
         <translation>UVE Player, yt-dlp ve libmpv güncel</translation>
     </message>
     <message>
-        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Nach Updates suchen</source>
-        <translation>GitHub&apos;da yeni UVE Player commit&apos;leri var (henüz sürüm yok) – bkz. Yardım → Güncellemeleri denetle</translation>
+        <source>Neue Commits von UVE Player auf GitHub (noch kein Release) – siehe Hilfe → Über UVE Player</source>
+        <translation>GitHub&apos;da yeni UVE Player commit&apos;leri (henüz sürüm yok) – bkz. Yardım → UVE Player hakkında</translation>
     </message>
     <message>
         <source>Suche nach Updates …</source>
@@ -1004,10 +1242,6 @@
     <message>
         <source>Über UVE Player</source>
         <translation>UVE Player hakkında</translation>
-    </message>
-    <message>
-        <source>Nach Updates suchen</source>
-        <translation>Güncellemeleri denetle</translation>
     </message>
     <message>
         <source>Safe Mode – Plugins nicht geladen. </source>
@@ -1123,6 +1357,97 @@
     <message>
         <source>Schließen</source>
         <translation>Kapat</translation>
+    </message>
+</context>
+<context>
+    <name>OpenDiscDialog</name>
+    <message>
+        <source>Disc öffnen</source>
+        <translation>Disk aç</translation>
+    </message>
+    <message>
+        <source>%1 Spuren</source>
+        <translation>%1 parça</translation>
+    </message>
+    <message>
+        <source>verschlüsselt (AACS)</source>
+        <translation>şifreli (AACS)</translation>
+    </message>
+    <message>
+        <source>Disc-Image wählen</source>
+        <translation>Disk görüntüsü seç</translation>
+    </message>
+    <message>
+        <source>Disc-Images (*.iso *.img *.udf)</source>
+        <translation>Disk görüntüleri (*.iso *.img *.udf)</translation>
+    </message>
+    <message>
+        <source>Alle Dateien (*)</source>
+        <translation>Tüm dosyalar (*)</translation>
+    </message>
+    <message>
+        <source>Disc-Ordner wählen (enthält VIDEO_TS oder BDMV)</source>
+        <translation>Disk klasörü seç (VIDEO_TS veya BDMV içerir)</translation>
+    </message>
+    <message>
+        <source>Informationen ausblenden</source>
+        <translation>Bilgileri gizle</translation>
+    </message>
+    <message>
+        <source>Disc-Informationen</source>
+        <translation>Disk bilgileri</translation>
+    </message>
+    <message>
+        <source>Abbrechen</source>
+        <translation>İptal</translation>
+    </message>
+    <message>
+        <source>Öffnen</source>
+        <translation>Aç</translation>
+    </message>
+    <message>
+        <source>Laufwerk</source>
+        <translation>Sürücü</translation>
+    </message>
+    <message>
+        <source>ISO/Ordner</source>
+        <translation>ISO/klasör</translation>
+    </message>
+    <message>
+        <source>Laufwerke werden abgefragt …</source>
+        <translation>Sürücüler sorgulanıyor …</translation>
+    </message>
+    <message>
+        <source>Optische Laufwerke</source>
+        <translation>Optik sürücüler</translation>
+    </message>
+    <message>
+        <source>Aktualisieren</source>
+        <translation>Yenile</translation>
+    </message>
+    <message>
+        <source>Image wählen …</source>
+        <translation>Görüntü seç …</translation>
+    </message>
+    <message>
+        <source>Ordner wählen …</source>
+        <translation>Klasör seç …</translation>
+    </message>
+    <message>
+        <source>Unterstützt: DVD-Video (ISO oder Ordner mit VIDEO_TS) und unverschlüsselte Blu-ray (ISO oder Ordner mit BDMV). Der Typ wird am Inhalt erkannt, nicht an der Dateiendung.</source>
+        <translation>Desteklenenler: DVD-Video (VIDEO_TS içeren ISO veya klasör) ve şifresiz Blu-ray (BDMV içeren ISO veya klasör). Tür, dosya uzantısından değil içerikten tanınır.</translation>
+    </message>
+    <message>
+        <source>Im Disc-Menü starten</source>
+        <translation>Disk menüsünde başlat</translation>
+    </message>
+    <message>
+        <source>Im Disc-Menü starten (von diesem Build nicht unterstützt – Haupttitel)</source>
+        <translation>Disk menüsünde başlat (bu derleme desteklemiyor – ana başlık)</translation>
+    </message>
+    <message>
+        <source>Der Haupttitel wird direkt abgespielt.</source>
+        <translation>Ana başlık doğrudan oynatılır.</translation>
     </message>
 </context>
 <context>
@@ -1523,6 +1848,17 @@
     <message>
         <source>Benötigtes Backend fehlt: %1</source>
         <translation>Gerekli arka uç eksik: %1</translation>
+    </message>
+</context>
+<context>
+    <name>PluginModal</name>
+    <message>
+        <source>Schließen</source>
+        <translation>Kapat</translation>
+    </message>
+    <message>
+        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
+        <translation>Eklentinin penceresi yüklenemedi (eklenti hata günlüğüne bakın). Oynatma bundan etkilenmez.</translation>
     </message>
 </context>
 <context>
@@ -2732,6 +3068,18 @@
         <translation>Ağ akışı aç…</translation>
     </message>
     <message>
+        <source>Disc öffnen…</source>
+        <translation>Disk aç…</translation>
+    </message>
+    <message>
+        <source>Disc-Image/Disc-Ordner öffnen…</source>
+        <translation>Disk görüntüsü/klasörü aç…</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aufrufen</source>
+        <translation>Disk menüsünü aç</translation>
+    </message>
+    <message>
         <source>Wiedergabeliste speichern…</source>
         <translation>Oynatma listesini kaydet…</translation>
     </message>
@@ -2761,6 +3109,169 @@
     <message>
         <source>A-B %1 – %2</source>
         <translation>A-B %1 – %2</translation>
+    </message>
+</context>
+<context>
+    <name>uve::OpticalMediaService</name>
+    <message>
+        <source>Track %1</source>
+        <translation>Parça %1</translation>
+    </message>
+    <message>
+        <source>DVD</source>
+        <translation>DVD</translation>
+    </message>
+    <message>
+        <source>Blu-ray</source>
+        <translation>Blu-ray</translation>
+    </message>
+    <message>
+        <source>Audio-CD</source>
+        <translation>Ses CD&apos;si</translation>
+    </message>
+    <message>
+        <source>Unbekannt</source>
+        <translation>Bilinmiyor</translation>
+    </message>
+    <message>
+        <source>Kein optisches Laufwerk gefunden</source>
+        <translation>Optik sürücü bulunamadı</translation>
+    </message>
+    <message>
+        <source>Kein Medium im Laufwerk</source>
+        <translation>Sürücüde disk yok</translation>
+    </message>
+    <message>
+        <source>Kein unterstützter Disc-Typ (DVD-Video, Blu-ray oder Audio-CD)</source>
+        <translation>Desteklenmeyen disk türü (DVD-Video, Blu-ray veya ses CD&apos;si)</translation>
+    </message>
+    <message>
+        <source>Kein Lesezugriff auf das Laufwerk oder die Datei</source>
+        <translation>Sürücüye veya dosyaya okuma erişimi yok</translation>
+    </message>
+    <message>
+        <source>Die mitgelieferte libmpv kann diesen Disc-Typ nicht öffnen</source>
+        <translation>Paketteki libmpv bu disk türünü açamıyor</translation>
+    </message>
+    <message>
+        <source>Disc-Menüs werden von diesem Build nicht unterstützt – der Haupttitel wird abgespielt</source>
+        <translation>Disk menüleri bu derlemede desteklenmiyor – ana başlık oynatılıyor</translation>
+    </message>
+    <message>
+        <source>BD-J-Menüs benötigen Java und libbluray-j2se – der Haupttitel wird abgespielt</source>
+        <translation>BD-J menüleri Java ve libbluray-j2se gerektirir – ana başlık oynatılıyor</translation>
+    </message>
+    <message>
+        <source>Verschlüsselte Blu-ray in dieser Konfiguration nicht unterstützt</source>
+        <translation>Şifreli Blu-ray bu yapılandırmada desteklenmiyor</translation>
+    </message>
+    <message>
+        <source>Die Disc wurde während der Wiedergabe entfernt</source>
+        <translation>Disk oynatma sırasında çıkarıldı</translation>
+    </message>
+    <message>
+        <source>Image beschädigt oder kein DVD-/Blu-ray-Image</source>
+        <translation>Görüntü bozuk veya DVD/Blu-ray görüntüsü değil</translation>
+    </message>
+    <message>
+        <source>Disc nicht abspielbar (beschädigt, kopiergeschützt oder vom Build nicht unterstützt)</source>
+        <translation>Disk oynatılamıyor (bozuk, kopya korumalı veya bu derleme desteklemiyor)</translation>
+    </message>
+    <message>
+        <source>ja</source>
+        <translation>evet</translation>
+    </message>
+    <message>
+        <source>nein</source>
+        <translation>hayır</translation>
+    </message>
+    <message>
+        <source>Quelltyp</source>
+        <translation>Kaynak türü</translation>
+    </message>
+    <message>
+        <source>Gerät / Image</source>
+        <translation>Aygıt / görüntü</translation>
+    </message>
+    <message>
+        <source>Spur</source>
+        <translation>Parça</translation>
+    </message>
+    <message>
+        <source>Titel / Kapitel</source>
+        <translation>Başlıklar / bölümler</translation>
+    </message>
+    <message>
+        <source>Menümodus</source>
+        <translation>Menü modu</translation>
+    </message>
+    <message>
+        <source>Disc-Menü aktiv</source>
+        <translation>Disk menüsü etkin</translation>
+    </message>
+    <message>
+        <source>Start im Disc-Menü</source>
+        <translation>Disk menüsünde başlatıldı</translation>
+    </message>
+    <message>
+        <source>Titelwiedergabe</source>
+        <translation>Başlık oynatma</translation>
+    </message>
+    <message>
+        <source>Aktiv</source>
+        <translation>Etkin</translation>
+    </message>
+    <message>
+        <source>libmpv</source>
+        <translation>libmpv</translation>
+    </message>
+    <message>
+        <source>DVD-Video</source>
+        <translation>DVD-Video</translation>
+    </message>
+    <message>
+        <source>DVD-Menüs</source>
+        <translation>DVD menüleri</translation>
+    </message>
+    <message>
+        <source>Blu-ray (Titel)</source>
+        <translation>Blu-ray (başlıklar)</translation>
+    </message>
+    <message>
+        <source>Blu-ray-Menüs (HDMV)</source>
+        <translation>Blu-ray menüleri (HDMV)</translation>
+    </message>
+    <message>
+        <source>BD-J</source>
+        <translation>BD-J</translation>
+    </message>
+    <message>
+        <source>nein – libbluray-j2se-*.jar fehlt</source>
+        <translation>hayır – libbluray-j2se-*.jar eksik</translation>
+    </message>
+    <message>
+        <source>nein – keine Java-Laufzeit</source>
+        <translation>hayır – Java çalışma ortamı yok</translation>
+    </message>
+    <message>
+        <source>nein – nicht in diesem Paket enthalten</source>
+        <translation>hayır – bu pakete dahil değil</translation>
+    </message>
+    <message>
+        <source>ja (eigener CD-Leser über libmpv)</source>
+        <translation>evet (libmpv üzerinden yerleşik CD okuyucu)</translation>
+    </message>
+    <message>
+        <source>ja (libmpv cdda://)</source>
+        <translation>evet (libmpv cdda://)</translation>
+    </message>
+    <message>
+        <source>Disc-Navigation (discnav)</source>
+        <translation>Disk gezintisi (discnav)</translation>
+    </message>
+    <message>
+        <source>libmpv-Build</source>
+        <translation>libmpv derlemesi</translation>
     </message>
 </context>
 <context>
@@ -3922,17 +4433,6 @@
     <message>
         <source>UVE-Profil exportiert</source>
         <translation>UVE profili dışa aktarıldı</translation>
-    </message>
-</context>
-<context>
-    <name>PluginModal</name>
-    <message>
-        <source>Schließen</source>
-        <translation>Kapat</translation>
-    </message>
-    <message>
-        <source>Das Fenster des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll). Die Wiedergabe ist davon nicht betroffen.</source>
-        <translation>Eklentinin penceresi yüklenemedi (eklenti hata günlüğüne bakın). Oynatma bundan etkilenmez.</translation>
     </message>
 </context>
 </TS>

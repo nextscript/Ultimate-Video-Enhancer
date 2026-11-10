@@ -14,6 +14,8 @@ uvecore (src/, static library)
 ├── rendering/  ShaderChain (mpv "glsl-shaders", error attribution, disabling faulty stages),
 │               VideoFilterStage (mpv "vf" stage with frame history, decoder copy mode while active)
 └── services/   PlaylistModel, MediaFiles, HotkeyModel, ToolUpdater, AppUpdater, ResumableDownload, SingleInstance, ProxyConfig, ProxyBridge
+    └── optical/  OpticalMediaService ("app.disc"), DiscSourceResolver, DiscCapabilities, OpticalDriveEnumerator,
+                  DiscNavigationBridge, CdAudioStream (1.1.8)
 
 plugins/
 ├── uve/                Ultimate Video Enhancer: engine/ (parameters, shader generator, .cube parser), controller, QML panel
@@ -31,6 +33,27 @@ plugins/
   deferred (`markRenderReady`); otherwise mpv would disable the video track for lack of an output.
 - **Zero-copy:** not promised. Hardware decoding `auto-safe` (NVDEC in testing); whether mpv uses interop or copies
   depends on driver/backend and was not measured.
+
+## Optical media (1.1.8)
+Isolated module in `src/services/optical/`; it decodes nothing itself.
+- **DiscSourceResolver:** detects DVD/Blu-ray folders (`VIDEO_TS/VIDEO_TS.IFO`, `BDMV/index.bdmv`, `AACS`, `BDMV/JAR`) and images
+  (ISO 9660 directory; pure UDF via the volume recognition sequence and the names in the image head). Builds playlist entries
+  `uve-disc://<dvd|bluray|cdda>?dev=…&t=…&menu=1&name=…` and the libmpv load plan: `dvd://` / `bd://` / `cdda://` / `uvecdda://`
+  with `dvd-device`, `bluray-device`, `cdda-device` and `disc-menu=yes` as **file-local** options of that one `loadfile` (values quoted as
+  `%len%value`). Operating-system paths never become MRLs by string concatenation; no shell, no mounting.
+- **DiscCapabilities:** asks the loaded libmpv at runtime (`protocol-list`, `option-info/…`, `command-list`, `property-list`,
+  `mpv-configuration`). Missing features switch the matching UI off instead of failing later.
+- **OpticalDriveEnumerator:** Windows `GetLogicalDrives`/`GetDriveType`/`GetVolumeInformation` (with `SEM_FAILCRITICALERRORS`),
+  Linux `/dev/sr*` + `CDROM_DRIVE_STATUS`/`CDROM_DISC_STATUS`, macOS mounted `cd9660`/`udf`/`cddafs` volumes. Runs in a worker thread.
+- **CdAudioStream:** for builds without `cdda://` (the Windows build): registers `uvecdda` with `mpv_stream_cb_add_ro`; each track is a
+  WAV stream read with `IOCTL_CDROM_READ_TOC`/`IOCTL_CDROM_RAW_READ`. libmpv still demuxes, decodes and outputs.
+- **OpticalMediaService:** opens drives/images in the background, adds playlist entries, loads them through `MpvController::load()`
+  (same asynchronous queue and deferral until the render context exists), observes `disc-menu-active`, `chapter-list`, `edition-list`
+  through the additive `MpvController::observe()`, and forwards `discnav` only through **DiscNavigationBridge** (known actions only,
+  disc active, command present). `PlayerApp::loadPath` routes disc entries here before plugin URL resolution, yt-dlp and the proxy.
+  A DVD menu shown as a still frame reports end of file in libmpv; the playlist does not advance while the disc menu is active.
+- Video stays on `vo=libmpv` → render API → `MpvVideoItem`; ShaderChain/UVE and denoising apply to DVD/Blu-ray frames unchanged.
+  Audio CDs have no video track, so no shader runs.
 
 ## Frame pipeline (native)
 Decode (HW/SW) → optional temporal denoising (video filter) → YUV→RGB (mpv) → **hook MAIN: denoising stage**
