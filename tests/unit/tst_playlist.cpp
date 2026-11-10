@@ -129,6 +129,36 @@ private slots:
         QVERIFY(e[1].endsWith("Folge 2.mkv"));
         QVERIFY(e[2].endsWith("Folge 10.mkv"));
     }
+    void youtubePlaylistLinks()
+    {
+        media::YoutubePlaylistLink l;
+        QVERIFY(media::parseYoutubePlaylist("https://www.youtube.com/watch?v=JfRQOewt8Ho&list=RDJfRQOewt8Ho&index=1", &l));
+        QCOMPARE(l.videoId, QString("JfRQOewt8Ho"));
+        QCOMPARE(l.listId, QString("RDJfRQOewt8Ho"));
+        QCOMPARE(l.index, 1);
+        QVERIFY(media::parseYoutubePlaylist("https://youtu.be/abc123?list=PLx&index=7", &l));
+        QCOMPARE(l.videoId, QString("abc123"));
+        QCOMPARE(l.index, 7);
+        QVERIFY(media::parseYoutubePlaylist("https://m.youtube.com/playlist?list=PLx", &l));
+        QVERIFY(l.videoId.isEmpty());
+        QCOMPARE(l.index, 0);
+        QVERIFY(media::parseYoutubePlaylist("https://www.youtube.com/watch?v=a&list=PLx&index=abc", &l));
+        QCOMPARE(l.index, 0);
+        QVERIFY(!media::parseYoutubePlaylist("https://www.youtube.com/watch?v=JfRQOewt8Ho", &l));   // keine Liste
+        QVERIFY(!media::parseYoutubePlaylist("https://example.com/watch?v=a&list=PLx", &l));
+        QVERIFY(!media::parseYoutubePlaylist("https://notyoutube.com/watch?v=a&list=PLx", &l));
+        QCOMPARE(media::youtubeVideoUrl("abc"), QString("https://www.youtube.com/watch?v=abc"));
+    }
+    void youtubePlaylistStart()
+    {
+        const QStringList ids{"a", "b", "c", "d"};
+        QCOMPARE(media::youtubePlaylistStart(ids, {"L", "a", 3}), 2);    // index= entscheidet (1-basiert)
+        QCOMPARE(media::youtubePlaylistStart(ids, {"L", "c", 0}), 2);    // ohne index: Video aus v=
+        QCOMPARE(media::youtubePlaylistStart(ids, {"L", "c", 9}), 2);    // index außerhalb der Liste: v=
+        QCOMPARE(media::youtubePlaylistStart(ids, {"L", "x", 0}), 0);    // unbekannt: erstes Video
+        QCOMPARE(media::youtubePlaylistStart(ids, {"L", "", 0}), 0);
+        QCOMPARE(media::youtubePlaylistStart({}, {"L", "a", 1}), -1);
+    }
 };
 
 QTEST_GUILESS_MAIN(TstPlaylist)

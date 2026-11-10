@@ -28,6 +28,7 @@ Result: **10/10 passed**.
 | `UVE_SELFTEST_ONLY=language`: all 42 language pairs, every menu title (hover and idle) and every enabled menu entry checked by its pixels | 0 failures; before the fix 36 failures on *Audio* and *Plugins* |
 | `UVE_SELFTEST_ONLY=plugins` with `plugins/examples/modaldemo`: scopes player/video/sidebar, modes movable/fixed/fill, dragging and limits at the edges, player usable next to a limited window, `modal.closed`, settings entry and page, removal with undo | ok |
 | Second start after the removal: plugin folder and plugin data deleted | ok |
+| 1.1.7: YouTube playlist links (`list=`, `index=`, `youtu.be`, mix capped at 200) parsed and start video chosen (`tst_playlist`) | ok |
 | 1.1.6: `defaultPlacement` starts a sidebar page hidden; the user's choice wins and survives a restart | ok |
 | 1.1.5: hide and move sidebar pages (*Timer*, *Effects*), sidebar and current tab stay, effects command and LUT gallery from *Settings*, *View → Plugin pages* | ok |
 | 1.1.4: *Plugins → Manage plugins…* opens *Settings → Plugins*; settings button, removal and undo on that page | ok |

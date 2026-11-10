@@ -11,6 +11,7 @@
 #include <QUrl>
 #include <QVariantMap>
 #include "services/ProxyConfig.h"
+#include "services/MediaFiles.h"
 #include <QHash>
 namespace uve { class ProxyBridge; class LanguageManager; }
 class QQmlEngine;
@@ -188,6 +189,7 @@ private:
     void saveResume();
     void saveSession();
     void applyYtdlOptions();
+    void openYoutubePlaylist(const QString &url, const uve::media::YoutubePlaylistLink &link, bool play, bool insertNext);
     void applyRenderQuality(const QString &mode);
     void loadPath(const QString &path, double start, bool paused); // inkl. gewählter Stream-Auflösung
     void prepareStreamQualities(const QString &path);

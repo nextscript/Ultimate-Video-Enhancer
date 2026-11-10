@@ -10,6 +10,7 @@
 #include <QStorageInfo>
 #include <QTextStream>
 #include <QUrl>
+#include <QUrlQuery>
 
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
@@ -176,6 +177,38 @@ bool writeM3U(const QString &file, const QStringList &entries, const QStringList
     }
     s.flush();
     return f.commit();
+}
+
+bool parseYoutubePlaylist(const QString &url, YoutubePlaylistLink *out)
+{
+    const QUrl u(url.trimmed());
+    if (u.scheme() != QLatin1String("http") && u.scheme() != QLatin1String("https")) return false;
+    const QString host = u.host().toLower();
+    const bool shortHost = host == QLatin1String("youtu.be");
+    if (!shortHost && host != QLatin1String("youtube.com") && !host.endsWith(QLatin1String(".youtube.com"))) return false;
+    const QUrlQuery q(u);
+    YoutubePlaylistLink link;
+    link.listId = q.queryItemValue(QStringLiteral("list"));
+    if (link.listId.isEmpty()) return false;
+    link.videoId = shortHost ? u.path().section(QLatin1Char('/'), 1, 1) : q.queryItemValue(QStringLiteral("v"));
+    bool ok = false;
+    const int idx = q.queryItemValue(QStringLiteral("index")).toInt(&ok);
+    link.index = ok && idx > 0 ? idx : 0;
+    if (out) *out = link;
+    return true;
+}
+
+QString youtubeVideoUrl(const QString &videoId)
+{
+    return QStringLiteral("https://www.youtube.com/watch?v=") + videoId;
+}
+
+int youtubePlaylistStart(const QStringList &videoIds, const YoutubePlaylistLink &link)
+{
+    if (videoIds.isEmpty()) return -1;
+    if (link.index > 0 && link.index <= videoIds.size()) return link.index - 1;
+    const int byId = link.videoId.isEmpty() ? -1 : int(videoIds.indexOf(link.videoId));
+    return byId >= 0 ? byId : 0;
 }
 
 } // namespace uve::media

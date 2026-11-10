@@ -22,4 +22,11 @@ QStringList expand(const QStringList &inputs);
 QStringList parsePlaylistFile(const QString &file);
 bool writeM3U(const QString &file, const QStringList &entries, const QStringList &titles);
 
+// YouTube-Wiedergabelisten (…watch?v=ID&list=LISTE&index=N, youtu.be/ID?list=…, …/playlist?list=…)
+struct YoutubePlaylistLink { QString listId; QString videoId; int index = 0; };   // index: 1-basiert, 0 = keiner
+bool parseYoutubePlaylist(const QString &url, YoutubePlaylistLink *out);
+QString youtubeVideoUrl(const QString &videoId);           // https://www.youtube.com/watch?v=ID (ohne Liste)
+// Startzeile in der aufgelösten Liste: index= hat Vorrang, sonst das Video aus v=, sonst die erste
+int youtubePlaylistStart(const QStringList &videoIds, const YoutubePlaylistLink &link);
+
 } // namespace uve::media

@@ -1,4 +1,4 @@
-# UVE Player 1.1.6
+# UVE Player 1.1.7
 
 Native media player for Windows built with **C++20, Qt 6, and libmpv** – featuring **Ultimate Video Enhancer** as a GPU effects plugin, network streaming (YouTube, Twitch, HLS, tcp://) with proxy support, and seven languages.
 
@@ -6,9 +6,9 @@ Native media player for Windows built with **C++20, Qt 6, and libmpv** – featu
 
 | File | Description |
 |---|---|
-| `UVE-Player-1.1.6-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
-| `UVE-Player-1.1.6-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
-| `UVE-Player-1.1.6-portable.zip` | Portable folder archive (data stored in `.\data`) |
+| `UVE-Player-1.1.7-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
+| `UVE-Player-1.1.7-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
+| `UVE-Player-1.1.7-portable.zip` | Portable folder archive (data stored in `.\data`) |
 | `SHA256SUMS.txt` | SHA-256 checksums |
 
 All versions include libmpv, yt-dlp, and 7zr – no additional software installation is required.
@@ -21,7 +21,7 @@ All versions include libmpv, yt-dlp, and 7zr – no additional software installa
 - **GPU load (1.0.8):** *Settings → Video & GPU → Picture scaling* selects Balanced (default), High quality (mpv defaults) or Fast.
 - **Controls:** Single-click to pause, double-click for fullscreen, mouse wheel for volume adjustment, right-click context menu, and customizable keyboard shortcuts.
 - **Window:** Position, size, and maximized state are remembered between sessions.
-- **Network Streaming:** YouTube/Twitch (via yt-dlp), HTTP(S), HLS, DASH, TCP/UDP/RTMP/RTSP/SRT; automatic update checks for yt-dlp and libmpv.
+- **Network Streaming:** YouTube/Twitch (via yt-dlp, YouTube playlists start at the video given by `index=`), HTTP(S), HLS, DASH, TCP/UDP/RTMP/RTSP/SRT; automatic update checks for yt-dlp and libmpv.
 - **Proxy Support:** None / Windows System / Manual (HTTP or SOCKS5, optional authentication) – applies to streams, yt-dlp, and downloads.
 - **Ultimate Video Enhancer:** Color correction, sharpening (SL/SR unsharp mask, detail sharpening), Teal & Orange split toning, HDR-like enhancement, film grain, edge enhancement, BL/WL controls; **Auto Scene Match** (Ctrl+Alt+A); **Expert Settings** for every grading curve; presets, before/after comparison with a draggable on-video divider (Ctrl+Alt+U), undo support; UVE profile import/export; **example profiles and LUT packages downloaded directly from GitHub**; **LUT Gallery** with previews based on the current video frame; `.cube` 3D LUT support.
 - **Live denoising (1.1.2):** *Effects → Denoising / noise reduction* switches between Bilateral, Adaptive + debanding, Temporal and NLMeans during playback ([docs/DENOISING.md](docs/DENOISING.md)).

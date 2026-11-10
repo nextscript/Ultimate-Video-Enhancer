@@ -1167,6 +1167,18 @@
 <context>
     <name>PlayerApp</name>
     <message>
+        <source>YouTube-Wiedergabeliste wird geladen …</source>
+        <translation>YouTube oynatma listesi yükleniyor …</translation>
+    </message>
+    <message>
+        <source>YouTube-Wiedergabeliste: %1 Videos</source>
+        <translation>YouTube oynatma listesi: %1 video</translation>
+    </message>
+    <message>
+        <source>YouTube-Wiedergabeliste konnte nicht geladen werden</source>
+        <translation>YouTube oynatma listesi yüklenemedi</translation>
+    </message>
+    <message>
         <source>Auflösung: %1</source>
         <translation>Çözünürlük: %1</translation>
     </message>

@@ -1167,6 +1167,18 @@
 <context>
     <name>PlayerApp</name>
     <message>
+        <source>YouTube-Wiedergabeliste wird geladen …</source>
+        <translation>Φόρτωση λίστας αναπαραγωγής YouTube …</translation>
+    </message>
+    <message>
+        <source>YouTube-Wiedergabeliste: %1 Videos</source>
+        <translation>Λίστα αναπαραγωγής YouTube: %1 βίντεο</translation>
+    </message>
+    <message>
+        <source>YouTube-Wiedergabeliste konnte nicht geladen werden</source>
+        <translation>Δεν ήταν δυνατή η φόρτωση της λίστας αναπαραγωγής YouTube</translation>
+    </message>
+    <message>
         <source>Auflösung: %1</source>
         <translation>Ανάλυση: %1</translation>
     </message>

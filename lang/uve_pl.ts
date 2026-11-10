@@ -1167,6 +1167,18 @@
 <context>
     <name>PlayerApp</name>
     <message>
+        <source>YouTube-Wiedergabeliste wird geladen …</source>
+        <translation>Wczytywanie playlisty YouTube …</translation>
+    </message>
+    <message>
+        <source>YouTube-Wiedergabeliste: %1 Videos</source>
+        <translation>Playlista YouTube: %1 filmów</translation>
+    </message>
+    <message>
+        <source>YouTube-Wiedergabeliste konnte nicht geladen werden</source>
+        <translation>Nie udało się wczytać playlisty YouTube</translation>
+    </message>
+    <message>
         <source>Auflösung: %1</source>
         <translation>Rozdzielczość: %1</translation>
     </message>

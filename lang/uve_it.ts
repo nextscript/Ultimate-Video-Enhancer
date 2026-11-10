@@ -1167,6 +1167,18 @@
 <context>
     <name>PlayerApp</name>
     <message>
+        <source>YouTube-Wiedergabeliste wird geladen …</source>
+        <translation>Caricamento playlist YouTube …</translation>
+    </message>
+    <message>
+        <source>YouTube-Wiedergabeliste: %1 Videos</source>
+        <translation>Playlist YouTube: %1 video</translation>
+    </message>
+    <message>
+        <source>YouTube-Wiedergabeliste konnte nicht geladen werden</source>
+        <translation>Impossibile caricare la playlist YouTube</translation>
+    </message>
+    <message>
         <source>Auflösung: %1</source>
         <translation>Risoluzione: %1</translation>
     </message>

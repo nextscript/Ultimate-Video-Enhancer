@@ -656,8 +656,11 @@ void PlayerApp::openPaths(const QStringList &pathsOrUrls, bool play, bool insert
     QStringList subs, rest;
     for (const auto &p : pathsOrUrls) {
         const QString local = p.startsWith("file:", Qt::CaseInsensitive) ? QUrl(p).toLocalFile() : p;
+        media::YoutubePlaylistLink link;
+        if (media::parseYoutubePlaylist(local, &link)) { openYoutubePlaylist(local, link, play, insertNext); continue; }
         if (media::isSubtitleFile(local) && !media::isUrl(local)) subs << local; else rest << local;
     }
+    if (subs.isEmpty() && rest.isEmpty()) return;   // nur YouTube-Listen: werden im Hintergrund aufgelöst
     for (const auto &s : subs) {
         if (!m_player->path().isEmpty()) { m_player->addSubtitle(s); showOsd(tr("Untertitel: ") + QFileInfo(s).fileName()); }
     }
@@ -668,6 +671,58 @@ void PlayerApp::openPaths(const QStringList &pathsOrUrls, bool play, bool insert
     }
     const int at = m_playlist->add(entries, insertNext);
     if (play || m_playlist->currentIndex() < 0) playIndex(at);
+}
+
+void PlayerApp::openYoutubePlaylist(const QString &url, const media::YoutubePlaylistLink &link, bool play, bool insertNext)
+{
+    // Ohne Auflösung bleibt wenigstens das Video aus v= (ohne Liste, sonst lädt mpv die ganze Liste selbst)
+    const auto fallback = [this, link, play, insertNext](const QString &why) {
+        Logger::write("ytdl", "Wiedergabeliste nicht auflösbar: " + why);
+        if (!link.videoId.isEmpty()) openPaths({media::youtubeVideoUrl(link.videoId)}, play, insertNext);
+        else showOsd(tr("YouTube-Wiedergabeliste konnte nicht geladen werden"), 4000);
+    };
+    const QString ytdlp = ToolUpdater::preferredYtdlp(QCoreApplication::applicationDirPath(), m_settings->dataDir());
+    if (ytdlp.isEmpty()) { fallback(QStringLiteral("yt-dlp nicht gefunden")); return; }
+
+    showOsd(tr("YouTube-Wiedergabeliste wird geladen …"), 15000);
+    QStringList args{"-J", "--flat-playlist", "--yes-playlist", "--no-warnings"};
+    // Mixe (RD…) sind endlos (yt-dlp liefert >2000 Videos in ~30 s): 200 ab der gewählten Stelle genügen
+    if (link.listId.startsWith(QLatin1String("RD"))) args << "--playlist-end" << QString::number(std::max(link.index, 1) + 199);
+    if (!m_ytdlProxy.isEmpty()) args << "--proxy" << m_ytdlProxy;
+    args << url;
+    auto *p = new QProcess(this);
+    QTimer::singleShot(60000, p, [p] { p->kill(); });
+    connect(p, &QProcess::finished, this, [this, p, link, play, insertNext, fallback](int code, QProcess::ExitStatus st) {
+        p->deleteLater();
+        const auto info = QJsonDocument::fromJson(p->readAllStandardOutput()).object();
+        QStringList ids, urls, titles;
+        QList<double> durations;
+        for (const auto &v : info.value("entries").toArray()) {
+            const auto e = v.toObject();
+            const QString id = e.value("id").toString();
+            if (id.isEmpty()) continue;
+            ids << id;
+            urls << media::youtubeVideoUrl(id);
+            titles << e.value("title").toString();
+            durations << e.value("duration").toDouble();
+        }
+        if (ids.isEmpty()) {
+            fallback(st != QProcess::NormalExit ? QStringLiteral("Zeitüberschreitung")
+                                                : QString::fromUtf8(p->readAllStandardError()).trimmed().left(300)
+                                                      + QStringLiteral(" (Code %1)").arg(code));
+            return;
+        }
+        const int at = m_playlist->add(urls, insertNext);
+        for (int i = 0; i < ids.size(); ++i) {
+            if (!titles[i].isEmpty()) m_playlist->setTitle(at + i, titles[i]);
+            if (durations[i] > 0) m_playlist->setDuration(at + i, durations[i]);
+        }
+        const int start = media::youtubePlaylistStart(ids, link);
+        Logger::write("ytdl", QStringLiteral("Wiedergabeliste %1: %2 Videos, Start bei %3").arg(link.listId).arg(ids.size()).arg(start + 1));
+        showOsd(tr("YouTube-Wiedergabeliste: %1 Videos").arg(ids.size()), 2500);
+        if (play || m_playlist->currentIndex() < 0) playIndex(at + start);
+    });
+    p->start(ytdlp, args);
 }
 
 void PlayerApp::openUrls(const QList<QUrl> &urls, bool play)

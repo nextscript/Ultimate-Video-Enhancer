@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.7 – 2026-11-10
+
+### Streaming
+- **YouTube playlists:** links with `list=` (e.g. `watch?v=…&list=…&index=3`, `youtu.be/…?list=…`, `playlist?list=…`) put all videos of the
+  list into the playlist, with titles and durations. Playback starts at the video given by `index=` (counting from 1); without `index=` it
+  starts at the video from `v=`, otherwise at the first one. YouTube mixes (`list=RD…`) have no end, so 200 videos are loaded.
+  If the list cannot be loaded, the single video from `v=` plays.
+
 ## 1.1.6 – 2026-11-08
 
 ### Plugin API
