@@ -185,7 +185,7 @@ Ignore unknown events – later versions may send more.
 | `player.pause` | `paused` (without: toggle) |
 | `player.stop`, `player.next`, `player.previous`, `player.reload` | – |
 | `player.seek` | `seconds`, `relative` |
-| `playlist.add` | `urls`, `play`, `next` |
+| `playlist.add` | `urls`, `play`, `next`, optional `titles` and `durations` (seconds) per entry, shown in the playlist before playback, and `replace` (clear the playlist first) – since 1.2.1 |
 | `playlist.items` | → `[{path, title, current}]` |
 | `playlist.play` | `index` |
 | `mpv.get` / `mpv.set` / `mpv.command` | `name` / `name`, `value` / `args` – direct mpv access for everything without its own command |

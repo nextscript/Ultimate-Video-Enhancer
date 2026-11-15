@@ -293,7 +293,25 @@ void PlayerApp::registerPluginCommands()
         return QVariant(true);
     });
     reg("playlist.add", [this](const QString &, const Args &a, QString *) {
-        openPaths(a.value("urls").toStringList(), a.value("play").toBool(), a.value("next").toBool());
+        const QStringList urls = a.value("urls").toStringList();
+        const bool next = a.value("next").toBool();
+        // Optional (seit 1.2.1): Titel und Dauer je Eintrag, z. B. von Plugins, die die Liste schon kennen
+        const QVariantList titles = a.value("titles").toList();
+        const QVariantList durations = a.value("durations").toList();
+        // replace (seit 1.2.1): bisherige Wiedergabeliste vorher leeren, z. B. beim Wählen einer anderen Playlist
+        if (a.value("replace").toBool() && !urls.isEmpty()) m_playlist->clear();
+        const int before = m_playlist->count();
+        const int at = (next && m_playlist->currentIndex() >= 0) ? m_playlist->currentIndex() + 1 : before;
+        openPaths(urls, a.value("play").toBool(), next);
+        // Nur zuordnen, wenn jeder Eintrag angekommen ist – sonst stimmen die Positionen nicht
+        if ((!titles.isEmpty() || !durations.isEmpty()) && m_playlist->count() - before == urls.size()) {
+            for (int i = 0; i < urls.size(); ++i) {
+                const QString title = titles.value(i).toString();
+                const double seconds = durations.value(i).toDouble();
+                if (!title.isEmpty()) m_playlist->setTitle(at + i, title);
+                if (seconds > 0) m_playlist->setDuration(at + i, seconds);
+            }
+        }
         return QVariant(m_playlist->count());
     });
     reg("playlist.items", [this](const QString &, const Args &, QString *) {

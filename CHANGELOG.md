@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1 – 2026-11-15
+
+### Plugin API
+- `playlist.add` accepts optional `titles` and `durations` (seconds) per entry. Plugins that already know a list (e.g. UVESpotify)
+  show names and lengths in the playlist before anything is played. Older plugins are unaffected.
+- `playlist.add` with `replace: true` clears the playlist first – choosing another playlist in a plugin replaces the old one
+  instead of appending to it.
+
 ## 1.2.0 – 2026-11-15
 
 ### Translated plugin descriptions
