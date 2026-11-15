@@ -1,5 +1,5 @@
 # UVE Player 1.2.0
-
+![GUI](player.png)
 Native media player for Windows built with **C++20, Qt 6, and libmpv** – featuring **Ultimate Video Enhancer** as a GPU effects plugin, network streaming (YouTube, Twitch, HLS, tcp://) with proxy support, and seven languages.
 
 ## Download
