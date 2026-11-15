@@ -10,7 +10,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **Twitch Chat** | 2.2.1 | Utility | Native Twitch chat in the sidebar (IRC over WebSocket). Twitch/BTTV/FFZ/7TV emotes (incl. animated & zero-width), emote picker, spell & grammar check (DE/EN), mentions, AutoMod, moderation. Auto-detects the channel. `Ctrl+Alt+T`. |
 | **Kick Chat** | 1.3.2 | Utility | Same idea for kick.com: read without login, write with Kick OAuth. Kick + 7TV emotes, badges, replies, sub/gift events, pinned messages, viewer count, moderation, spell check. Auto-detects the channel. `Ctrl+Alt+K`. |
 | **UVETikTok** | 1.0.0 | Utility | Plays TikTok videos and TikTok LIVE streams directly in the player – nothing is saved to disk. [Details](#uvetiktok) |
-| **UVESpotify** | 1.0.2 | Utility | Plays Spotify tracks, albums and playlists via the matching track on YouTube, without ads. Sign in to play your own playlists and liked songs. [Details](#uvespotify) |
+| **UVESpotify** | 1.0.3 | Utility | Plays Spotify tracks, albums and playlists via the matching track on YouTube, without ads. Sign in to play your own playlists and liked songs. [Details](#uvespotify) |
 
 ## UVETikTok
 
@@ -33,6 +33,8 @@ Spotify and plays the same song from YouTube – **without ads**, with or withou
   into the playlist completely; the first track starts right away.
 - **Playback:** *Audio only* (default) picks the version whose length matches Spotify (no intros or remixes); *Music video* prefers the
   official video.
+- **Smooth transitions:** while a track plays, the next one in the playlist is already looked up and resolved to its stream, so it
+  starts almost immediately (about half a second instead of several seconds).
 - **Spotify account (optional):** click *Sign in* in the sidebar page, log in to Spotify in your browser – done. Your playlists and
   *Liked Songs* appear as cards with covers; a click replaces the current playlist with all tracks, including titles and lengths
   (UVE Player ≥ 1.2.1). Signed in, playlists with more than 100 tracks are read completely. The sign-in is stored encrypted for your
