@@ -86,7 +86,9 @@ public:
 
     // Adressauflösung über Plugins mit passendem contributes.urlHandlers-Muster:
     // Ereignis "media.resolve" {requestId, url[, quality]}; Antwort per Befehl "media.resolved"
-    bool resolveMedia(quint64 requestId, const QString &url, const QString &quality = {});
+    bool resolveMedia(quint64 requestId, const QString &url, const QString &quality = {}, bool preload = false);
+    // Plugin löst Adressen auch vorab für den nächsten Titel auf (capabilities: "media-preload", seit 1.2.2)
+    bool resolverSupportsPreload(const QString &url) const;
     // Plugin übernimmt die Adresse und kann die Auflösung wählen (capabilities: "stream-quality")
     bool resolverSupportsQuality(const QString &url) const;
     void cancelResolve(quint64 requestId);
@@ -116,7 +118,7 @@ public:
 signals:
     void pluginsChanged();
     void osdRequested(const QString &text, int durationMs);
-    void mediaResolved(quint64 requestId, const QString &resolvedUrl, const QString &error, const QString &pluginName);
+    void mediaResolved(quint64 requestId, const QString &resolvedUrl, const QString &error, const QString &pluginName, const QString &title);
     void panelRequested(const QString &panelKey);   // Befehl "panel.open"
     void hotkeysChanged();
     void modalRequested(const QVariantMap &request);                       // Befehl "modal.open"

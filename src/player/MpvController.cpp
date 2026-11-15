@@ -132,6 +132,7 @@ bool MpvController::initialize(const QVariantMap &options, QString *error)
         {"volume-max", "150"},
         {"sub-auto", "fuzzy"},
         {"ytdl", "yes"},
+        {"prefetch-playlist", "yes"},   // vorab angehängten nächsten Titel vor dem Ende öffnen (nahtlos)
         {"cache", "yes"},
         {"demuxer-max-bytes", "150MiB"},
         {"screenshot-format", "png"},
@@ -497,6 +498,24 @@ bool MpvController::command(const QStringList &args)
     ptrs << nullptr;
     const int r = mpv_command_async(m_mpv, 0, ptrs.data());
     return r >= 0;
+}
+
+bool MpvController::appendNext(const QString &url, const QVariantMap &options)
+{
+    if (!m_mpv || !m_renderReady || url.isEmpty()) return false;
+    // Benannte Argumente: unabhängig von der loadfile-Syntax der mpv-Version, Optionswerte dürfen Kommas enthalten
+    NodeBuilder nb(QVariantMap{{"name", QStringLiteral("loadfile")}, {"url", url}, {"flags", QStringLiteral("append")},
+                               {"options", options}});
+    mpv_node result{};
+    const int r = mpv_command_node(m_mpv, &nb.node, &result);
+    mpv_free_node_contents(&result);
+    if (r < 0) qWarning("mpv loadfile append: %s", mpv_error_string(r));
+    return r >= 0;
+}
+
+void MpvController::clearQueued()
+{
+    command({"playlist-clear"});
 }
 
 void MpvController::load(const QString &url, double startSeconds, bool startPaused)

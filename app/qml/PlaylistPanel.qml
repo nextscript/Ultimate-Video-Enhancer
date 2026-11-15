@@ -71,8 +71,17 @@ Item {
                 width: list.width
                 height: matches ? 30 : 0
                 visible: matches
-                color: root.selected[index] ? (theme.dark ? "#22303f" : "#cfe3ff") : (hover.hovered ? theme.panel2 : "transparent")
+                // Laufender Eintrag: leicht orange getönt, damit man ihn in langen Listen sofort findet
+                color: root.selected[index] ? (theme.dark ? "#22303f" : "#cfe3ff")
+                     : hover.hovered ? theme.panel2
+                     : row.isCurrent ? Qt.rgba(theme.accent.r, theme.accent.g, theme.accent.b, theme.dark ? 0.14 : 0.12)
+                     : "transparent"
                 HoverHandler { id: hover }
+                Rectangle {   // orangefarbener Balken am linken Rand des laufenden Eintrags
+                    visible: row.isCurrent
+                    width: 3; height: parent.height
+                    color: theme.accent
+                }
                 RowLayout {
                     anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
                     Label {
@@ -86,14 +95,15 @@ Item {
                         text: row.title
                         elide: Text.ElideMiddle
                         Layout.fillWidth: true
-                        color: row.error ? theme.error : (row.isCurrent ? theme.accent2 : theme.text)
+                        color: row.error ? theme.error : (row.isCurrent ? theme.accent : theme.text)
+                        font.bold: row.isCurrent
                         ToolTip.text: row.path
                         ToolTip.visible: hover.hovered
                         ToolTip.delay: 900
                     }
                     Label {
                         text: row.duration > 0 ? app.formatTime(row.duration) : ""
-                        color: theme.muted; font.pixelSize: 11; font.family: "Consolas"
+                        color: row.isCurrent ? theme.accent : theme.muted; font.pixelSize: 11; font.family: "Consolas"
                     }
                 }
                 MouseArea {

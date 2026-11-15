@@ -154,6 +154,7 @@ signal `event(name, data)`.
 |---|---|
 | `media.loading` | `url` – the user chose a medium (before any resolution) |
 | `media.resolve` | `requestId`, `url`, optionally `quality` – only to the plugin whose `urlHandlers` match; answer with `media.resolved`. A plugin with the capability `stream-quality` keeps the player's *Resolution* menu for YouTube/Twitch addresses: `quality` is sent when the user chose an entry (the yt-dlp `format_id`, e.g. `1080p60__source_`, or `best`) and the address is then resolved again |
+| `media.resolve` with `preload: true` | since 1.2.2, only to plugins with the capability `media-preload`: resolve the **next** playlist entry in advance while the current one plays. Answer with `media.resolved` as usual (optionally with `title`), but do not change the running playback (no `mpv.set`). The player hands the result to mpv ahead of time and switches over without a gap |
 | `media.resolveCancelled` | `requestId` – the result is no longer needed |
 | `media.loaded` | `path` (loaded), `source` (chosen), `title`, `duration` |
 | `media.ended` | `reason` (`eof`, `stop`, `error`, …), `path`, `source`, `error` |
@@ -179,7 +180,7 @@ Ignore unknown events – later versions may send more.
 | `panel.open` | `panel` (id from `contributes.panels`) – show the page in the sidebar or in *Settings*. If the user hid the page, it stays hidden and the player shows a hint (since 1.1.5) |
 | `modal.open` | `panel`, optional `scope`, `mode`, `width`, `height`, `maxWidth`, `maxHeight`, `title`, `closeOnOutsideClick`, `data` – since 1.1.3, see *Modal windows* |
 | `modal.close` | `panel` (without: all windows of this plugin) – since 1.1.3 |
-| `media.resolved` | `requestId`, `url` (to play) or `error` |
+| `media.resolved` | `requestId`, `url` (to play) or `error`; optional `title` – since 1.2.2, shown as the media title of a preloaded entry |
 | `player.state` | → `path`, `source`, `title`, `position`, `duration`, `paused`, `state`, `playlistIndex` |
 | `player.load` | `url` or `urls`, `next` – add to the playlist and play |
 | `player.pause` | `paused` (without: toggle) |

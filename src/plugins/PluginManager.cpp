@@ -722,7 +722,17 @@ bool PluginManager::resolverSupportsQuality(const QString &url) const
     return false;
 }
 
-bool PluginManager::resolveMedia(quint64 requestId, const QString &url, const QString &quality)
+bool PluginManager::resolverSupportsPreload(const QString &url) const
+{
+    for (const auto &e : m_entries) {
+        if (!e.running()) continue;
+        for (const auto &re : std::as_const(e.urlHandlers))
+            if (re.match(url).hasMatch()) return e.manifest.capabilities.contains(QStringLiteral("media-preload"));
+    }
+    return false;
+}
+
+bool PluginManager::resolveMedia(quint64 requestId, const QString &url, const QString &quality, bool preload)
 {
     for (auto &e : m_entries) {
         if (!e.running()) continue;
@@ -731,6 +741,7 @@ bool PluginManager::resolveMedia(quint64 requestId, const QString &url, const QS
             m_resolving.insert(requestId, e.manifest.id);
             QVariantMap data{{"requestId", QVariant::fromValue<qulonglong>(requestId)}, {"url", url}};
             if (!quality.isEmpty()) data.insert(QStringLiteral("quality"), quality);
+            if (preload) data.insert(QStringLiteral("preload"), true);   // nur vorbereiten, nichts an der laufenden Wiedergabe ändern
             emitEvent(QStringLiteral("media.resolve"), data, e.manifest.id);
             // Plugin könnte währenddessen ausgefallen sein
             if (!e.running()) { m_resolving.remove(requestId); return false; }
@@ -873,7 +884,7 @@ void PluginManager::registerBuiltinCommands()
         if (m_resolving.value(req) != id) { if (error) *error = QStringLiteral("unknown requestId"); return QVariant(false); }
         m_resolving.remove(req);
         const Entry *e = find(id);
-        emit mediaResolved(req, a.value("url").toString(), a.value("error").toString(), e ? e->manifest.name : id);
+        emit mediaResolved(req, a.value("url").toString(), a.value("error").toString(), e ? e->manifest.name : id, a.value("title").toString());
         return QVariant(true);
     });
 #ifdef UVE_WITH_WEBENGINE

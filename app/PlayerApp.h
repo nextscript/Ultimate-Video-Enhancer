@@ -203,7 +203,13 @@ private:
     void clearStreamQualities();
     QStringList streamFileOptions() const;   // mpv-Dateioptionen der gewählten Auflösung (yt-dlp)
     QString resolverQuality() const;         // gewählte Auflösung für das auflösende Plugin
-    void onMediaResolved(quint64 requestId, const QString &resolvedUrl, const QString &error, const QString &pluginName);
+    void onMediaResolved(quint64 requestId, const QString &resolvedUrl, const QString &error, const QString &pluginName,
+                         const QString &title = {});
+    // Nahtlose Wiedergabe: nächsten Eintrag vorab an mpv geben, am Ende nur weiterschalten
+    void schedulePreload();
+    void startPreload();
+    void dropPreload();
+    bool advanceToPreloaded();
     void cancelPendingResolve();
     void registerPluginCommands();   // player.* / playlist.* für Plugins (docs/PLUGIN_API.md)
     QString ytdlFormatFor(const QString &id) const;
@@ -228,6 +234,10 @@ private:
     // Adressauflösung durch ein Plugin (z. B. Twitch → tcp://): wartender Ladevorgang
     struct PendingResolve { quint64 id = 0; QString path; double start = 0; bool paused = false; };
     PendingResolve m_resolve;
+    struct Preload { int index = -1; QString path; quint64 requestId = 0; bool appended = false; };
+    Preload m_preload;               // vorab an mpv gegebener nächster Eintrag
+    int m_loadedIndex = -1;          // Eintrag, dessen Datei mpv gerade geladen hat
+    QTimer m_preloadTimer;
     quint64 m_resolveSeq = 0;
     QString m_sourcePath;            // vom Nutzer gewählte Adresse (vor einer Plugin-Auflösung)
     QTimer m_resolveTimeout;

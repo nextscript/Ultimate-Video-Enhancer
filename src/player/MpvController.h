@@ -125,6 +125,11 @@ public:
     Q_INVOKABLE QVariant getProperty(const QString &name) const;
     Q_INVOKABLE bool setProperty(const QString &name, const QVariant &value);
     Q_INVOKABLE bool command(const QStringList &args);
+    // Nahtlose Wiedergabe: nächsten Titel vorab hinter den laufenden in mpvs Wiedergabeliste legen
+    // (mit prefetch-playlist öffnet mpv ihn vor dem Ende). options = dateilokale Optionen, z. B. force-media-title.
+    bool appendNext(const QString &url, const QVariantMap &options = {});
+    // Vorab angehängte Titel verwerfen (der laufende bleibt)
+    void clearQueued();
     // Wie setProperty, blockiert den aufrufenden Thread aber nicht (mpv_set_property_async)
     void setPropertyAsync(const QString &name, const QVariant &value);
     // Zusätzliche Eigenschaft beobachten (z. B. disc-menu-active, chapter-list für optische Medien);

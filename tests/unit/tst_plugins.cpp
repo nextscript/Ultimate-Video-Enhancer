@@ -198,11 +198,13 @@ private slots:
         QVERIFY(!pm.resolveMedia(1, "https://other.test/a"));
         QVERIFY(!pm.resolverSupportsQuality("https://other.test/a"));
         QVERIFY(pm.resolverSupportsQuality("https://example.test/kanal"));
+        QVERIFY(!pm.resolverSupportsPreload("https://example.test/kanal"));   // ohne capability "media-preload"
         QVERIFY(pm.resolveMedia(7, "https://example.test/kanal"));
         QCOMPARE(spy.count(), 1);
         QCOMPARE(spy.at(0).at(0).toULongLong(), 7ull);
         QCOMPARE(spy.at(0).at(1).toString(), QString("tcp://resolved.test:8111"));
         QCOMPARE(spy.at(0).at(3).toString(), QString("Hello"));
+        QCOMPARE(spy.at(0).at(4).toString(), QString());   // kein Titel mitgeschickt
         // Antwort ohne passende Anfrage wird abgelehnt
         QCOMPARE(pm.call("org.test.hello", "media.resolved", {{"requestId", 99}, {"url", "x"}}, &err).toBool(), false);
 

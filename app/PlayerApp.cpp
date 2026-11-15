@@ -69,6 +69,26 @@ PlayerApp::PlayerApp(AppSettings *settings, SafeMode *safe, const QString &mpvLi
     connect(m_playlist, &PlaylistModel::shuffleChanged, this, [this] { m_settings->setValue("shuffle", m_playlist->shuffle()); });
     connect(m_playlist, &PlaylistModel::countChanged, this, &PlayerApp::saveSession);
 
+    // Nahtlose Wiedergabe: der vorab an mpv gegebene nächste Eintrag muss zur Liste passen
+    m_preloadTimer.setSingleShot(true);
+    m_preloadTimer.setInterval(400);
+    connect(&m_preloadTimer, &QTimer::timeout, this, &PlayerApp::startPreload);
+    const auto recheckPreload = [this] {
+        if (m_preload.index >= 0) {
+            // Zufallswiedergabe: gewählter Eintrag bleibt gültig, solange er noch da ist; sonst muss er der nächste sein
+            const bool stillThere = m_playlist->pathAt(m_preload.index) == m_preload.path;
+            const bool stillNext = m_playlist->shuffle() || m_playlist->nextIndex(true) == m_preload.index;
+            if (stillThere && stillNext) return;
+            dropPreload();
+        }
+        schedulePreload();
+    };
+    connect(m_playlist, &PlaylistModel::countChanged, this, recheckPreload);
+    connect(m_playlist, &PlaylistModel::rowsMoved, this, recheckPreload);
+    connect(m_playlist, &PlaylistModel::modelReset, this, recheckPreload);
+    connect(m_playlist, &PlaylistModel::repeatChanged, this, recheckPreload);
+    connect(m_playlist, &PlaylistModel::shuffleChanged, this, [this] { dropPreload(); schedulePreload(); });
+
     connect(m_player, &MpvController::fileLoaded, this, &PlayerApp::onFileLoaded);
     connect(m_player, &MpvController::endOfFile, this, &PlayerApp::onEndOfFile);
     connect(m_player, &MpvController::volumeChanged, this, [this] { m_settings->setValue("volume", qRound(m_player->volume())); });
@@ -340,8 +360,23 @@ void PlayerApp::registerPluginCommands()
     });
 }
 
-void PlayerApp::onMediaResolved(quint64 requestId, const QString &resolvedUrl, const QString &error, const QString &pluginName)
+void PlayerApp::onMediaResolved(quint64 requestId, const QString &resolvedUrl, const QString &error, const QString &pluginName,
+                                const QString &title)
 {
+    if (requestId && requestId == m_preload.requestId) {
+        m_preload.requestId = 0;
+        // Inzwischen anderer nächster Eintrag oder Liste geändert: verwerfen
+        if (resolvedUrl.isEmpty() || m_playlist->pathAt(m_preload.index) != m_preload.path || m_loadedIndex != m_playlist->currentIndex()) {
+            if (resolvedUrl.isEmpty()) Logger::write("plugin", QStringLiteral("%1: vorab %2 – %3").arg(pluginName, m_preload.path, error));
+            m_preload = {};
+            return;
+        }
+        QVariantMap opts;
+        if (!title.isEmpty()) opts.insert(QStringLiteral("force-media-title"), title);
+        m_preload.appended = m_player->appendNext(routeThroughProxy(resolvedUrl), opts);
+        Logger::write("plugin", QStringLiteral("%1: vorab %2 → %3").arg(pluginName, m_preload.path, resolvedUrl.left(120)));
+        return;
+    }
     if (requestId != m_resolve.id) return;   // veraltet (inzwischen anderes Medium gewählt)
     m_resolveTimeout.stop();
     const PendingResolve r = m_resolve;
@@ -615,7 +650,10 @@ void PlayerApp::startPlugins()
     };
     m_plugins = new PluginManager(m_settings, m_player, m_shaders, dirs, m_safe->active(), this);
     connect(m_plugins, &PluginManager::osdRequested, this, &PlayerApp::osd);
-    connect(m_plugins, &PluginManager::mediaResolved, this, &PlayerApp::onMediaResolved);
+    connect(m_plugins, &PluginManager::mediaResolved, this, [this](quint64 id, const QString &url, const QString &error,
+                                                                    const QString &name, const QString &title) {
+        onMediaResolved(id, url, error, name, title);
+    });
     connect(m_plugins, &PluginManager::panelRequested, this, &PlayerApp::pluginPanelRequested);
     connect(m_plugins, &PluginManager::hotkeysChanged, this, [this] { m_hotkeys->setExtraActions(m_plugins->hotkeyActions()); });
     m_plugins->setQmlEngine(m_engine);
@@ -799,6 +837,8 @@ void PlayerApp::playIndex(int index, double startAt)
     const QString path = m_playlist->pathAt(index);
     if (path.isEmpty()) return;
     ++m_loadGeneration;
+    dropPreload();
+    m_loadedIndex = -1;
     if (!m_retrying) { m_retryPath.clear(); m_retryCount = 0; }   // neue Auswahl → neue Versuche
     saveResume();
     m_stoppedByUser = false;
@@ -835,6 +875,8 @@ void PlayerApp::stop()
     if (m_plugins) m_plugins->emitEvent(QStringLiteral("player.stopped"), {{"path", m_loadedPath}});
     saveResume();
     m_stoppedByUser = true;
+    dropPreload();
+    m_loadedIndex = -1;
     m_player->stop();
 }
 
@@ -850,6 +892,8 @@ void PlayerApp::onFileLoaded()
     m_retryCount = 0;
     if (m_player->duration() > 0) m_playlist->setDuration(i, m_player->duration());
     QTimer::singleShot(1500, this, [this, i] { if (m_player->duration() > 0) m_playlist->setDuration(i, m_player->duration()); });
+    m_loadedIndex = i;
+    schedulePreload();
     if (!media::isDiscEntry(m_playlist->pathAt(i))) {   // Discs sind nicht dauerhaft da
         m_settings->addRecentFile(m_playlist->pathAt(i));
         emit recentFilesChanged();
@@ -875,6 +919,7 @@ void PlayerApp::onEndOfFile(const QString &reason)
         if (!m_stoppedByUser && media::isNetworkPath(path)) {
             if (m_retryPath != path) { m_retryPath = path; m_retryCount = 0; }
             if (m_retryCount < kMaxRetries) {
+                if (m_preload.appended) { m_preload = {}; m_player->stop(); }   // mpv wäre schon zum nächsten gesprungen
                 const int delay = kDelaysMs[m_retryCount++];
                 if (m_retryCount == 1)
                     Logger::write("play", "Netzlaufwerk: " + path + " – " + m_player->errorString() + ", neuer Versuch");
@@ -904,6 +949,7 @@ void PlayerApp::onEndOfFile(const QString &reason)
         m_playlist->setError(i, true);
         showOsd(tr("Nicht abspielbar: %1 (%2)").arg(m_playlist->titleAt(i), m_player->errorString()), 4000);
         Logger::write("play", "Fehler: " + m_playlist->pathAt(i) + " – " + m_player->errorString());
+        if (advanceToPreloaded()) return;   // mpv spielt den vorab angehängten Titel schon
         const int n = m_playlist->nextIndex(true);
         if (n >= 0 && n != i) QTimer::singleShot(1500, this, [this, n] { playIndex(n); });
         return;
@@ -912,8 +958,66 @@ void PlayerApp::onEndOfFile(const QString &reason)
     // DVD-/Blu-ray-Menü als Standbild: libmpv meldet das Ende des Menü-Abschnitts, die Disc wartet aber auf eine Auswahl
     if (media::isDiscEntry(m_playlist->pathAt(i)) && m_disc->menuActive()) return;
     m_settings->clearResumePosition(m_playlist->pathAt(i));
+    if (advanceToPreloaded()) return;   // nahtlos: mpv spielt den nächsten Titel bereits
     const int n = m_playlist->nextIndex(true);
     if (n >= 0) playIndex(n, 0);
+}
+
+void PlayerApp::schedulePreload()
+{
+    m_preloadTimer.start();
+}
+
+void PlayerApp::startPreload()
+{
+    // Nur während eine Datei läuft und keine Auflösung offen ist
+    const int current = m_playlist->currentIndex();
+    if (m_preload.index >= 0 || current < 0 || m_loadedIndex != current || m_resolve.id || m_stoppedByUser) return;
+    if (!m_settings->value("gaplessPlayback", true).toBool()) return;
+    if (media::isDiscEntry(m_playlist->pathAt(current))) return;
+    const int n = m_playlist->nextIndex(true);   // einmal festlegen: Zufallswiedergabe wählt beim Weiterschalten denselben
+    const QString path = m_playlist->pathAt(n);
+    if (n < 0 || path.isEmpty() || media::isDiscEntry(path)) return;
+    if (!media::isUrl(path)) {
+        if (!QFileInfo::exists(path)) return;
+        m_preload = {n, path, 0, false};
+        m_preload.appended = m_player->appendNext(path);
+        if (!m_preload.appended) m_preload = {};
+        return;
+    }
+    // Adressen nur über Plugins, die vorab auflösen können; yt-dlp-Adressen löst mpv erst beim Start auf
+    if (!m_plugins || !m_plugins->resolverSupportsPreload(path)) return;
+    const quint64 id = ++m_resolveSeq;
+    m_preload = {n, path, id, false};
+    if (!m_plugins->resolveMedia(id, path, {}, true)) m_preload = {};
+}
+
+void PlayerApp::dropPreload()
+{
+    m_preloadTimer.stop();
+    if (m_preload.requestId && m_plugins) m_plugins->cancelResolve(m_preload.requestId);
+    if (m_preload.appended) m_player->clearQueued();
+    m_preload = {};
+}
+
+bool PlayerApp::advanceToPreloaded()
+{
+    if (!m_preload.appended || m_stoppedByUser || m_playlist->pathAt(m_preload.index) != m_preload.path) return false;
+    const int n = m_preload.index;
+    const QString path = m_preload.path;
+    m_preload = {};
+    // mpv hat den Titel schon geöffnet: nur die Wiedergabeliste nachziehen, nicht neu laden
+    ++m_loadGeneration;
+    m_retryPath.clear();
+    m_retryCount = 0;
+    m_loadedIndex = -1;
+    m_playlist->setCurrentIndex(n);
+    m_sourcePath = path;
+    if (m_plugins) m_plugins->emitEvent(QStringLiteral("media.loading"), {{"url", path}});
+    if (media::isUrl(path)) clearStreamQualities(); else prepareStreamQualities(path);
+    saveSession();
+    Logger::write("play", "nahtlos weiter: " + path);
+    return true;
 }
 
 void PlayerApp::saveResume()

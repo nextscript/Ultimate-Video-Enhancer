@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.2 – 2026-11-15
+
+### Gapless playback
+- While a track plays, the next playlist entry is handed to mpv in advance (`prefetch-playlist`). At the end the player only moves
+  the playlist marker on – no reload, no pause between tracks. Works for local files and for plugin addresses whose plugin can
+  resolve ahead of time; YouTube and other yt-dlp links keep the previous behaviour. Shuffle, repeat and changes to the playlist
+  are respected (the prepared entry is dropped and chosen again). Setting `gaplessPlayback` (default on).
+
+### Playlist
+- The entry that is playing stands out: bold orange title and length, a light orange background and an orange bar on the left.
+
+### Plugin API
+- `media.resolve` can carry `preload: true` for plugins with the capability `media-preload`; `media.resolved` accepts an optional
+  `title` for such entries.
+
 ## 1.2.1 – 2026-11-15
 
 ### Plugin API
