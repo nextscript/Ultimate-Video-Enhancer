@@ -11,6 +11,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **Kick Chat** | 1.3.2 | Utility | Same idea for kick.com: read without login, write with Kick OAuth. Kick + 7TV emotes, badges, replies, sub/gift events, pinned messages, viewer count, moderation, spell check. Auto-detects the channel. `Ctrl+Alt+K`. |
 | **UVETikTok** | 1.0.0 | Utility | Plays TikTok videos and TikTok LIVE streams directly in the player – nothing is saved to disk. [Details](#uvetiktok) |
 | **UVESpotify** | 1.0.4 | Utility | Plays Spotify tracks, albums and playlists via the matching track on YouTube, without ads. Sign in to play your own playlists and liked songs. [Details](#uvespotify) |
+| **UVESuno** | 1.0.1 | Utility | Plays songs, playlists and whole profiles from suno.com as a stream, with titles, lengths and gapless transitions. [Details](#uvesuno) |
 
 ## UVETikTok
 
@@ -43,11 +44,25 @@ Spotify and plays the same song from YouTube – **without ads**, with or withou
   (*User Management*, max. 25) can sign in. Links work for everyone without signing in.
 - Sidebar page *UVESpotify* is shown by default.
 
+## UVESuno
+
+Open a link from suno.com (*File → Open network stream…* or drag it onto the player) and it plays right away.
+
+- **Supported links:** songs (`suno.com/song/…`), playlists (`suno.com/playlist/…`), profiles (`suno.com/@name` – all songs of the
+  creator, up to 500) and short links (`suno.com/s/…`).
+- Playlists and profiles go into the playlist completely, with titles and lengths (UVE Player ≥ 1.2.1); the first song starts at once.
+- **Gapless:** with UVE Player ≥ 1.2.2 the next song is prepared in advance and follows without a pause.
+- Plays what Suno offers openly: the MP3 when the creator allows downloads, otherwise the audio of Suno's official MP4 for sharing.
+  Songs that are private, deleted or not finished show a clear message.
+- **Picture:** always the song's cover (1024×1024), never Suno's own video – its burned-in text shows Greek, Korean, Cyrillic and
+  other non-Latin titles and lyrics as empty boxes. Titles in the player itself are shown correctly in every language.
+- Sidebar page *UVESuno* (status) is hidden by default; show it under *Settings → Plugins*.
+
 ## Other files
 
 - `gvf_filter_codes_2026-11-09_01-08.json` – exported filter set in the userscript format (Matrix, FSR 1.0 Luma Upscale, Game Boy, Auto Color Enhance), importable into GLSL Manager.
 
 ## Requirements
 
-Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok and UVESpotify ≥ 1.1.6; titles and lengths for Spotify playlists ≥ 1.2.1).
+Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify and UVESuno ≥ 1.1.6; titles and lengths for Spotify playlists ≥ 1.2.1).
 All plugins are MIT-licensed.
