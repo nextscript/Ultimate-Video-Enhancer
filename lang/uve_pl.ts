@@ -1960,6 +1960,14 @@
         <translation>Tryb awaryjny</translation>
     </message>
     <message>
+        <source>%1 von %2 MB</source>
+        <translation>%1 z %2 MB</translation>
+    </message>
+    <message>
+        <source>%1 MB</source>
+        <translation>%1 MB</translation>
+    </message>
+    <message>
         <source>Safe Mode: Plugins wurden nicht geladen. </source>
         <translation>Tryb awaryjny: wtyczki nie zostały wczytane. </translation>
     </message>
@@ -1982,6 +1990,54 @@
     <message>
         <source>Fehler: </source>
         <translation>Błąd: </translation>
+    </message>
+    <message>
+        <source>Suche nach Updates …</source>
+        <translation>Szukanie aktualizacji …</translation>
+    </message>
+    <message>
+        <source>Aktuell (neueste Version: %1)</source>
+        <translation>Aktualne (najnowsza wersja: %1)</translation>
+    </message>
+    <message>
+        <source>Update verfügbar: %1 → %2</source>
+        <translation>Dostępna aktualizacja: %1 → %2</translation>
+    </message>
+    <message>
+        <source>Lade %1 … %2</source>
+        <translation>Pobieranie %1 … %2</translation>
+    </message>
+    <message>
+        <source>Version %1 installiert – aktiv nach einem Neustart</source>
+        <translation>Zainstalowano wersję %1 – aktywna po ponownym uruchomieniu</translation>
+    </message>
+    <message>
+        <source>Nicht im Online-Plugin-Katalog</source>
+        <translation>Brak w katalogu wtyczek online</translation>
+    </message>
+    <message>
+        <source>Update fehlgeschlagen: </source>
+        <translation>Aktualizacja nie powiodła się: </translation>
+    </message>
+    <message>
+        <source>Update auf %1 installieren</source>
+        <translation>Zainstaluj aktualizację %1</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Spróbuj ponownie</translation>
+    </message>
+    <message>
+        <source>Nach Update suchen</source>
+        <translation>Sprawdź aktualizację</translation>
+    </message>
+    <message>
+        <source>Plugin-Katalog auf GitHub prüfen (zuletzt: %1)</source>
+        <translation>Sprawdź katalog wtyczek na GitHub (ostatnio: %1)</translation>
+    </message>
+    <message>
+        <source>Plugin-Katalog auf GitHub prüfen</source>
+        <translation>Sprawdź katalog wtyczek na GitHub</translation>
     </message>
     <message>
         <source>GPU-Stufe nach Shaderfehler deaktiviert (Wiedergabe läuft ohne Effekte weiter)</source>
@@ -3398,6 +3454,37 @@
     <message>
         <source>Schreiben fehlgeschlagen: %1</source>
         <translation>Zapis nie powiódł się: %1</translation>
+    </message>
+</context>
+<context>
+    <name>uve::PluginUpdater</name>
+    <message>
+        <source>Plugin-Katalog auf GitHub nicht erreichbar</source>
+        <translation>Katalog wtyczek na GitHub jest niedostępny</translation>
+    </message>
+    <message>
+        <source>GitHub nicht erreichbar – gespeicherte Liste vom %1</source>
+        <translation>GitHub jest niedostępny – zapisana lista z %1</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar: %1</source>
+        <translation>Nie można odczytać pliku: %1</translation>
+    </message>
+    <message>
+        <source>Download unvollständig (%1 von %2 Bytes)</source>
+        <translation>Pobieranie niekompletne (%1 z %2 bajtów)</translation>
+    </message>
+    <message>
+        <source>Prüfsumme stimmt nicht – Download verworfen</source>
+        <translation>Niezgodna suma kontrolna – pobrany plik odrzucono</translation>
+    </message>
+    <message>
+        <source>Das Paket %1 enthält ein anderes Plugin (%2)</source>
+        <translation>Pakiet %1 zawiera inną wtyczkę (%2)</translation>
+    </message>
+    <message>
+        <source>keine manifest.json</source>
+        <translation>brak manifest.json</translation>
     </message>
 </context>
 <context>

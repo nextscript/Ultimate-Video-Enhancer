@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.9 – 2026-11-15
+
+### Plugin updates from GitHub
+- **Settings → Plugins** checks every installed plugin against the plugin catalog on GitHub (branch
+  [`uve-player-plugins`](https://github.com/nextscript/Ultimate-Video-Enhancer/tree/uve-player-plugins)) as soon as the page opens.
+  Each plugin card shows *Up to date*, *Update available: 1.3.0 → 1.3.1* with **Install update**, a progress bar while downloading,
+  or *Not in the online plugin catalog*. **Check for update** asks again. The update is installed like *Install plugin…* and becomes
+  active after a restart; the plugin's settings are kept.
+- Packages are matched by file name (`<Name>-<Version>.zip`, e.g. `kickchat-1.3.1.zip` ↔ *Kick Chat*); the highest version wins.
+  Before installing, the size and SHA-256 (or Git blob hash) are verified and the plugin ID inside the package must match the
+  installed plugin.
+- **Works with GitHub's download limits:** the limited `api.github.com` (60 requests/hour per IP) is only a fallback. The branch commit
+  comes from the Git endpoint (`info/refs`), the file list from jsDelivr, the package from `raw.githubusercontent.com` with jsDelivr
+  and `github.com/…/raw` as fallbacks; HTTP 403/429/5xx are retried (Retry-After respected) and then the next source is used. The list is
+  cached per commit, so a check usually costs one request (none within 30 minutes). If GitHub cannot be reached at all, the saved list
+  keeps working.
+
 ## 1.1.8 – 2026-11-10
 
 ### Optical media (DVD, Blu-ray, audio CD)

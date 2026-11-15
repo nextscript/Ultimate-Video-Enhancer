@@ -18,6 +18,7 @@ add_library(uvecore STATIC
     services/HotkeyModel.cpp services/HotkeyModel.h
     services/ToolUpdater.cpp services/ToolUpdater.h
     services/AppUpdater.cpp services/AppUpdater.h
+    services/PluginUpdater.cpp services/PluginUpdater.h   # Online-Updates der Plugins (Zweig uve-player-plugins)
     services/ResumableDownload.cpp services/ResumableDownload.h
     services/SingleInstance.cpp services/SingleInstance.h
     services/ProxyConfig.cpp services/ProxyConfig.h

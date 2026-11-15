@@ -69,7 +69,7 @@
     </message>
     <message>
         <source>Neue Commits: %1 – sobald es ein Release gibt, kann es hier installiert werden.</source>
-        <translation>Yeni commit'ler: %1 – bir sürüm yayımlandığında buradan yüklenebilir.</translation>
+        <translation>Yeni commit&apos;ler: %1 – bir sürüm yayımlandığında buradan yüklenebilir.</translation>
     </message>
     <message>
         <source>GitHub antwortet gerade nicht – neuer Versuch in %1 s (der Download wird fortgesetzt)</source>
@@ -1960,6 +1960,14 @@
         <translation>Güvenli mod</translation>
     </message>
     <message>
+        <source>%1 von %2 MB</source>
+        <translation>%1 / %2 MB</translation>
+    </message>
+    <message>
+        <source>%1 MB</source>
+        <translation>%1 MB</translation>
+    </message>
+    <message>
         <source>Safe Mode: Plugins wurden nicht geladen. </source>
         <translation>Güvenli mod: eklentiler yüklenmedi. </translation>
     </message>
@@ -1982,6 +1990,54 @@
     <message>
         <source>Fehler: </source>
         <translation>Hata: </translation>
+    </message>
+    <message>
+        <source>Suche nach Updates …</source>
+        <translation>Güncellemeler aranıyor …</translation>
+    </message>
+    <message>
+        <source>Aktuell (neueste Version: %1)</source>
+        <translation>Güncel (en son sürüm: %1)</translation>
+    </message>
+    <message>
+        <source>Update verfügbar: %1 → %2</source>
+        <translation>Güncelleme mevcut: %1 → %2</translation>
+    </message>
+    <message>
+        <source>Lade %1 … %2</source>
+        <translation>%1 indiriliyor … %2</translation>
+    </message>
+    <message>
+        <source>Version %1 installiert – aktiv nach einem Neustart</source>
+        <translation>%1 sürümü yüklendi – yeniden başlatmadan sonra etkin</translation>
+    </message>
+    <message>
+        <source>Nicht im Online-Plugin-Katalog</source>
+        <translation>Çevrimiçi eklenti kataloğunda yok</translation>
+    </message>
+    <message>
+        <source>Update fehlgeschlagen: </source>
+        <translation>Güncelleme başarısız: </translation>
+    </message>
+    <message>
+        <source>Update auf %1 installieren</source>
+        <translation>%1 güncellemesini yükle</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Tekrar dene</translation>
+    </message>
+    <message>
+        <source>Nach Update suchen</source>
+        <translation>Güncelleme denetle</translation>
+    </message>
+    <message>
+        <source>Plugin-Katalog auf GitHub prüfen (zuletzt: %1)</source>
+        <translation>GitHub&apos;daki eklenti kataloğunu denetle (son: %1)</translation>
+    </message>
+    <message>
+        <source>Plugin-Katalog auf GitHub prüfen</source>
+        <translation>GitHub&apos;daki eklenti kataloğunu denetle</translation>
     </message>
     <message>
         <source>GPU-Stufe nach Shaderfehler deaktiviert (Wiedergabe läuft ohne Effekte weiter)</source>
@@ -3398,6 +3454,37 @@
     <message>
         <source>Schreiben fehlgeschlagen: %1</source>
         <translation>Yazma başarısız: %1</translation>
+    </message>
+</context>
+<context>
+    <name>uve::PluginUpdater</name>
+    <message>
+        <source>Plugin-Katalog auf GitHub nicht erreichbar</source>
+        <translation>GitHub&apos;daki eklenti kataloğuna ulaşılamıyor</translation>
+    </message>
+    <message>
+        <source>GitHub nicht erreichbar – gespeicherte Liste vom %1</source>
+        <translation>GitHub&apos;a ulaşılamıyor – %1 tarihli kayıtlı liste</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar: %1</source>
+        <translation>Dosya okunamıyor: %1</translation>
+    </message>
+    <message>
+        <source>Download unvollständig (%1 von %2 Bytes)</source>
+        <translation>İndirme eksik (%1 / %2 bayt)</translation>
+    </message>
+    <message>
+        <source>Prüfsumme stimmt nicht – Download verworfen</source>
+        <translation>Sağlama toplamı eşleşmiyor – indirme atıldı</translation>
+    </message>
+    <message>
+        <source>Das Paket %1 enthält ein anderes Plugin (%2)</source>
+        <translation>%1 paketi başka bir eklenti içeriyor (%2)</translation>
+    </message>
+    <message>
+        <source>keine manifest.json</source>
+        <translation>manifest.json yok</translation>
     </message>
 </context>
 <context>

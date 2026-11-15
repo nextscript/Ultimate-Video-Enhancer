@@ -94,6 +94,15 @@ as possibly timing-dependent, not as solved.
 | Automatic start-up check does not open a second window while *About* is open | code review |
 | *Update now* inside the dialog (download, SHA-256, restart) | NOT TESTED (no newer release existed); uses the unchanged `AppUpdater::install()` covered by `tst_appupdater` |
 
+## Plugin updates from GitHub (1.1.9)
+
+| Check | Result |
+|---|---|
+| `tst_pluginupdater`: package names, jsDelivr and REST-API lists (real entries of the branch), matching (name / ID part, highest version numerically), Git blob hash | PASS |
+| `tst_pluginupdater`: refs via the second source, list via the REST-API fallback, download via the second mirror, install → `.pending`; package with a different plugin ID refused; saved list used when every source fails; same commit → no list request; fresh list → no request at all | PASS (file:// endpoints) |
+| Real app against GitHub (`UVE_SELFTEST_UI=1 UVE_SELFTEST_ONLY=pluginupdate UVE_SELFTEST_PLUGIN=org.lumascale.fsr`, LumaScale installed with its version lowered to 0.9.0): page opens → "Update available: 0.9.0 → 1.0.0" → mouse click on *Install update 1.0.0* → download from raw.githubusercontent.com, SHA-256 from jsDelivr verified → "Plugin updated" dialog, package in `.pending` | PASS |
+| GitHub API rate limit actually exhausted | NOT PROVOKED; the normal path does not use api.github.com (Git endpoint + jsDelivr + raw), fallbacks covered by the unit test |
+
 ## Playback of real sources
 
 | Source | Result |

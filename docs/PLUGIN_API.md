@@ -213,6 +213,18 @@ position / pause state, set pause, still frame without effects (`grabVideoFrame`
 since 1.0.2 `setVideoEqualizer` and `sampleDisplayFrame`, since 1.0.6 `call`, `hasCommand`, `commands`,
 since 1.0.7 the command `webview.available` (embedded web views via Qt WebEngine, when the player is built with it).
 
+## Online updates (since 1.1.9)
+
+*Settings → Plugins* offers updates from the branch
+[`uve-player-plugins`](https://github.com/nextscript/Ultimate-Video-Enhancer/tree/uve-player-plugins). To publish a plugin there:
+
+- Put the package (`.zip` with `manifest.json` at the root or in one sub-folder) in the **root** of the branch as
+  `<Name>-<Version>.zip`. `<Name>` is compared without spaces, dashes and case with the manifest `name`, the last part of the `id`
+  or the whole `id` (`kickchat-1.3.1.zip` ↔ `"name": "Kick Chat"`, `GLSLManager-1.0.0.zip` ↔ `"name": "GLSL Manager"`).
+- Raise `version` in `manifest.json`; the highest version in the branch is offered when it is newer than the installed one.
+- The `id` in the package must equal the installed plugin's `id`, otherwise the player refuses the package.
+- Older versions may stay in the branch; files in sub-folders and other file types are ignored.
+
 ## Security
 
 Plugins (native and QML) run in the main process and are **trusted code**; `mpv.*` gives full access to mpv.

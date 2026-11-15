@@ -1960,6 +1960,14 @@
         <translation>Ασφαλής λειτουργία</translation>
     </message>
     <message>
+        <source>%1 von %2 MB</source>
+        <translation>%1 από %2 MB</translation>
+    </message>
+    <message>
+        <source>%1 MB</source>
+        <translation>%1 MB</translation>
+    </message>
+    <message>
         <source>Safe Mode: Plugins wurden nicht geladen. </source>
         <translation>Ασφαλής λειτουργία: τα πρόσθετα δεν φορτώθηκαν. </translation>
     </message>
@@ -1982,6 +1990,54 @@
     <message>
         <source>Fehler: </source>
         <translation>Σφάλμα: </translation>
+    </message>
+    <message>
+        <source>Suche nach Updates …</source>
+        <translation>Αναζήτηση ενημερώσεων …</translation>
+    </message>
+    <message>
+        <source>Aktuell (neueste Version: %1)</source>
+        <translation>Ενημερωμένο (τελευταία έκδοση: %1)</translation>
+    </message>
+    <message>
+        <source>Update verfügbar: %1 → %2</source>
+        <translation>Διαθέσιμη ενημέρωση: %1 → %2</translation>
+    </message>
+    <message>
+        <source>Lade %1 … %2</source>
+        <translation>Λήψη %1 … %2</translation>
+    </message>
+    <message>
+        <source>Version %1 installiert – aktiv nach einem Neustart</source>
+        <translation>Η έκδοση %1 εγκαταστάθηκε – ενεργή μετά από επανεκκίνηση</translation>
+    </message>
+    <message>
+        <source>Nicht im Online-Plugin-Katalog</source>
+        <translation>Δεν υπάρχει στον online κατάλογο πρόσθετων</translation>
+    </message>
+    <message>
+        <source>Update fehlgeschlagen: </source>
+        <translation>Η ενημέρωση απέτυχε: </translation>
+    </message>
+    <message>
+        <source>Update auf %1 installieren</source>
+        <translation>Εγκατάσταση ενημέρωσης %1</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Δοκιμάστε ξανά</translation>
+    </message>
+    <message>
+        <source>Nach Update suchen</source>
+        <translation>Έλεγχος για ενημέρωση</translation>
+    </message>
+    <message>
+        <source>Plugin-Katalog auf GitHub prüfen (zuletzt: %1)</source>
+        <translation>Έλεγχος του καταλόγου πρόσθετων στο GitHub (τελευταία: %1)</translation>
+    </message>
+    <message>
+        <source>Plugin-Katalog auf GitHub prüfen</source>
+        <translation>Έλεγχος του καταλόγου πρόσθετων στο GitHub</translation>
     </message>
     <message>
         <source>GPU-Stufe nach Shaderfehler deaktiviert (Wiedergabe läuft ohne Effekte weiter)</source>
@@ -3398,6 +3454,37 @@
     <message>
         <source>Schreiben fehlgeschlagen: %1</source>
         <translation>Η εγγραφή απέτυχε: %1</translation>
+    </message>
+</context>
+<context>
+    <name>uve::PluginUpdater</name>
+    <message>
+        <source>Plugin-Katalog auf GitHub nicht erreichbar</source>
+        <translation>Ο κατάλογος πρόσθετων στο GitHub δεν είναι προσβάσιμος</translation>
+    </message>
+    <message>
+        <source>GitHub nicht erreichbar – gespeicherte Liste vom %1</source>
+        <translation>Το GitHub δεν είναι προσβάσιμο – αποθηκευμένη λίστα από %1</translation>
+    </message>
+    <message>
+        <source>Datei nicht lesbar: %1</source>
+        <translation>Το αρχείο δεν είναι αναγνώσιμο: %1</translation>
+    </message>
+    <message>
+        <source>Download unvollständig (%1 von %2 Bytes)</source>
+        <translation>Ημιτελής λήψη (%1 από %2 byte)</translation>
+    </message>
+    <message>
+        <source>Prüfsumme stimmt nicht – Download verworfen</source>
+        <translation>Το άθροισμα ελέγχου δεν ταιριάζει – η λήψη απορρίφθηκε</translation>
+    </message>
+    <message>
+        <source>Das Paket %1 enthält ein anderes Plugin (%2)</source>
+        <translation>Το πακέτο %1 περιέχει διαφορετικό πρόσθετο (%2)</translation>
+    </message>
+    <message>
+        <source>keine manifest.json</source>
+        <translation>χωρίς manifest.json</translation>
     </message>
 </context>
 <context>

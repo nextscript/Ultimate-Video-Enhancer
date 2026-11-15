@@ -11,6 +11,7 @@
 #include "services/PlaylistModel.h"
 #include "services/ToolUpdater.h"
 #include "services/AppUpdater.h"
+#include "services/PluginUpdater.h"
 #include "services/optical/OpticalMediaService.h"
 #include "services/optical/DiscSourceResolver.h"
 
@@ -105,6 +106,7 @@ QObject *PlayerApp::pluginsObject() const { return m_plugins; }
 QObject *PlayerApp::hotkeysObject() const { return m_hotkeys; }
 QObject *PlayerApp::updaterObject() const { return m_updater; }
 QObject *PlayerApp::appUpdaterObject() const { return m_appUpdater; }
+QObject *PlayerApp::pluginUpdaterObject() const { return m_pluginUpdater; }
 QObject *PlayerApp::shadersObject() const { return m_shaders; }
 QObject *PlayerApp::settingsObject() const { return m_settings; }
 QObject *PlayerApp::discObject() const { return m_disc; }
@@ -600,6 +602,7 @@ void PlayerApp::startPlugins()
     connect(m_plugins, &PluginManager::hotkeysChanged, this, [this] { m_hotkeys->setExtraActions(m_plugins->hotkeyActions()); });
     m_plugins->setQmlEngine(m_engine);
     m_plugins->setLanguage(language());
+    m_pluginUpdater = new PluginUpdater(m_plugins, m_settings->dataDir(), this);
     registerPluginCommands();
     m_resolveTimeout.setSingleShot(true);
     connect(&m_resolveTimeout, &QTimer::timeout, this, [this] {

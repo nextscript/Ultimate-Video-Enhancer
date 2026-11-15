@@ -14,6 +14,19 @@ ColumnLayout {
     readonly property var stateNames: [QT_TR_NOOP("gefunden"), QT_TR_NOOP("abgelehnt"), QT_TR_NOOP("geprüft"), QT_TR_NOOP("geladen"), QT_TR_NOOP("initialisiert"), QT_TR_NOOP("aktiv"), QT_TR_NOOP("pausiert"), QT_TR_NOOP("deaktiviert"), QT_TR_NOOP("entladen"), QT_TR_NOOP("Fehler"), QT_TR_NOOP("Safe Mode")]
     property string installMessage: ""
 
+    // Online-Updates: Zustand je Plugin (siehe PluginUpdater::status)
+    function updateStatus(id) { return app.pluginUpdater && app.pluginUpdater.status[id] ? app.pluginUpdater.status[id] : ({}) }
+    function progressText(st) {
+        var mb = v => (v / 1048576).toFixed(1)
+        return st.total > 0 ? qsTr("%1 von %2 MB").arg(mb(st.received || 0)).arg(mb(st.total)) : qsTr("%1 MB").arg(mb(st.received || 0))
+    }
+    // Beim Öffnen der Seite automatisch prüfen (eine höchstens 30 Minuten alte Liste wird ohne Anfrage verwendet)
+    onVisibleChanged: if (visible && app.pluginUpdater && !app.safeMode) app.pluginUpdater.check(false)
+    Connections {
+        target: app.pluginUpdater
+        function onInstalled(info) { page.installMessage = ""; installedDialog.show(info) }
+    }
+
     // Einstellungsseiten der Plugins (contributes.panels mit location "settings")
     function settingsPanelsFor(pluginId) {
         return (app.plugins ? app.plugins.panels : []).filter(p => p.location === "settings" && p.pluginId === pluginId)
@@ -116,6 +129,65 @@ ColumnLayout {
                             icon.name: "configure"
                             onClicked: page.openPluginSettings(modelData.key)
                         }
+                    }
+                }
+                // Online-Update aus dem Plugin-Katalog auf GitHub (Zweig uve-player-plugins)
+                RowLayout {
+                    id: updateRow
+                    readonly property var st: page.updateStatus(modelData.id)
+                    readonly property string us: st.state || ""
+                    visible: !modelData.pendingRemoval && (modelData.removable || ["available", "current", "downloading", "installed"].indexOf(us) >= 0)
+                    Layout.fillWidth: true
+                    spacing: 6
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.Wrap
+                        font.pixelSize: 11
+                        color: updateRow.us === "error" ? theme.error : updateRow.us === "available" || updateRow.us === "installed" ? "#6fd38c" : theme.muted
+                        text: updateRow.us === "checking" ? qsTr("Suche nach Updates …")
+                            : updateRow.us === "current" ? qsTr("Aktuell (neueste Version: %1)").arg(updateRow.st.latestVersion)
+                            : updateRow.us === "available" ? qsTr("Update verfügbar: %1 → %2").arg(modelData.version).arg(updateRow.st.latestVersion)
+                            : updateRow.us === "downloading" ? qsTr("Lade %1 … %2").arg(updateRow.st.file).arg(page.progressText(updateRow.st))
+                            : updateRow.us === "installed" ? qsTr("Version %1 installiert – aktiv nach einem Neustart").arg(updateRow.st.pendingVersion)
+                            : updateRow.us === "unknown" ? qsTr("Nicht im Online-Plugin-Katalog")
+                            : updateRow.us === "error" ? qsTr("Update fehlgeschlagen: ") + updateRow.st.error
+                            : app.pluginUpdater && app.pluginUpdater.error !== "" ? app.pluginUpdater.error
+                            : ""
+                    }
+                    ProgressBar {
+                        visible: updateRow.us === "downloading"
+                        Layout.preferredWidth: 120
+                        from: 0; to: 1
+                        indeterminate: !(updateRow.st.total > 0)
+                        value: updateRow.st.total > 0 ? updateRow.st.received / updateRow.st.total : 0
+                    }
+                    Button {
+                        visible: updateRow.us === "available"
+                        objectName: "pluginUpdate:" + modelData.id   // Selbsttest
+                        highlighted: true
+                        text: qsTr("Update auf %1 installieren").arg(updateRow.st.latestVersion)
+                        onClicked: app.pluginUpdater.install(modelData.id)
+                    }
+                    Button {
+                        visible: updateRow.us === "downloading"
+                        text: qsTr("Abbrechen")
+                        onClicked: app.pluginUpdater.cancel(modelData.id)
+                    }
+                    Button {
+                        visible: updateRow.us === "installed"
+                        text: qsTr("Jetzt neu starten")
+                        onClicked: app.restartApp()
+                    }
+                    Button {
+                        visible: ["available", "downloading", "installed"].indexOf(updateRow.us) < 0
+                        enabled: app.pluginUpdater && !app.pluginUpdater.checking
+                        text: updateRow.us === "error" ? qsTr("Erneut versuchen") : qsTr("Nach Update suchen")
+                        icon.name: "view-refresh"
+                        onClicked: app.pluginUpdater.check(true)
+                        ToolTip.text: app.pluginUpdater && app.pluginUpdater.lastCheck !== ""
+                                      ? qsTr("Plugin-Katalog auf GitHub prüfen (zuletzt: %1)").arg(app.pluginUpdater.lastCheck)
+                                      : qsTr("Plugin-Katalog auf GitHub prüfen")
+                        ToolTip.visible: hovered
                     }
                 }
                 Label { visible: modelData.shaderDisabled === true; Layout.fillWidth: true; wrapMode: Text.Wrap; text: qsTr("GPU-Stufe nach Shaderfehler deaktiviert (Wiedergabe läuft ohne Effekte weiter)"); color: theme.error }

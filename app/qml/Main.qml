@@ -1264,6 +1264,61 @@ ApplicationWindow {
         }
         win.stPluginStep++
     }
+    // Selbsttest Plugin-Update (UVE_SELFTEST_ONLY=pluginupdate, UVE_SELFTEST_PLUGIN=<id>): Einstellungen → Plugins öffnen,
+    // Prüfung gegen GitHub abwarten, „Update installieren“ per Mausklick, Installation abwarten
+    property int stUpdStep: 0
+    property int stUpdWait: 0
+    function findByObjectName(item, name) {
+        if (!item) return null
+        if (item.objectName === name && item.visible) return item
+        var kids = item.children || []
+        for (var i = 0; i < kids.length; i++) { var r = findByObjectName(kids[i], name); if (r) return r }
+        return null
+    }
+    function pluginUpdateSelftestStep(ui) {
+        selftestUi.interval = 500
+        if (ui.failures === undefined) ui.failures = []
+        var id = app.selftestEnv("UVE_SELFTEST_PLUGIN")
+        var st = () => app.pluginUpdater.status[id] || ({})
+        var shot = (name) => app.saveWindowShot(app.selftestPath("pluginupdate-" + name + ".png"))
+        var finish = () => {
+            ui.finalState = st().state; ui.updaterError = app.pluginUpdater.error
+            ui.ok = ui.failures.length === 0; ui.done = true
+            selftestUi.stop(); app.reportSelftestUi(ui)
+        }
+        switch (win.stUpdStep) {
+        case 0:
+            settingsDialog.openPlugins()
+            break
+        case 1:   // Prüfung abwarten (höchstens 60 s)
+            if ((app.pluginUpdater.checking || !st().state || st().state === "checking") && ++win.stUpdWait < 120) return
+            ui.checkedState = st().state; ui.latestVersion = st().latestVersion; ui.installedVersion = st().installedVersion
+            shot("checked")
+            if (st().state !== "available") { ui.failures.push("not available: " + st().state); return finish() }
+            win.stUpdWait = 0
+            break
+        case 2: {
+            var b = win.findByObjectName(settingsDialog.pluginsPage, "pluginUpdate:" + id)
+            if (!b) { ui.failures.push("button missing"); return finish() }
+            var p = b.mapToItem(win.contentItem.parent, b.width / 2, b.height / 2)
+            app.simulateClick(p.x, p.y)
+            break
+        }
+        case 3:   // Download und Installation abwarten (höchstens 120 s)
+            if (ui.settingsAfterClick === undefined) ui.settingsAfterClick = settingsDialog.visible
+            if (st().state === "downloading") { ui.sawDownloading = true; if (!ui.shotDownloading) { shot("downloading"); ui.shotDownloading = true } }
+            if ((st().state === "downloading" || st().state === "available") && ++win.stUpdWait < 240) return
+            selftestUi.interval = 1200
+            ui.settingsWhenDone = settingsDialog.visible
+            break
+        case 4:
+            shot("installed-dialog")
+            if (st().state !== "installed") ui.failures.push("state " + st().state + " " + (st().error || ""))
+            ui.pendingVersion = st().pendingVersion
+            return finish()
+        }
+        win.stUpdStep++
+    }
     // Selbsttest Sprachwechsel (UVE_SELFTEST_ONLY=language): alle Sprachpaare, jeder Menütitel mit echten Mausereignissen.
     // Prüft die Pixel: Qt zeigt manche Titel nach einem Wechsel leer an, das steht in keiner QML-Eigenschaft.
     property int stLangPhase: 0
@@ -1446,6 +1501,12 @@ ApplicationWindow {
             }
             if (app.selftestOnly("plugins")) {
                 win.pluginsSelftestStep(ui)
+                win.stUi = ui
+                if (!ui.done) restart()
+                return
+            }
+            if (app.selftestOnly("pluginupdate")) {
+                win.pluginUpdateSelftestStep(ui)
                 win.stUi = ui
                 if (!ui.done) restart()
                 return

@@ -25,6 +25,7 @@ class PlaylistModel;
 class HotkeyModel;
 class ToolUpdater;
 class AppUpdater;
+class PluginUpdater;
 class SafeMode;
 class OpticalMediaService;
 }
@@ -41,6 +42,7 @@ class PlayerApp : public QObject
     Q_PROPERTY(QObject *hotkeys READ hotkeysObject CONSTANT)
     Q_PROPERTY(QObject *updater READ updaterObject CONSTANT)
     Q_PROPERTY(QObject *appUpdater READ appUpdaterObject CONSTANT)
+    Q_PROPERTY(QObject *pluginUpdater READ pluginUpdaterObject CONSTANT)   // Online-Updates der Plugins
     Q_PROPERTY(QObject *shaders READ shadersObject CONSTANT)
     Q_PROPERTY(QObject *settings READ settingsObject CONSTANT)
     Q_PROPERTY(QObject *disc READ discObject CONSTANT)   // optische Medien (DVD, Blu-ray, Audio-CD)
@@ -78,6 +80,7 @@ public:
     QObject *hotkeysObject() const;
     QObject *updaterObject() const;
     QObject *appUpdaterObject() const;
+    QObject *pluginUpdaterObject() const;
     QObject *shadersObject() const;
     QObject *settingsObject() const;
     QObject *discObject() const;
@@ -137,6 +140,7 @@ public:
     // Selbsttest: mittlere Farbe/Sättigung eines Fensterbereichs (echte Pixel aus dem Fenster-Framebuffer)
     Q_INVOKABLE QString selftestPath(const QString &name) const { return QFileInfo(m_selftestOut).absoluteDir().filePath(name); }
     Q_INVOKABLE bool selftestOnly(const QString &part) const { return m_selftest && qEnvironmentVariable("UVE_SELFTEST_ONLY") == part; }
+    Q_INVOKABLE QString selftestEnv(const QString &name) const { return m_selftest && name.startsWith(QLatin1String("UVE_SELFTEST_")) ? qEnvironmentVariable(name.toLatin1().constData()) : QString(); }
     Q_INVOKABLE bool saveWindowShot(const QString &file) const { return m_window && !m_selftestOut.isEmpty() && m_window->grabWindow().save(file); }
     // Selbsttest: Fenster aufnehmen, verkleinert im Hintergrund speichern (schnelle Bildfolgen, z. B. Übergänge)
     Q_INVOKABLE void saveWindowShotAsync(const QString &file) const
@@ -237,6 +241,7 @@ private:
     uve::HotkeyModel *m_hotkeys = nullptr;
     uve::ToolUpdater *m_updater = nullptr;
     uve::AppUpdater *m_appUpdater = nullptr;
+    uve::PluginUpdater *m_pluginUpdater = nullptr;
     uve::OpticalMediaService *m_disc = nullptr;
     QTimer m_resumeTimer;
     QString m_loadedPath;
