@@ -1,5 +1,7 @@
 # UVE Manager 1.1.2
 
+![GUI](screen.PNG)
+
 Desktop video editor and offline renderer built on the Ultimate Video Enhancer effect chain –
 for Windows, macOS and Linux. Since 1.0.3 the editor is a multi-track timeline.
 
