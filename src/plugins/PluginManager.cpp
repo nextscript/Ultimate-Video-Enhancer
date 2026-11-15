@@ -554,7 +554,7 @@ QVariantList PluginManager::plugins() const
         QVariantMap m{
             {"id", e.manifest.id}, {"name", e.manifest.name.isEmpty() ? QFileInfo(e.file).fileName() : e.manifest.name},
             {"version", e.manifest.version}, {"apiVersion", e.manifest.apiVersion},
-            {"description", e.manifest.description}, {"author", e.manifest.author}, {"license", e.manifest.license},
+            {"description", text(e, e.manifest.description)}, {"author", e.manifest.author}, {"license", e.manifest.license},
             {"type", e.manifest.type}, {"capabilities", e.manifest.capabilities}, {"permissions", e.manifest.permissions},
             {"state", pluginStateName(e.state)}, {"active", e.state == PluginState::Active},
             {"enabled", enabledInSettings(e)}, {"error", e.error}, {"file", e.file}, {"folder", e.folder},

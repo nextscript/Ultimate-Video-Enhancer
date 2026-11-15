@@ -17,7 +17,7 @@ class ResumableDownload;
 //   Commits und Tags:  Git-Endpunkt <repo>.git/info/refs (Rückfall: REST-API)
 //   Commit-Liste:      Atom-Feed <repo>/commits/<zweig>.atom
 //   Release-Dateien:   <repo>/releases/download/<tag>/… (SHA256SUMS.txt legt fest, was es gibt)
-// Installierbar ist nur ein Release mit fertigen Paketen; neuere Commits ohne Release werden nur angezeigt.
+// Ein Update ist nur ein Release mit fertigen Paketen; neuere Commits ohne Release werden nicht gemeldet (seit 1.2.0).
 class AppUpdater : public QObject
 {
     Q_OBJECT

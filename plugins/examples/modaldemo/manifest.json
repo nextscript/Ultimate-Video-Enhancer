@@ -5,7 +5,15 @@
   "apiVersion": 1,
   "minHostVersion": "1.1.3",
   "type": "utility",
-  "description": "Reference for plugin modals and settings pages. Copy this folder to the user plugin folder to try it.",
+  "description": {
+    "de": "Referenz für Plugin-Fenster und Einstellungsseiten. Diesen Ordner zum Ausprobieren in den Benutzer-Plugin-Ordner kopieren.",
+    "en": "Reference for plugin modals and settings pages. Copy this folder to the user plugin folder to try it.",
+    "es": "Referencia para ventanas de plugins y páginas de ajustes. Copia esta carpeta en la carpeta de plugins del usuario para probarla.",
+    "it": "Riferimento per finestre dei plugin e pagine delle impostazioni. Copia questa cartella nella cartella dei plugin dell'utente per provarla.",
+    "pl": "Przykład okien wtyczek i stron ustawień. Skopiuj ten folder do folderu wtyczek użytkownika, aby go wypróbować.",
+    "tr": "Eklenti pencereleri ve ayar sayfaları için örnek. Denemek için bu klasörü kullanıcı eklenti klasörüne kopyalayın.",
+    "el": "Παράδειγμα για παράθυρα πρόσθετων και σελίδες ρυθμίσεων. Αντιγράψτε αυτόν τον φάκελο στον φάκελο πρόσθετων του χρήστη για να το δοκιμάσετε."
+  },
   "author": "UVE Player",
   "license": "MIT",
   "main": "Main.qml",

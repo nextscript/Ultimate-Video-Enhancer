@@ -15,7 +15,7 @@ struct PluginManifest
     QString minHostVersion;     // SemVer, Host muss >= sein
     QString type;               // "gpu-effect", "utility", …
     QString entrypoint;         // eigene Konvention: Name der Plugin-Klasse
-    QString description;
+    QJsonValue description;     // Text oder { "<Sprache>": "…" } (seit 1.2.0, siehe localizedText)
     QString author;
     QString license;
     QStringList capabilities;

@@ -6,7 +6,15 @@
   "minHostVersion": "1.0.0",
   "type": "utility",
   "entrypoint": "SleepTimerPlugin",
-  "description": "Referenz-Plugin für die Plugin-API: pausiert die Wiedergabe nach einer einstellbaren Zeit oder am Ende des aktuellen Titels.",
+  "description": {
+    "de": "Referenz-Plugin für die Plugin-API: pausiert die Wiedergabe nach einer einstellbaren Zeit oder am Ende des aktuellen Titels.",
+    "en": "Reference plugin for the plugin API: pauses playback after an adjustable time or at the end of the current title.",
+    "es": "Plugin de referencia para la API de plugins: pausa la reproducción tras un tiempo ajustable o al final del título actual.",
+    "it": "Plugin di riferimento per l'API dei plugin: mette in pausa la riproduzione dopo un tempo impostabile o alla fine del titolo corrente.",
+    "pl": "Wtyczka referencyjna dla API wtyczek: wstrzymuje odtwarzanie po ustawionym czasie lub na końcu bieżącego utworu.",
+    "tr": "Eklenti API'si için örnek eklenti: oynatmayı ayarlanabilir bir süre sonra veya geçerli parçanın sonunda duraklatır.",
+    "el": "Πρόσθετο αναφοράς για το API πρόσθετων: θέτει σε παύση την αναπαραγωγή μετά από ρυθμιζόμενο χρόνο ή στο τέλος του τρέχοντος τίτλου."
+  },
   "author": "UVE Player",
   "license": "MIT",
   "capabilities": ["playback-control"],

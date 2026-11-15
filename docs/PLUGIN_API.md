@@ -106,7 +106,7 @@ Same compiler and Qt version as the player (1.0.x: Qt 6.12, MSVC 2022, 64 bit).
 ```
 
 `library` **or** `main` (plugin folders only). Texts in the manifest: a string or `{ "<language>": "…" }`
-(fallback English, then German). Available backends: `mpv-user-shaders`, `mpv-render-api-opengl`,
+(fallback English, then German). This also applies to `description` (since 1.2.0), shown on the plugin card in *Settings → Plugins*. Available backends: `mpv-user-shaders`, `mpv-render-api-opengl`,
 `plugin-events`, `plugin-commands`, `qml-plugins`.
 
 | Contribution | Effect |

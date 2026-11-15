@@ -225,6 +225,7 @@ void AppUpdater::check()
     m_result.insert("updateAvailable", false);
     m_result.insert("canInstall", false);
     m_result.insert("newCommits", QVariantList{});
+    m_result.insert("newerCommits", false);   // bleibt false: ohne Release wird nichts gemeldet
 
     fetch({m_repo + QStringLiteral(".git/info/refs?service=git-upload-pack"), m_refsFallback},
           [this](bool ok, int, const QByteArray &body) {
@@ -248,7 +249,7 @@ void AppUpdater::onRefs(const QByteArray &body)
 // Deshalb gilt die neueste Version, deren SHA256SUMS.txt und Paket tatsächlich abrufbar sind.
 void AppUpdater::probeRelease()
 {
-    if (m_candidates.isEmpty()) return fetchCommits();
+    if (m_candidates.isEmpty()) return finishCheck();   // kein neueres Release → kein Update, egal wie viele Commits
     const QString version = m_candidates.takeFirst();
     const QString tag = QString::fromLatin1(kTagPrefix) + version;
     fetch({m_repo + QStringLiteral("/releases/download/") + tag + QStringLiteral("/SHA256SUMS.txt")},
@@ -256,7 +257,7 @@ void AppUpdater::probeRelease()
               if (!ok) {
                   if (status == 404) return probeRelease();
                   m_error = tr("Release-Dateien sind gerade nicht abrufbar");
-                  return fetchCommits();
+                  return finishCheck();
               }
               const auto sums = parseSha256Sums(body);
               const QString asset = assetName(m_kind, version, QSysInfo::currentCpuArchitecture());
@@ -294,6 +295,8 @@ void AppUpdater::onReleaseFound(const QString &version, const QHash<QString, QSt
     fetchCommits();
 }
 
+// Nur nach einem gefundenen Release: die Commits seit dem eigenen Stand dienen als Änderungsliste.
+// Commits allein (z. B. nur README geändert) gelten seit 1.2.0 nicht mehr als Update.
 void AppUpdater::fetchCommits()
 {
     fetch({m_repo + QStringLiteral("/commits/") + QString::fromLatin1(kBranch) + QStringLiteral(".atom")},
@@ -305,10 +308,6 @@ void AppUpdater::fetchCommits()
                   const auto list = commitsSince(parseCommitFeed(body), m_build.commit, m_build.commitTime, &truncated);
                   m_result.insert("newCommits", list);
                   m_result.insert("commitsTruncated", truncated);
-                  m_result.insert("newerCommits", !list.isEmpty());
-              } else {
-                  // Ohne Feed bleibt nur der Vergleich der Commit-Kennungen; die Liste fehlt dann in der Anzeige
-                  m_result.insert("newerCommits", !sameCommit);
               }
               finishCheck();
           });

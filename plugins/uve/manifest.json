@@ -6,7 +6,15 @@
   "minHostVersion": "1.0.0",
   "type": "gpu-effect",
   "entrypoint": "UvePlugin",
-  "description": "Nativer Port der UVE-WebGL-Effekte (Grading, Schärfe, HDR-like, Rauschfilter, Korn) als mpv-GPU-Shader, mit 3D-LUT, Presets, Vorher/Nachher und Import/Export von UVE-Profilen.",
+  "description": {
+    "de": "Nativer Port der UVE-WebGL-Effekte (Grading, Schärfe, HDR-like, Rauschfilter, Korn) als mpv-GPU-Shader, mit 3D-LUT, Presets, Vorher/Nachher und Import/Export von UVE-Profilen.",
+    "en": "Native port of the UVE WebGL effects (grading, sharpening, HDR-like, denoising, grain) as mpv GPU shaders, with 3D LUT, presets, before/after and import/export of UVE profiles.",
+    "es": "Port nativo de los efectos WebGL de UVE (gradación, nitidez, HDR-like, reducción de ruido, grano) como shaders GPU de mpv, con LUT 3D, presets, antes/después e importación/exportación de perfiles UVE.",
+    "it": "Port nativo degli effetti WebGL di UVE (grading, nitidezza, HDR-like, riduzione del rumore, grana) come shader GPU di mpv, con LUT 3D, preset, prima/dopo e importazione/esportazione dei profili UVE.",
+    "pl": "Natywny port efektów WebGL z UVE (gradacja, ostrość, HDR-like, odszumianie, ziarno) jako shadery GPU mpv, z LUT 3D, presetami, porównaniem przed/po oraz importem i eksportem profili UVE.",
+    "tr": "UVE WebGL efektlerinin (renk düzenleme, keskinlik, HDR benzeri, gürültü azaltma, gren) mpv GPU gölgelendiricisi olarak yerel uyarlaması; 3D LUT, ön ayarlar, önce/sonra ve UVE profillerini içe/dışa aktarma ile.",
+    "el": "Εγγενής μεταφορά των εφέ WebGL του UVE (χρωματική διόρθωση, οξύτητα, HDR-like, μείωση θορύβου, κόκκος) ως GPU shaders του mpv, με 3D LUT, προεπιλογές, πριν/μετά και εισαγωγή/εξαγωγή προφίλ UVE."
+  },
   "author": "nextscript (Ultimate Video Enhancer: Freak288)",
   "license": "siehe docs/THIRD_PARTY_LICENSES.md",
   "capabilities": ["video-effects", "presets", "before-after", "lut", "lut-profiles", "profile-import", "github-library"],

@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.0 – 2026-11-15
+
+### Translated plugin descriptions
+- The plugin `description` in the manifest can now be translated like titles: `{ "de": "…", "en": "…", … }`. *Settings → Plugins*
+  shows it in the player language (fallback English, then German) and switches along with the language. Before, a translated
+  description showed up empty.
+- The bundled plugins (Ultimate Video Enhancer, sleep timer and modal demo examples) have descriptions in all seven languages.
+- Updated plugin packages with translated descriptions: GLSL Manager 1.0.1, LumaScale 1.0.1, HLS2TCP 1.1.1, UVEBeeg 1.1.2,
+  Kick Chat 1.3.2, Twitch Chat 2.2.1.
+
+### Update check
+- The player only reports an update when there is a new **release** with packages. New commits without a release (e.g. a
+  README change) no longer show "New commits on GitHub (no release yet)" in *About* or a hint at startup. When a release is
+  found, its commits are still listed as the list of changes.
+
 ## 1.1.9 – 2026-11-15
 
 ### Plugin updates from GitHub

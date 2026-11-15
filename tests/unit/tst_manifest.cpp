@@ -68,6 +68,16 @@ private slots:
         QVERIFY(compareVersions("1.10.0", "1.9.9") > 0);
         QCOMPARE(compareVersions("1.0", "1.0.0"), 0);
     }
+    void localizedDescription()
+    {
+        const auto m = PluginManifest::fromJson(QJsonDocument::fromJson(
+            R"({"description": {"de": "Hallo", "en": "Hello", "el": "Γεια"}})").object());
+        QCOMPARE(localizedText(m.description, "el"), QString::fromUtf8("Γεια"));
+        QCOMPARE(localizedText(m.description, "de_DE"), QString("Hallo"));
+        QCOMPARE(localizedText(m.description, "pl"), QString("Hello"));   // Rückfall Englisch
+        const auto plain = PluginManifest::fromJson(QJsonDocument::fromJson(R"({"description": "Text"})").object());
+        QCOMPARE(localizedText(plain.description, "tr"), QString("Text"));
+    }
     void shippedManifestsAreValid()
     {
         for (const char *f : {UVE_TEST_DATA "/../manifest.json", UVE_TEST_DATA "/../../examples/sleeptimer/manifest.json"}) {

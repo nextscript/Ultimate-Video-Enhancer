@@ -30,7 +30,7 @@ PluginManifest PluginManifest::fromJson(const QJsonObject &o)
     m.minHostVersion = o.value("minHostVersion").toString();
     m.type = o.value("type").toString();
     m.entrypoint = o.value("entrypoint").toString();
-    m.description = o.value("description").toString();
+    m.description = o.value("description");
     m.author = o.value("author").toString();
     m.license = o.value("license").toString();
     m.capabilities = toStringList(o.value("capabilities"));

@@ -232,7 +232,7 @@ private slots:
         QVERIFY(!up.busy());
     }
 
-    // Neue Commits ohne Release: anzeigen, aber nichts zum Installieren anbieten
+    // Neue Commits ohne Release (z. B. nur README): kein Update melden (seit 1.2.0)
     void checkCommitsWithoutRelease()
     {
         FakeServer srv([&](const QByteArray &, const QByteArray &path, const QByteArray &) -> Response {
@@ -249,7 +249,8 @@ private slots:
         const auto r = spy.first().at(0).toMap();
         QVERIFY(!r.value("updateAvailable").toBool());
         QVERIFY(!r.value("canInstall").toBool());
-        QVERIFY(r.value("newerCommits").toBool());
+        QVERIFY(!r.value("newerCommits").toBool());
+        QVERIFY(r.value("newCommits").toList().isEmpty());
     }
 
     // Eigener Stand = neuester Commit: nichts zu melden, auch der Feed-Ausfall stört nicht
