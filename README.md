@@ -12,7 +12,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **UVETikTok** | 1.0.2 | Utility | Plays TikTok videos, TikTok LIVE streams and whole profiles as a playlist directly in the player – nothing is saved to disk. [Details](#uvetiktok) |
 | **UVESpotify** | 1.0.4 | Utility | Plays Spotify tracks, albums and playlists via the matching track on YouTube, without ads. Sign in to play your own playlists and liked songs. [Details](#uvespotify) |
 | **UVESuno** | 1.0.1 | Utility | Plays songs, playlists and whole profiles from suno.com as a stream, with titles, lengths and gapless transitions. [Details](#uvesuno) |
-| **UVESponsorSkip** | 1.0.1 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
+| **UVESponsorSkip** | 1.0.2 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
 
 ## UVETikTok
 
@@ -80,8 +80,7 @@ Play a YouTube video and UVESponsorSkip looks up its segments in the community d
 - **Privacy:** only the first 4 characters of the SHA-256 hash of the video ID are sent, never the ID itself. Optionally (on by
   default) skipped segments are counted anonymously, like the browser extension does.
 - Own settings page *Settings → UVESponsorSkip* (also via the button on the plugin card in *Settings → Plugins*) with the
-  categories, the segments of the current video – click to jump to one – and skip/undo buttons. The same page is also available
-  as a sidebar page, hidden by default; show it under *Settings → Plugins*.
+  categories, the segments of the current video – click to jump to one – and skip/undo buttons.
 - Segment data: SponsorBlock, CC BY-NC-SA 4.0.
 
 ## Other files
