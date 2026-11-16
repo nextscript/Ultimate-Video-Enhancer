@@ -9,7 +9,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **LumaScale** | 1.0.1 | GPU effect | AMD FidelityFX Super Resolution (EASU upscale + RCAS sharpen) applied to the luma plane, with all parameters in its own sidebar tab. |
 | **Twitch Chat** | 2.2.1 | Utility | Native Twitch chat in the sidebar (IRC over WebSocket). Twitch/BTTV/FFZ/7TV emotes (incl. animated & zero-width), emote picker, spell & grammar check (DE/EN), mentions, AutoMod, moderation. Auto-detects the channel. `Ctrl+Alt+T`. |
 | **Kick Chat** | 1.3.2 | Utility | Same idea for kick.com: read without login, write with Kick OAuth. Kick + 7TV emotes, badges, replies, sub/gift events, pinned messages, viewer count, moderation, spell check. Auto-detects the channel. `Ctrl+Alt+K`. |
-| **UVETikTok** | 1.0.0 | Utility | Plays TikTok videos and TikTok LIVE streams directly in the player – nothing is saved to disk. [Details](#uvetiktok) |
+| **UVETikTok** | 1.0.2 | Utility | Plays TikTok videos, TikTok LIVE streams and whole profiles as a playlist directly in the player – nothing is saved to disk. [Details](#uvetiktok) |
 | **UVESpotify** | 1.0.4 | Utility | Plays Spotify tracks, albums and playlists via the matching track on YouTube, without ads. Sign in to play your own playlists and liked songs. [Details](#uvespotify) |
 | **UVESuno** | 1.0.1 | Utility | Plays songs, playlists and whole profiles from suno.com as a stream, with titles, lengths and gapless transitions. [Details](#uvesuno) |
 
@@ -18,7 +18,10 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 Open a TikTok link (*File → Open network stream…* or drag it onto the player) and it plays as a stream.
 
 - **Supported links:** videos (`tiktok.com/@name/video/…`), short links (`vm.tiktok.com/…`, `vt.tiktok.com/…`, `tiktok.com/t/…`),
-  `m.tiktok.com/v/…` and embed links, LIVE (`tiktok.com/@name/live`) and profiles – a profile that is live right now plays its LIVE.
+  `m.tiktok.com/v/…` and embed links, LIVE (`tiktok.com/@name/live`) and profiles (`tiktok.com/@name`).
+- **Profiles as playlist:** a profile that is live right now plays its LIVE. Otherwise all of the user's videos (newest first, up to
+  500, photo slideshows skipped) go into the playlist with titles and lengths (UVE Player ≥ 1.2.1); the first video starts at once,
+  every further one is resolved fresh when it plays.
 - **Quality:** the highest variant up to the limit you choose (*Best*, 1080p, 720p, 540p, 360p). TikTok's higher qualities are
   picture-only; the plugin adds the separate audio track automatically, so you always get sound.
 - **LIVE format:** FLV (low latency, default) or HLS (more stable).
@@ -64,5 +67,5 @@ Open a link from suno.com (*File → Open network stream…* or drag it onto the
 
 ## Requirements
 
-Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify and UVESuno ≥ 1.1.6; titles and lengths for Spotify playlists ≥ 1.2.1).
+Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify and UVESuno ≥ 1.1.6; titles and lengths for Spotify, Suno and TikTok playlists ≥ 1.2.1).
 All plugins are MIT-licensed.
