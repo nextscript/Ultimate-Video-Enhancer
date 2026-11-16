@@ -7,12 +7,26 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 |---|---|---|---|
 | **GLSL Manager** | 1.0.1 | GPU effect | Runs the GLSL "Custom Filter Codes" from the *Ultimate Video Enhancer* userscript as mpv shaders. Create, edit, test, reorder, import/export filters; auto-generated sliders for uniforms; also runs mpv hook shaders like Anime4K. Toggle all: `Ctrl+Alt+Shift+G`. |
 | **LumaScale** | 1.0.1 | GPU effect | AMD FidelityFX Super Resolution (EASU upscale + RCAS sharpen) applied to the luma plane, with all parameters in its own sidebar tab. |
-| **Twitch Chat** | 2.2.1 | Utility | Native Twitch chat in the sidebar (IRC over WebSocket). Twitch/BTTV/FFZ/7TV emotes (incl. animated & zero-width), emote picker, spell & grammar check (DE/EN), mentions, AutoMod, moderation. Auto-detects the channel. `Ctrl+Alt+T`. |
+| **Twitch Chat** | 2.2.3 | Utility | Native Twitch chat in the sidebar (IRC over WebSocket). Twitch/BTTV/FFZ/7TV emotes (incl. animated & zero-width), emote picker, spell & grammar check (DE/EN), mentions, AutoMod, moderation. Auto-detects the channel. *Live on Twitch* window (📺): followed, popular, categories, search – click plays the channel and the chat follows. `Ctrl+Alt+T`. [Details](#twitch-chat) |
 | **Kick Chat** | 1.3.2 | Utility | Same idea for kick.com: read without login, write with Kick OAuth. Kick + 7TV emotes, badges, replies, sub/gift events, pinned messages, viewer count, moderation, spell check. Auto-detects the channel. `Ctrl+Alt+K`. |
 | **UVETikTok** | 1.0.2 | Utility | Plays TikTok videos, TikTok LIVE streams and whole profiles as a playlist directly in the player – nothing is saved to disk. [Details](#uvetiktok) |
 | **UVESpotify** | 1.0.4 | Utility | Plays Spotify tracks, albums and playlists via the matching track on YouTube, without ads. Sign in to play your own playlists and liked songs. [Details](#uvespotify) |
 | **UVESuno** | 1.0.1 | Utility | Plays songs, playlists and whole profiles from suno.com as a stream, with titles, lengths and gapless transitions. [Details](#uvesuno) |
 | **UVESponsorSkip** | 1.0.2 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
+
+## Twitch Chat
+
+Live on Twitch (since 2.2.2): the 📺 icon next to the viewer list (👥) opens a window over the picture (UVE Player ≥ 1.1.3).
+
+- **Tabs:** *Following* (your channels that are live – needs the sign-in in the chat), *Popular* (most viewers; 🌐 limits it to
+  your language), *Categories* (games/categories with cover art and viewer count – a click shows their live channels) and
+  *Search* (channels and matching categories). Popular, Categories and Search work without signing in.
+- **Cards:** preview picture, profile picture, name, title, category (a click on it opens the category) and viewer count; the
+  channel that is playing is marked.
+- **A click on a card** plays the channel through the player's normal playback (quality menu included), the chat switches to the
+  same channel and the window closes.
+- Modern look with rounded cards; colours follow the player's light or dark theme. Hovering lifts the card and shows a ▶ button.
+- Search shows results while you type. Drag the grip in the bottom-right corner to resize the window; the size is remembered.
 
 ## UVETikTok
 
