@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.4 – 2026-11-16
+
+### Mouse wheel
+- Fixed: the scroll sensitivity had no visible effect on lists and pages (playlist, settings, plugin pages, drop-down lists).
+  Qt scrolls a Flickable/ListView at a minimum speed per wheel notch, so a scaled wheel turn hardly made a difference. Lists and
+  pages are now scrolled by the player itself: 3 lines (120 px) per notch at 100 % – or the Windows setting "lines per notch" if
+  higher – multiplied by the sensitivity, with a short smooth animation. A change in the settings applies immediately.
+
 ## 1.2.3 – 2026-11-16
 
 ### Media keys

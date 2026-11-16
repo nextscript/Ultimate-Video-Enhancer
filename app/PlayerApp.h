@@ -31,6 +31,9 @@ class SafeMode;
 class OpticalMediaService;
 }
 class QQuickWindow;
+class QPropertyAnimation;
+class QWheelEvent;
+class QQuickItem;
 class MediaKeys;
 
 // Anwendungskern: verbindet Player, Wiedergabeliste, Plugins, Einstellungen und Dienste.
@@ -282,6 +285,9 @@ private:
     bool m_selftestUiMode = false;
     QQuickWindow *m_window = nullptr;
     bool m_forwardingWheel = false;
+    QPropertyAnimation *m_wheelAnim = nullptr;   // sanftes Scrollen per Mausrad (scrollFlickable)
+    qreal m_wheelTarget = 0;
+    bool scrollFlickable(QQuickItem *flickable, QWheelEvent *w);
     MediaKeys *m_mediaKeys = nullptr;
     QElapsedTimer m_lastMediaKey;
     QString m_mediaKeysTitle;

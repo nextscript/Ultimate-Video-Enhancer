@@ -36,6 +36,9 @@
 #include <QJsonObject>
 #include <QMouseEvent>
 #include <QWheelEvent>
+#include <QPropertyAnimation>
+#include <QQuickItem>
+#include <QStyleHints>
 #include <QKeyEvent>
 #include <algorithm>
 #include <QProcess>
@@ -1054,6 +1057,7 @@ void PlayerApp::setWindow(QQuickWindow *w)
     m_window = w;
     if (!w) return;
     w->installEventFilter(this);
+    qApp->installEventFilter(this);   // Mausrad an Listen/Seiten (scrollFlickable)
     if (m_mediaKeys->attach(w->winId())) Logger::write("app", "Medientasten: Windows-Mediensteuerung aktiv");
     else Logger::write("app", "Medientasten: Windows-Mediensteuerung nicht verfügbar (" + m_mediaKeys->lastError() + "), nur bei aktivem Fenster");
     // Gespeicherte Geometrie nur übernehmen, wenn die Titelleiste auf einem vorhandenen Bildschirm liegt
@@ -1345,6 +1349,42 @@ void PlayerApp::updateMediaKeys()
     }
 }
 
+// Mausrad über Listen und Seiten (Flickable/ListView/ScrollView): selbst scrollen. Qt setzt pro Raste eine
+// Mindestgeschwindigkeit an, dadurch hätte die Scroll-Empfindlichkeit dort kaum Wirkung. Die Raddrehung ist zu
+// diesem Zeitpunkt bereits mit der Empfindlichkeit skaliert (Fensterfilter).
+bool PlayerApp::scrollFlickable(QQuickItem *it, QWheelEvent *w)
+{
+    if (!it->isEnabled() || !it->property("interactive").toBool()) return false;
+    const qreal contentH = it->property("contentHeight").toReal(), viewH = it->height();
+    const qreal originY = it->property("originY").toReal();
+    const qreal top = originY - it->property("topMargin").toReal();
+    const qreal bottom = originY + contentH + it->property("bottomMargin").toReal() - viewH;
+    if (bottom <= top + 0.5) return false;   // nichts zu scrollen → Qt reicht an das äußere Element weiter
+    const bool pixel = !w->pixelDelta().isNull();
+    // Windows-Einstellung „Zeilen pro Raste“, mindestens 3 (= 120 px pro Raste bei 100 %)
+    const qreal lines = std::max(3, QGuiApplication::styleHints()->wheelScrollLines());
+    const qreal dy = pixel ? w->pixelDelta().y() : w->angleDelta().y() / 120.0 * lines * 40.0;
+    if (dy == 0) return false;
+    const bool same = m_wheelAnim && m_wheelAnim->targetObject() == it && m_wheelAnim->state() == QAbstractAnimation::Running;
+    const qreal from = it->property("contentY").toReal();
+    const qreal target = std::clamp((same ? m_wheelTarget : from) - dy, top, bottom);
+    QMetaObject::invokeMethod(it, "cancelFlick");
+    if (!m_wheelAnim) {
+        m_wheelAnim = new QPropertyAnimation(this);
+        m_wheelAnim->setPropertyName("contentY");
+        m_wheelAnim->setEasingCurve(QEasingCurve::OutCubic);
+        m_wheelAnim->setDuration(140);
+    }
+    m_wheelAnim->stop();
+    m_wheelTarget = target;
+    if (pixel) { it->setProperty("contentY", target); return true; }   // Touchpad: direkt folgen
+    m_wheelAnim->setTargetObject(it);
+    m_wheelAnim->setStartValue(from);
+    m_wheelAnim->setEndValue(target);
+    m_wheelAnim->start();
+    return true;
+}
+
 bool PlayerApp::eventFilter(QObject *watched, QEvent *event)
 {
     if (event->type() == QEvent::KeyPress && watched == m_window) {
@@ -1359,12 +1399,22 @@ bool PlayerApp::eventFilter(QObject *watched, QEvent *event)
             return true;
         }
     }
+    if (event->type() == QEvent::Wheel && watched != m_window) {
+        // Zustellung an ein Element (App-weiter Filter): Listen/Seiten selbst scrollen
+        auto *item = qobject_cast<QQuickItem *>(watched);
+        auto *we = static_cast<QWheelEvent *>(event);
+        if (item && item->inherits("QQuickFlickable") && we->angleDelta().y() != 0
+            && !(we->modifiers() & (Qt::ControlModifier | Qt::ShiftModifier)) && scrollFlickable(item, we)) {
+            event->accept();
+            return true;
+        }
+        return false;
+    }
     if (event->type() != QEvent::Wheel || m_forwardingWheel || watched != m_window) return QObject::eventFilter(watched, event);
-    const int percent = std::clamp(m_settings->value("wheelSensitivity", 100).toInt(), 25, 400);
-    if (percent == 100) return false;
-    // Gleiches Ereignis mit skalierten Werten weiterreichen; das Original wird verworfen
     auto *w = static_cast<QWheelEvent *>(event);
-    const double f = percent / 100.0;
+    const double f = std::clamp(m_settings->value("wheelSensitivity", 100).toInt(), 25, 400) / 100.0;
+    if (qFuzzyCompare(f, 1.0)) return false;
+    // Übrige Ziele (z. B. Lautstärke über dem Video): gleiches Ereignis mit skalierten Werten weiterreichen
     const QPoint angle(qRound(w->angleDelta().x() * f), qRound(w->angleDelta().y() * f));
     const QPoint pixel(qRound(w->pixelDelta().x() * f), qRound(w->pixelDelta().y() * f));
     QWheelEvent scaled(w->position(), w->globalPosition(), pixel, angle, w->buttons(), w->modifiers(), w->phase(), w->inverted(),
