@@ -12,6 +12,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **UVETikTok** | 1.0.2 | Utility | Plays TikTok videos, TikTok LIVE streams and whole profiles as a playlist directly in the player – nothing is saved to disk. [Details](#uvetiktok) |
 | **UVESpotify** | 1.0.4 | Utility | Plays Spotify tracks, albums and playlists via the matching track on YouTube, without ads. Sign in to play your own playlists and liked songs. [Details](#uvespotify) |
 | **UVESuno** | 1.0.1 | Utility | Plays songs, playlists and whole profiles from suno.com as a stream, with titles, lengths and gapless transitions. [Details](#uvesuno) |
+| **UVESponsorSkip** | 1.0.1 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
 
 ## UVETikTok
 
@@ -61,11 +62,33 @@ Open a link from suno.com (*File → Open network stream…* or drag it onto the
   other non-Latin titles and lyrics as empty boxes. Titles in the player itself are shown correctly in every language.
 - Sidebar page *UVESuno* (status) is hidden by default; show it under *Settings → Plugins*.
 
+## UVESponsorSkip
+
+Play a YouTube video and UVESponsorSkip looks up its segments in the community database of
+[SponsorBlock](https://sponsor.ajay.app) – sponsors, intros, outros and more are skipped as you choose.
+
+- **Per category:** *Automatic* (jump over it right away), *By key* (the OSD shows a hint, `Ctrl+Alt+S` skips) or *Ignore*.
+  Defaults: sponsors automatic; self promotion, interaction reminders, intros and outros by key; preview/recap, non-music
+  sections in music videos and filler ignored. Segments marked as *mute* in an *Automatic* category switch the sound off instead and back on afterwards.
+- **Timeline markers:** every segment appears as a coloured bar in the player's seek bar, in the colour of its category (the same
+  colours as on the settings page). Ignored categories are not marked; changes to the settings show up right away.
+- **Undo skip:** `Ctrl+Alt+Z` (or the button) jumps back to where the skip happened and plays the section; it is not skipped
+  automatically again in this video (`Ctrl+Alt+S` still works). Overlapping or adjacent segments are skipped in one jump.
+- `Ctrl+Alt+Shift+S` switches the plugin on and off; all three keys can be changed under *Settings → Shortcuts* and are also in the
+  *Plugins* menu.
+- **Works with** `youtube.com/watch`, `youtu.be`, Shorts, `/live/`, embed and `music.youtube.com` links, also inside playlists.
+- **Privacy:** only the first 4 characters of the SHA-256 hash of the video ID are sent, never the ID itself. Optionally (on by
+  default) skipped segments are counted anonymously, like the browser extension does.
+- Own settings page *Settings → UVESponsorSkip* (also via the button on the plugin card in *Settings → Plugins*) with the
+  categories, the segments of the current video – click to jump to one – and skip/undo buttons. The same page is also available
+  as a sidebar page, hidden by default; show it under *Settings → Plugins*.
+- Segment data: SponsorBlock, CC BY-NC-SA 4.0.
+
 ## Other files
 
 - `gvf_filter_codes_2026-11-09_01-08.json` – exported filter set in the userscript format (Matrix, FSR 1.0 Luma Upscale, Game Boy, Auto Color Enhance), importable into GLSL Manager.
 
 ## Requirements
 
-Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify and UVESuno ≥ 1.1.6; titles and lengths for Spotify, Suno and TikTok playlists ≥ 1.2.1).
+Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify, UVESuno and UVESponsorSkip ≥ 1.1.6; titles and lengths for Spotify, Suno and TikTok playlists ≥ 1.2.1).
 All plugins are MIT-licensed.
