@@ -2277,6 +2277,22 @@
         <translation>Resume playback at the last position</translation>
     </message>
     <message>
+        <source>MAUSRAD</source>
+        <translation>MOUSE WHEEL</translation>
+    </message>
+    <message>
+        <source>Scroll-Empfindlichkeit</source>
+        <translation>Scroll sensitivity</translation>
+    </message>
+    <message>
+        <source>Lautstärke pro Mausrad-Raste über dem Video (%)</source>
+        <translation>Volume per wheel notch over the video (%)</translation>
+    </message>
+    <message>
+        <source>Die Empfindlichkeit gilt für Wiedergabeliste, Einstellungen, Plugin-Seiten und die Lautstärke über dem Video: unter 100 % scrollt das Rad langsamer, über 100 % schneller.</source>
+        <translation>The sensitivity applies to the playlist, settings, plugin pages and the volume over the video: below 100 % the wheel scrolls slower, above 100 % faster.</translation>
+    </message>
+    <message>
         <source>Sprungweite Pfeiltasten (Sekunden)</source>
         <translation>Arrow key seek step (seconds)</translation>
     </message>

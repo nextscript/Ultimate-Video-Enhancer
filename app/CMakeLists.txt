@@ -7,6 +7,7 @@ endif()
 qt_add_executable(uve-player WIN32 MACOSX_BUNDLE
     main.cpp
     PlayerApp.cpp PlayerApp.h
+    MediaKeys.cpp MediaKeys.h
     ${UVE_APP_EXTRA}
 )
 set_target_properties(uve-player PROPERTIES
@@ -76,6 +77,10 @@ if(UVE_WITH_WEBENGINE)
     target_link_libraries(uve-player PRIVATE Qt6::WebEngineQuick)
 endif()
 uve_link_mpv(uve-player)
+if(WIN32)
+    # Medientasten über die Windows-Mediensteuerung (C++/WinRT, SystemMediaTransportControls)
+    target_link_libraries(uve-player PRIVATE windowsapp)
+endif()
 
 # Laufzeitdateien neben die EXE: libmpv (Unterordner mpv\, explizit geladen), yt-dlp, 7zr (Updater)
 set(UVE_BIN ${CMAKE_BINARY_DIR}/bin)

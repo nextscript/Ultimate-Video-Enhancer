@@ -2277,6 +2277,22 @@
         <translation>Riprendi la riproduzione dall&apos;ultima posizione</translation>
     </message>
     <message>
+        <source>MAUSRAD</source>
+        <translation>ROTELLINA DEL MOUSE</translation>
+    </message>
+    <message>
+        <source>Scroll-Empfindlichkeit</source>
+        <translation>Sensibilità di scorrimento</translation>
+    </message>
+    <message>
+        <source>Lautstärke pro Mausrad-Raste über dem Video (%)</source>
+        <translation>Volume per scatto della rotellina sul video (%)</translation>
+    </message>
+    <message>
+        <source>Die Empfindlichkeit gilt für Wiedergabeliste, Einstellungen, Plugin-Seiten und die Lautstärke über dem Video: unter 100 % scrollt das Rad langsamer, über 100 % schneller.</source>
+        <translation>La sensibilità vale per la playlist, le impostazioni, le pagine dei plugin e il volume sul video: sotto il 100 % la rotellina scorre più lentamente, sopra il 100 % più velocemente.</translation>
+    </message>
+    <message>
         <source>Sprungweite Pfeiltasten (Sekunden)</source>
         <translation>Passo di avanzamento con i tasti freccia (secondi)</translation>
     </message>

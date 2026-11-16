@@ -2277,6 +2277,22 @@
         <translation>Wznawiaj odtwarzanie od ostatniej pozycji</translation>
     </message>
     <message>
+        <source>MAUSRAD</source>
+        <translation>KÓŁKO MYSZY</translation>
+    </message>
+    <message>
+        <source>Scroll-Empfindlichkeit</source>
+        <translation>Czułość przewijania</translation>
+    </message>
+    <message>
+        <source>Lautstärke pro Mausrad-Raste über dem Video (%)</source>
+        <translation>Głośność na ząbek kółka nad wideo (%)</translation>
+    </message>
+    <message>
+        <source>Die Empfindlichkeit gilt für Wiedergabeliste, Einstellungen, Plugin-Seiten und die Lautstärke über dem Video: unter 100 % scrollt das Rad langsamer, über 100 % schneller.</source>
+        <translation>Czułość dotyczy listy odtwarzania, ustawień, stron wtyczek i głośności nad wideo: poniżej 100 % kółko przewija wolniej, powyżej 100 % szybciej.</translation>
+    </message>
+    <message>
         <source>Sprungweite Pfeiltasten (Sekunden)</source>
         <translation>Skok klawiszami strzałek (sekundy)</translation>
     </message>

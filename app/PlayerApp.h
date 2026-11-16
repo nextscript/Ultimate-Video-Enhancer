@@ -8,6 +8,7 @@
 #include <QQuickWindow>
 #include <QRect>
 #include <QTimer>
+#include <QElapsedTimer>
 #include <QUrl>
 #include <QVariantMap>
 #include "services/ProxyConfig.h"
@@ -30,6 +31,7 @@ class SafeMode;
 class OpticalMediaService;
 }
 class QQuickWindow;
+class MediaKeys;
 
 // Anwendungskern: verbindet Player, Wiedergabeliste, Plugins, Einstellungen und Dienste.
 // In QML als Kontext-Eigenschaft "app" verfügbar.
@@ -136,6 +138,7 @@ public:
     // Selbsttest der Oberfläche: echte Mausereignisse an das Fenster senden (Fensterkoordinaten)
     Q_INVOKABLE void simulateClick(qreal x, qreal y, int button = 1, bool doubleClick = false);
     Q_INVOKABLE void simulateMove(qreal x, qreal y);   // Selbsttest: Mausbewegung ohne Taste
+    Q_INVOKABLE void simulateWheel(qreal x, qreal y, int angleDeltaY);   // Selbsttest: Mausrad (120 = eine Raste)
     Q_INVOKABLE void simulateDrag(qreal x1, qreal y1, qreal x2, qreal y2);   // Selbsttest: Ziehen mit gedrückter linker Taste
     // Selbsttest: mittlere Farbe/Sättigung eines Fensterbereichs (echte Pixel aus dem Fenster-Framebuffer)
     Q_INVOKABLE QString selftestPath(const QString &name) const { return QFileInfo(m_selftestOut).absoluteDir().filePath(name); }
@@ -189,6 +192,11 @@ signals:
     void proxyTestFinished(bool ok, const QString &message);
     void streamQualitiesChanged();
     void pluginPanelRequested(const QString &panelKey);   // Plugin-Befehl "panel.open"
+    void mediaKey(const QString &action);   // Medientaste: play.toggle | play.play | play.pause | play.stop | play.next | play.prev
+
+protected:
+    // Mausrad-Empfindlichkeit (Einstellung wheelSensitivity, %): skaliert die Raddrehung für Listen, Seiten und Lautstärke
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
     void onFileLoaded();
@@ -273,6 +281,13 @@ private:
     QVariantMap m_renderDefaults;   // mpv-Standardwerte der Skalierungsoptionen ("high")
     bool m_selftestUiMode = false;
     QQuickWindow *m_window = nullptr;
+    bool m_forwardingWheel = false;
+    MediaKeys *m_mediaKeys = nullptr;
+    QElapsedTimer m_lastMediaKey;
+    QString m_mediaKeysTitle;
+    bool m_mediaKeysVideo = false;
+    void emitMediaKey(const QString &action);
+    void updateMediaKeys();
     QRect m_normalGeometry;          // letzte Geometrie im Fenstermodus (ohne Maximiert/Vollbild)
     bool m_windowMaximized = false;
     QTimer m_geometryTimer;

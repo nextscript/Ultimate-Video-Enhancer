@@ -2277,6 +2277,22 @@
         <translation>Συνέχιση αναπαραγωγής από την τελευταία θέση</translation>
     </message>
     <message>
+        <source>MAUSRAD</source>
+        <translation>ΡΟΔΕΛΑ ΠΟΝΤΙΚΙΟΥ</translation>
+    </message>
+    <message>
+        <source>Scroll-Empfindlichkeit</source>
+        <translation>Ευαισθησία κύλισης</translation>
+    </message>
+    <message>
+        <source>Lautstärke pro Mausrad-Raste über dem Video (%)</source>
+        <translation>Ένταση ανά βήμα ροδέλας πάνω στο βίντεο (%)</translation>
+    </message>
+    <message>
+        <source>Die Empfindlichkeit gilt für Wiedergabeliste, Einstellungen, Plugin-Seiten und die Lautstärke über dem Video: unter 100 % scrollt das Rad langsamer, über 100 % schneller.</source>
+        <translation>Η ευαισθησία ισχύει για τη λίστα αναπαραγωγής, τις ρυθμίσεις, τις σελίδες πρόσθετων και την ένταση πάνω στο βίντεο: κάτω από 100 % η ροδέλα κυλά πιο αργά, πάνω από 100 % πιο γρήγορα.</translation>
+    </message>
+    <message>
         <source>Sprungweite Pfeiltasten (Sekunden)</source>
         <translation>Βήμα μετάβασης με τα βέλη (δευτερόλεπτα)</translation>
     </message>

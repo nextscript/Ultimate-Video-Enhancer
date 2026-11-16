@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.2.3 – 2026-11-16
+
+### Media keys
+- Play/Pause, Stop, Next and Previous media keys work – also when the player is in the background. UVE Player registers with the
+  Windows media controls (SystemMediaTransportControls): title and play state appear in the Windows media overlay, and its
+  buttons control the player. With the window active the keys are handled directly; a key press is only executed once.
+
+### Mouse wheel
+- *Settings → General → Mouse wheel*: scroll sensitivity from 25 % to 400 % (setting `wheelSensitivity`, default 100 %); the slider
+  moves freely and snaps to every 25 % mark when it comes close;
+  small tick marks under the slider show where the marks are. It applies
+  to the playlist, the settings, plugin pages and the volume wheel over the video.
+- Volume change per wheel notch over the video is adjustable from 1 to 25 % (setting `wheelVolumeStep`, default 5 %). Fine-grained
+  wheels and touchpads now add up to a full notch instead of changing the volume on every small step.
+
+### Playlist
+- Arrow keys select tracks while the playlist has the keyboard focus: ↑/↓ one entry, Page Up/Page Down one page, Home/End first/last
+  entry; with Shift the selection is extended. Enter plays the selected entry, Del removes it. The first key press starts at the
+  playing entry; the search filter is respected. ↓ in the search field jumps to the results.
+- A click on the video gives the arrow keys back to seeking and volume.
 ## 1.2.2 – 2026-11-15
 
 ### Gapless playback

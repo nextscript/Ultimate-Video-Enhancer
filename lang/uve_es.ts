@@ -2277,6 +2277,22 @@
         <translation>Reanudar la reproducción en la última posición</translation>
     </message>
     <message>
+        <source>MAUSRAD</source>
+        <translation>RUEDA DEL RATÓN</translation>
+    </message>
+    <message>
+        <source>Scroll-Empfindlichkeit</source>
+        <translation>Sensibilidad de desplazamiento</translation>
+    </message>
+    <message>
+        <source>Lautstärke pro Mausrad-Raste über dem Video (%)</source>
+        <translation>Volumen por paso de rueda sobre el vídeo (%)</translation>
+    </message>
+    <message>
+        <source>Die Empfindlichkeit gilt für Wiedergabeliste, Einstellungen, Plugin-Seiten und die Lautstärke über dem Video: unter 100 % scrollt das Rad langsamer, über 100 % schneller.</source>
+        <translation>La sensibilidad se aplica a la lista de reproducción, los ajustes, las páginas de complementos y el volumen sobre el vídeo: por debajo del 100 % la rueda desplaza más despacio, por encima del 100 % más rápido.</translation>
+    </message>
+    <message>
         <source>Sprungweite Pfeiltasten (Sekunden)</source>
         <translation>Salto con las teclas de flecha (segundos)</translation>
     </message>

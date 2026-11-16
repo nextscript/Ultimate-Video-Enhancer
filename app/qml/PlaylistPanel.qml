@@ -14,16 +14,45 @@ Item {
 
     property var selected: ({})       // Zeile → true
     property int anchorRow: -1
+    property int cursorRow: -1        // Zeile, auf der die Pfeiltasten stehen
     property string filter: ""
+    // Liste hat den Tastaturfokus: Pfeiltasten & Co. wählen Titel aus, statt zu spulen oder die Lautstärke zu ändern
+    readonly property bool keyboardActive: list.activeFocus
+    readonly property var navigationKeys: ["Up", "Down", "Shift+Up", "Shift+Down", "PgUp", "PgDown", "Home", "End",
+                                           "Shift+PgUp", "Shift+PgDown", "Shift+Home", "Shift+End", "Return", "Enter", "Del"]
 
     function selectedRows() { return Object.keys(selected).map(Number).sort((a, b) => a - b) }
-    function selectOnly(r) { var s = {}; s[r] = true; selected = s; anchorRow = r }
-    function toggle(r) { var s = Object.assign({}, selected); if (s[r]) delete s[r]; else s[r] = true; selected = s; anchorRow = r }
+    function selectOnly(r) { var s = {}; s[r] = true; selected = s; anchorRow = r; cursorRow = r }
+    function toggle(r) { var s = Object.assign({}, selected); if (s[r]) delete s[r]; else s[r] = true; selected = s; anchorRow = r; cursorRow = r }
     function selectRange(r) {
         if (anchorRow < 0) return selectOnly(r)
-        var s = {}; for (var i = Math.min(anchorRow, r); i <= Math.max(anchorRow, r); ++i) s[i] = true; selected = s
+        var s = {}
+        for (var i = Math.min(anchorRow, r); i <= Math.max(anchorRow, r); ++i) if (rowMatches(i)) s[i] = true
+        selected = s; cursorRow = r
     }
-    function clearSelection() { selected = ({}); anchorRow = -1 }
+    function clearSelection() { selected = ({}); anchorRow = -1; cursorRow = -1 }
+    function rowMatches(i) { return filter.length === 0 || playlist.titleAt(i).toLowerCase().indexOf(filter) >= 0 }
+    // Tastaturauswahl: delta in sichtbaren Zeilen (±1, ±Seite, ±Infinity = Anfang/Ende), extend = mit Umschalt erweitern
+    function moveCursor(delta, extend) {
+        var vis = []
+        for (var i = 0; i < playlist.count; ++i) if (rowMatches(i)) vis.push(i)
+        if (!vis.length) return
+        var from = cursorRow
+        var pos = vis.indexOf(from)
+        var target
+        // Noch keine Tastaturauswahl: beim laufenden Titel beginnen (sonst am Anfang bzw. Ende)
+        if (pos < 0) target = vis.indexOf(playlist.currentIndex) >= 0 && isFinite(delta) ? playlist.currentIndex
+                            : (delta > 0 ? vis[0] : vis[vis.length - 1])
+        else target = vis[Math.max(0, Math.min(vis.length - 1, pos + (isFinite(delta) ? delta : (delta > 0 ? vis.length : -vis.length))))]
+        if (extend) {
+            if (anchorRow < 0) anchorRow = pos >= 0 ? from : target
+            selectRange(target)
+        } else {
+            selectOnly(target)
+        }
+        list.positionViewAtIndex(target, ListView.Contain)
+    }
+    function pageRows() { return Math.max(1, Math.floor(list.height / 30) - 1) }
     // Fensterkoordinaten der Zeilenmitte (für den UI-Selbsttest)
     function rowCenter(i) {
         list.positionViewAtIndex(i, ListView.Contain)
@@ -49,6 +78,8 @@ Item {
             Layout.leftMargin: 8; Layout.rightMargin: 8
             placeholderText: qsTr("Suchen…")
             onTextChanged: root.filter = text.toLowerCase()
+            // Pfeil runter im Suchfeld: zu den Treffern wechseln
+            Keys.onDownPressed: { list.forceActiveFocus(); root.moveCursor(1, false) }
         }
         ListView {
             id: list
@@ -56,7 +87,7 @@ Item {
             Layout.fillHeight: true
             clip: true
             model: root.playlist
-            focus: true
+            activeFocusOnTab: true
             keyNavigationEnabled: false
             ScrollBar.vertical: ScrollBar {}
             delegate: Rectangle {
@@ -130,8 +161,17 @@ Item {
                 onClicked: { root.clearSelection(); itemMenu.popup() }
             }
             Keys.onPressed: (e) => {
-                if (e.key === Qt.Key_Delete && root.selectedRows().length) { playlist.remove(root.selectedRows()); e.accepted = true }
-                else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && root.selectedRows().length) { app.playIndex(root.selectedRows()[0]); e.accepted = true }
+                var ext = (e.modifiers & Qt.ShiftModifier) !== 0
+                var plain = !(e.modifiers & (Qt.ControlModifier | Qt.AltModifier))
+                if (plain && e.key === Qt.Key_Up) { root.moveCursor(-1, ext); e.accepted = true }
+                else if (plain && e.key === Qt.Key_Down) { root.moveCursor(1, ext); e.accepted = true }
+                else if (plain && e.key === Qt.Key_PageUp) { root.moveCursor(-root.pageRows(), ext); e.accepted = true }
+                else if (plain && e.key === Qt.Key_PageDown) { root.moveCursor(root.pageRows(), ext); e.accepted = true }
+                else if (plain && e.key === Qt.Key_Home) { root.moveCursor(-Infinity, ext); e.accepted = true }
+                else if (plain && e.key === Qt.Key_End) { root.moveCursor(Infinity, ext); e.accepted = true }
+                else if (e.key === Qt.Key_Delete && root.selectedRows().length) { playlist.remove(root.selectedRows()); e.accepted = true }
+                else if ((e.key === Qt.Key_Return || e.key === Qt.Key_Enter) && root.selectedRows().length) {
+                    app.playIndex(root.selected[root.cursorRow] ? root.cursorRow : root.selectedRows()[0]); e.accepted = true }
                 else if (e.key === Qt.Key_A && (e.modifiers & Qt.ControlModifier)) { var s = {}; for (var i = 0; i < playlist.count; ++i) s[i] = true; root.selected = s; e.accepted = true }
                 else if ((e.modifiers & Qt.AltModifier) && e.key === Qt.Key_Up) { root.moveSel("up"); e.accepted = true }
                 else if ((e.modifiers & Qt.AltModifier) && e.key === Qt.Key_Down) { root.moveSel("down"); e.accepted = true }

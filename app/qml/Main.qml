@@ -172,6 +172,7 @@ ApplicationWindow {
                 enabled: modelData.shortcut !== "" && win.modalCount === 0
                          && !(win.textEditing && modelData.shortcut.indexOf("Ctrl") < 0 && modelData.shortcut.indexOf("Alt") < 0)
                          && !(app.disc.menuActive && win.discMenuKeys.indexOf(modelData.shortcut) >= 0)
+                         && !(playlistPanel.keyboardActive && playlistPanel.navigationKeys.indexOf(modelData.shortcut) >= 0)
                 context: Qt.ApplicationShortcut
                 onActivated: win.act(modelData.id)
             }
@@ -546,7 +547,16 @@ ApplicationWindow {
                     if (player.state !== 0) clickTimer.restart()
                 }
                 onDoubleClicked: (m) => { if (m.button === Qt.LeftButton) { clickTimer.stop(); win.toggleFullscreen() } }
-                onWheel: (w) => win.setVolume(player.volume + (w.angleDelta.y > 0 ? 5 : -5))
+                // Lautstärkeschritt pro Raste (Einstellung wheelVolumeStep); feine Räder/Touchpads sammeln bis zu einer Raste (120)
+                property real wheelAccu: 0
+                onPressed: stageMouse.forceActiveFocus()   // Pfeiltasten wieder für Spulen/Lautstärke statt für die Wiedergabeliste
+                onWheel: (w) => {
+                    wheelAccu += w.angleDelta.y
+                    var notches = wheelAccu > 0 ? Math.floor(wheelAccu / 120) : Math.ceil(wheelAccu / 120)
+                    if (notches === 0) return
+                    wheelAccu -= notches * 120
+                    win.setVolume(player.volume + notches * app.setting("wheelVolumeStep", 5))
+                }
                 Timer {
                     id: clickTimer
                     interval: 230
@@ -970,6 +980,13 @@ ApplicationWindow {
         function onOsd(text, ms) { win.osd(text, ms) }
         function onToolUpdatesAvailable(updates) { if (!aboutDialog.visible) updateCheck.enqueue(() => updateDialog.show(updates)) }
         function onRequestRaise() { win.raise(); win.requestActivate() }
+        // Medientasten (auch bei Player im Hintergrund, siehe MediaKeys)
+        function onMediaKey(action) {
+            if (action === "play.play") { if (player.state === 0 || player.paused) win.act("play.toggle") }
+            else if (action === "play.pause") { if (player.state !== 0 && !player.paused) player.togglePause() }
+            else if (action === "play.toggle" && player.state === 0 && playlist.count === 0) return   // kein Dateidialog aus dem Hintergrund
+            else win.act(action)
+        }
         function onPluginPanelRequested(key) {
             win.showPanel(key, false)
         }

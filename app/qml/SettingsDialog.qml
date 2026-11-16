@@ -105,6 +105,47 @@ Dialog {
                 CheckBox { text: qsTr("Beim Start nach Updates für UVE Player suchen (Netzwerkzugriff auf GitHub)"); checked: app.setting("checkPlayerUpdates", true); onToggled: app.setSetting("checkPlayerUpdates", checked) }
                 CheckBox { text: qsTr("Beim Start nach Updates für yt-dlp und libmpv suchen (Netzwerkzugriff auf GitHub)"); checked: app.setting("checkToolUpdates", true); onToggled: app.setSetting("checkToolUpdates", checked) }
                 Button { text: qsTr("Jetzt nach Updates suchen"); enabled: !app.updater.busy && !app.appUpdater.busy; onClicked: dlg.checkUpdatesRequested() }
+                SectionLabel { text: qsTr("MAUSRAD") }
+                Row2 {
+                    Label { text: qsTr("Scroll-Empfindlichkeit"); color: theme.text; Layout.fillWidth: true }
+                    Slider {
+                        id: wheelSens
+                        objectName: "wheelSensitivitySlider"
+                        Layout.preferredWidth: 220
+                        from: 25; to: 400; stepSize: 1
+                        value: app.setting("wheelSensitivity", 100)
+                        // Frei verschiebbar, rastet aber in der Nähe jeder 25-%-Marke ein
+                        onMoved: {
+                            var v = Math.round(value), mark = Math.round(v / 25) * 25
+                            if (Math.abs(v - mark) <= 5) v = mark
+                            if (value !== v) value = v
+                            app.setSetting("wheelSensitivity", v)
+                        }
+                        // Markierungen der Raststellen (alle 25 %), 100 % etwas länger
+                        Repeater {
+                            model: Math.round((wheelSens.to - wheelSens.from) / 25) + 1
+                            Rectangle {
+                                required property int index
+                                readonly property int mark: wheelSens.from + index * 25
+                                readonly property real span: wheelSens.availableWidth - (wheelSens.handle ? wheelSens.handle.width : 0)
+                                x: wheelSens.leftPadding + (wheelSens.handle ? wheelSens.handle.width / 2 : 0)
+                                   + (mark - wheelSens.from) / (wheelSens.to - wheelSens.from) * span - width / 2
+                                y: wheelSens.topPadding + wheelSens.availableHeight / 2 + 5
+                                width: 1
+                                height: mark === 100 ? 7 : 4
+                                color: Math.round(wheelSens.value) === mark ? theme.accent : theme.muted
+                            }
+                        }
+                    }
+                    Label { text: Math.round(wheelSens.value) + " %"; color: theme.text; font.family: "Consolas"; Layout.preferredWidth: 50 }
+                    Button { text: "↺"; Layout.preferredWidth: 36; enabled: Math.round(wheelSens.value) !== 100; onClicked: { wheelSens.value = 100; app.setSetting("wheelSensitivity", 100) } }
+                }
+                Row2 { Label { text: qsTr("Lautstärke pro Mausrad-Raste über dem Video (%)"); color: theme.text; Layout.fillWidth: true }
+                    SpinBox { from: 1; to: 25; value: app.setting("wheelVolumeStep", 5); editable: true; onValueModified: app.setSetting("wheelVolumeStep", value) } }
+                Label {
+                    Layout.fillWidth: true; wrapMode: Text.Wrap; color: theme.muted; font.pixelSize: 11
+                    text: qsTr("Die Empfindlichkeit gilt für Wiedergabeliste, Einstellungen, Plugin-Seiten und die Lautstärke über dem Video: unter 100 % scrollt das Rad langsamer, über 100 % schneller.")
+                }
                 Item { Layout.fillHeight: true }
             }
             // Wiedergabe

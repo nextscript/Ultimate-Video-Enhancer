@@ -1,4 +1,5 @@
 #include "PlayerApp.h"
+#include "MediaKeys.h"
 
 #include "core/AppSettings.h"
 #include "core/Logger.h"
@@ -34,6 +35,8 @@
 #include <QImage>
 #include <QJsonObject>
 #include <QMouseEvent>
+#include <QWheelEvent>
+#include <QKeyEvent>
 #include <algorithm>
 #include <QProcess>
 #include <QQuickWindow>
@@ -62,6 +65,15 @@ PlayerApp::PlayerApp(AppSettings *settings, SafeMode *safe, const QString &mpvLi
                                   QCoreApplication::applicationDirPath(), m_settings->dataDir(), this);
     connect(m_appUpdater, &AppUpdater::quitRequested, qApp, &QCoreApplication::quit, Qt::QueuedConnection);
     connect(m_appUpdater, &AppUpdater::restartRequested, this, &PlayerApp::restartApp, Qt::QueuedConnection);
+
+    m_mediaKeys = new MediaKeys(this);
+    connect(m_mediaKeys, &MediaKeys::pressed, this, &PlayerApp::emitMediaKey);
+    connect(m_player, &MpvController::stateChanged, this, &PlayerApp::updateMediaKeys);
+    connect(m_player, &MpvController::pausedChanged, this, &PlayerApp::updateMediaKeys);
+    connect(m_player, &MpvController::mediaTitleChanged, this, &PlayerApp::updateMediaKeys);
+    connect(m_player, &MpvController::tracksChanged, this, &PlayerApp::updateMediaKeys);
+    connect(m_playlist, &PlaylistModel::currentIndexChanged, this, &PlayerApp::updateMediaKeys);
+    connect(m_playlist, &PlaylistModel::countChanged, this, &PlayerApp::updateMediaKeys);
 
     m_playlist->setRepeat(m_settings->value("repeat").toString());
     m_playlist->setShuffle(m_settings->value("shuffle").toBool());
@@ -1041,6 +1053,9 @@ void PlayerApp::setWindow(QQuickWindow *w)
 {
     m_window = w;
     if (!w) return;
+    w->installEventFilter(this);
+    if (m_mediaKeys->attach(w->winId())) Logger::write("app", "Medientasten: Windows-Mediensteuerung aktiv");
+    else Logger::write("app", "Medientasten: Windows-Mediensteuerung nicht verfügbar (" + m_mediaKeys->lastError() + "), nur bei aktivem Fenster");
     // Gespeicherte Geometrie nur übernehmen, wenn die Titelleiste auf einem vorhandenen Bildschirm liegt
     const QJsonObject g = m_settings->object(QStringLiteral("window"));
     const QRect r(g.value("x").toInt(), g.value("y").toInt(), g.value("width").toInt(), g.value("height").toInt());
@@ -1291,6 +1306,75 @@ void PlayerApp::simulateMove(qreal x, qreal y)
     const QPointF local(x, y);
     QMouseEvent e(QEvent::MouseMove, local, local, m_window->mapToGlobal(local), Qt::NoButton, Qt::NoButton, Qt::NoModifier);
     QCoreApplication::sendEvent(m_window, &e);
+}
+
+void PlayerApp::simulateWheel(qreal x, qreal y, int angleDeltaY)
+{
+    if (!m_window) return;
+    const QPointF local(x, y);
+    QWheelEvent e(local, m_window->mapToGlobal(local), QPoint(), QPoint(0, angleDeltaY), Qt::NoButton, Qt::NoModifier,
+                  Qt::NoScrollPhase, false);
+    QCoreApplication::sendEvent(m_window, &e);
+}
+
+void PlayerApp::emitMediaKey(const QString &action)
+{
+    // Eine Tastenbetätigung kann mehrfach ankommen (Tastenereignis, WM_APPCOMMAND, Windows-Mediensteuerung) → nur einmal ausführen
+    if (m_lastMediaKey.isValid() && m_lastMediaKey.elapsed() < 300) return;
+    m_lastMediaKey.start();
+    Logger::write("app", "Medientaste: " + action);
+    emit mediaKey(action);
+}
+
+void PlayerApp::updateMediaKeys()
+{
+    if (!m_mediaKeys->available()) return;
+    using S = MediaKeys::Status;
+    switch (m_player->state()) {
+    case MpvController::Idle: m_mediaKeys->setStatus(m_playlist->count() > 0 ? S::Stopped : S::Closed); break;
+    case MpvController::Ended:
+    case MpvController::Error: m_mediaKeys->setStatus(S::Stopped); break;
+    default: m_mediaKeys->setStatus(m_player->paused() ? S::Paused : S::Playing); break;
+    }
+    QString title = m_playlist->titleAt(m_playlist->currentIndex());
+    if (title.isEmpty()) title = m_player->mediaTitle();
+    if (title != m_mediaKeysTitle || m_player->hasVideo() != m_mediaKeysVideo) {
+        m_mediaKeysTitle = title;
+        m_mediaKeysVideo = m_player->hasVideo();
+        m_mediaKeys->setTitle(title.isEmpty() ? QStringLiteral("UVE Player") : title, QString(), m_mediaKeysVideo);
+    }
+}
+
+bool PlayerApp::eventFilter(QObject *watched, QEvent *event)
+{
+    if (event->type() == QEvent::KeyPress && watched == m_window) {
+        // Medientasten bei aktivem Fenster (Qt meldet sie als Tasten); im Hintergrund kommt dasselbe über MediaKeys
+        static const QHash<int, QString> keys{{Qt::Key_MediaTogglePlayPause, "play.toggle"}, {Qt::Key_MediaPlay, "play.play"},
+                                              {Qt::Key_MediaPause, "play.pause"}, {Qt::Key_MediaStop, "play.stop"},
+                                              {Qt::Key_MediaNext, "play.next"}, {Qt::Key_MediaPrevious, "play.prev"}};
+        const auto *k = static_cast<QKeyEvent *>(event);
+        const auto it = keys.constFind(k->key());
+        if (it != keys.cend()) {
+            if (!k->isAutoRepeat()) emitMediaKey(*it);
+            return true;
+        }
+    }
+    if (event->type() != QEvent::Wheel || m_forwardingWheel || watched != m_window) return QObject::eventFilter(watched, event);
+    const int percent = std::clamp(m_settings->value("wheelSensitivity", 100).toInt(), 25, 400);
+    if (percent == 100) return false;
+    // Gleiches Ereignis mit skalierten Werten weiterreichen; das Original wird verworfen
+    auto *w = static_cast<QWheelEvent *>(event);
+    const double f = percent / 100.0;
+    const QPoint angle(qRound(w->angleDelta().x() * f), qRound(w->angleDelta().y() * f));
+    const QPoint pixel(qRound(w->pixelDelta().x() * f), qRound(w->pixelDelta().y() * f));
+    QWheelEvent scaled(w->position(), w->globalPosition(), pixel, angle, w->buttons(), w->modifiers(), w->phase(), w->inverted(),
+                       w->source(), w->pointingDevice());
+    scaled.setTimestamp(w->timestamp());
+    m_forwardingWheel = true;
+    QCoreApplication::sendEvent(watched, &scaled);
+    m_forwardingWheel = false;
+    event->setAccepted(scaled.isAccepted());
+    return true;
 }
 
 void PlayerApp::simulateDrag(qreal x1, qreal y1, qreal x2, qreal y2)

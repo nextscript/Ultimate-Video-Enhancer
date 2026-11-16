@@ -1,4 +1,4 @@
-# UVE Player 1.2.2
+# UVE Player 1.2.3
 ![GUI](player.png)
 Native media player for Windows built with **C++20, Qt 6, and libmpv** – featuring **Ultimate Video Enhancer** as a GPU effects plugin, network streaming (YouTube, Twitch, HLS, tcp://) with proxy support, and seven languages.
 
@@ -6,9 +6,9 @@ Native media player for Windows built with **C++20, Qt 6, and libmpv** – featu
 
 | File | Description |
 |---|---|
-| `UVE-Player-1.2.2-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
-| `UVE-Player-1.2.2-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
-| `UVE-Player-1.2.2-portable.zip` | Portable folder archive (data stored in `.\data`) |
+| `UVE-Player-1.2.3-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
+| `UVE-Player-1.2.3-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
+| `UVE-Player-1.2.3-portable.zip` | Portable folder archive (data stored in `.\data`) |
 | `SHA256SUMS.txt` | SHA-256 checksums |
 
 All versions include libmpv, yt-dlp, and 7zr – no additional software installation is required.
@@ -24,6 +24,8 @@ All versions include libmpv, yt-dlp, and 7zr – no additional software installa
 - **Network Streaming:** YouTube/Twitch (via yt-dlp, YouTube playlists start at the video given by `index=`), HTTP(S), HLS, DASH, TCP/UDP/RTMP/RTSP/SRT; automatic update checks for yt-dlp and libmpv.
 - **Optical media (1.1.8):** DVD-Video, unencrypted Blu-ray and audio CDs from a drive, plus DVD/Blu-ray ISO images and `VIDEO_TS`/`BDMV` folders (*File → Open disc…*). DVD/Blu-ray menus with keyboard and on-screen navigation where the bundled libmpv supports them (Windows build: DVD menus and Blu-ray HDMV menus; no BD-J); otherwise the main title plays. Encrypted Blu-rays are not supported. No physical drive was available for testing – see [TEST_REPORT](docs/TEST_REPORT.md#optical-media-118).
 - **Updates:** *Help → About UVE Player* checks for updates when it opens (like Chrome) and installs a release from there.
+- **Media keys (1.2.3):** Play/Pause, Stop, Next and Previous work even with the player in the background; title and state show in the Windows media overlay.
+- **Mouse wheel and keyboard (1.2.3):** adjustable scroll sensitivity (25–400 %) and volume step per wheel notch in *Settings → General*; the arrow keys select tracks in the playlist (Shift extends the selection, Enter plays).
 - **Gapless playback (1.2.2):** the next playlist entry is opened in advance, so tracks follow each other without a pause (local files and plugins such as UVESpotify); the playing entry is highlighted in orange.
 - **Plugin playlists with titles and lengths (1.2.1):** plugins can add whole lists with names and durations and replace the current playlist (used by UVESpotify).
 - **Translated plugin descriptions (1.2.0):** plugins can provide their description in every player language; *Settings → Plugins* shows the one matching the selected language.

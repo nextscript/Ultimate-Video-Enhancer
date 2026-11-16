@@ -2277,6 +2277,22 @@
         <translation>Oynatmayı son konumdan sürdür</translation>
     </message>
     <message>
+        <source>MAUSRAD</source>
+        <translation>FARE TEKERLEĞİ</translation>
+    </message>
+    <message>
+        <source>Scroll-Empfindlichkeit</source>
+        <translation>Kaydırma hassasiyeti</translation>
+    </message>
+    <message>
+        <source>Lautstärke pro Mausrad-Raste über dem Video (%)</source>
+        <translation>Video üzerinde tekerlek adımı başına ses (%)</translation>
+    </message>
+    <message>
+        <source>Die Empfindlichkeit gilt für Wiedergabeliste, Einstellungen, Plugin-Seiten und die Lautstärke über dem Video: unter 100 % scrollt das Rad langsamer, über 100 % schneller.</source>
+        <translation>Hassasiyet çalma listesi, ayarlar, eklenti sayfaları ve video üzerindeki ses için geçerlidir: 100 % altında tekerlek daha yavaş, 100 % üstünde daha hızlı kaydırır.</translation>
+    </message>
+    <message>
         <source>Sprungweite Pfeiltasten (Sekunden)</source>
         <translation>Ok tuşlarıyla atlama adımı (saniye)</translation>
     </message>
