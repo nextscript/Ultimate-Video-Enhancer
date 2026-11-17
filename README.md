@@ -7,7 +7,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 |---|---|---|---|
 | **GLSL Manager** | 1.0.1 | GPU effect | Runs the GLSL "Custom Filter Codes" from the *Ultimate Video Enhancer* userscript as mpv shaders. Create, edit, test, reorder, import/export filters; auto-generated sliders for uniforms; also runs mpv hook shaders like Anime4K. Toggle all: `Ctrl+Alt+Shift+G`. |
 | **LumaScale** | 1.0.1 | GPU effect | AMD FidelityFX Super Resolution (EASU upscale + RCAS sharpen) applied to the luma plane, with all parameters in its own sidebar tab. |
-| **Twitch Chat** | 2.2.5 | Utility | Native Twitch chat in the sidebar (IRC over WebSocket). Twitch/BTTV/FFZ/7TV emotes (incl. animated & zero-width), emote picker, spell & grammar check (DE/EN), mentions, AutoMod, moderation. Auto-detects the channel. *Live on Twitch* window (📺): followed, popular, categories, search – click plays the channel and the chat follows. `Ctrl+Alt+T`. [Details](#twitch-chat) |
+| **Twitch Chat** | 2.2.6 | Utility | Native Twitch chat in the sidebar (IRC over WebSocket). Twitch/BTTV/FFZ/7TV emotes (incl. animated & zero-width), emote picker, spell & grammar check (DE/EN), mentions, AutoMod, moderation. Auto-detects the channel. *Live on Twitch* window (📺): followed, popular, categories, search – click plays the channel and the chat follows. `Ctrl+Alt+T`. [Details](#twitch-chat) |
 | **Kick Chat** | 1.3.2 | Utility | Same idea for kick.com: read without login, write with Kick OAuth. Kick + 7TV emotes, badges, replies, sub/gift events, pinned messages, viewer count, moderation, spell check. Auto-detects the channel. `Ctrl+Alt+K`. |
 | **UVETikTok** | 1.0.2 | Utility | Plays TikTok videos, TikTok LIVE streams and whole profiles as a playlist directly in the player – nothing is saved to disk. [Details](#uvetiktok) |
 | **UVESpotify** | 1.0.4 | Utility | Plays Spotify tracks, albums and playlists via the matching track on YouTube, without ads. Sign in to play your own playlists and liked songs. [Details](#uvespotify) |
@@ -27,7 +27,8 @@ Live on Twitch (since 2.2.2): the 📺 icon next to the viewer list (👥) opens
   same channel and the window closes.
 - Modern look with rounded cards; colours follow the player's light or dark theme. Hovering lifts the card and shows a ▶ button.
 - Search shows results while you type. Drag the grip in the bottom-right corner to resize the window; the size is remembered.
-- Two drop-down menus: ⇅ sort (*Recommended for you* or *Viewers (high → low)*, in every tab including the category list) and
+- Two drop-down menus: ⇅ sort (*Recommended for you* or *Viewers (high → low)*, in every tab including the category list, except
+  *Following*, which is always sorted by viewers) and
   🌐 language (all 35 languages Twitch can filter by, independent of the player language; not in *Following*, which always
   shows every followed channel that is live, and not for the category list itself). Both are remembered.
 - In *Categories*, *Recommended for you* puts your most-clicked categories first (by number of clicks, even ones outside
