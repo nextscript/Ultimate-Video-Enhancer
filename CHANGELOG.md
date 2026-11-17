@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.6 – 2026-11-17
+
+### Live rewind timeline
+- Fixed: the rewind timeline had gaps at both ends. It now spans exactly from the oldest moment that can still be selected
+  (left edge) to the live edge (right edge): while playing live it is completely filled, and after rewinding the fill starts
+  at the left edge and ends at the playback position, with the LIVE badge at the end.
+
 ## 1.2.5 – 2026-11-17
 
 ### Rewinding live streams on the timeline

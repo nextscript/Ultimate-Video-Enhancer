@@ -2,20 +2,19 @@ import QtQuick
 
 // Präzise Seekbar: Hover-Zeitanzeige, Pufferstand, A-B-Markierung, Live-Anzeige.
 // Live-Streams mit Rückspul-Puffer (von einem Plugin gemeldet, app.liveRewind, seit 1.2.5): die Leiste
-// zeigt den Puffer (links = ältester Moment, rechts = jetzt), Klicken/Ziehen springt zurück, und nach dem
-// Zurückspulen erscheint am Ende ein LIVE-Badge, das zurück zu Live springt.
+// reicht vom ältesten erreichbaren Moment (links) bis Live (rechts, bei Live ganz gefüllt), Klicken/Ziehen
+// springt zurück, und nach dem Zurückspulen erscheint am Ende ein LIVE-Badge, das zurück zu Live springt.
 Item {
     id: bar
     property var player
     property var theme
     readonly property var rw: typeof app !== "undefined" && app ? app.liveRewind : null
-    readonly property bool rewind: !!rw && rw.active === true && rw.window > 0
+    readonly property bool rewind: !!rw && rw.active === true && rw.limit > 0
     readonly property bool live: player && player.duration <= 0 && player.state !== 0
     readonly property bool atLive: !rewind || rw.atLive === true
     readonly property real fraction: player && player.duration > 0 ? Math.min(1, player.position / player.duration) : 0
-    // Rückspul-Modus: kleinster erreichbarer Anteil und aktuelle Stelle
-    readonly property real minFrac: rewind ? Math.max(0, 1 - rw.limit / rw.window) : 0
-    readonly property real rewindFrac: rewind ? Math.max(0, Math.min(1, 1 - rw.behind / rw.window)) : 1
+    // Rückspul-Modus: 0 = ältester erreichbarer Moment (limit), 1 = Live
+    readonly property real rewindFrac: !rewind || atLive ? 1 : Math.max(0, Math.min(1, 1 - rw.behind / rw.limit))
     readonly property real shownFrac: dragFraction >= 0 ? dragFraction : rewind ? rewindFrac : fraction
     readonly property color liveColor: "#eb0400"
     property real dragFraction: -1
@@ -26,7 +25,7 @@ Item {
         var m = Math.floor(s / 60)
         return "−" + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60)
     }
-    function behindAt(f) { return rewind ? (1 - f) * rw.window : 0 }
+    function behindAt(f) { return rewind ? (1 - f) * rw.limit : 0 }
 
     Rectangle {
         id: track
@@ -35,18 +34,15 @@ Item {
         height: mouse.containsMouse || mouse.pressed ? 6 : 4
         radius: height / 2
         color: theme.line
-        Rectangle {   // Pufferstand (Datei) bzw. nicht mehr erreichbarer Anfang (Rückspul-Puffer)
-            visible: !bar.rewind || bar.minFrac > 0
-            width: bar.rewind ? parent.width * bar.minFrac
-                              : player && player.duration > 0 ? parent.width * Math.min(1, player.bufferedUntil / player.duration) : 0
+        Rectangle {   // Pufferstand (nur Dateien)
+            visible: !bar.rewind
+            width: player && player.duration > 0 ? parent.width * Math.min(1, player.bufferedUntil / player.duration) : 0
             height: parent.height; radius: parent.radius
-            color: bar.rewind ? Qt.rgba(0, 0, 0, 0.3) : theme.dark ? "#3a414d" : "#bfc4cc"
+            color: theme.dark ? "#3a414d" : "#bfc4cc"
         }
         Rectangle {
             objectName: "seekFill"
-            x: bar.rewind ? parent.width * bar.minFrac : 0
-            width: bar.rewind ? Math.max(0, parent.width * (bar.shownFrac - bar.minFrac))
-                   : bar.live ? parent.width : parent.width * bar.shownFrac
+            width: bar.live && !bar.rewind ? parent.width : parent.width * bar.shownFrac
             height: parent.height; radius: parent.radius
             color: theme.accent
         }
@@ -85,7 +81,7 @@ Item {
         hoverEnabled: true
         enabled: bar.rewind ? !bar.rw.busy : (!bar.live && player && player.seekable)
         cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-        function frac(x) { return Math.max(bar.rewind ? bar.minFrac : 0, Math.min(1, x / track.width)) }
+        function frac(x) { return Math.max(0, Math.min(1, x / track.width)) }
         onPressed: (e) => bar.dragFraction = frac(e.x)
         onPositionChanged: (e) => { if (pressed) bar.dragFraction = frac(e.x) }
         onReleased: (e) => {
