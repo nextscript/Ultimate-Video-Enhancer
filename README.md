@@ -7,7 +7,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 |---|---|---|---|
 | **GLSL Manager** | 1.0.1 | GPU effect | Runs the GLSL "Custom Filter Codes" from the *Ultimate Video Enhancer* userscript as mpv shaders. Create, edit, test, reorder, import/export filters; auto-generated sliders for uniforms; also runs mpv hook shaders like Anime4K. Toggle all: `Ctrl+Alt+Shift+G`. |
 | **LumaScale** | 1.0.1 | GPU effect | AMD FidelityFX Super Resolution (EASU upscale + RCAS sharpen) applied to the luma plane, with all parameters in its own sidebar tab. |
-| **Twitch Chat** | 2.2.6 | Utility | Native Twitch chat in the sidebar (IRC over WebSocket). Twitch/BTTV/FFZ/7TV emotes (incl. animated & zero-width), emote picker, spell & grammar check (DE/EN), mentions, AutoMod, moderation. Auto-detects the channel. *Live on Twitch* window (📺): followed, popular, categories, search – click plays the channel and the chat follows. `Ctrl+Alt+T`. [Details](#twitch-chat) |
+| **Twitch Chat** | 2.2.7 | Utility | Native Twitch chat in the sidebar (IRC over WebSocket): see everything without login, sign in only to write. Twitch/BTTV/FFZ/7TV emotes (incl. animated & zero-width), emote picker, spell & grammar check (DE/EN), mentions, AutoMod, moderation. Auto-detects the channel. *Live on Twitch* window (📺): followed, popular, categories, search – click plays the channel and the chat follows. `Ctrl+Alt+T`. [Details](#twitch-chat) |
 | **Kick Chat** | 1.3.2 | Utility | Same idea for kick.com: read without login, write with Kick OAuth. Kick + 7TV emotes, badges, replies, sub/gift events, pinned messages, viewer count, moderation, spell check. Auto-detects the channel. `Ctrl+Alt+K`. |
 | **UVETikTok** | 1.0.2 | Utility | Plays TikTok videos, TikTok LIVE streams and whole profiles as a playlist directly in the player – nothing is saved to disk. [Details](#uvetiktok) |
 | **UVESpotify** | 1.0.4 | Utility | Plays Spotify tracks, albums and playlists via the matching track on YouTube, without ads. Sign in to play your own playlists and liked songs. [Details](#uvespotify) |
@@ -15,6 +15,12 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **UVESponsorSkip** | 1.0.2 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
 
 ## Twitch Chat
+
+Without login (since 2.2.7) you see everything: chat, emotes, badges, sub/raid/bits/bot notices, pinned message, polls and
+predictions, viewer count, account age in the user menu, and moderator actions – *message from X deleted*, *X timed out for
+10 min*, *X banned*, *chat cleared*. Affected messages stay readable: struck through in a grey box labelled *deleted*,
+*Timeout* or *banned*. Signing in is only needed to write and for account-bound things (sending, whispers, subscriber emotes,
+*Following*, blocking, moderating). AutoMod boxes and new followers are only sent by Twitch to moderators and the streamer.
 
 Live on Twitch (since 2.2.2): the 📺 icon next to the viewer list (👥) opens a window over the picture (UVE Player ≥ 1.1.3).
 
