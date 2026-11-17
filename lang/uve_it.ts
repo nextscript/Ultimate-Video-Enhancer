@@ -2171,6 +2171,13 @@
     </message>
 </context>
 <context>
+    <name>SeekBar</name>
+    <message>
+        <source>Zurückspulen bis %1</source>
+        <translation>Riavvolgi fino a %1</translation>
+    </message>
+</context>
+<context>
     <name>SettingsDialog</name>
     <message>
         <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>

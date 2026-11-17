@@ -1,9 +1,10 @@
 import QtQuick
 
 // Präzise Seekbar: Hover-Zeitanzeige, Pufferstand, A-B-Markierung, Live-Anzeige.
-// Live-Streams mit Rückspul-Puffer (von einem Plugin gemeldet, app.liveRewind, seit 1.2.5): die Leiste
-// reicht vom ältesten erreichbaren Moment (links) bis Live (rechts, bei Live ganz gefüllt), Klicken/Ziehen
-// springt zurück, und nach dem Zurückspulen erscheint am Ende ein LIVE-Badge, das zurück zu Live springt.
+// Live-Streams mit Rückspul-Puffer (von einem Plugin gemeldet, app.liveRewind, seit 1.2.5): wie im Web-Player
+// reicht die Leiste vom Beginn des Zuschauens (links, rw.window) bis Live (rechts). Was davon nicht mehr im
+// Puffer ist (älter als rw.limit), ist schraffiert und mit einer orangen Linie „bis hier zurückspulen“ markiert
+// (seit 1.2.7). Klicken/Ziehen springt zurück; nach dem Zurückspulen erscheint am Ende ein LIVE-Badge.
 Item {
     id: bar
     property var player
@@ -13,10 +14,14 @@ Item {
     readonly property bool live: player && player.duration <= 0 && player.state !== 0
     readonly property bool atLive: !rewind || rw.atLive === true
     readonly property real fraction: player && player.duration > 0 ? Math.min(1, player.position / player.duration) : 0
-    // Rückspul-Modus: 0 = ältester erreichbarer Moment (limit), 1 = Live
-    readonly property real rewindFrac: !rewind || atLive ? 1 : Math.max(0, Math.min(1, 1 - rw.behind / rw.limit))
+    // Rückspul-Modus: 0 = Beginn des Zuschauens, 1 = Live; links von minFrac ist nichts mehr im Puffer
+    readonly property real span: rewind ? Math.max(rw.window, rw.limit) : 0
+    readonly property real minFrac: rewind ? Math.max(0, Math.min(1, 1 - rw.limit / span)) : 0
+    readonly property real rewindFrac: !rewind || atLive ? 1 : Math.max(minFrac, Math.min(1, 1 - rw.behind / span))
     readonly property real shownFrac: dragFraction >= 0 ? dragFraction : rewind ? rewindFrac : fraction
+    readonly property bool limitShown: rewind && track.width * minFrac >= 1
     readonly property color liveColor: "#eb0400"
+    readonly property color limitColor: "#f59e0b"
     property real dragFraction: -1
     implicitHeight: 20
 
@@ -25,7 +30,7 @@ Item {
         var m = Math.floor(s / 60)
         return "−" + m + ":" + (s % 60 < 10 ? "0" : "") + (s % 60)
     }
-    function behindAt(f) { return rewind ? (1 - f) * rw.limit : 0 }
+    function behindAt(f) { return rewind ? (1 - Math.max(f, minFrac)) * span : 0 }
 
     Rectangle {
         id: track
@@ -47,6 +52,39 @@ Item {
             color: theme.accent
         }
     }
+    // Rückspul-Grenze wie im Web-Player: schraffiert, was nicht mehr im Puffer ist, orange Linie = so weit zurück
+    Canvas {
+        id: limitShade
+        objectName: "seekLimitShade"
+        visible: bar.limitShown
+        anchors.verticalCenter: parent.verticalCenter
+        width: track.width * bar.minFrac
+        height: track.height + 4
+        onWidthChanged: requestPaint()
+        onHeightChanged: requestPaint()
+        onPaint: {
+            var ctx = getContext("2d")
+            ctx.reset()
+            ctx.fillStyle = theme.dark ? "rgba(15,23,42,0.75)" : "rgba(100,116,139,0.35)"
+            ctx.fillRect(0, 0, width, height)
+            ctx.strokeStyle = theme.dark ? "rgba(100,116,139,0.8)" : "rgba(51,65,85,0.55)"
+            ctx.lineWidth = 2
+            ctx.beginPath()
+            for (var x = -height; x < width + height; x += 6) {
+                ctx.moveTo(x, height)
+                ctx.lineTo(x + height, 0)
+            }
+            ctx.stroke()
+        }
+    }
+    Rectangle {
+        objectName: "seekLimitMark"
+        visible: bar.limitShown
+        x: track.width * bar.minFrac - 1
+        anchors.verticalCenter: parent.verticalCenter
+        width: 3; height: 14; radius: 2
+        color: bar.limitColor
+    }
     Rectangle {
         visible: (bar.rewind || !bar.live) && (mouse.containsMouse || mouse.pressed)
         x: track.width * bar.shownFrac - width / 2
@@ -66,8 +104,9 @@ Item {
             id: tipText
             anchors.centerIn: parent
             color: "white"; font.pixelSize: 12; font.family: "Consolas"
-            text: bar.rewind ? bar.fmtBehind(bar.behindAt(mouse.frac(mouse.mouseX)))
-                  : player && player.duration > 0 ? app.formatTime(Math.max(0, Math.min(1, mouse.mouseX / track.width)) * player.duration) : ""
+            text: !bar.rewind ? (player && player.duration > 0 ? app.formatTime(Math.max(0, Math.min(1, mouse.mouseX / track.width)) * player.duration) : "")
+                  : mouse.mouseX / track.width < bar.minFrac ? qsTr("Zurückspulen bis %1").arg(bar.fmtBehind(bar.rw.limit))
+                  : bar.fmtBehind(bar.behindAt(mouse.frac(mouse.mouseX)))
         }
     }
 
@@ -81,7 +120,7 @@ Item {
         hoverEnabled: true
         enabled: bar.rewind ? !bar.rw.busy : (!bar.live && player && player.seekable)
         cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-        function frac(x) { return Math.max(0, Math.min(1, x / track.width)) }
+        function frac(x) { return Math.max(bar.rewind ? bar.minFrac : 0, Math.min(1, x / track.width)) }
         onPressed: (e) => bar.dragFraction = frac(e.x)
         onPositionChanged: (e) => { if (pressed) bar.dragFraction = frac(e.x) }
         onReleased: (e) => {

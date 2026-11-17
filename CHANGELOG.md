@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.7 – 2026-11-17
+
+### Live rewind timeline shows how far back you can go
+- Like a web player, the rewind timeline now runs from the moment you started watching (left) to the live edge (right).
+  The part that is no longer in the rewind buffer is hatched and ends at an orange line that marks how far back you can
+  rewind; hovering over the hatched part shows the limit (*Rewind up to −m:ss*). Right after starting nothing is hatched –
+  the hatched part only grows once the buffer is full and its oldest moments are dropped.
+- Clicks and drags never land in the hatched part; they stop at the orange line.
+- For plugins: `seekbar.live` → `window` is now the length of the whole timeline, `limit` how far back the buffer still
+  reaches (see *docs/PLUGIN_API.md*). Plugins that send the buffer length as `window` look as before.
+
 ## 1.2.6 – 2026-11-17
 
 ### Live rewind timeline
