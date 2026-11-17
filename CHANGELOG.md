@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.2.5 – 2026-11-17
+
+### Rewinding live streams on the timeline
+- Live streams with a rewind buffer can now be rewound directly on the timeline: the bar shows the whole buffer (left = the
+  oldest moment still available, right = now), hovering shows how far behind live a point is (*−m:ss*), and clicking or
+  dragging jumps there. The part at the very left that is about to be dropped is shaded and cannot be selected.
+- After rewinding, a small red **LIVE** badge appears at the end of the timeline; clicking it jumps back to the live edge, and
+  the badge disappears again once playback is live.
+- Plugins provide the buffer with the new command `seekbar.live` and receive the jumps as the events `seekbar.seek` and
+  `seekbar.live` (see *docs/PLUGIN_API.md*). Normal live streams without a buffer behave as before.
+
 ## 1.2.4 – 2026-11-16
 
 ### Mouse wheel

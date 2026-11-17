@@ -69,6 +69,9 @@ class PlayerApp : public QObject
     Q_PROPERTY(QVariantList streamQualities READ streamQualities NOTIFY streamQualitiesChanged)
     Q_PROPERTY(QString streamQuality READ streamQuality NOTIFY streamQualitiesChanged)      // "" = beste (automatisch)
     Q_PROPERTY(bool streamQualitiesLoading READ streamQualitiesLoading NOTIFY streamQualitiesChanged)
+    // Zurückspulen im Live-Puffer, gemeldet von einem Plugin (Befehl "seekbar.live", seit 1.2.5):
+    // {active, window, limit, behind, atLive, busy} – leer, wenn für das laufende Medium nichts gemeldet ist
+    Q_PROPERTY(QVariantMap liveRewind READ liveRewind NOTIFY liveRewindChanged)
 
 public:
     PlayerApp(uve::AppSettings *settings, uve::SafeMode *safe, const QString &mpvLibrary, QObject *parent = nullptr);
@@ -181,6 +184,9 @@ public:
     QString streamQuality() const { return m_streamQuality; }
     bool streamQualitiesLoading() const { return m_formatProc != nullptr; }
     Q_INVOKABLE void setStreamQuality(const QString &id);       // "" = beste; lädt den Stream an der aktuellen Stelle neu
+    QVariantMap liveRewind() const;
+    Q_INVOKABLE void liveRewindSeek(double behindSeconds);     // Zeitleiste: auf „behindSeconds hinter Live“ springen
+    Q_INVOKABLE void liveRewindGoLive();                       // Zeitleiste: LIVE-Badge geklickt
 
 signals:
     void osd(const QString &text, int ms);
@@ -194,6 +200,7 @@ signals:
     void languageChanged();
     void proxyTestFinished(bool ok, const QString &message);
     void streamQualitiesChanged();
+    void liveRewindChanged();
     void pluginPanelRequested(const QString &panelKey);   // Plugin-Befehl "panel.open"
     void mediaKey(const QString &action);   // Medientaste: play.toggle | play.play | play.pause | play.stop | play.next | play.prev
 
@@ -240,6 +247,8 @@ private:
     QString m_proxyStatus;
     QString m_ytdlProxy;                                         // Proxy-URL für eigene yt-dlp-Aufrufe
     QVariantList m_streamQualities;
+    QVariantMap m_liveRewind;          // letzte Meldung "seekbar.live" (mit path)
+    QString m_liveRewindOwner;         // Plugin, das sie geschickt hat → bekommt die Sprünge
     QString m_streamQuality;
     bool m_streamQualityChosen = false;   // im Menü gewählt (auch "Beste"), nicht nur Voreinstellung
     // Adressauflösung durch ein Plugin (z. B. Twitch → tcp://): wartender Ladevorgang

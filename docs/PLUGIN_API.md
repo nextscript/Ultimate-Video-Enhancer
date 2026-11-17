@@ -163,6 +163,8 @@ signal `event(name, data)`.
 | `language.changed` | `code` |
 | `action.triggered` | `id` – menu entry or hotkey of this plugin |
 | `modal.closed` | `panel`, `result` (value of `modal.close(result)`, otherwise empty) – since 1.1.3 |
+| `seekbar.seek` | `behind` (seconds behind the live edge) – since 1.2.5, only to the plugin that last sent `seekbar.live`: the user clicked or dragged on the timeline |
+| `seekbar.live` | – since 1.2.5, only to that plugin: the user clicked the LIVE badge at the end of the timeline |
 | `app.quit` | – program exit |
 
 Ignore unknown events – later versions may send more.
@@ -190,6 +192,7 @@ Ignore unknown events – later versions may send more.
 | `playlist.items` | → `[{path, title, current}]` |
 | `playlist.play` | `index` |
 | `mpv.get` / `mpv.set` / `mpv.command` | `name` / `name`, `value` / `args` – direct mpv access for everything without its own command |
+| `seekbar.live` | `active`; with `active: true` also `window` (length of the rewind buffer in seconds), `limit` (how far back can be selected, ≤ `window`), `behind` (current distance to the live edge), `atLive`, `busy`, optional `path` (default: the loaded medium) – since 1.2.5: turns the timeline of a live stream into a rewind bar for that medium. The timeline sends `seekbar.seek` / `seekbar.live` back; send it again whenever the values change and `active: false` when the stream ends |
 | `video.filter.set` | `graph` – since 1.1.2: video filter with frame history (`atadenoise` or `hqdn3d` with numeric options, empty = remove), one owner at a time. Hardware decoding uses copy mode while it is active. Removed when the plugin is deactivated |
 | `video.filter.status` | → `active`, `graph`, `error`, `hwdec`, `dropped`, `fps` – since 1.1.2 |
 | `webview.available` | → `available`, `host`, `qt`, `engine` – since 1.0.7 in WebEngine builds: the player can show embedded web pages; panel QML may then `import QtWebEngine` (`WebEngineView`, `WebEngineProfile`) |

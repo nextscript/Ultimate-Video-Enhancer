@@ -315,6 +315,24 @@ void PlayerApp::registerPluginCommands()
 {
     using Args = QVariantMap;
     auto reg = [this](const char *name, PluginManager::Command fn) { m_plugins->registerCommand(QString::fromLatin1(name), std::move(fn)); };
+    // Zeitleiste für Live-Streams mit Rückspul-Puffer: ein Plugin meldet Puffer und Abstand,
+    // die Zeitleiste schickt Sprünge als Ereignis "seekbar.seek" {behind} bzw. "seekbar.live" an genau dieses Plugin
+    reg("seekbar.live", [this](const QString &id, const Args &a, QString *) {
+        if (!a.value("active").toBool()) {
+            if (m_liveRewindOwner == id) { m_liveRewind.clear(); m_liveRewindOwner.clear(); emit liveRewindChanged(); }
+            return QVariant(true);
+        }
+        QVariantMap m;
+        m.insert("active", true);
+        m.insert("path", a.value("path", m_loadedPath).toString());
+        m.insert("window", qMax(0.0, a.value("window").toDouble()));
+        m.insert("limit", qBound(0.0, a.value("limit").toDouble(), m.value("window").toDouble()));
+        m.insert("behind", qMax(0.0, a.value("behind").toDouble()));
+        m.insert("atLive", a.value("atLive").toBool());
+        m.insert("busy", a.value("busy").toBool());
+        if (m != m_liveRewind || m_liveRewindOwner != id) { m_liveRewind = m; m_liveRewindOwner = id; emit liveRewindChanged(); }
+        return QVariant(true);
+    });
     reg("player.state", [this](const QString &, const Args &, QString *) {
         return QVariant(QVariantMap{{"path", m_loadedPath}, {"source", m_sourcePath}, {"title", m_player->mediaTitle()},
                                     {"position", m_player->position()}, {"duration", m_player->duration()},
@@ -410,6 +428,26 @@ void PlayerApp::onMediaResolved(quint64 requestId, const QString &resolvedUrl, c
         return;
     }
     m_player->load(routeThroughProxy(resolvedUrl), r.start, r.paused, {});
+}
+
+QVariantMap PlayerApp::liveRewind() const
+{
+    if (m_liveRewind.isEmpty() || m_liveRewind.value("path").toString() != m_loadedPath) return {};
+    return m_liveRewind;
+}
+
+void PlayerApp::liveRewindSeek(double behindSeconds)
+{
+    if (!m_plugins || liveRewind().isEmpty()) return;
+    Logger::write("play", QStringLiteral("Zeitleiste: %1 s hinter Live").arg(qRound(behindSeconds)));
+    m_plugins->emitEvent(QStringLiteral("seekbar.seek"), {{"behind", qMax(0.0, behindSeconds)}}, m_liveRewindOwner);
+}
+
+void PlayerApp::liveRewindGoLive()
+{
+    if (!m_plugins || liveRewind().isEmpty()) return;
+    Logger::write("play", QStringLiteral("Zeitleiste: zurück zu Live"));
+    m_plugins->emitEvent(QStringLiteral("seekbar.live"), {}, m_liveRewindOwner);
 }
 
 void PlayerApp::prepareStreamQualities(const QString &path)
@@ -915,6 +953,7 @@ void PlayerApp::onFileLoaded()
     }
     if (m_plugins) {
         m_plugins->notifyMediaChanged(m_loadedPath);
+        if (!m_liveRewind.isEmpty()) emit liveRewindChanged();   // gilt nur für das gemeldete Medium
         m_plugins->emitEvent(QStringLiteral("media.loaded"), {{"path", m_loadedPath}, {"source", m_playlist->pathAt(i)},
                                                              {"title", m_player->mediaTitle()}, {"duration", m_player->duration()}});
     }
