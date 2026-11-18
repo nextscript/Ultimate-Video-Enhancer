@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.2.8 – 2026-11-18
+
+### Time display for live rewind
+- The time display next to the playback buttons now shows the played time for live streams with a rewind buffer, like a
+  web player: the position on the rewind timeline and its length up to the live edge (e.g. *14:52 / 15:00*), followed by
+  *● LIVE* while playing live. Before, it only showed *● LIVE* or the distance to the live edge.
+
 ## 1.2.7 – 2026-11-17
 
 ### Live rewind timeline shows how far back you can go

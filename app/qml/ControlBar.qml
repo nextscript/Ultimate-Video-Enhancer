@@ -121,12 +121,13 @@ Rectangle {
                 color: bar.overlay ? "#dddddd" : bar.theme.muted
                 text: {
                     if (!bar.player || bar.player.state === 0) return "00:00 / 00:00"
-                    // Live-Stream mit Rückspul-Puffer (seit 1.2.5): Abstand zum Live-Rand statt der mpv-Dauer
+                    // Live-Stream mit Rückspul-Puffer (seit 1.2.5): wie im Web-Player die abgespielte Stelle auf der
+                    // Zeitleiste (seit Beginn des Zuschauens) und deren Länge bis zum Live-Rand (seit 1.2.8)
                     const rw = app.liveRewind
                     if (rw && rw.active === true && rw.window > 0) {
-                        const live = qsTr("  ● LIVE").trim()
-                        if (rw.atLive === true) return live
-                        return "−" + app.formatTime(Math.max(0, Math.round(rw.behind))) + " / " + live
+                        const span = Math.max(rw.window, rw.limit)
+                        const text = app.formatTime(Math.max(0, span - rw.behind)) + " / " + app.formatTime(span)
+                        return rw.atLive === true ? text + qsTr("  ● LIVE") : text
                     }
                     if (bar.player.duration <= 0) return app.formatTime(bar.player.position) + qsTr("  ● LIVE")
                     return app.formatTime(bar.player.position) + " / " + app.formatTime(bar.player.duration)
