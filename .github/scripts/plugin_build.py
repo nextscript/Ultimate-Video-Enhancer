@@ -70,7 +70,13 @@ def resolve_ref(url, ref, what):
         return sha
     if f"refs/heads/{ref}" in refs:
         fail(f"{what} '{ref}' ist ein Zweig – bitte einen Tag oder einen Commit angeben (eindeutiger Quellstand)")
-    fail(f"{what}: Tag '{ref}' nicht gefunden")
+    hint = ""
+    m = re.match(r"^(.*?)\d+\.\d+\.\d+.*$", ref)
+    if m and m.group(1):   # vorhandene Tags desselben Musters nennen, z. B. glsl-manager-v1.0.2
+        tags = sorted({l.split("	")[1].removeprefix("refs/tags/").removesuffix("^{}")
+                       for l in git("ls-remote", "--tags", url, f"refs/tags/{m.group(1)}*").splitlines() if "	" in l})
+        hint = f" – vorhanden: {', '.join(tags)}" if tags else f" – es gibt noch keinen Tag {m.group(1)}…"
+    fail(f"{what}: Tag '{ref}' nicht gefunden{hint}. Version und Quellstand-Tag müssen zusammenpassen")
 
 
 def fetch_commit(url, sha, where):

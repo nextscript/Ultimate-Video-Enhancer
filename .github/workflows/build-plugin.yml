@@ -21,6 +21,7 @@ on:
       version:
         description: "Plugin-Version (wie in manifest.json, z. B. 1.0.2)"
         required: true
+        default: "1.0.2"
       source_ref:
         description: "Optional: Tag oder Commit des Plugin-Quellstands (Standard: Tag-Muster aus plugin-builds.json)"
         required: false
