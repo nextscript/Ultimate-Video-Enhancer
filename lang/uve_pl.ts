@@ -1814,6 +1814,18 @@
 <context>
     <name>PluginManifest</name>
     <message>
+        <source>Plattform oder Architektur &apos;%1&apos; wird von diesem Paket nicht unterstützt (enthält: %2)</source>
+        <translation>Platforma lub architektura &apos;%1&apos; nie jest obsługiwana przez ten pakiet (zawiera: %2)</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot;, &quot;libraries&quot; oder &quot;main&quot;</source>
+        <translation>manifest.json wymaga &quot;library&quot;, &quot;libraries&quot; lub &quot;main&quot;</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Manifest: &apos;%1&apos; (muss im Plugin-Ordner liegen)</source>
+        <translation>Nieprawidłowa ścieżka w manifeście: &apos;%1&apos; (musi być w folderze wtyczki)</translation>
+    </message>
+    <message>
         <source>Feld &apos;id&apos; fehlt</source>
         <translation>Brak pola &apos;id&apos;</translation>
     </message>
@@ -3379,6 +3391,14 @@
         <translation>Błąd shadera, etap wyłączony: </translation>
     </message>
     <message>
+        <source>manifest.json fehlt oder gehört zu einem anderen Plugin</source>
+        <translation>Brak manifest.json lub należy on do innej wtyczki</translation>
+    </message>
+    <message>
+        <source>Vorgemerktes Paket verworfen, bisherige Fassung bleibt: %1</source>
+        <translation>Oczekujący pakiet odrzucony, poprzednia wersja pozostaje: %1</translation>
+    </message>
+    <message>
         <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
         <translation>Instalacja nie powiodła się: folder %1 jest zablokowany</translation>
     </message>
@@ -3401,10 +3421,6 @@
     <message>
         <source>QML-Datei %1 fehlt</source>
         <translation>Brak pliku QML %1</translation>
-    </message>
-    <message>
-        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
-        <translation>manifest.json wymaga &quot;library&quot; lub &quot;main&quot;</translation>
     </message>
     <message>
         <source>Ungültiges URL-Muster: %1</source>

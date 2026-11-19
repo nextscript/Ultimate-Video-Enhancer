@@ -1814,6 +1814,18 @@
 <context>
     <name>PluginManifest</name>
     <message>
+        <source>Plattform oder Architektur &apos;%1&apos; wird von diesem Paket nicht unterstützt (enthält: %2)</source>
+        <translation>Platform or architecture &apos;%1&apos; is not supported by this package (contains: %2)</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot;, &quot;libraries&quot; oder &quot;main&quot;</source>
+        <translation>manifest.json needs &quot;library&quot;, &quot;libraries&quot; or &quot;main&quot;</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Manifest: &apos;%1&apos; (muss im Plugin-Ordner liegen)</source>
+        <translation>Invalid path in manifest: &apos;%1&apos; (must be inside the plugin folder)</translation>
+    </message>
+    <message>
         <source>Feld &apos;id&apos; fehlt</source>
         <translation>Field &apos;id&apos; is missing</translation>
     </message>
@@ -3379,6 +3391,14 @@
         <translation>Shader error, stage disabled: </translation>
     </message>
     <message>
+        <source>manifest.json fehlt oder gehört zu einem anderen Plugin</source>
+        <translation>manifest.json is missing or belongs to another plugin</translation>
+    </message>
+    <message>
+        <source>Vorgemerktes Paket verworfen, bisherige Fassung bleibt: %1</source>
+        <translation>Pending package discarded, the previous version stays: %1</translation>
+    </message>
+    <message>
         <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
         <translation>Installation failed: folder %1 is locked</translation>
     </message>
@@ -3401,10 +3421,6 @@
     <message>
         <source>QML-Datei %1 fehlt</source>
         <translation>QML file %1 is missing</translation>
-    </message>
-    <message>
-        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
-        <translation>manifest.json needs &quot;library&quot; or &quot;main&quot;</translation>
     </message>
     <message>
         <source>Ungültiges URL-Muster: %1</source>

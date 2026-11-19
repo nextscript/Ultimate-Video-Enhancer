@@ -1814,6 +1814,18 @@
 <context>
     <name>PluginManifest</name>
     <message>
+        <source>Plattform oder Architektur &apos;%1&apos; wird von diesem Paket nicht unterstützt (enthält: %2)</source>
+        <translation>&apos;%1&apos; platformu veya mimarisi bu paket tarafından desteklenmiyor (içerik: %2)</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot;, &quot;libraries&quot; oder &quot;main&quot;</source>
+        <translation>manifest.json için &quot;library&quot;, &quot;libraries&quot; veya &quot;main&quot; gerekli</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Manifest: &apos;%1&apos; (muss im Plugin-Ordner liegen)</source>
+        <translation>Manifestte geçersiz yol: &apos;%1&apos; (eklenti klasörünün içinde olmalı)</translation>
+    </message>
+    <message>
         <source>Feld &apos;id&apos; fehlt</source>
         <translation>&apos;id&apos; alanı eksik</translation>
     </message>
@@ -3379,6 +3391,14 @@
         <translation>Shader hatası, aşama devre dışı: </translation>
     </message>
     <message>
+        <source>manifest.json fehlt oder gehört zu einem anderen Plugin</source>
+        <translation>manifest.json eksik veya başka bir eklentiye ait</translation>
+    </message>
+    <message>
+        <source>Vorgemerktes Paket verworfen, bisherige Fassung bleibt: %1</source>
+        <translation>Bekleyen paket atıldı, önceki sürüm kalıyor: %1</translation>
+    </message>
+    <message>
         <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
         <translation>Yükleme başarısız: %1 klasörü kilitli</translation>
     </message>
@@ -3401,10 +3421,6 @@
     <message>
         <source>QML-Datei %1 fehlt</source>
         <translation>%1 QML dosyası eksik</translation>
-    </message>
-    <message>
-        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
-        <translation>manifest.json için &quot;library&quot; veya &quot;main&quot; gerekli</translation>
     </message>
     <message>
         <source>Ungültiges URL-Muster: %1</source>

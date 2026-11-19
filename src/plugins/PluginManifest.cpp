@@ -2,7 +2,9 @@
 
 #include <QCoreApplication>
 #include <QJsonArray>
+#include <QDir>
 #include <QRegularExpression>
+#include <QSysInfo>
 
 namespace uve {
 
@@ -40,13 +42,16 @@ PluginManifest PluginManifest::fromJson(const QJsonObject &o)
     m.configurationSchema = o.value("configurationSchema").toObject();
     m.library = o.value("library").toString();
     m.main = o.value("main").toString();
+    const QJsonObject libs = o.value("libraries").toObject();
+    for (auto it = libs.constBegin(); it != libs.constEnd(); ++it)
+        m.libraries.insert(it.key(), it.value().toString());
     m.contributes = o.value("contributes").toObject();
     return m;
 }
 
 QJsonObject PluginManifest::toJson() const
 {
-    return {
+    QJsonObject o{
         {"id", id}, {"name", name}, {"version", version}, {"apiVersion", apiVersion},
         {"minHostVersion", minHostVersion}, {"type", type}, {"entrypoint", entrypoint},
         {"description", description}, {"author", author}, {"license", license},
@@ -57,6 +62,12 @@ QJsonObject PluginManifest::toJson() const
         {"configurationSchema", configurationSchema},
         {"library", library}, {"main", main}, {"contributes", contributes},
     };
+    if (!libraries.isEmpty()) {
+        QJsonObject libs;
+        for (auto it = libraries.constBegin(); it != libraries.constEnd(); ++it) libs.insert(it.key(), it.value());
+        o.insert("libraries", libs);
+    }
+    return o;
 }
 
 QString localizedText(const QJsonValue &v, const QString &language)
@@ -94,6 +105,65 @@ QString currentPlatformId()
 #else
     return QStringLiteral("linux");
 #endif
+}
+
+QString targetKey(const QString &platform, const QString &qtCpuArchitecture)
+{
+    // Namen wie in den Paketen üblich: Windows "x64", Linux "x86_64"/"aarch64", macOS "arm64"/"x86_64"
+    QString arch = qtCpuArchitecture;
+    if (platform == QLatin1String("windows")) {
+        if (arch == QLatin1String("x86_64")) arch = QStringLiteral("x64");
+        else if (arch == QLatin1String("i386")) arch = QStringLiteral("x86");
+    } else if (platform == QLatin1String("linux")) {
+        if (arch == QLatin1String("arm64")) arch = QStringLiteral("aarch64");
+    }
+    return platform + QLatin1Char('-') + arch;
+}
+
+QString currentTargetKey()
+{
+    // buildCpuArchitecture: Architektur, für die der Player gebaut wurde = Architektur des laufenden Prozesses
+    return targetKey(currentPlatformId(), QSysInfo::buildCpuArchitecture());
+}
+
+bool isSafeRelativePath(const QString &path, QString *cleaned)
+{
+    const QString p = QString(path).replace(QLatin1Char('\\'),QLatin1Char('/'));
+    if (p.trimmed().isEmpty() || p.startsWith(QLatin1Char('/')) || p.contains(QLatin1Char(':')) || QDir::isAbsolutePath(p)) return false;
+    const QString c = QDir::cleanPath(p);
+    if (c == QLatin1String(".") || c == QLatin1String("..") || c.startsWith(QLatin1String("../"))) return false;
+    if (cleaned) *cleaned = c;
+    return true;
+}
+
+ModuleSelection selectModule(const PluginManifest &m, const QString &target)
+{
+    ModuleSelection s;
+    QString raw;
+    if (!m.libraries.isEmpty()) {
+        if (!m.libraries.contains(target)) {
+            s.error = QCoreApplication::translate("PluginManifest", "Plattform oder Architektur '%1' wird von diesem Paket nicht unterstützt (enthält: %2)")
+                          .arg(target, m.libraries.keys().join(", "));
+            return s;
+        }
+        s.kind = ModuleSelection::Library;
+        s.fromLibraries = true;
+        raw = m.libraries.value(target);
+    } else if (!m.library.isEmpty()) {
+        s.kind = ModuleSelection::Library;
+        raw = m.library;
+    } else if (!m.main.isEmpty()) {
+        s.kind = ModuleSelection::Qml;
+        raw = m.main;
+    } else {
+        s.error = QCoreApplication::translate("PluginManifest", "manifest.json braucht \"library\", \"libraries\" oder \"main\"");
+        return s;
+    }
+    if (!isSafeRelativePath(raw, &s.path)) {
+        s.error = QCoreApplication::translate("PluginManifest", "Ungültiger Pfad im Manifest: '%1' (muss im Plugin-Ordner liegen)").arg(raw);
+        s.path.clear();
+    }
+    return s;
 }
 
 ManifestCheck validateManifest(const PluginManifest &m, const QString &hostVersion, int hostApiVersion,

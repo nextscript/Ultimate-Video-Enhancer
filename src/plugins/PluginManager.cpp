@@ -47,6 +47,26 @@ QString pluginStateName(PluginState s)
 static const QLatin1String kPanelPlacements("pluginPanelPlacements");
 
 static QString pendingDir(const QString &userDir) { return QDir(userDir).filePath(QStringLiteral(".pending")); }
+// Ein neues Paket wird hier vollständig geschrieben und geprüft, erst dann nach .pending verschoben. Ein abgelehntes
+// Paket ersetzt so weder eine vorgemerkte noch die installierte Fassung.
+static QString stagingDir(const QString &userDir) { return QDir(userDir).filePath(QStringLiteral(".pending-staging")); }
+
+
+// Ausgewähltes Modul eines Plugin-Ordners prüfen. Erkennung, Installation und Austausch beim Start nutzen dieselbe
+// Auswahl (selectModule): Datei vorhanden, bei Bibliotheken passende Qt-Plugin-IID. *file = absoluter Pfad. Leer = ok.
+static QString checkFolderModule(const QString &folder, const PluginManifest &m, QString *file)
+{
+    const ModuleSelection sel = selectModule(m, currentTargetKey());
+    if (!sel.ok()) return sel.error;
+    const QString path = QDir(folder).filePath(sel.path);
+    if (file) *file = path;
+    if (sel.kind == ModuleSelection::Qml)
+        return QFileInfo(path).isFile() ? QString() : QCoreApplication::translate("uve::PluginManager", "QML-Datei %1 fehlt").arg(sel.path);
+    if (!QFileInfo(path).isFile()) return QCoreApplication::translate("uve::PluginManager", "Bibliothek %1 fehlt").arg(sel.path);
+    if (QPluginLoader(path).metaData().value("IID").toString() != QLatin1String(UVE_PLAYER_PLUGIN_IID))
+        return QCoreApplication::translate("uve::PluginManager", "%1 ist kein UVE-Player-Plugin").arg(sel.path);
+    return {};
+}
 
 PluginManager::PluginManager(AppSettings *settings, MpvController *mpv, ShaderChain *shaders,
                              const QStringList &searchDirs, bool safeMode, QObject *parent)
@@ -218,6 +238,22 @@ void PluginManager::applyPendingPackage(const QString &pendingFolder, const QStr
 {
     const QDir user(userPluginDir());
     const QString target = user.filePath(id);
+    // Vorgemerktes Paket noch einmal prüfen, bevor es die installierte Fassung ersetzt
+    {
+        QFile mf(QDir(pendingFolder).filePath(QStringLiteral("manifest.json")));
+        const PluginManifest m = mf.open(QIODevice::ReadOnly) ? PluginManifest::fromJson(QJsonDocument::fromJson(mf.readAll()).object()) : PluginManifest();
+        mf.close();
+        QString err = m.id != id ? tr("manifest.json fehlt oder gehört zu einem anderen Plugin") : checkFolderModule(pendingFolder, m, nullptr);
+        if (err.isEmpty()) {
+            const auto check = validateManifest(m, hostVersion(), kPluginApiVersion, currentPlatformId(), availableBackends());
+            if (!check.ok) err = check.errors.join(QStringLiteral("; "));
+        }
+        if (!err.isEmpty()) {
+            writeErrorLog(id, tr("Vorgemerktes Paket verworfen, bisherige Fassung bleibt: %1").arg(err));
+            QDir(pendingFolder).removeRecursively();
+            return;
+        }
+    }
     const QString backup = user.filePath(QStringLiteral(".pending-backup/") + id);
     QDir(backup).removeRecursively();
     QDir().mkpath(QFileInfo(backup).absolutePath());
@@ -301,19 +337,9 @@ void PluginManager::discoverIn(const QString &dir, QSet<QString> &seenIds)
             continue;
         }
         e.manifest = PluginManifest::fromJson(doc.object());
-        QString err;
-        if (!e.manifest.library.isEmpty()) {
-            e.file = QDir(e.folder).filePath(e.manifest.library);
-            if (!QFileInfo::exists(e.file)) err = tr("Bibliothek %1 fehlt").arg(e.manifest.library);
-            else if (QPluginLoader(e.file).metaData().value("IID").toString() != QLatin1String(UVE_PLAYER_PLUGIN_IID))
-                err = tr("%1 ist kein UVE-Player-Plugin").arg(e.manifest.library);
-        } else if (!e.manifest.main.isEmpty()) {
-            e.file = QDir(e.folder).filePath(e.manifest.main);
-            if (!QFileInfo::exists(e.file)) err = tr("QML-Datei %1 fehlt").arg(e.manifest.main);
-        } else {
-            e.file = mf;
-            err = tr("manifest.json braucht \"library\" oder \"main\"");
-        }
+        // "libraries" (Zielschlüssel → Bibliothek), sonst "library" oder "main" – dieselbe Auswahl wie beim Installieren
+        e.file = mf;
+        const QString err = checkFolderModule(e.folder, e.manifest, &e.file);
         if (!err.isEmpty()) {
             e.state = PluginState::Rejected;
             e.error = err;
@@ -951,22 +977,43 @@ QString PluginManager::installPackage(const QString &path, QVariantMap *info)
     const PluginManifest m = PluginManifest::fromJson(doc.object());
     const auto check = validateManifest(m, hostVersion(), kPluginApiVersion, currentPlatformId(), availableBackends());
     if (!check.ok) return check.errors.join(QStringLiteral("; "));
-    if (m.library.isEmpty() && m.main.isEmpty()) return tr("manifest.json braucht \"library\" oder \"main\"");
+    // Dieselbe Auswahl wie beim Laden: passendes Modul für dieses System, Pfad im Plugin-Ordner
+    const ModuleSelection sel = selectModule(m, currentTargetKey());
+    if (!sel.ok()) return sel.error;
 
-    // In den Vormerk-Ordner schreiben; beim nächsten Start wird er an seinen Platz verschoben
-    const QString target = QDir(pendingDir(userDir)).filePath(m.id);
-    QDir(target).removeRecursively();
+    // Alle Pfade prüfen, bevor etwas geschrieben wird
+    QHash<QString, QByteArray> content;   // bereinigter relativer Pfad → Inhalt
     for (auto it = files.constBegin(); it != files.constEnd(); ++it) {
         if (!it.key().startsWith(prefix)) continue;
-        const QString rel = QDir::cleanPath(it.key().mid(prefix.size()));
-        if (rel.isEmpty() || rel.startsWith(QLatin1String("..")) || QDir::isAbsolutePath(rel) || rel.contains(QLatin1Char(':')))
-            return tr("Ungültiger Pfad im Paket: %1").arg(it.key());
-        const QString out = QDir(target).filePath(rel);
+        QString rel;
+        if (!isSafeRelativePath(it.key().mid(prefix.size()), &rel)) return tr("Ungültiger Pfad im Paket: %1").arg(it.key());
+        content.insert(rel, it.value());
+    }
+    if (!content.contains(sel.path))
+        return sel.kind == ModuleSelection::Qml ? tr("QML-Datei %1 fehlt").arg(sel.path) : tr("Bibliothek %1 fehlt").arg(sel.path);
+
+    // Erst vollständig in einen Zwischenordner schreiben und prüfen, dann als vorgemerktes Paket übernehmen; beim
+    // nächsten Start wird es an seinen Platz verschoben. Bei einem Fehler bleibt alles Bisherige unberührt.
+    const QString staging = QDir(stagingDir(userDir)).filePath(m.id);
+    QDir(staging).removeRecursively();
+    const auto abort = [&](const QString &error) {
+        QDir(staging).removeRecursively();
+        QDir().rmdir(stagingDir(userDir));
+        return error;
+    };
+    for (auto it = content.constBegin(); it != content.constEnd(); ++it) {
+        const QString out = QDir(staging).filePath(it.key());
         QDir().mkpath(QFileInfo(out).absolutePath());
         QFile f(out);
         if (!f.open(QIODevice::WriteOnly) || f.write(it.value()) != it.value().size())
-            return tr("Schreiben fehlgeschlagen: %1").arg(out);
+            return abort(tr("Schreiben fehlgeschlagen: %1").arg(out));
     }
+    if (const QString err = checkFolderModule(staging, m, nullptr); !err.isEmpty()) return abort(err);
+    const QString target = QDir(pendingDir(userDir)).filePath(m.id);
+    QDir(target).removeRecursively();
+    QDir().mkpath(pendingDir(userDir));
+    if (!QDir().rename(staging, target)) return abort(tr("Schreiben fehlgeschlagen: %1").arg(target));
+    QDir().rmdir(stagingDir(userDir));
     Logger::write("plugin", QStringLiteral("Paket vorgemerkt: %1 %2 → %3").arg(m.id, m.version, target));
     if (removalPending(m.id)) {   // neu installiert: nicht mehr entfernen
         auto marks = m_settings->object(QStringLiteral("pluginRemovals"));

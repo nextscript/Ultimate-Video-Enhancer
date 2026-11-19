@@ -1814,6 +1814,18 @@
 <context>
     <name>PluginManifest</name>
     <message>
+        <source>Plattform oder Architektur &apos;%1&apos; wird von diesem Paket nicht unterstützt (enthält: %2)</source>
+        <translation>Η πλατφόρμα ή αρχιτεκτονική &apos;%1&apos; δεν υποστηρίζεται από αυτό το πακέτο (περιέχει: %2)</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot;, &quot;libraries&quot; oder &quot;main&quot;</source>
+        <translation>Το manifest.json χρειάζεται &quot;library&quot;, &quot;libraries&quot; ή &quot;main&quot;</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Manifest: &apos;%1&apos; (muss im Plugin-Ordner liegen)</source>
+        <translation>Μη έγκυρη διαδρομή στο manifest: &apos;%1&apos; (πρέπει να βρίσκεται στον φάκελο του πρόσθετου)</translation>
+    </message>
+    <message>
         <source>Feld &apos;id&apos; fehlt</source>
         <translation>Λείπει το πεδίο &apos;id&apos;</translation>
     </message>
@@ -3379,6 +3391,14 @@
         <translation>Σφάλμα shader, το στάδιο απενεργοποιήθηκε: </translation>
     </message>
     <message>
+        <source>manifest.json fehlt oder gehört zu einem anderen Plugin</source>
+        <translation>Το manifest.json λείπει ή ανήκει σε άλλο πρόσθετο</translation>
+    </message>
+    <message>
+        <source>Vorgemerktes Paket verworfen, bisherige Fassung bleibt: %1</source>
+        <translation>Το εκκρεμές πακέτο απορρίφθηκε, η προηγούμενη έκδοση παραμένει: %1</translation>
+    </message>
+    <message>
         <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
         <translation>Η εγκατάσταση απέτυχε: ο φάκελος %1 είναι κλειδωμένος</translation>
     </message>
@@ -3401,10 +3421,6 @@
     <message>
         <source>QML-Datei %1 fehlt</source>
         <translation>Λείπει το αρχείο QML %1</translation>
-    </message>
-    <message>
-        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
-        <translation>Το manifest.json χρειάζεται &quot;library&quot; ή &quot;main&quot;</translation>
     </message>
     <message>
         <source>Ungültiges URL-Muster: %1</source>

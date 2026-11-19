@@ -138,7 +138,7 @@ private:
         QPointer<PluginBridge> bridge;
         QList<QTranslator *> translators;
         QList<QRegularExpression> urlHandlers;
-        bool isQml() const { return !manifest.main.isEmpty() && manifest.library.isEmpty(); }
+        bool isQml() const { return !manifest.main.isEmpty() && manifest.library.isEmpty() && manifest.libraries.isEmpty(); }
         bool running() const { return state == PluginState::Active; }
     };
 

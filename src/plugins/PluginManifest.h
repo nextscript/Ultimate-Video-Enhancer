@@ -1,5 +1,6 @@
 #pragma once
 #include <QJsonObject>
+#include <QMap>
 #include <QString>
 #include <QStringList>
 
@@ -26,6 +27,9 @@ struct PluginManifest
     // Seit 1.0.6 – Plugin-Ordner (plugins/<name>/manifest.json):
     QString library;            // Bibliothek im Ordner (z. B. "beispiel.dll"); leer bei reinen QML-Plugins
     QString main;               // QML-Datei der Plugin-Logik (reine QML-Plugins), relativ zum Ordner
+    // Seit 1.2.9 – ein Paket für mehrere Systeme: Zielschlüssel (z. B. "windows-x64") → Bibliothek relativ zum Ordner.
+    // Vorhanden: gilt nur der Eintrag für currentTargetKey(), "library" wird nicht verwendet.
+    QMap<QString, QString> libraries;
     QJsonObject contributes;    // panels, menu, hotkeys, translations, urlHandlers (siehe docs/PLUGIN_API.md)
 
     static PluginManifest fromJson(const QJsonObject &o);
@@ -49,5 +53,26 @@ ManifestCheck validateManifest(const PluginManifest &m, const QString &hostVersi
 int compareVersions(const QString &a, const QString &b);
 
 QString currentPlatformId();
+
+// Zielschlüssel "<Plattform>-<Architektur>" der laufenden Player-Binärdatei (nicht des Rechners: ein emulierter
+// x64-Player auf ARM wählt das x64-Modul): windows-x64, windows-arm64, windows-x86, linux-x86_64, linux-aarch64,
+// macos-arm64, macos-x86_64
+QString currentTargetKey();
+QString targetKey(const QString &platform, const QString &qtCpuArchitecture);
+
+// Relativer Pfad, der im Plugin-Ordner bleibt (kein absoluter Pfad, kein "..", kein Laufwerk); Backslash → "/"
+bool isSafeRelativePath(const QString &path, QString *cleaned = nullptr);
+
+// Welche Datei der Player für ein Plugin-Ordner-Manifest lädt. Dieselbe Auswahl gilt beim Installieren und beim Laden.
+struct ModuleSelection
+{
+    enum Kind { None, Library, Qml };
+    Kind kind = None;
+    QString path;       // relativ zum Plugin-Ordner, bereinigt
+    QString error;      // leer = ok
+    bool fromLibraries = false;
+    bool ok() const { return error.isEmpty() && kind != None; }
+};
+ModuleSelection selectModule(const PluginManifest &m, const QString &targetKey);
 
 } // namespace uve

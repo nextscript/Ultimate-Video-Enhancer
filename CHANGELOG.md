@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.9 – 2026-11-19
+
+### One plugin package for Windows, Linux and macOS
+- A plugin package can now hold a native module for each system in one ZIP. The new manifest field `libraries` maps a
+  target such as `windows-x64`, `linux-x86_64` or `macos-arm64` to the module inside the package; the player picks the entry
+  that matches its own build (an emulated x64 player on ARM picks the x64 module). Packages with `library` or `main` work as before.
+- Installing and loading use the same choice and the same checks: the path must stay inside the plugin folder, the module
+  must be in the package and be a UVE Player plugin. A package without a module for this system is refused with a clear
+  message (*Platform or architecture … is not supported by this package*).
+- Safer updates: a refused package no longer touches the installed version or an update that is already waiting for the
+  next start. A waiting update is checked again before it replaces the installed version.
+
 ## 1.2.8 – 2026-11-18
 
 ### Time display for live rewind

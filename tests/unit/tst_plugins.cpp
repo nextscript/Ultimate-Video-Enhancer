@@ -7,6 +7,7 @@
 #include "rendering/ShaderChain.h"
 #include "../../plugins/uve/engine/MiniZip.h"
 
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQmlEngine>
@@ -539,6 +540,132 @@ QtObject {
             QVERIFY(!QFileInfo::exists(user.filePath(".pending-backup/org.test.upd")));
             QCOMPARE(install(pm, "2.0.0").value("kind").toString(), QStringLiteral("reinstall"));
             QCOMPARE(install(pm, "1.5.0").value("kind").toString(), QStringLiteral("downgrade"));
+            pm.shutdown();
+        }
+    }
+
+    // Seit 1.2.9: ein Paket mit Modulen für mehrere Systeme ("libraries"). Installation und Laden wählen dasselbe
+    // Modul; abgelehnte Pakete lassen die vorhandene Installation und ein vorgemerktes Update unberührt.
+    void multiPlatformPackage()
+    {
+        QFile lib(QStringLiteral(UVE_TEST_NATIVE_PLUGIN));
+        QVERIFY2(lib.open(QIODevice::ReadOnly), UVE_TEST_NATIVE_PLUGIN);
+        const QByteArray native = lib.readAll();
+        const QString key = currentTargetKey();
+        const QString mine = "bin/" + key + "/multi." + QFileInfo(lib.fileName()).suffix();
+        const QString foreign = "bin/other-arch/libmulti.so";
+        const auto manifest = [](const char *version, const QJsonObject &libs) {
+            return QJsonDocument(QJsonObject{{"id", "org.test.multi"}, {"name", "Multi"}, {"version", version}, {"apiVersion", 1},
+                                             {"supportedPlatforms", QJsonArray{"windows", "linux", "macos"}}, {"libraries", libs}}).toJson();
+        };
+        const QJsonObject allLibs{{key, mine}, {"other-arch", foreign}};
+
+        QTemporaryDir user, data, work;
+        AppSettings settings(data.path());
+        MpvController mpv;
+        ShaderChain shaders(&mpv);
+        QQmlEngine engine;
+        int n = 0;
+        const auto zip = [&](const QList<QPair<QString, QByteArray>> &entries) {
+            const QString path = work.filePath(QStringLiteral("p%1.zip").arg(++n));
+            writeFile(path, makeZip(entries));
+            return path;
+        };
+        const auto info = [](const PluginManager &pm) {
+            for (const auto &v : pm.plugins())
+                if (v.toMap().value("id") == "org.test.multi") return v.toMap();
+            return QVariantMap();
+        };
+        const QString pendingManifest = user.filePath(".pending/org.test.multi/manifest.json");
+        const auto pendingVersion = [&] {
+            QFile f(pendingManifest);
+            return f.open(QIODevice::ReadOnly) ? QJsonDocument::fromJson(f.readAll()).object().value("version").toString() : QString();
+        };
+        const auto good = [&](const char *version) {
+            return zip({{"manifest.json", manifest(version, allLibs)}, {mine, native}, {foreign, "fremd"},
+                        {"qml/P.qml", "import QtQuick\nItem {}\n"}, {"lang/multi_en.qm", "x"}});
+        };
+        // Native Module bleiben unter Windows geladen gesperrt: erst am Ende laden
+        settings.setObject("plugins", QJsonObject{{"org.test.multi", QJsonObject{{"enabled", false}}}});
+
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+            const auto r = pm.installPackageInfo(good("1.0.0"));
+            QVERIFY2(r.value("ok").toBool(), qPrintable(r.value("error").toString()));
+            QCOMPARE(pendingVersion(), QString("1.0.0"));
+            // Abgelehnt, ohne das vorgemerkte Paket anzutasten
+            const QList<QPair<QString, QString>> rejected{
+                {pm.installPackage(zip({{"manifest.json", manifest("1.1.0", {{"other-arch", foreign}})}, {foreign, "x"}})), key},
+                {pm.installPackage(zip({{"manifest.json", manifest("1.1.0", {{key, "../../evil.dll"}})}, {"evil.dll", native}})), "evil.dll"},
+                {pm.installPackage(zip({{"manifest.json", manifest("1.1.0", allLibs)}, {foreign, "x"}})), mine},
+                {pm.installPackage(zip({{"manifest.json", manifest("1.1.0", allLibs)}, {mine, "kein Modul"}})), "UVE-Player-Plugin"},
+                {pm.installPackage(zip({{"manifest.json", manifest("1.1.0", allLibs)}, {mine, native}, {"../x.txt", "x"}})), "x.txt"},
+            };
+            for (const auto &[error, expected] : rejected) {
+                QVERIFY2(error.contains(expected), qPrintable(error + " / erwartet: " + expected));
+                QCOMPARE(pendingVersion(), QString("1.0.0"));
+                QVERIFY(!QFileInfo::exists(user.filePath(".pending-staging/org.test.multi")));
+            }
+        }
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            const auto p = info(pm);
+            QCOMPARE(p.value("version").toString(), QString("1.0.0"));
+            QCOMPARE(p.value("state").toString(), QString("deaktiviert"));
+            QVERIFY(p.value("file").toString().endsWith(mine));
+            QVERIFY(QFileInfo::exists(user.filePath("org.test.multi/" + foreign)));
+            QVERIFY(QFileInfo::exists(user.filePath("org.test.multi/qml/P.qml")));
+            // Gültiges Update vormerken, danach ein fehlerhaftes: das gültige bleibt vorgemerkt
+            QVERIFY(pm.installPackageInfo(good("1.2.0")).value("ok").toBool());
+            QVERIFY(!pm.installPackage(zip({{"manifest.json", manifest("1.3.0", {{"other-arch", foreign}})}})).isEmpty());
+            QCOMPARE(pendingVersion(), QString("1.2.0"));
+            pm.shutdown();
+        }
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            QCOMPARE(info(pm).value("version").toString(), QString("1.2.0"));
+            pm.shutdown();
+        }
+        // Ein vorgemerkter Ordner ohne passendes Modul (z. B. von Hand abgelegt) ersetzt die Installation nicht
+        writeFile(pendingManifest, manifest("1.3.0", allLibs));
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            QCOMPARE(info(pm).value("version").toString(), QString("1.2.0"));
+            QVERIFY(!QFileInfo::exists(pendingManifest));
+            QVERIFY(QFileInfo::exists(user.filePath("org.test.multi/" + mine)));
+            pm.shutdown();
+        }
+        // Erkennung installierter Ordner: fehlender Zielschlüssel, fehlende Datei, ungültiger Pfad → abgelehnt mit Grund
+        QTemporaryDir other;
+        writeFile(other.filePath("a/manifest.json"), QByteArray(manifest("1.0.0", {{"other-arch", foreign}})).replace("org.test.multi", "org.test.nokey"));
+        writeFile(other.filePath("b/manifest.json"), QByteArray(manifest("1.0.0", allLibs)).replace("org.test.multi", "org.test.nofile"));
+        writeFile(other.filePath("c/manifest.json"), QByteArray(manifest("1.0.0", {{key, "../c.dll"}})).replace("org.test.multi", "org.test.badpath"));
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {other.path()}, false);
+            pm.discoverAndStart();
+            QMap<QString, QVariantMap> byId;
+            for (const auto &v : pm.plugins()) byId.insert(v.toMap().value("id").toString(), v.toMap());
+            for (const auto &[id, expected] : QList<QPair<QString, QString>>{{"org.test.nokey", key}, {"org.test.nofile", mine}, {"org.test.badpath", "../c.dll"}}) {
+                QCOMPARE(byId.value(id).value("state").toString(), QString("abgelehnt"));
+                QVERIFY2(byId.value(id).value("error").toString().contains(expected), qPrintable(byId.value(id).value("error").toString()));
+            }
+        }
+        // Zum Schluss wirklich laden: das Modul für dieses System läuft
+        settings.setObject("plugins", QJsonObject());
+        {
+            PluginManager pm(&settings, &mpv, &shaders, {user.path()}, false);
+            pm.setQmlEngine(&engine);
+            pm.discoverAndStart();
+            const auto p = info(pm);
+            QVERIFY2(p.value("state").toString() == "aktiv", qPrintable(p.value("state").toString() + ": " + p.value("error").toString()));
+            QCOMPARE(p.value("kind").toString(), QString("native"));
+            QVERIFY(p.value("file").toString().endsWith(mine));
             pm.shutdown();
         }
     }

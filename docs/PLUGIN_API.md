@@ -20,6 +20,7 @@ change, existing plugins keep working. To check whether the running player knows
 plugins/<name>/
     manifest.json          required
     <library>.dll          native logic ("library")      – or –   Main.qml  pure QML logic ("main")
+    bin/<target>/<lib>     native logic per system ("libraries", since 1.2.9)
     lang/<name>_<code>.qm  own translations (e.g. example_en.qm)
     *.qml, images …        pages and resources
 ```
@@ -81,7 +82,8 @@ public:
 };
 ```
 
-Same compiler and Qt version as the player (1.0.x: Qt 6.12, MSVC 2022, 64 bit).
+Same compiler and Qt version as the player (Qt 6.12; Windows: MSVC 2022 x64, Linux: GCC on Ubuntu 24.04 x86-64,
+macOS: Apple clang, ARM64).
 
 ## Manifest
 
@@ -105,7 +107,8 @@ Same compiler and Qt version as the player (1.0.x: Qt 6.12, MSVC 2022, 64 bit).
 }
 ```
 
-`library` **or** `main` (plugin folders only). Texts in the manifest: a string or `{ "<language>": "…" }`
+`library`, `libraries` **or** `main` (plugin folders only).
+All paths are relative to the plugin folder and must stay inside it (no absolute paths, no `..`). Texts in the manifest: a string or `{ "<language>": "…" }`
 (fallback English, then German). This also applies to `description` (since 1.2.0), shown on the plugin card in *Settings → Plugins*. Available backends: `mpv-user-shaders`, `mpv-render-api-opengl`,
 `plugin-events`, `plugin-commands`, `qml-plugins`.
 
@@ -197,10 +200,45 @@ Ignore unknown events – later versions may send more.
 | `video.filter.status` | → `active`, `graph`, `error`, `hwdec`, `dropped`, `fps` – since 1.1.2 |
 | `webview.available` | → `available`, `host`, `qt`, `engine` – since 1.0.7 in WebEngine builds: the player can show embedded web pages; panel QML may then `import QtWebEngine` (`WebEngineView`, `WebEngineProfile`) |
 
+## One package for several systems (`libraries`, since 1.2.9)
+
+A package can carry the native module for each system. `libraries` maps a **target key** to the module in the package:
+
+```json
+{
+  "minHostVersion": "1.2.9",
+  "supportedPlatforms": ["windows", "linux", "macos"],
+  "libraries": {
+    "windows-x64": "bin/windows-x64/example.dll",
+    "linux-x86_64": "bin/linux-x86_64/libexample.so",
+    "macos-arm64": "bin/macos-arm64/libexample.dylib"
+  }
+}
+```
+
+| Target key | System |
+|---|---|
+| `windows-x64`, `windows-arm64`, `windows-x86` | Windows |
+| `linux-x86_64`, `linux-aarch64` | Linux |
+| `macos-arm64`, `macos-x86_64` | macOS |
+
+- The key is taken from the **running player binary** (its build architecture), not from the machine: an x64 player running
+  emulated on ARM picks `windows-x64`.
+- With `libraries` present only the matching entry counts and `library` is ignored. Without a matching entry the package is
+  refused (*Platform or architecture '…' is not supported by this package*) – when installing and when loading.
+- Without `libraries` everything stays as before (`library` or `main`).
+- Installing checks that the selected module is in the package and is a UVE Player plugin; loading checks that it exists and
+  has the UVE Player plugin IID. A refused package leaves the installed version and any update waiting for the next start
+  untouched.
+- Set `minHostVersion` to `1.2.9` or later: older players do not know `libraries` and refuse the package with
+  *Requires host ≥ 1.2.9*. Their plugin updater still offers the package (it only compares versions), the installation then
+  fails with that message and the installed version keeps working.
+- Dependencies of a module that are not part of Qt or the player go next to the module in its `bin/<target>/` folder.
+
 ## Validation before loading (`validateManifest`)
 
 id format, name, SemVer version, `apiVersion == 1`, `minHostVersion ≤ host`, platform, backends; for plugin folders also:
-`library` exists and is a UVE Player plugin, or `main` exists. Rejected plugins are not loaded and are shown with the
+the module selected from `libraries` (or `library`) exists and is a UVE Player plugin, or `main` exists. Rejected plugins are not loaded and are shown with the
 reason in *Settings → Plugins* (error log `logs\plugin-errors.log`).
 
 ## Lifecycle

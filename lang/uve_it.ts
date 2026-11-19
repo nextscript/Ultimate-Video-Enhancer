@@ -1814,6 +1814,18 @@
 <context>
     <name>PluginManifest</name>
     <message>
+        <source>Plattform oder Architektur &apos;%1&apos; wird von diesem Paket nicht unterstützt (enthält: %2)</source>
+        <translation>Piattaforma o architettura &apos;%1&apos; non supportata da questo pacchetto (contiene: %2)</translation>
+    </message>
+    <message>
+        <source>manifest.json braucht &quot;library&quot;, &quot;libraries&quot; oder &quot;main&quot;</source>
+        <translation>manifest.json richiede &quot;library&quot;, &quot;libraries&quot; o &quot;main&quot;</translation>
+    </message>
+    <message>
+        <source>Ungültiger Pfad im Manifest: &apos;%1&apos; (muss im Plugin-Ordner liegen)</source>
+        <translation>Percorso non valido nel manifest: &apos;%1&apos; (deve trovarsi nella cartella del plugin)</translation>
+    </message>
+    <message>
         <source>Feld &apos;id&apos; fehlt</source>
         <translation>Campo &apos;id&apos; mancante</translation>
     </message>
@@ -3379,6 +3391,14 @@
         <translation>Errore shader, stadio disattivato: </translation>
     </message>
     <message>
+        <source>manifest.json fehlt oder gehört zu einem anderen Plugin</source>
+        <translation>manifest.json mancante o appartenente a un altro plugin</translation>
+    </message>
+    <message>
+        <source>Vorgemerktes Paket verworfen, bisherige Fassung bleibt: %1</source>
+        <translation>Pacchetto in attesa scartato, resta la versione precedente: %1</translation>
+    </message>
+    <message>
         <source>Installation fehlgeschlagen: Ordner %1 ist gesperrt</source>
         <translation>Installazione non riuscita: la cartella %1 è bloccata</translation>
     </message>
@@ -3401,10 +3421,6 @@
     <message>
         <source>QML-Datei %1 fehlt</source>
         <translation>File QML %1 mancante</translation>
-    </message>
-    <message>
-        <source>manifest.json braucht &quot;library&quot; oder &quot;main&quot;</source>
-        <translation>manifest.json richiede &quot;library&quot; o &quot;main&quot;</translation>
     </message>
     <message>
         <source>Ungültiges URL-Muster: %1</source>
