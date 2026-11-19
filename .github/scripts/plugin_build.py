@@ -320,14 +320,39 @@ def cmd_resolve(a):
         qt_version=qt.group(1), targets=",".join(targets), libraries=json.dumps(libraries, separators=(",", ":")))
 
 
+def parse_secrets(raw, names):
+    """PLUGIN_BUILD_SECRETS lesen. Erlaubt: JSON {"NAME": "Wert"} (auch mit typografischen Anführungszeichen),
+    Zeilen NAME=Wert bzw. NAME: Wert, oder – wenn genau ein Wert gebraucht wird – nur den Wert."""
+    text = raw.strip().lstrip("﻿")
+    if not text:
+        return {}
+    for candidate in (text, text.translate({0x201C: '"', 0x201D: '"', 0x201E: '"', 0x00AB: '"', 0x00BB: '"', 0x2018: "'", 0x2019: "'"})):
+        try:
+            v = json.loads(candidate)
+            if isinstance(v, dict):
+                return {str(k).strip(): str(x).strip() for k, x in v.items()}
+            if isinstance(v, str) and len(names) == 1:
+                return {names[0]: v.strip()}
+        except ValueError:
+            pass
+    values = {}
+    for line in text.replace("{", "\n").replace("}", "\n").splitlines():
+        line = re.sub(r"^\s*#\s*define\s+([A-Za-z_][A-Za-z0-9_]*)\s+", r"\1=", line)   # eingefügte #define-Zeile
+        m = re.match(r'^\s*["“”]?([A-Za-z_][A-Za-z0-9_]*)["“”]?\s*[:=]\s*(.*?)\s*,?\s*$', line)
+        if m and m.group(1) in names:
+            values[m.group(1)] = m.group(2).strip().strip('"“”„\'')
+    if values:
+        return values
+    if len(names) == 1 and "\n" not in text and not text.startswith("{"):
+        return {names[0]: text.strip('"“”„\'')}   # nur der Wert
+    fail("GitHub-Secret PLUGIN_BUILD_SECRETS nicht lesbar – erwartet {\"NAME\": \"Wert\"}, Zeilen NAME=Wert "
+         f"oder (bei einem Wert) nur den Wert. Gebraucht: {', '.join(names)}")
+
+
 def cmd_secrets_header(a):
     """Werte aus PLUGIN_BUILD_SECRETS (JSON Name → Wert) als #define-Header; Werte erscheinen nie im Log."""
     names = [n for n in a.names.split(",") if n]
-    raw = os.environ.get("PLUGIN_BUILD_SECRETS", "")
-    try:
-        values = json.loads(raw) if raw.strip() else {}
-    except ValueError:
-        fail("GitHub-Secret PLUGIN_BUILD_SECRETS ist kein gültiges JSON (erwartet {\"NAME\": \"Wert\", …})")
+    values = parse_secrets(os.environ.get("PLUGIN_BUILD_SECRETS", ""), names)
     missing = [n for n in names if not isinstance(values.get(n), str) or not values.get(n)]
     if missing:
         fail(f"Das Plugin braucht {', '.join(missing)} – im Repository unter Settings → Secrets and variables → Actions "
