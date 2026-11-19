@@ -12,6 +12,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **UVETikTok** | 1.0.2 | Utility | Plays TikTok videos, TikTok LIVE streams and whole profiles as a playlist directly in the player – nothing is saved to disk. [Details](#uvetiktok) |
 | **UVESpotify** | 1.0.4 | Utility | Plays Spotify tracks, albums and playlists via the matching track on YouTube, without ads. Sign in to play your own playlists and liked songs. [Details](#uvespotify) |
 | **UVESuno** | 1.0.1 | Utility | Plays songs, playlists and whole profiles from suno.com as a stream, with titles, lengths and gapless transitions. [Details](#uvesuno) |
+| **YouTube** | 1.0.1 | Utility | Browse YouTube inside the player – no sign-in needed: search, trending / *For you*, channels, playlists, plus subscriptions, history, watch later and favourites kept by the plugin. Optional: connect your Google account in your default browser. Hover frames on every thumbnail (8 colours, rainbow, glow, zoom), resizable window. `Ctrl+Alt+Y`. [Details](#youtube) |
 | **UVESponsorSkip** | 1.0.2 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
 
 ## Twitch Chat
@@ -93,6 +94,31 @@ Open a link from suno.com (*File → Open network stream…* or drag it onto the
   other non-Latin titles and lyrics as empty boxes. Titles in the player itself are shown correctly in every language.
 - Sidebar page *UVESuno* (status) is hidden by default; show it under *Settings → Plugins*.
 
+## YouTube
+
+Open it via *Plugins → Open YouTube …* (also *YouTube: Subscriptions* and *YouTube: Search …*) or `Ctrl+Alt+Y`. A click on a video plays it
+in UVE Player; *Settings → YouTube* is the plugin's own settings page.
+
+- **Works without signing in:** search (videos, live, channels, playlists), channel pages and playlists with endless scrolling.
+  Search always goes through YouTube's own web interface and uses no API quota; the built-in API key is only used for cheap lists.
+  If its daily quota is used up, the plugin switches to the web interface by itself until the quota resets.
+- **Trending / For you:** YouTube's trending videos; when they are not available, *For you* shows videos related to what you
+  watched, your favourites and your subscriptions.
+- **Own library:** subscribe to channels in the plugin (*Subscribe* on a channel page or right-click a video). The subscription
+  feed merges the newest videos of all subscriptions via RSS (no quota). History, *Watch later* (◷ on every tile) and favourites
+  are stored locally. Public YouTube subscriptions can be imported by channel name (`@name`).
+- **Google account (optional):** *Connect with Google* opens your default browser (OAuth 2.0 for desktop apps, authorization code
+  flow with PKCE, redirect to `http://127.0.0.1`). Afterwards subscriptions, liked videos and your playlists come straight from
+  YouTube – read-only (`youtube.readonly`). Google shows *Google hasn't verified this app* – click *Advanced → Go to UvePly*.
+  The redirect is received by `oauth/uve_oauth.dll` (Windows x64); everything else also runs on Linux and macOS.
+- **Tiles:** a frame appears around every thumbnail on hover – colour (8 presets, own hex value, animated rainbow, two-tone),
+  width, corner radius, glow, zoom and lift, with a live preview on the settings page. ⏭ *Play next*, + *Add to playlist*,
+  right-click for more (open channel, copy link, open in browser, hide channel).
+- **Window:** drag the right or bottom edge or the bottom-right corner to resize it; the size is remembered, a double-click on an
+  edge resets it. Area (*whole player* / *video only*) and mode (*movable*, *fixed*, *fill*) on the settings page.
+- **Privacy:** no developer server – data only goes between your computer and Google/YouTube; tokens and the library stay in the
+  plugin settings. [Homepage](https://nextscript.github.io/uveply/) · [Privacy policy](https://nextscript.github.io/uveply/privacy.html)
+
 ## UVESponsorSkip
 
 Play a YouTube video and UVESponsorSkip looks up its segments in the community database of
@@ -120,5 +146,5 @@ Play a YouTube video and UVESponsorSkip looks up its segments in the community d
 
 ## Requirements
 
-Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify, UVESuno and UVESponsorSkip ≥ 1.1.6; titles and lengths for Spotify, Suno and TikTok playlists ≥ 1.2.1).
+Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify, UVESuno and UVESponsorSkip ≥ 1.1.6; titles and lengths for Spotify, Suno and TikTok playlists ≥ 1.2.1; YouTube ≥ 1.3.0).
 All plugins are MIT-licensed.
