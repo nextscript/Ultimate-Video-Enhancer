@@ -35,6 +35,10 @@ on:
         description: "Optional: Tag oder Commit des Players für Plugin-API und Qt (Standard: player.ref aus plugin-builds.json)"
         required: false
         default: ""
+      rebuild:
+        description: "Schon gepatchtes ZIP neu patchen (Linux/macOS aus den aktuellen Quellen, Windows-DLL bleibt)"
+        type: boolean
+        default: false
       publish:
         description: "Fertiges ZIP in den Zweig uve-player-plugins schreiben"
         type: boolean
@@ -87,6 +91,7 @@ jobs:
           python3 -I .github/scripts/plugin_build.py resolve
           --zip-file "${{ inputs.zip_file }}" --id "${{ inputs.plugin_id }}" --version "${{ inputs.version }}"
           --source-ref "${{ inputs.source_ref }}" --player-ref "${{ inputs.player_ref }}"
+          ${{ inputs.rebuild && '--rebuild' || '' }}
       - name: Summary
         run: |
           {

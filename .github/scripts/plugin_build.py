@@ -196,8 +196,9 @@ def cmd_resolve(a):
         fail(f"{zip_name} liegt nicht in {catalog} – ohne hochgeladenes Paket bitte Plugin-ID und Version angeben")
     entry = plugins.get(pid, {})
 
-    if base and base.get("libraries"):
-        fail(f"{zip_name} ist schon ein Mehrplattform-Paket (manifest.json mit \"libraries\") – nichts zu tun")
+    if base and base.get("libraries") and not (base.get("library") and a.rebuild):
+        fail(f"{zip_name} ist schon ein Mehrplattform-Paket (manifest.json mit \"libraries\") – nichts zu tun"
+             + ("" if base.get("library") else " (Paket ohne \"library\": neu bauen über plugin-builds.json)"))
     if base:
         mode = "insert"
         if not base.get("library"):
@@ -295,6 +296,8 @@ def cmd_resolve(a):
             plat = k.split("-", 1)[0]
             libraries[k] = lib if plat == "windows" else f"{folder}lib{stem}{SUFFIX[plat]}"
         existing = set(zip_entries(show(cat, cat_sha, zip_name), zip_name))
+        # beim erneuten Patchen werden die bisherigen Linux-/macOS-Module ersetzt
+        existing -= {v for k, v in (base.get("libraries") or {}).items() if not k.startswith("windows-")}
         clash = [v for k, v in libraries.items() if not k.startswith("windows-") and v in existing]
         if clash:
             fail(f"{zip_name} enthält schon {clash} – Mehrplattform-Paket? Dann ist nichts zu tun")
@@ -518,7 +521,9 @@ def cmd_assemble(a):
         tmpdll.write_bytes(base[libs[win_keys[0]]])
         cmd_arch(argparse.Namespace(module=str(tmpdll), key=win_keys[0]))
         tmpdll.unlink()
-        files = {k: v for k, v in base.items() if k != "manifest.json"}
+        old_mods = {v for k, v in (manifest.get("libraries") or {}).items() if not k.startswith("windows-")}
+        files = {k: v for k, v in base.items() if k != "manifest.json" and k not in old_mods}
+        manifest = {k: v for k, v in manifest.items() if k != "libraries"}
         for key in built:
             mods = [f for f in trees[key].values()]
             if len(mods) != 1:
@@ -608,6 +613,7 @@ def main():
     r.add_argument("--source-ref", default="")
     r.add_argument("--player-ref", default="")
     r.add_argument("--zip-file", default="")
+    r.add_argument("--rebuild", action="store_true", help="schon gepatchtes ZIP neu patchen (geänderte Quellen)")
     v = sub.add_parser("set-version")
     v.add_argument("--manifest", required=True)
     v.add_argument("--version", required=True)
