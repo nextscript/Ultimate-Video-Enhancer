@@ -1,0 +1,291 @@
+name: Build QML modules
+
+# Ergänzt ein reines QML-Plugin (manifest.json mit "main") um seine eigenen QML-Erweiterungen für Linux x86-64
+# und macOS ARM64 – z. B. oauth/uve_oauth.dll des YouTube-Plugins → oauth/libuve_oauth.so und oauth/libuve_oauth.dylib.
+#
+# Start:  automatisch über .github/workflows/plugin-zip-uploaded.yml im Zweig uve-player-plugins, sobald ein
+#         solches ZIP hochgeladen wird oder sich seine Quellen sources/<Name>/ ändern; oder manuell "Run workflow".
+# Quellen: sources/<Name>/ im Zweig uve-player-plugins mit CMakeLists.txt und uve-build.json:
+#         {"qmlModules": [{"target": "uve_oauth", "dir": "oauth", "check": "OAuthLoopback {}"}]}
+# Ablauf: Module bauen, Architektur und Abhängigkeiten prüfen, mit dem qml-Werkzeug laden (Ordner importieren,
+#         check-Objekt erzeugen), neben die Windows-DLL in genau dieses ZIP legen und es unter demselben Namen
+#         zurückschreiben – außer es wurde während des Laufs im Zweig geändert. Das Manifest bleibt unverändert.
+on:
+  workflow_dispatch:
+    inputs:
+      zip_file:
+        description: "ZIP im Zweig uve-player-plugins, z. B. YouTube-1.0.1.zip"
+        required: true
+      force:
+        description: "Auch neu bauen, wenn die Module schon im ZIP liegen"
+        type: boolean
+        default: false
+      publish:
+        description: "Fertiges ZIP in den Zweig uve-player-plugins schreiben"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-qml-modules-${{ inputs.zip_file }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.r.outputs.skip }}
+      zip_name: ${{ steps.r.outputs.zip_name }}
+      plugin_id: ${{ steps.r.outputs.plugin_id }}
+      version: ${{ steps.r.outputs.version }}
+      catalog_sha: ${{ steps.r.outputs.catalog_sha }}
+      base_blob: ${{ steps.r.outputs.base_blob }}
+      source_path: ${{ steps.r.outputs.source_path }}
+      qt_version: ${{ steps.r.outputs.qt_version }}
+      modules: ${{ steps.r.outputs.modules }}
+      matrix: ${{ steps.r.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+      - uses: actions/checkout@v4
+        with:
+          ref: uve-player-plugins
+          path: catalog
+      - id: r
+        name: Resolve package and sources
+        run: >
+          python3 -I .github/scripts/qml_modules.py resolve --zip-file "${{ inputs.zip_file }}" --catalog catalog
+          ${{ inputs.force && '--force' || '' }}
+      - name: Summary
+        run: |
+          {
+            echo "### ${{ inputs.zip_file }} – ${{ steps.r.outputs.plugin_id }} ${{ steps.r.outputs.version }}"
+            if [ "${{ steps.r.outputs.skip }}" = "true" ]; then
+              echo "Alle QML-Module für Linux und macOS liegen schon im Paket – nichts zu tun."
+            else
+              echo "Quellen \`${{ steps.r.outputs.source_path }}\`, Qt ${{ steps.r.outputs.qt_version }}"
+              echo ""
+              echo "Module: \`${{ steps.r.outputs.modules }}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: resolve
+    if: needs.resolve.outputs.skip != 'true'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.resolve.outputs.matrix) }}
+    runs-on: ${{ matrix.os }}
+    env:
+      QT_VERSION: ${{ needs.resolve.outputs.qt_version }}
+      SRC: plugin/${{ needs.resolve.outputs.source_path }}
+      MODULES: ${{ needs.resolve.outputs.modules }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+          path: ci
+      - name: Checkout plugin sources
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.catalog_sha }}
+          sparse-checkout: ${{ needs.resolve.outputs.source_path }}
+          path: plugin
+
+      # ---- Toolchain und Qt wie in build-plugin.yml (Qt-Version des Players)
+      - name: System packages (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-0 libxcb-cursor0 file
+      - name: Homebrew packages (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+      - name: Install Qt (Linux)
+        if: runner.os == 'Linux'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: linux_gcc_64
+          cache: true
+      - name: Install Qt (macOS)
+        if: runner.os == 'macOS'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: clang_64
+          cache: true
+
+      - name: Build
+        run: |
+          extra=()
+          [ "$RUNNER_OS" = "macOS" ] && extra=(-DCMAKE_OSX_ARCHITECTURES=arm64)
+          cmake -S "$SRC" -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" "${extra[@]}"
+          for t in $(python3 -I -c "import json,os;print(' '.join(m['target'] for m in json.loads(os.environ['MODULES'])))"); do
+            cmake --build build --config Release --parallel --target "$t"
+          done
+
+      - name: Stage, check architecture and dependencies
+        run: |
+          python3 -I - <<'EOF'
+          import json, os, shutil, subprocess, sys
+          from pathlib import Path
+          key = "${{ matrix.key }}"
+          for m in json.loads(os.environ["MODULES"]):
+              rel = m["files"][key]
+              name = Path(rel).name
+              hits = [p for p in Path("build").rglob(name) if p.is_file()]
+              if not hits:
+                  print(f"::error::Build hat {name} nicht erzeugt"); sys.exit(1)
+              dst = Path("stage") / key / rel
+              dst.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(hits[0], dst)
+              print(f"{hits[0]} -> {dst}")
+          EOF
+          for f in $(find stage -type f); do
+            python3 -I ci/.github/scripts/qml_modules.py arch --module "$f" --key ${{ matrix.key }}
+            if [ "$RUNNER_OS" = "Linux" ]; then
+              ldd "$f"
+              if ldd "$f" | grep -q "not found"; then echo "::error::Nicht auflösbare Abhängigkeiten in $f"; exit 1; fi
+            else
+              # Der absolute Qt-Pfad des Runners gehört nicht ins Paket; im Player kommt Qt aus dem App-Bundle
+              for p in $(otool -l "$f" | awk '/cmd LC_RPATH/{getline; getline; print $2}'); do install_name_tool -delete_rpath "$p" "$f"; done
+              install_name_tool -add_rpath @executable_path/../Frameworks "$f"
+              codesign --force --sign - "$f"
+              otool -L "$f"
+              bad=$(otool -L "$f" | tail -n +2 | awk '{print $1}' | grep -vE '^(@rpath/Qt[A-Za-z]+\.framework/|/usr/lib/|/System/Library/)' || true)
+              if [ -n "$bad" ]; then echo "::error::Abhängigkeiten außerhalb von Qt und System in $f: $bad"; exit 1; fi
+            fi
+          done
+
+      - name: Load check with the qml tool
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python3 -I - <<'EOF' > checks.txt
+          import json, os
+          for m in json.loads(os.environ["MODULES"]):
+              print(f"{m['target']}\t{m['files']['${{ matrix.key }}']}\t{m.get('check','')}")
+          EOF
+          while IFS=$'\t' read -r target rel check; do
+            dir="loadcheck/$target"
+            mkdir -p "$dir"
+            cp "stage/${{ matrix.key }}/$rel" "$dir/"
+            if [ "$RUNNER_OS" = "macOS" ]; then
+              # Zum Laden hier das Qt des Runners statt des App-Bundles
+              install_name_tool -add_rpath "$QT_ROOT_DIR/lib" "$dir/$(basename "$rel")"
+              codesign --force --sign - "$dir/$(basename "$rel")"
+            fi
+            echo "plugin $target" > "$dir/qmldir"
+            python3 -I ci/.github/scripts/qml_modules.py checkqml --dir "$dir" --check "$check" --out "$dir-check.qml"
+            set +e
+            qmlbin="$QT_ROOT_DIR/bin/qml"
+            [ -x "$qmlbin" ] || qmlbin=$(find "$QT_ROOT_DIR/bin" -type f -path '*qml.app/Contents/MacOS/qml' | head -1)
+            out=$(QT_DEBUG_PLUGINS=1 "$qmlbin" "$dir-check.qml" 2>&1); rc=$?
+            set -e
+            echo "$out" | tail -n 40
+            if [ $rc -ne 0 ] || ! echo "$out" | grep -q "QMLMODULE_OK"; then
+              echo "::error title=Ladeprüfung $target (${{ matrix.key }})::$(echo "$out" | grep -E 'QMLMODULE|Cannot|failed|error' | tail -n 5 | tr '\n' ' ')"
+              exit 1
+            fi
+          done < checks.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qml-modules-${{ matrix.key }}
+          path: stage
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    outputs:
+      artifact: ${{ steps.zip.outputs.file }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.catalog_sha }}
+          sparse-checkout: |
+            /${{ needs.resolve.outputs.zip_name }}
+          sparse-checkout-cone-mode: false
+          path: catalog
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: qml-modules-*
+          path: dl
+      - name: Merge parts
+        run: mkdir -p parts && for d in dl/qml-modules-*; do cp -R "$d/." parts/; done && find parts -type f | sort
+      - id: zip
+        name: Assemble and verify package
+        env:
+          MODULES: ${{ needs.resolve.outputs.modules }}
+        run: >
+          python3 -I .github/scripts/qml_modules.py assemble --base "catalog/${{ needs.resolve.outputs.zip_name }}"
+          --parts parts --modules "$MODULES" --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.zip.outputs.file }}
+          path: ${{ steps.zip.outputs.zip }}
+          if-no-files-found: error
+          compression-level: 0
+      - name: Summary
+        run: |
+          {
+            echo "### ${{ steps.zip.outputs.file }}"
+            echo "SHA-256 \`${{ steps.zip.outputs.sha256 }}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: [resolve, package]
+    if: ${{ !cancelled() && needs.package.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.publish) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: uve-player-plugins
+          sparse-checkout: |
+            /*.zip
+            /README.md
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.package.outputs.artifact }}
+          path: new
+      - name: Replace package in uve-player-plugins
+        env:
+          ZIP: ${{ needs.resolve.outputs.zip_name }}
+          BASE_BLOB: ${{ needs.resolve.outputs.base_blob }}
+          BRANCH: uve-player-plugins
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch -q origin "$BRANCH" && git reset -q --hard "origin/$BRANCH"
+            now=$(git rev-parse "HEAD:$ZIP" 2>/dev/null || true)
+            if [ "$now" != "$BASE_BLOB" ]; then
+              echo "::error::$ZIP wurde während des Laufs im Zweig geändert (vorher ${BASE_BLOB:-fehlt}, jetzt ${now:-fehlt}) – nichts überschrieben."
+              exit 1
+            fi
+            cp "new/$ZIP" "$ZIP"
+            git add "$ZIP"
+            if git diff --cached --quiet; then echo "$ZIP unverändert"; exit 0; fi
+            git commit -q -m "$ZIP: Windows, Linux und macOS" -m "QML-Module gebaut von ${{ github.workflow }} #${{ github.run_number }} (${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+            if git push -q origin "HEAD:$BRANCH"; then
+              echo "### $ZIP liegt jetzt in \`$BRANCH\`" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Push abgelehnt (gleichzeitiger Upload) – neuer Versuch"; sleep 5
+          done
+          echo "::error::$ZIP konnte nicht nach $BRANCH geschrieben werden"; exit 1
