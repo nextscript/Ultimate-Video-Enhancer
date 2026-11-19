@@ -1,0 +1,327 @@
+name: Build plugin
+
+# Baut ein UVE-Player-Plugin für Windows x64, Linux x86-64 und macOS ARM64 und packt alles in EIN
+# installierbares ZIP <Name>-<Version>.zip (manifest.json mit "libraries", Module unter bin/<Ziel>/).
+#
+# Start:  GitHub → Actions → "Build plugin" → "Run workflow" (Branch main) → Plugin-ID und Version.
+#         Oder automatisch: ein neues Windows-ZIP im Zweig uve-player-plugins startet diesen Workflow
+#         (.github/workflows/plugin-zip-uploaded.yml dort; fertige Mehrplattform-ZIPs werden übersprungen).
+# Ergebnis: Artefakt "<Name>-<Version>" des Laufs; darin liegt das Installationspaket <Name>-<Version>.zip.
+#         Hochladen nach uve-player-plugins und den Katalog pflegen bleibt Handarbeit.
+#
+# Welche Plugins gebaut werden können, steht in .github/plugin-builds.json (Quellpfad, Tag-Muster, Build-Ziel).
+# Private Quellen: Secret PLUGIN_SOURCES_TOKEN mit Lesezugriff anlegen.
+on:
+  workflow_dispatch:
+    inputs:
+      plugin_id:
+        description: "Plugin-ID (z. B. org.uveplayer.glsl-manager)"
+        required: true
+        default: org.uveplayer.glsl-manager
+      version:
+        description: "Plugin-Version (wie in manifest.json, z. B. 1.0.2)"
+        required: true
+      source_ref:
+        description: "Optional: Tag oder Commit des Plugin-Quellstands (Standard: Tag-Muster aus plugin-builds.json)"
+        required: false
+        default: ""
+      player_ref:
+        description: "Optional: Tag oder Commit des Players für Plugin-API und Qt (Standard: player.ref aus plugin-builds.json)"
+        required: false
+        default: ""
+      run_tests:
+        description: "Tests des Plugins ausführen"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-plugin-${{ inputs.plugin_id }}-${{ inputs.version }}
+  cancel-in-progress: false
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      package: ${{ steps.r.outputs.package }}
+      source_repo: ${{ steps.r.outputs.source_repo }}
+      source_sha: ${{ steps.r.outputs.source_sha }}
+      source_path: ${{ steps.r.outputs.source_path }}
+      target: ${{ steps.r.outputs.target }}
+      package_dir: ${{ steps.r.outputs.package_dir }}
+      player_repo: ${{ steps.r.outputs.player_repo }}
+      player_sha: ${{ steps.r.outputs.player_sha }}
+      player_version: ${{ steps.r.outputs.player_version }}
+      player_release: ${{ steps.r.outputs.player_release }}
+      qt_version: ${{ steps.r.outputs.qt_version }}
+      targets: ${{ steps.r.outputs.targets }}
+      libraries: ${{ steps.r.outputs.libraries }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+      - id: r
+        name: Resolve plugin, source and player revisions
+        env:
+          SOURCE_TOKEN: ${{ secrets.PLUGIN_SOURCES_TOKEN }}
+        run: >
+          python3 -I .github/scripts/plugin_build.py resolve
+          --id "${{ inputs.plugin_id }}" --version "${{ inputs.version }}"
+          --source-ref "${{ inputs.source_ref }}" --player-ref "${{ inputs.player_ref }}"
+      - name: Summary
+        run: |
+          {
+            echo "### ${{ steps.r.outputs.package }} ${{ inputs.version }}"
+            echo "| | Revision |"
+            echo "|---|---|"
+            echo "| Plugin-Quellen | \`${{ steps.r.outputs.source_repo }}\` ${{ steps.r.outputs.source_ref }} → \`${{ steps.r.outputs.source_sha }}\` (\`${{ steps.r.outputs.source_path }}\`) |"
+            echo "| Player (Plugin-API) | ${{ steps.r.outputs.player_ref }} → \`${{ steps.r.outputs.player_sha }}\` |"
+            echo "| Qt | ${{ steps.r.outputs.qt_version }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  build:
+    needs: resolve
+    strategy:
+      fail-fast: true   # ohne alle drei Module gibt es ohnehin kein Paket
+      matrix:
+        include:
+          - key: windows-x64
+            os: windows-2022
+          - key: linux-x86_64
+            os: ubuntu-24.04   # wie der Linux-Build des Players
+          - key: macos-arm64
+            os: macos-latest   # Apple Silicon, wie der macOS-Build des Players
+    runs-on: ${{ matrix.os }}
+    env:
+      QT_VERSION: ${{ needs.resolve.outputs.qt_version }}
+      PKG: build/${{ needs.resolve.outputs.package_dir }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+          path: ci
+      - name: Checkout plugin sources
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ needs.resolve.outputs.source_repo }}
+          ref: ${{ needs.resolve.outputs.source_sha }}
+          token: ${{ secrets.PLUGIN_SOURCES_TOKEN || github.token }}
+          sparse-checkout: ${{ needs.resolve.outputs.source_path }}
+          path: plugin
+      - name: Checkout player (plugin API)
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ needs.resolve.outputs.player_repo }}
+          ref: ${{ needs.resolve.outputs.player_sha }}
+          sparse-checkout: |
+            src/plugins
+            scripts
+          path: player
+
+      # ---- Toolchain und Qt wie im Release-Workflow des Players
+      - name: Cache Qt (Windows)
+        if: runner.os == 'Windows'
+        id: qtcache
+        uses: actions/cache@v4
+        with:
+          path: C:\Qt
+          key: qt-${{ env.QT_VERSION }}-win64_msvc2022_64-${{ hashFiles('player/scripts/fetch-qt.py') }}
+      - name: Install Qt (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ("${{ steps.qtcache.outputs.cache-hit }}" -ne "true") {
+            New-Item -ItemType Directory -Force player/deps/tools | Out-Null
+            Invoke-WebRequest "https://github.com/ip7z/7zip/releases/download/26.05/7zr.exe" -OutFile player/deps/tools/7zr.exe
+            python -I player/scripts/fetch-qt.py $env:QT_VERSION C:/Qt
+            if ($LASTEXITCODE) { throw "Qt download failed" }
+          }
+          "QT_ROOT_DIR=C:\Qt\$env:QT_VERSION\msvc2022_64" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "C:\Qt\$env:QT_VERSION\msvc2022_64\bin" | Out-File -Append -Encoding utf8 $env:GITHUB_PATH
+      - name: System packages (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ninja-build libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-0 libxcb-cursor0 file
+      - name: Homebrew packages (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja
+      - name: Install Qt (Linux)
+        if: runner.os == 'Linux'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: linux_gcc_64
+          modules: qtimageformats qtshadertools
+          cache: true
+      - name: Install Qt (macOS)
+        if: runner.os == 'macOS'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ env.QT_VERSION }}
+          arch: clang_64
+          modules: qtimageformats qtshadertools
+          cache: true
+
+      # ---- Build
+      - name: Configure
+        run: |
+          src="plugin/${{ needs.resolve.outputs.source_path }}"
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cmake -S "$src" -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
+              -DUVE_PLAYER_DIR="$PWD/player" -DUVE_TARGET_KEY=${{ matrix.key }}
+          else
+            extra=""
+            [ "$RUNNER_OS" = "macOS" ] && extra="-DCMAKE_OSX_ARCHITECTURES=arm64"
+            cmake -S "$src" -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" $extra \
+              -DUVE_PLAYER_DIR="$PWD/player" -DUVE_TARGET_KEY=${{ matrix.key }}
+          fi
+      - name: Build
+        run: cmake --build build --config Release --parallel
+      - name: Tests
+        if: inputs.run_tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Locate module
+        id: mod
+        env:
+          LIBRARIES: ${{ needs.resolve.outputs.libraries }}
+        run: |
+          rel=$(python3 -I -c "import json,os;print(json.loads(os.environ['LIBRARIES'])['${{ matrix.key }}'])" 2>/dev/null || python -I -c "import json,os;print(json.loads(os.environ['LIBRARIES'])['${{ matrix.key }}'])")
+          if [ ! -f "$PKG/$rel" ]; then
+            echo "::error::Build-Ziel ${{ needs.resolve.outputs.target }} hat $rel nicht erzeugt. Inhalt von $PKG:"; find "$PKG" -type f; exit 1
+          fi
+          echo "rel=$rel" >> "$GITHUB_OUTPUT"
+          echo "module=$PKG/$rel" >> "$GITHUB_OUTPUT"
+      - name: Remove build rpath (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # Der absolute Qt-Pfad des Runners gehört nicht ins Paket; im Player kommt Qt aus dem App-Bundle
+          m="${{ steps.mod.outputs.module }}"
+          for p in $(otool -l "$m" | awk '/cmd LC_RPATH/{getline; getline; print $2}'); do install_name_tool -delete_rpath "$p" "$m"; done
+          codesign --force --sign - "$m"
+          otool -l "$m" | grep -A2 LC_RPATH || echo "no LC_RPATH"
+      - name: Check architecture
+        run: python3 -I ci/.github/scripts/plugin_build.py arch --module "${{ steps.mod.outputs.module }}" --key ${{ matrix.key }} || python -I ci/.github/scripts/plugin_build.py arch --module "${{ steps.mod.outputs.module }}" --key ${{ matrix.key }}
+
+      # ---- Laufzeitabhängigkeiten im Ziel-Player: Modul mit den Qt-Bibliotheken des veröffentlichten Players laden
+      - name: Build load check
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cmake -S ci/.github/plugin-loadcheck -B loadcheck -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DUVE_PLAYER_DIR="$PWD/player"
+          else
+            cmake -S ci/.github/plugin-loadcheck -B loadcheck -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DUVE_PLAYER_DIR="$PWD/player"
+          fi
+          cmake --build loadcheck --config Release
+      - name: Fetch player release
+        id: player
+        if: needs.resolve.outputs.player_release != ''
+        env:
+          TAG: ${{ needs.resolve.outputs.player_release }}
+          V: ${{ needs.resolve.outputs.player_version }}
+        run: |
+          base="https://github.com/${{ needs.resolve.outputs.player_repo }}/releases/download/$TAG"
+          mkdir -p player-release && cd player-release
+          case "$RUNNER_OS" in
+            Windows) asset="UVE-Player-$V-portable.zip" ;;
+            Linux)   asset="UVE-Player-$V-linux-x86_64.tar.gz" ;;
+            macOS)   asset="UVE-Player-$V-macos-arm64.dmg" ;;
+          esac
+          if ! curl -fsSL --retry 3 -o "$asset" "$base/$asset"; then
+            echo "::error::$asset aus dem Release $TAG nicht ladbar – ist der Player-Release fertig?"; exit 1
+          fi
+          case "$RUNNER_OS" in
+            Windows) 7z x -y -oplayer "$asset" > /dev/null
+                     exe=$(find player -name UVEPlayer.exe | head -1); echo "dir=$(dirname "$exe")" >> "$GITHUB_OUTPUT" ;;
+            Linux)   mkdir player && tar -xzf "$asset" -C player
+                     core=$(find player -name 'libQt6Core.so.6' | head -1); echo "dir=$(dirname "$core")" >> "$GITHUB_OUTPUT" ;;
+            macOS)   hdiutil attach -nobrowse -readonly -mountpoint "$PWD/mnt" "$asset" > /dev/null
+                     fw=$(find mnt -maxdepth 4 -type d -path '*.app/Contents/Frameworks' | head -1)
+                     mkdir -p fw && cp -R "$fw/" fw/ && hdiutil detach mnt > /dev/null
+                     echo "dir=$PWD/fw" >> "$GITHUB_OUTPUT" ;;
+          esac
+      - name: Load module with the player's Qt
+        env:
+          PLAYER_DIR: ${{ steps.player.outputs.dir }}
+          MODULE: ${{ steps.mod.outputs.module }}
+        run: |
+          manifest="$PKG/manifest.json"
+          if [ -z "$PLAYER_DIR" ]; then
+            echo "::warning::Player-Ref ist kein Release-Tag – Ladeprüfung nur gegen das Qt des Runners"
+          fi
+          case "$RUNNER_OS" in
+            Windows)
+              exe=loadcheck/Release/uve-plugin-loadcheck.exe
+              dir="${PLAYER_DIR:-$QT_ROOT_DIR/bin}"
+              cp "$exe" "$dir/"   # neben den Qt-DLLs des Players: Windows lädt sie aus dem Programmordner
+              dumpbin=$(find "/c/Program Files/Microsoft Visual Studio" -name dumpbin.exe -path '*Hostx64/x64*' | head -1)
+              [ -n "$dumpbin" ] && "$dumpbin" -nologo -dependents "$MODULE" | sed -n '/Image has the following dependencies/,/Summary/p'
+              "$dir/uve-plugin-loadcheck.exe" "$MODULE" "$manifest" ;;
+            Linux)
+              export LD_LIBRARY_PATH="${PLAYER_DIR:-$QT_ROOT_DIR/lib}"
+              ldd "$MODULE"
+              if ldd "$MODULE" | grep -q "not found"; then echo "::error::Nicht auflösbare Abhängigkeiten"; exit 1; fi
+              ./loadcheck/uve-plugin-loadcheck "$MODULE" "$manifest" ;;
+            macOS)
+              lc=loadcheck/uve-plugin-loadcheck
+              if [ -n "$PLAYER_DIR" ]; then
+                for p in $(otool -l "$lc" | awk '/cmd LC_RPATH/{getline; getline; print $2}'); do install_name_tool -delete_rpath "$p" "$lc"; done
+                install_name_tool -add_rpath "$PLAYER_DIR" "$lc"
+                codesign --force --sign - "$lc"
+              fi
+              otool -L "$MODULE"
+              if otool -L "$MODULE" | tail -n +2 | awk '{print $1}' | grep -vE '^(@rpath/Qt[A-Za-z]+\.framework/|/usr/lib/|/System/Library/)'; then
+                echo "::error::Abhängigkeiten außerhalb von Qt und System – im Player nicht vorhanden"; exit 1
+              fi
+              "$lc" "$MODULE" "$manifest" ;;
+          esac
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: module-${{ matrix.key }}
+          path: ${{ env.PKG }}
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    needs: [resolve, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: module-*
+          path: parts
+      - name: Rename parts
+        run: for d in parts/module-*; do mv "$d" "parts/${d#parts/module-}"; done; find parts -type f | sort
+      - id: zip
+        name: Assemble and verify package
+        run: >
+          python3 -I .github/scripts/plugin_build.py assemble --parts parts
+          --id "${{ inputs.plugin_id }}" --version "${{ inputs.version }}"
+          --package "${{ needs.resolve.outputs.package }}" --targets "${{ needs.resolve.outputs.targets }}" --out dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.zip.outputs.name }}
+          path: ${{ steps.zip.outputs.zip }}
+          if-no-files-found: error
+          compression-level: 0   # das ZIP ist schon komprimiert
+      - name: Summary
+        run: |
+          {
+            echo "### ${{ steps.zip.outputs.name }}.zip"
+            echo "SHA-256 \`${{ steps.zip.outputs.sha256 }}\`"
+            echo
+            echo "Download: Artefakt **${{ steps.zip.outputs.name }}** unten auf dieser Seite. Das Artefakt wird von GitHub als ZIP"
+            echo "geliefert; darin liegt das Installationspaket \`${{ steps.zip.outputs.name }}.zip\`. Dieses nach \`uve-player-plugins\` hochladen."
+          } >> "$GITHUB_STEP_SUMMARY"
