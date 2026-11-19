@@ -1,7 +1,7 @@
 {
   "id": "org.uveplayer.glsl-manager",
   "name": "GLSL Manager",
-  "version": "1.0.2",
+  "version": "1.0.1",
   "apiVersion": 1,
   "minHostVersion": "1.2.9",
   "type": "gpu-effect",
