@@ -4,7 +4,9 @@ name: Plugin ZIP uploaded
 # Der baut Linux und macOS aus sources/<Name>/, fügt die Module in genau dieses ZIP ein und legt es unter demselben
 # Namen wieder hier ab. Übersprungen werden:
 #   • fertige Mehrplattform-Pakete (manifest.json mit "libraries") – auch das Ergebnis des Builds selbst
-#   • reine QML-Plugins (laufen ohnehin auf allen Systemen)
+#   • reine QML-Plugins (laufen ohnehin auf allen Systemen) – außer sie bringen eigene QML-Erweiterungen mit
+#     (sources/<Name>/uve-build.json mit "qmlModules"): dann baut .github/workflows/build-qml-modules.yml auf main
+#     die fehlenden Linux-/macOS-Module und legt sie neben die Windows-DLL in dasselbe ZIP
 #   • Plugins ohne Quellordner sources/<Name>/ (und ohne Eintrag in .github/plugin-builds.json auf main)
 # Ändern sich Quellen unter sources/<Name>/, wird das passende reine Windows-ZIP (höchste Version) gepatcht.
 on:
@@ -41,6 +43,37 @@ jobs:
           cfg = json.load(open("/tmp/plugin-builds.json", encoding="utf8")).get("plugins", {})
           norm = lambda s: "".join(c.lower() for c in s if c.isalnum())
           sources = {norm(d): d for d in os.listdir("sources")} if os.path.isdir("sources") else {}
+
+          def zip_names(name):
+              with zipfile.ZipFile(name) as z:
+                  return {n.replace("\\", "/") for n in z.namelist()}
+
+          def qml_modules_missing(name, m):
+              """None: keine QML-Erweiterungen konfiguriert; sonst Liste der fehlenden Linux-/macOS-Module."""
+              prefix = re.match(r"^(.+?)[-_ ]v?\d+(?:\.\d+)*\.zip$", name, re.I)
+              pid = m.get("id", "")
+              keys = {norm(k) for k in ((prefix.group(1) if prefix else ""), m.get("name", ""), pid.split(".")[-1], pid) if k}
+              hits = [sources[k] for k in keys if k in sources]
+              if len(hits) != 1:
+                  return None
+              cfg_file = os.path.join("sources", hits[0], "uve-build.json")
+              if not os.path.isfile(cfg_file):
+                  return None
+              try:
+                  mods = json.load(open(cfg_file, encoding="utf-8-sig")).get("qmlModules") or []
+              except ValueError as e:
+                  print(f"::warning::{cfg_file}: ungültiges JSON ({e})")
+                  return None
+              if not mods:
+                  return None
+              have = zip_names(name)
+              missing = []
+              for mod in mods:
+                  t, d = mod.get("target", ""), mod.get("dir", "").strip("/")
+                  for f in (f"{d}/lib{t}.so", f"{d}/lib{t}.dylib"):
+                      if f not in have:
+                          missing.append(f)
+              return missing
 
           def manifest_of(name):
               with zipfile.ZipFile(name) as z:
@@ -89,7 +122,19 @@ jobs:
                   print(f"{name}: Mehrplattform-Paket ({pid} {version}) – kein Build")
                   continue
               if not m.get("library"):
-                  print(f"{name}: ohne native Bibliothek – läuft schon auf allen Systemen")
+                  missing = qml_modules_missing(name, m)
+                  if missing is None:
+                      print(f"{name}: ohne native Bibliothek – läuft schon auf allen Systemen")
+                      continue
+                  force = name in from_sources
+                  if not missing and not force:
+                      print(f"{name}: QML-Module für Linux und macOS schon im Paket – kein Build")
+                      continue
+                  print(f"{name}: starte QML-Modul-Build für {pid} {version}" + (f" (fehlt: {', '.join(missing)})" if missing else " (Quellen geändert)"))
+                  args = ["gh", "workflow", "run", "build-qml-modules.yml", "--ref", "main", "-f", f"zip_file={name}"]
+                  if force:
+                      args += ["-f", "force=true"]
+                  subprocess.run(args, check=True)
                   continue
               prefix = re.match(r"^(.+?)[-_ ]v?\d+(?:\.\d+)*\.zip$", name, re.I)
               keys = {norm(k) for k in ((prefix.group(1) if prefix else ""), m.get("name", ""), pid.split(".")[-1], pid) if k}

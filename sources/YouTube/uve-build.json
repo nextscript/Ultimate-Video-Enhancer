@@ -1,0 +1,6 @@
+{
+  "_comment": "QML-Erweiterungen dieses QML-Plugins, gebaut von .github/workflows/build-qml-modules.yml (main). dir: Ordner im Paket (mit qmldir), target: CMake-Ziel add_library(<target> MODULE ...), check: QML-Objekt zum Ladetest.",
+  "qmlModules": [
+    { "target": "uve_oauth", "dir": "oauth", "check": "OAuthLoopback {}" }
+  ]
+}

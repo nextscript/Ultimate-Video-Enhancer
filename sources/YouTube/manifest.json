@@ -1,0 +1,93 @@
+{
+  "id": "org.uveplayer.youtube",
+  "name": "YouTube",
+  "version": "1.0.1",
+  "apiVersion": 1,
+  "minHostVersion": "1.3.0",
+  "type": "utility",
+  "description": {
+    "de": "YouTube im Player – ohne Anmeldung: Trends, Suche, Kanäle und Playlists. Abos, Verlauf, Später ansehen und Favoriten verwaltet das Plugin selbst; YouTube-Abos lassen sich über den Kanalnamen importieren. Ein Klick spielt das Video im UVE Player ab.",
+    "en": "YouTube inside the player – no sign-in needed: trending, search, channels and playlists. The plugin keeps its own subscriptions, history, watch later and favourites; YouTube subscriptions can be imported by channel name. One click plays the video in UVE Player."
+  },
+  "author": "UVE Player",
+  "license": "MIT",
+  "main": "Main.qml",
+  "supportedPlatforms": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "requiredBackends": [
+    "qml-plugins",
+    "plugin-commands"
+  ],
+  "permissions": [],
+  "contributes": {
+    "panels": [
+      {
+        "id": "browser",
+        "title": {
+          "de": "YouTube",
+          "en": "YouTube"
+        },
+        "qml": "BrowserPage.qml",
+        "location": "modal",
+        "modal": {
+          "scope": "player",
+          "mode": "movable",
+          "width": 1120,
+          "height": 720
+        }
+      },
+      {
+        "id": "settings",
+        "title": {
+          "de": "YouTube",
+          "en": "YouTube"
+        },
+        "qml": "SettingsPage.qml",
+        "location": "settings"
+      }
+    ],
+    "menu": [
+      {
+        "id": "open",
+        "title": {
+          "de": "YouTube öffnen …",
+          "en": "Open YouTube …"
+        }
+      },
+      {
+        "id": "open-subs",
+        "title": {
+          "de": "YouTube: Abos",
+          "en": "YouTube: Subscriptions"
+        }
+      },
+      {
+        "id": "open-search",
+        "title": {
+          "de": "YouTube: Suchen …",
+          "en": "YouTube: Search …"
+        }
+      },
+      {
+        "id": "open-settings",
+        "title": {
+          "de": "YouTube: Einstellungen",
+          "en": "YouTube: Settings"
+        }
+      }
+    ],
+    "hotkeys": [
+      {
+        "id": "open",
+        "title": {
+          "de": "YouTube öffnen",
+          "en": "Open YouTube"
+        },
+        "default": "Ctrl+Alt+Y"
+      }
+    ]
+  }
+}
