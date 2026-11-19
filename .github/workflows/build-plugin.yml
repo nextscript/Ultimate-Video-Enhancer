@@ -1,13 +1,15 @@
 name: Build plugin
 
-# Baut ein UVE-Player-Plugin für Windows x64, Linux x86-64 und macOS ARM64 und packt alles in EIN
-# installierbares ZIP <Name>-<Version>.zip (manifest.json mit "libraries", Module unter bin/<Ziel>/).
+# Macht aus einem UVE-Player-Plugin EIN ZIP für Windows x64, Linux x86-64 und macOS ARM64
+# (manifest.json mit "libraries", Module unter bin/<Ziel>/) und legt es in den Zweig uve-player-plugins.
 #
-# Start:  GitHub → Actions → "Build plugin" → "Run workflow" (Branch main) → Plugin-ID und Version.
-#         Oder automatisch: ein neues Windows-ZIP im Zweig uve-player-plugins startet diesen Workflow
-#         (.github/workflows/plugin-zip-uploaded.yml dort; fertige Mehrplattform-ZIPs werden übersprungen).
-# Ergebnis: Artefakt "<Name>-<Version>" des Laufs; darin liegt das Installationspaket <Name>-<Version>.zip.
-#         Hochladen nach uve-player-plugins und den Katalog pflegen bleibt Handarbeit.
+# Start:  automatisch, sobald ein Windows-ZIP <Name>-<Version>.zip in uve-player-plugins hochgeladen wird
+#         (.github/workflows/plugin-zip-uploaded.yml dort), oder GitHub → Actions → "Build plugin" → "Run workflow".
+# Ablauf: Liegt <Name>-<Version>.zip als reines Windows-Paket im Zweig, werden nur Linux und macOS gebaut und in
+#         genau dieses ZIP eingefügt (Windows-DLL, QML, Sprachen und README bleiben aus dem Upload). Das fertige ZIP
+#         ersetzt das hochgeladene unter demselben Namen. Ohne ZIP werden alle drei Plattformen gebaut.
+#         Hat sich das ZIP im Zweig während des Laufs geändert, wird nichts überschrieben.
+# Ergebnis: das ZIP im Zweig uve-player-plugins und zusätzlich das Artefakt "<Name>-<Version>" des Laufs.
 #
 # Welche Plugins gebaut werden können, steht in .github/plugin-builds.json (Quellpfad, Tag-Muster, Build-Ziel).
 # Quellstand: Tag der Version (z. B. glsl-manager-v1.0.1), falls vorhanden, sonst der aktuelle Stand von
@@ -33,6 +35,14 @@ on:
         description: "Optional: Tag oder Commit des Players für Plugin-API und Qt (Standard: player.ref aus plugin-builds.json)"
         required: false
         default: ""
+      zip_file:
+        description: "Optional: ZIP im Zweig uve-player-plugins (Standard: <Name>-<Version>.zip)"
+        required: false
+        default: ""
+      publish:
+        description: "Fertiges ZIP in den Zweig uve-player-plugins schreiben"
+        type: boolean
+        default: true
       run_tests:
         description: "Tests des Plugins ausführen"
         type: boolean
@@ -62,6 +72,13 @@ jobs:
       qt_version: ${{ steps.r.outputs.qt_version }}
       targets: ${{ steps.r.outputs.targets }}
       libraries: ${{ steps.r.outputs.libraries }}
+      mode: ${{ steps.r.outputs.mode }}
+      catalog_branch: ${{ steps.r.outputs.catalog_branch }}
+      catalog_sha: ${{ steps.r.outputs.catalog_sha }}
+      zip_name: ${{ steps.r.outputs.zip_name }}
+      base_blob: ${{ steps.r.outputs.base_blob }}
+      build_targets: ${{ steps.r.outputs.build_targets }}
+      matrix: ${{ steps.r.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -74,6 +91,7 @@ jobs:
           python3 -I .github/scripts/plugin_build.py resolve
           --id "${{ inputs.plugin_id }}" --version "${{ inputs.version }}"
           --source-ref "${{ inputs.source_ref }}" --player-ref "${{ inputs.player_ref }}"
+          --zip-file "${{ inputs.zip_file }}"
       - name: Summary
         run: |
           {
@@ -83,20 +101,15 @@ jobs:
             echo "| Plugin-Quellen | \`${{ steps.r.outputs.source_repo }}\` ${{ steps.r.outputs.source_ref }} → \`${{ steps.r.outputs.source_sha }}\` (\`${{ steps.r.outputs.source_path }}\`) |"
             echo "| Player (Plugin-API) | ${{ steps.r.outputs.player_ref }} → \`${{ steps.r.outputs.player_sha }}\` |"
             echo "| Qt | ${{ steps.r.outputs.qt_version }} |"
+            echo "| Paket | \`${{ steps.r.outputs.zip_name }}\` in ${{ steps.r.outputs.catalog_branch }} – Modus **${{ steps.r.outputs.mode }}**, gebaut: ${{ steps.r.outputs.build_targets }} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   build:
     needs: resolve
     strategy:
       fail-fast: false   # jede Plattform meldet ihr Ergebnis; das Paket entsteht nur, wenn alle drei gelingen
-      matrix:
-        include:
-          - key: windows-x64
-            os: windows-2022
-          - key: linux-x86_64
-            os: ubuntu-24.04   # wie der Linux-Build des Players
-          - key: macos-arm64
-            os: macos-latest   # Apple Silicon, wie der macOS-Build des Players
+      # windows-2022 / ubuntu-24.04 / macos-latest (Apple Silicon) wie im Player; beim Einfügen ohne Windows
+      matrix: ${{ fromJSON(needs.resolve.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     env:
       QT_VERSION: ${{ needs.resolve.outputs.qt_version }}
@@ -317,6 +330,8 @@ jobs:
   package:
     needs: [resolve, build]
     runs-on: ubuntu-latest
+    outputs:
+      artifact: ${{ steps.zip.outputs.name }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -327,12 +342,20 @@ jobs:
           path: parts
       - name: Rename parts
         run: for d in parts/module-*; do mv "$d" "parts/${d#parts/module-}"; done; find parts -type f | sort
+      - name: Fetch uploaded package
+        if: needs.resolve.outputs.mode == 'insert'
+        run: |
+          git fetch -q --depth 1 origin "${{ needs.resolve.outputs.catalog_sha }}"
+          git show "${{ needs.resolve.outputs.catalog_sha }}:${{ needs.resolve.outputs.zip_name }}" > base.zip
+          ls -l base.zip
       - id: zip
         name: Assemble and verify package
         run: >
           python3 -I .github/scripts/plugin_build.py assemble --parts parts
           --id "${{ inputs.plugin_id }}" --version "${{ inputs.version }}"
-          --package "${{ needs.resolve.outputs.package }}" --targets "${{ needs.resolve.outputs.targets }}" --out dist
+          --package "${{ needs.resolve.outputs.package }}" --targets "${{ needs.resolve.outputs.targets }}"
+          --built "${{ needs.resolve.outputs.build_targets }}" --zip-name "${{ needs.resolve.outputs.zip_name }}"
+          ${{ needs.resolve.outputs.mode == 'insert' && '--base-zip base.zip' || '' }} --out dist
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.zip.outputs.name }}
@@ -345,6 +368,45 @@ jobs:
             echo "### ${{ steps.zip.outputs.name }}.zip"
             echo "SHA-256 \`${{ steps.zip.outputs.sha256 }}\`"
             echo
-            echo "Download: Artefakt **${{ steps.zip.outputs.name }}** unten auf dieser Seite. Das Artefakt wird von GitHub als ZIP"
-            echo "geliefert; darin liegt das Installationspaket \`${{ steps.zip.outputs.name }}.zip\`. Dieses nach \`uve-player-plugins\` hochladen."
+            echo "Wird nach \`${{ needs.resolve.outputs.catalog_branch }}\` geschrieben (Job *publish*); zusätzlich Artefakt **${{ steps.zip.outputs.name }}** unten."
           } >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: [resolve, package]
+    if: inputs.publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.resolve.outputs.catalog_branch }}
+          sparse-checkout: |
+            /*.zip
+            /README.md
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.package.outputs.artifact }}
+          path: new
+      - name: Replace package in ${{ needs.resolve.outputs.catalog_branch }}
+        env:
+          ZIP: ${{ needs.resolve.outputs.zip_name }}
+          BASE_BLOB: ${{ needs.resolve.outputs.base_blob }}
+        run: |
+          # Nur ersetzen, was der Lauf als Grundlage genommen hat: ein neuerer Upload bleibt unberührt
+          now=$(git rev-parse "HEAD:$ZIP" 2>/dev/null || true)
+          if [ "$now" != "$BASE_BLOB" ]; then
+            echo "::error::$ZIP wurde während des Laufs im Zweig geändert (vorher ${BASE_BLOB:-fehlt}, jetzt ${now:-fehlt}) – nichts überschrieben. Artefakt des Laufs nutzen oder neu starten."
+            exit 1
+          fi
+          cp "new/$ZIP" "$ZIP"
+          git add "$ZIP"
+          if git diff --cached --quiet; then echo "$ZIP unverändert"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -q -m "$ZIP: Windows, Linux und macOS" -m "Gebaut von ${{ github.workflow }} #${{ github.run_number }} (${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}), Modus ${{ needs.resolve.outputs.mode }}."
+          # Andere Uploads seit dem Start übernehmen; ein Konflikt am selben ZIP bricht ab
+          git pull -q --rebase origin "${{ needs.resolve.outputs.catalog_branch }}"
+          git push origin "HEAD:${{ needs.resolve.outputs.catalog_branch }}"
+          echo "### $ZIP liegt jetzt in \`${{ needs.resolve.outputs.catalog_branch }}\`" >> "$GITHUB_STEP_SUMMARY"

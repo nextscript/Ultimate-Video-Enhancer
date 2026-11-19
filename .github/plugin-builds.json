@@ -4,6 +4,7 @@
     "repository": "nextscript/Ultimate-Video-Enhancer",
     "ref": "uve-player-v1.2.9"
   },
+  "catalogBranch": "uve-player-plugins",
   "targets": ["windows-x64", "linux-x86_64", "macos-arm64"],
   "plugins": {
     "org.uveplayer.glsl-manager": {

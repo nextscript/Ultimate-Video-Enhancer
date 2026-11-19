@@ -192,13 +192,83 @@ def cmd_resolve(a):
         fail(f"minHostVersion {min_host} ist neuer als der Player {player_ref} ({player_version})")
     if player_version and (not min_host or tuple(map(int, min_host.split(".")[:3])) < (1, 2, 9)):
         fail(f"minHostVersion '{min_host}': Pakete mit \"libraries\" brauchen mindestens 1.2.9")
+    # Hochgeladenes Paket im Katalog-Zweig: reines Windows-ZIP → Linux/macOS einfügen, sonst alles bauen
+    catalog = cfg.get("catalogBranch", "uve-player-plugins")
+    cat_url = repo_url(os.environ.get("GITHUB_REPOSITORY", "") or src_repo, "CATALOG_TOKEN")
+    cat_sha, _ = resolve_ref(cat_url, catalog, f"Katalog-Zweig {catalog}")
+    zip_name = a.zip_file or f"{p['package']}-{a.version}.zip"
+    if "/" in zip_name or not zip_name.lower().endswith(".zip"):
+        fail(f"Ungültiger ZIP-Name '{zip_name}' (erwartet <Name>-<Version>.zip im Wurzelverzeichnis von {catalog})")
+    where = tmp / "catalog"
+    where.mkdir()
+    git("init", "-q", cwd=where)
+    git("fetch", "-q", "--depth", "1", cat_url, cat_sha, cwd=where)
+    blob = subprocess.run(["git", "rev-parse", f"{cat_sha}:{zip_name}"], cwd=where, capture_output=True, text=True).stdout.strip()
+    mode, base_blob, build = "new", "", list(targets)
+    if blob:
+        base_blob = blob
+        data = show(where, cat_sha, zip_name)
+        base_manifest = read_zip_manifest(data, zip_name)
+        if base_manifest.get("id") != a.id:
+            fail(f"{zip_name}: enthält '{base_manifest.get('id')}', erwartet '{a.id}'")
+        if base_manifest.get("libraries"):
+            mode = "rebuild"   # schon ein Mehrplattform-Paket: komplett neu bauen und ersetzen
+        else:
+            if base_manifest.get("version") != a.version:
+                fail(f"{zip_name}: manifest.json hat Version '{base_manifest.get('version')}', erwartet '{a.version}'")
+            win = [k for k in targets if k.startswith("windows-")]
+            if not base_manifest.get("library") or not win:
+                fail(f"{zip_name}: kein Windows-Modul (\"library\") zum Übernehmen")
+            mode = "insert"   # Windows-Modul und Ressourcen aus dem ZIP, Linux und macOS werden gebaut
+            build = [k for k in targets if k not in win]
+        print(f"{zip_name} in {catalog} ({cat_sha[:10]}): Modus {mode}")
+    else:
+        print(f"{zip_name} liegt nicht in {catalog} – alle Plattformen werden gebaut, das Paket kommt neu dazu")
+    runners = {"windows-x64": "windows-2022", "linux-x86_64": "ubuntu-24.04", "macos-arm64": "macos-latest"}
+    matrix = {"include": [{"key": k, "os": runners[k]} for k in build]}
     shutil.rmtree(tmp, ignore_errors=True)
 
-    out(package=p["package"], source_repo=src_repo, source_ref=src_ref, source_sha=src_sha, source_path=base,
+    out(mode=mode, catalog_branch=catalog, catalog_sha=cat_sha, zip_name=zip_name, base_blob=base_blob,
+        build_targets=",".join(build), matrix=json.dumps(matrix, separators=(",", ":")),
+        package=p["package"], source_repo=src_repo, source_ref=src_ref, source_sha=src_sha, source_path=base,
         target=p["target"], package_dir=p["packageDir"], player_repo=player_repo, player_ref=player_ref,
         player_sha=player_sha, player_version=player_version,
         player_release=player_ref if player_ref.startswith("uve-player-v") else "",
         qt_version=qt.group(1), targets=",".join(targets), libraries=json.dumps(manifest["libraries"], separators=(",", ":")))
+
+
+def read_zip_manifest(data, name):
+    """manifest.json eines Plugin-ZIPs (Wurzel oder genau ein Unterordner) → dict."""
+    entries = zip_entries(data, name)
+    if "manifest.json" not in entries:
+        fail(f"{name}: keine manifest.json im Paket")
+    return json.loads(entries["manifest.json"])
+
+
+def zip_entries(data, name):
+    """Dateien eines Plugin-ZIPs relativ zum Ordner mit manifest.json (Backslash → /)."""
+    import io
+    try:
+        z = zipfile.ZipFile(io.BytesIO(data))
+    except zipfile.BadZipFile:
+        fail(f"{name}: keine gültige ZIP-Datei")
+    files = {i.filename.replace("\\", "/"): z.read(i) for i in z.infolist() if not i.filename.endswith(("/", "\\"))}
+    prefix = ""
+    if "manifest.json" not in files:
+        found = [k for k in files if k.count("/") == 1 and k.endswith("/manifest.json")]
+        if len(found) != 1:
+            fail(f"{name}: keine manifest.json im Paket")
+        prefix = found[0][: -len("manifest.json")]
+    out_files = {}
+    for k, v in files.items():
+        if not k.startswith(prefix):
+            continue
+        rel = k[len(prefix):]
+        pp = PurePosixPath(rel)
+        if pp.is_absolute() or ".." in pp.parts or ":" in rel:
+            fail(f"{name}: ungültiger Pfad {k}")
+        out_files[rel] = v
+    return out_files
 
 
 def cmd_set_version(a):
@@ -245,36 +315,83 @@ def normalize(s):
     return "".join(c.lower() for c in s if c.isalnum())
 
 
+def version_tuple(v):
+    nums = [int(x) for x in re.findall(r"\d+", v.split("-")[0].split("+")[0])[:3]]
+    return tuple(nums + [0] * (3 - len(nums)))
+
+
 def cmd_assemble(a):
     targets = a.targets.split(",")
+    built = a.built.split(",") if a.built else list(targets)
     parts = Path(a.parts)
     trees = {}
-    for key in targets:
+    for key in built:
         d = parts / key
         if not d.is_dir() or not any(d.rglob("*")):
             fail(f"Build für {key} fehlt (kein Modul aus dem Plattform-Job) – kein Plugin-ZIP")
         trees[key] = files_of(d)
 
-    # Manifest und gemeinsame Ressourcen: in allen Plattform-Jobs identisch (gleicher Quellstand)
     def common(tree):
         return {k: v for k, v in tree.items() if not k.startswith("bin/")}
-    # Gemeinsame Dateien aus dem Linux-Build (LF wie im Repository), sonst aus dem ersten
-    first = next((k for k in targets if k.startswith("linux-")), targets[0])
-    shared = common(trees[first])
+
+    def same(x, y):   # Zeilenenden zählen nicht (Git unter Windows kann CRLF auschecken)
+        return x.replace(b"\r\n", b"\n") == y.replace(b"\r\n", b"\n")
+
+    # Gemeinsame Dateien der Builds: Linux (LF wie im Repository), sonst der erste
+    first = next((k for k in built if k.startswith("linux-")), built[0])
+    shared = {k: v.read_bytes() for k, v in common(trees[first]).items()}
     if "manifest.json" not in shared:
         fail(f"Build {first}: manifest.json fehlt im Paketordner")
-    for key in [k for k in targets if k != first]:
+    for key in [k for k in built if k != first]:
         other = common(trees[key])
         if set(other) != set(shared):
             fail(f"Gemeinsame Dateien von {key} und {first} unterscheiden sich: {sorted(set(other) ^ set(shared))}")
         for rel in shared:
-            if rel.endswith(".qm"):
-                continue   # lrelease schreibt je nach Plattform minimal andere Bytes; Inhalt kommt aus derselben .ts
-            # Zeilenenden zählen nicht (Git unter Windows kann CRLF auschecken)
-            if shared[rel].read_bytes().replace(b"\r\n", b"\n") != other[rel].read_bytes().replace(b"\r\n", b"\n"):
+            if not rel.endswith(".qm") and not same(shared[rel], other[rel].read_bytes()):
                 fail(f"{rel} unterscheidet sich zwischen {first} und {key} – unterschiedlicher Quellstand?")
+    built_manifest = json.loads(shared["manifest.json"])
+    libs = check_libraries(built_manifest, targets, "manifest.json (Quellstand)")
 
-    manifest = json.loads(shared["manifest.json"].read_text(encoding="utf8"))
+    if a.base_zip:
+        # Einfügen: hochgeladenes Windows-ZIP bleibt Grundlage (Modul, QML, Sprachen, README …)
+        base = zip_entries(Path(a.base_zip).read_bytes(), Path(a.base_zip).name)
+        manifest = json.loads(base["manifest.json"])
+        win_keys = [k for k in targets if k not in built]
+        if len(win_keys) != 1 or not win_keys[0].startswith("windows-"):
+            fail(f"Einfügen erwartet genau ein Windows-Ziel aus dem ZIP, nicht {win_keys}")
+        old_lib = manifest.get("library", "")
+        if old_lib not in base:
+            fail(f"{Path(a.base_zip).name}: Windows-Modul '{old_lib}' fehlt im Paket")
+        tmpdll = Path(a.out) / "_win_module"
+        tmpdll.parent.mkdir(parents=True, exist_ok=True)
+        tmpdll.write_bytes(base[old_lib])
+        cmd_arch(argparse.Namespace(module=str(tmpdll), key=win_keys[0]))
+        tmpdll.unlink()
+        files = {k: v for k, v in base.items() if k not in ("manifest.json", old_lib)}
+        files[libs[win_keys[0]]] = base[old_lib]
+        # Hinweis, wenn die Quellen für Linux/macOS nicht zum hochgeladenen Paket passen
+        differ = [k for k, v in shared.items() if k != "manifest.json" and not k.endswith(".qm") and k in base and not same(v, base[k])]
+        missing = [k for k in shared if k != "manifest.json" and k not in base]
+        if differ or missing:
+            print(f"::warning::Quellen (sources/…) und hochgeladenes ZIP unterscheiden sich: {sorted(differ + missing)} – "
+                  "Linux/macOS sind aus den Quellen gebaut, Windows und Ressourcen stammen aus dem ZIP")
+        # Manifest des Pakets: libraries statt library, alle Plattformen, Mindestversion des Players
+        new = {}
+        for k, v in manifest.items():
+            if k == "library":
+                new["libraries"] = {t: libs[t] for t in targets}
+                continue
+            new[k] = v
+        new.setdefault("libraries", {t: libs[t] for t in targets})
+        new["supportedPlatforms"] = sorted({t.split("-", 1)[0] for t in targets}, key=["windows", "linux", "macos"].index)
+        if version_tuple(new.get("minHostVersion", "0.0.0")) < (1, 2, 9):
+            new["minHostVersion"] = "1.2.9"
+        manifest = new
+    else:
+        manifest = built_manifest
+        files = dict(shared)
+        files.pop("manifest.json")
+
     if manifest.get("id") != a.id:
         fail(f"manifest.json: id '{manifest.get('id')}' != Eingabe '{a.id}'")
     if manifest.get("version") != a.version:
@@ -286,8 +403,7 @@ def cmd_assemble(a):
     if normalize(a.package) not in keys:
         fail(f"Paketname '{a.package}' passt nicht zu name/id des Manifests – der Plugin-Updater fände das Paket nicht")
 
-    files = dict(shared)
-    for key in targets:
+    for key in built:
         lib = libs[key]
         own = {k: v for k, v in trees[key].items() if k.startswith("bin/")}
         if lib not in own:
@@ -296,16 +412,17 @@ def cmd_assemble(a):
         stray = [k for k in own if not k.startswith(folder)]
         if stray:
             fail(f"Build {key}: Dateien außerhalb von {folder}: {stray}")
-        files.update(own)   # Modul und etwaige private Begleitbibliotheken im selben Ordner
+        files.update({k: v.read_bytes() for k, v in own.items()})   # Modul und private Begleitbibliotheken
 
-    zip_path = Path(a.out) / f"{a.package}-{a.version}.zip"
+    manifest_bytes = (json.dumps(manifest, ensure_ascii=False, indent=2) + "\n").encode("utf8") if a.base_zip else shared["manifest.json"]
+    zip_path = Path(a.out) / (a.zip_name or f"{a.package}-{a.version}.zip")
     zip_path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
-        for rel in ["manifest.json"] + sorted(k for k in files if k != "manifest.json"):
+        for rel, data in [("manifest.json", manifest_bytes)] + sorted(files.items()):
             info = zipfile.ZipInfo(rel, date_time=(2026, 1, 1, 0, 0, 0))
             info.compress_type = zipfile.ZIP_DEFLATED
             info.external_attr = 0o644 << 16
-            z.writestr(info, files[rel].read_bytes())
+            z.writestr(info, data)
 
     # Prüfung des fertigen ZIPs: Manifest oben, alle referenzierten Dateien und Module enthalten
     with zipfile.ZipFile(zip_path) as z:
@@ -316,6 +433,8 @@ def cmd_assemble(a):
         packed = json.loads(z.read("manifest.json"))
         if packed != manifest:
             fail(f"{zip_path.name}: manifest.json weicht ab")
+        if "library" in packed:
+            fail(f"{zip_path.name}: manifest.json enthält noch \"library\"")
         for key, lib in libs.items():
             if lib not in names:
                 fail(f"{zip_path.name}: {lib} ({key}) fehlt")
@@ -332,7 +451,7 @@ def cmd_assemble(a):
             print(f"{info.file_size:>10}  {info.filename}")
     digest = hashlib.sha256(zip_path.read_bytes()).hexdigest()
     print(f"\n{zip_path.name}  {zip_path.stat().st_size} Bytes  SHA-256 {digest}")
-    out(zip=str(zip_path), name=zip_path.stem, sha256=digest)
+    out(zip=str(zip_path), name=zip_path.stem, file=zip_path.name, sha256=digest)
 
 
 def main():
@@ -343,6 +462,7 @@ def main():
     r.add_argument("--version", required=True)
     r.add_argument("--source-ref", default="")
     r.add_argument("--player-ref", default="")
+    r.add_argument("--zip-file", default="")
     v = sub.add_parser("set-version")
     v.add_argument("--manifest", required=True)
     v.add_argument("--version", required=True)
@@ -352,6 +472,9 @@ def main():
     s = sub.add_parser("assemble")
     for arg in ("--parts", "--id", "--version", "--package", "--targets", "--out"):
         s.add_argument(arg, required=True)
+    s.add_argument("--built", default="", help="tatsächlich gebaute Ziele (Standard: alle)")
+    s.add_argument("--base-zip", default="", help="hochgeladenes Windows-ZIP, in das Linux/macOS eingefügt werden")
+    s.add_argument("--zip-name", default="")
     a = ap.parse_args()
     {"resolve": cmd_resolve, "set-version": cmd_set_version, "arch": cmd_arch, "assemble": cmd_assemble}[a.cmd](a)
 
