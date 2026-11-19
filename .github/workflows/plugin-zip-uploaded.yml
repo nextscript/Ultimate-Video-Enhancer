@@ -1,7 +1,8 @@
 name: Plugin ZIP uploaded
 
 # Neues oder geändertes Plugin-ZIP im Wurzelverzeichnis dieses Zweigs → Mehrplattform-Build auf main starten
-# (.github/workflows/build-plugin.yml). Übersprungen werden:
+# (.github/workflows/build-plugin.yml). Der baut Linux und macOS, fügt sie in genau dieses ZIP ein und legt es
+# unter demselben Namen wieder hier ab. Übersprungen werden:
 #   • fertige Mehrplattform-Pakete (manifest.json mit "libraries") – sonst baute jeder Upload des Ergebnisses neu
 #   • Plugins, die nicht in .github/plugin-builds.json auf main stehen
 # Der Quellstand ergibt sich aus der Version im ZIP (Tag-Muster in plugin-builds.json, z. B. glsl-manager-v1.0.2).
@@ -60,5 +61,5 @@ jobs:
                   continue
               print(f"{name}: starte Build für {pid} {version}")
               subprocess.run(["gh", "workflow", "run", "build-plugin.yml", "--ref", "main",
-                              "-f", f"plugin_id={pid}", "-f", f"version={version}"], check=True)
+                              "-f", f"plugin_id={pid}", "-f", f"version={version}", "-f", f"zip_file={name}"], check=True)
           EOF
