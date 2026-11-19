@@ -1,5 +1,5 @@
 {
-  "_comment": "Plugins, die .github/workflows/build-plugin.yml baut. sourceRef: Tag oder Commit des Quellstands ({version} = Plugin-Version). player.ref: fester Player-Tag für PluginApi.h, Qt-Version und Toolchain.",
+  "_comment": "Plugins, die .github/workflows/build-plugin.yml baut. sourceRef: Tag des Quellstands ({version} = Plugin-Version), ohne Tag gilt sourceFallbackRef (Zweig, zum Start auf einen Commit festgelegt). player.ref: fester Player-Tag für PluginApi.h, Qt-Version und Toolchain.",
   "player": {
     "repository": "nextscript/Ultimate-Video-Enhancer",
     "ref": "uve-player-v1.2.9"
@@ -10,6 +10,7 @@
       "package": "GLSLManager",
       "sourceRepository": "nextscript/Ultimate-Video-Enhancer",
       "sourceRef": "glsl-manager-v{version}",
+      "sourceFallbackRef": "uve-player-plugins",
       "sourcePath": "sources/GLSLManager",
       "target": "glsl_manager",
       "packageDir": "package/GLSLManager"

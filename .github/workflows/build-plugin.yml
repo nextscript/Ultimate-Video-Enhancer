@@ -10,6 +10,9 @@ name: Build plugin
 #         Hochladen nach uve-player-plugins und den Katalog pflegen bleibt Handarbeit.
 #
 # Welche Plugins gebaut werden können, steht in .github/plugin-builds.json (Quellpfad, Tag-Muster, Build-Ziel).
+# Quellstand: Tag der Version (z. B. glsl-manager-v1.0.1), falls vorhanden, sonst der aktuelle Stand von
+# sourceFallbackRef (Zweig uve-player-plugins, Ordner sources/…) – einmal auf einen Commit festgelegt, den alle
+# Plattformen bauen. Die eingegebene Version kommt ins Manifest des Pakets und der Module.
 # Private Quellen: Secret PLUGIN_SOURCES_TOKEN mit Lesezugriff anlegen.
 on:
   workflow_dispatch:
@@ -19,11 +22,11 @@ on:
         required: true
         default: org.uveplayer.glsl-manager
       version:
-        description: "Plugin-Version (wie in manifest.json, z. B. 1.0.2)"
+        description: "Version des Pakets (wie im ZIP, z. B. 1.0.1) – wird ins Manifest geschrieben"
         required: true
-        default: "1.0.2"
+        default: "1.0.1"
       source_ref:
-        description: "Optional: Tag oder Commit des Plugin-Quellstands (Standard: Tag-Muster aus plugin-builds.json)"
+        description: "Optional: Tag, Zweig oder Commit des Plugin-Quellstands (Standard: Tag der Version, sonst Zweig uve-player-plugins)"
         required: false
         default: ""
       player_ref:
@@ -123,6 +126,8 @@ jobs:
             src/plugins
             scripts
           path: player
+      - name: Set package version
+        run: python3 -I ci/.github/scripts/plugin_build.py set-version --manifest "plugin/${{ needs.resolve.outputs.source_path }}/manifest.json" --version "${{ inputs.version }}" || python -I ci/.github/scripts/plugin_build.py set-version --manifest "plugin/${{ needs.resolve.outputs.source_path }}/manifest.json" --version "${{ inputs.version }}"
 
       # ---- Toolchain und Qt wie im Release-Workflow des Players
       - name: Cache Qt (Windows)

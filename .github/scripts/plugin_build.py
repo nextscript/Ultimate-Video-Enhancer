@@ -1,7 +1,9 @@
 """Hilfsschritte für .github/workflows/build-plugin.yml (UVE-Player-Plugins für Windows, Linux und macOS).
 
   resolve   --id ID --version V [--source-ref REF] [--player-ref REF]
-            Plugin aus .github/plugin-builds.json, Tag/Commit auflösen, Quellstand prüfen → $GITHUB_OUTPUT
+            Plugin aus .github/plugin-builds.json, Quellstand auflösen (Tag der Version, sonst sourceFallbackRef)
+            und prüfen → $GITHUB_OUTPUT
+  set-version --manifest FILE --version V      Version des Pakets ins Manifest des Quellstands schreiben
   arch      --module FILE --key TARGET          Architektur des Moduls prüfen (PE / ELF / Mach-O)
   assemble  --parts DIR --id ID --version V --package NAME --targets K1,K2,… --out DIR
             Module der Plattform-Jobs mit gemeinsamem Manifest und Ressourcen zu <NAME>-<V>.zip packen und prüfen
@@ -59,24 +61,25 @@ def repo_url(repository, token_env):
     return f"https://x-access-token:{token}@github.com/{repository}.git" if token else f"https://github.com/{repository}.git"
 
 
-def resolve_ref(url, ref, what):
-    """Tag oder Commit → Commit-SHA. Zweige sind nicht eindeutig und werden abgelehnt."""
+def lookup_ref(url, ref):
+    """Tag, Zweig oder Commit → (Commit-SHA, Art) oder (None, None)."""
     if SHA_RE.match(ref):
-        return ref
+        return ref, "commit"
     lines = git("ls-remote", url, f"refs/tags/{ref}", f"refs/tags/{ref}^{{}}", f"refs/heads/{ref}").splitlines()
-    refs = dict(reversed(l.split("\t")) for l in lines if "\t" in l)
+    refs = {l.split("\t")[1]: l.split("\t")[0] for l in lines if "\t" in l}
     sha = refs.get(f"refs/tags/{ref}^{{}}") or refs.get(f"refs/tags/{ref}")
     if sha:
-        return sha
+        return sha, "tag"
     if f"refs/heads/{ref}" in refs:
-        fail(f"{what} '{ref}' ist ein Zweig – bitte einen Tag oder einen Commit angeben (eindeutiger Quellstand)")
-    hint = ""
-    m = re.match(r"^(.*?)\d+\.\d+\.\d+.*$", ref)
-    if m and m.group(1):   # vorhandene Tags desselben Musters nennen, z. B. glsl-manager-v1.0.2
-        tags = sorted({l.split("	")[1].removeprefix("refs/tags/").removesuffix("^{}")
-                       for l in git("ls-remote", "--tags", url, f"refs/tags/{m.group(1)}*").splitlines() if "	" in l})
-        hint = f" – vorhanden: {', '.join(tags)}" if tags else f" – es gibt noch keinen Tag {m.group(1)}…"
-    fail(f"{what}: Tag '{ref}' nicht gefunden{hint}. Version und Quellstand-Tag müssen zusammenpassen")
+        return refs[f"refs/heads/{ref}"], "branch"   # einmal festgelegt: alle Plattform-Jobs bauen diesen Commit
+    return None, None
+
+
+def resolve_ref(url, ref, what):
+    sha, kind = lookup_ref(url, ref)
+    if not sha:
+        fail(f"{what}: '{ref}' ist weder Tag, Zweig noch Commit")
+    return sha, kind
 
 
 def fetch_commit(url, sha, where):
@@ -132,9 +135,21 @@ def cmd_resolve(a):
     targets = cfg.get("targets") or ["windows-x64", "linux-x86_64", "macos-arm64"]
 
     src_repo = p.get("sourceRepository") or os.environ.get("GITHUB_REPOSITORY", "")
-    src_ref = a.source_ref or p["sourceRef"].replace("{version}", a.version)
     src_url = repo_url(src_repo, "SOURCE_TOKEN")
-    src_sha = resolve_ref(src_url, src_ref, f"Quellstand {src_repo}")
+    if a.source_ref:
+        src_ref = a.source_ref
+        src_sha, src_kind = resolve_ref(src_url, src_ref, f"Quellstand {src_repo}")
+    else:
+        # Tag der Version, falls es einen gibt; sonst der aktuelle Stand des Quellzweigs (z. B. uve-player-plugins)
+        src_ref = p["sourceRef"].replace("{version}", a.version)
+        src_sha, src_kind = lookup_ref(src_url, src_ref)
+        if not src_sha:
+            fallback = p.get("sourceFallbackRef")
+            if not fallback:
+                fail(f"Quellstand {src_repo}: Tag '{src_ref}' nicht gefunden und kein sourceFallbackRef eingetragen")
+            print(f"Kein Tag {src_ref} – baue den aktuellen Stand von {fallback}")
+            src_ref = fallback
+            src_sha, src_kind = resolve_ref(src_url, src_ref, f"Quellstand {src_repo}")
 
     player = cfg.get("player", {})
     player_repo = player.get("repository") or os.environ.get("GITHUB_REPOSITORY", "")
@@ -142,7 +157,7 @@ def cmd_resolve(a):
     if not player_ref:
         fail(".github/plugin-builds.json: player.ref fehlt (fester Player-Tag oder Commit)")
     player_url = repo_url(player_repo, "PLAYER_TOKEN")
-    player_sha = resolve_ref(player_url, player_ref, f"Player {player_repo}")
+    player_sha, _ = resolve_ref(player_url, player_ref, f"Player {player_repo}")
 
     tmp = Path(tempfile.mkdtemp())
     fetch_commit(src_url, src_sha, tmp / "src")
@@ -159,7 +174,7 @@ def cmd_resolve(a):
     if manifest.get("id") != a.id:
         fail(f"Quellstand {src_ref}: manifest.json hat id '{manifest.get('id')}', erwartet '{a.id}'")
     if manifest.get("version") != a.version:
-        fail(f"Quellstand {src_ref}: manifest.json hat version '{manifest.get('version')}', erwartet '{a.version}'")
+        print(f"::notice::manifest.json im Quellstand hat Version {manifest.get('version')} – das Paket bekommt {a.version}")
     check_libraries(manifest, targets, f"Quellstand {src_ref}")
 
     fetch_commit(player_url, player_sha, tmp / "player")
@@ -184,6 +199,20 @@ def cmd_resolve(a):
         player_sha=player_sha, player_version=player_version,
         player_release=player_ref if player_ref.startswith("uve-player-v") else "",
         qt_version=qt.group(1), targets=",".join(targets), libraries=json.dumps(manifest["libraries"], separators=(",", ":")))
+
+
+def cmd_set_version(a):
+    p = Path(a.manifest)
+    text = p.read_text(encoding="utf8")
+    if not VERSION_RE.match(a.version):
+        fail(f"Ungültige Version '{a.version}'")
+    new, n = re.subn(r'("version"\s*:\s*)"[^"]*"', lambda m: f'{m.group(1)}"{a.version}"', text, count=1)
+    if n != 1:
+        fail(f"{p}: Feld version nicht gefunden")
+    p.write_text(new, encoding="utf8", newline="\n")
+    if json.loads(new).get("version") != a.version:
+        fail(f"{p}: Version konnte nicht gesetzt werden")
+    print(f"{p}: version = {a.version}")
 
 
 def cmd_arch(a):
@@ -312,6 +341,9 @@ def main():
     r.add_argument("--version", required=True)
     r.add_argument("--source-ref", default="")
     r.add_argument("--player-ref", default="")
+    v = sub.add_parser("set-version")
+    v.add_argument("--manifest", required=True)
+    v.add_argument("--version", required=True)
     c = sub.add_parser("arch")
     c.add_argument("--module", required=True)
     c.add_argument("--key", required=True)
@@ -319,7 +351,7 @@ def main():
     for arg in ("--parts", "--id", "--version", "--package", "--targets", "--out"):
         s.add_argument(arg, required=True)
     a = ap.parse_args()
-    {"resolve": cmd_resolve, "arch": cmd_arch, "assemble": cmd_assemble}[a.cmd](a)
+    {"resolve": cmd_resolve, "set-version": cmd_set_version, "arch": cmd_arch, "assemble": cmd_assemble}[a.cmd](a)
 
 
 if __name__ == "__main__":
