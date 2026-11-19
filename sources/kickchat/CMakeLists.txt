@@ -14,6 +14,11 @@ if(MSVC)
 endif()
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Network Gui Qml Quick)
+if(APPLE)
+    link_libraries("-framework Security" "-framework CoreFoundation")   # TokenVault: Schlüsselbund
+elseif(UNIX)
+    link_libraries(${CMAKE_DL_LIBS})                                     # dlopen: libsecret, libmpv des Players
+endif()
 qt_standard_project_setup(REQUIRES 6.5)
 
 set(HOST_PLUGIN_API_DIR "M:/LAPS/UVE Player/src/plugins" CACHE PATH "Ordner mit PluginApi.h")

@@ -56,6 +56,7 @@ jobs:
 
           changed = [n for n in open("/tmp/changed", encoding="utf8").read().split("\n") if n]
           zips = [n for n in changed if n.lower().endswith(".zip") and "/" not in n]
+          from_sources = set()   # wegen geänderter Quellen: auch schon gepatchte ZIPs neu patchen
           # Geänderte Quellen → zugehöriges ZIP im Wurzelverzeichnis (höchste Version)
           ver = lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3])
           for d in sorted({n.split("/")[1] for n in changed if n.startswith("sources/") and n.count("/") >= 2}):
@@ -69,6 +70,7 @@ jobs:
                   continue
               best = max(cands)[1]
               print(f"sources/{d} geändert → {best}")
+              from_sources.add(best)
               if best not in zips:
                   zips.append(best)
 
@@ -82,7 +84,8 @@ jobs:
                   print(f"::warning::{name}: keine manifest.json")
                   continue
               pid, version = m.get("id", ""), m.get("version", "")
-              if m.get("libraries"):
+              rebuild = name in from_sources and bool(m.get("libraries"))
+              if m.get("libraries") and not (rebuild and m.get("library")):
                   print(f"{name}: Mehrplattform-Paket ({pid} {version}) – kein Build")
                   continue
               if not m.get("library"):
@@ -94,6 +97,9 @@ jobs:
                   print(f"::notice::{name}: keine Quellen unter sources/<Name>/ – bleibt ein reines Windows-Paket. "
                         f"Ordner sources/{prefix.group(1) if prefix else pid}/ mit CMakeLists.txt anlegen, dann neu hochladen.")
                   continue
-              print(f"{name}: starte Build für {pid} {version}")
-              subprocess.run(["gh", "workflow", "run", "build-plugin.yml", "--ref", "main", "-f", f"zip_file={name}"], check=True)
+              print(f"{name}: starte Build für {pid} {version}" + (" (neu patchen, Quellen geändert)" if rebuild else ""))
+              args = ["gh", "workflow", "run", "build-plugin.yml", "--ref", "main", "-f", f"zip_file={name}"]
+              if rebuild:
+                  args += ["-f", "rebuild=true"]
+              subprocess.run(args, check=True)
           EOF

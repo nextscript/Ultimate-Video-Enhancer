@@ -2,8 +2,10 @@
 // Sichere, lokal verschlüsselte Ablage für Kick-Tokens.
 //
 // Windows: DPAPI (CryptProtectData, benutzerbezogener Schlüssel) – die Datei
-// dataDir/tokens.dat enthält niemals Klartext-Tokens. Ist DPAPI nicht nutzbar,
-// bleiben Tokens nur im Speicher dieser Sitzung (kein Klartext auf der Platte).
+// dataDir/tokens.dat enthält niemals Klartext-Tokens.
+// macOS: Schlüsselbund des Benutzers (Security.framework), Linux: Secret Service über libsecret
+// (GNOME-Schlüsselbund, KWallet …), zur Laufzeit geladen; Konto = Pfad von tokens.dat.
+// Ist nichts davon nutzbar, bleiben Tokens nur im Speicher dieser Sitzung (kein Klartext auf der Platte).
 //
 // Inhalt (vor der Verschlüsselung als JSON):
 //   { "chatUser": "...", "chatToken": "...", "session": { ... } | null }
@@ -22,7 +24,7 @@ public:
     // Beim ersten Zugriff wird die Datei gelesen und entschlüsselt.
     QJsonObject data() const;
 
-    bool save(const QJsonObject &data);   // false = nur Sitzungsspeicher (DPAPI fehlte)
+    bool save(const QJsonObject &data);   // false = nur Sitzungsspeicher (kein DPAPI/Schlüsselbund)
     bool clear();                         // Session und Datei entfernen
 
     bool usingDisk() const { return m_diskOk; }
