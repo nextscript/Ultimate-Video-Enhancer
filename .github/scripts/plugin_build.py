@@ -258,18 +258,20 @@ def cmd_assemble(a):
     # Manifest und gemeinsame Ressourcen: in allen Plattform-Jobs identisch (gleicher Quellstand)
     def common(tree):
         return {k: v for k, v in tree.items() if not k.startswith("bin/")}
-    first = targets[0]
+    # Gemeinsame Dateien aus dem Linux-Build (LF wie im Repository), sonst aus dem ersten
+    first = next((k for k in targets if k.startswith("linux-")), targets[0])
     shared = common(trees[first])
     if "manifest.json" not in shared:
         fail(f"Build {first}: manifest.json fehlt im Paketordner")
-    for key in targets[1:]:
+    for key in [k for k in targets if k != first]:
         other = common(trees[key])
         if set(other) != set(shared):
             fail(f"Gemeinsame Dateien von {key} und {first} unterscheiden sich: {sorted(set(other) ^ set(shared))}")
         for rel in shared:
             if rel.endswith(".qm"):
                 continue   # lrelease schreibt je nach Plattform minimal andere Bytes; Inhalt kommt aus derselben .ts
-            if shared[rel].read_bytes() != other[rel].read_bytes():
+            # Zeilenenden zählen nicht (Git unter Windows kann CRLF auschecken)
+            if shared[rel].read_bytes().replace(b"\r\n", b"\n") != other[rel].read_bytes().replace(b"\r\n", b"\n"):
                 fail(f"{rel} unterscheidet sich zwischen {first} und {key} – unterschiedlicher Quellstand?")
 
     manifest = json.loads(shared["manifest.json"].read_text(encoding="utf8"))

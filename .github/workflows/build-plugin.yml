@@ -105,6 +105,8 @@ jobs:
       run:
         shell: bash
     steps:
+      - name: Check out files unchanged (no CRLF on Windows)
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
         with:
           sparse-checkout: .github
