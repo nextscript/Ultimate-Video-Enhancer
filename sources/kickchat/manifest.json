@@ -1,0 +1,63 @@
+{
+  "id": "cc.ts3x.kick-chat",
+  "name": "Kick Chat",
+  "version": "1.3.2",
+  "apiVersion": 1,
+  "minHostVersion": "1.0.6",
+  "type": "utility",
+  "entrypoint": "KickChatPlugin",
+  "description": {
+    "de": "Kick-Chat im Player: native Verbindung zum Kick-Chat (mitlesen ohne Login, schreiben mit Kick-Anmeldung). Kick-Emotes (auch animiert) und 7TV-Emotes direkt im Chat, Emote-Browser mit Suche und Favoriten, Abzeichen, Antworten, Abo-/Geschenk-/Host-Meldungen, angeheftete Nachricht, Zuschauerzahl, Auto-Scroll und Schriftgröße. Kanalerkennung automatisch aus laufenden Kick-Medien (kick.com/<kanal>).",
+    "en": "Kick chat in the player: native connection to Kick chat (read without login, write with Kick sign-in). Kick emotes (including animated) and 7TV emotes right in the chat, emote browser with search and favorites, badges, replies, sub/gift/host alerts, pinned message, viewer count, auto-scroll and font size. The channel is detected automatically from playing Kick media (kick.com/<channel>).",
+    "es": "Chat de Kick en el reproductor: conexión nativa al chat de Kick (leer sin iniciar sesión, escribir con la cuenta de Kick). Emotes de Kick (también animados) y de 7TV directamente en el chat, explorador de emotes con búsqueda y favoritos, insignias, respuestas, avisos de suscripciones/regalos/hosts, mensaje fijado, número de espectadores, desplazamiento automático y tamaño de letra. El canal se detecta automáticamente del contenido de Kick en reproducción (kick.com/<canal>).",
+    "it": "Chat di Kick nel player: connessione nativa alla chat di Kick (lettura senza login, scrittura con l'accesso Kick). Emote di Kick (anche animate) e di 7TV direttamente in chat, browser delle emote con ricerca e preferiti, badge, risposte, avvisi di abbonamenti/regali/host, messaggio fissato, numero di spettatori, scorrimento automatico e dimensione del carattere. Il canale viene rilevato automaticamente dai contenuti Kick in riproduzione (kick.com/<canale>).",
+    "pl": "Czat Kick w odtwarzaczu: natywne połączenie z czatem Kick (czytanie bez logowania, pisanie po zalogowaniu do Kick). Emotki Kick (także animowane) i 7TV bezpośrednio w czacie, przeglądarka emotek z wyszukiwaniem i ulubionymi, odznaki, odpowiedzi, powiadomienia o subskrypcjach/prezentach/hostach, przypięta wiadomość, liczba widzów, automatyczne przewijanie i rozmiar czcionki. Kanał jest wykrywany automatycznie z odtwarzanych mediów Kick (kick.com/<kanał>).",
+    "tr": "Oynatıcıda Kick sohbeti: Kick sohbetine yerel bağlantı (giriş yapmadan okuma, Kick girişiyle yazma). Kick emote'ları (animasyonlu olanlar dahil) ve 7TV emote'ları doğrudan sohbette, arama ve favorilerle emote tarayıcısı, rozetler, yanıtlar, abonelik/hediye/host bildirimleri, sabitlenmiş mesaj, izleyici sayısı, otomatik kaydırma ve yazı boyutu. Kanal, oynatılan Kick medyasından otomatik algılanır (kick.com/<kanal>).",
+    "el": "Συνομιλία Kick μέσα στον player: εγγενής σύνδεση στη συνομιλία του Kick (ανάγνωση χωρίς σύνδεση, γραφή με λογαριασμό Kick). Emotes του Kick (και κινούμενα) και του 7TV απευθείας στη συνομιλία, περιηγητής emotes με αναζήτηση και αγαπημένα, σήματα, απαντήσεις, ειδοποιήσεις συνδρομών/δώρων/host, καρφιτσωμένο μήνυμα, αριθμός θεατών, αυτόματη κύλιση και μέγεθος γραμματοσειράς. Το κανάλι εντοπίζεται αυτόματα από τα μέσα Kick που παίζουν (kick.com/<κανάλι>)."
+  },
+  "author": "ts3x.cc (für UVE Player)",
+  "license": "MIT",
+  "capabilities": ["kick-chat", "websocket-client", "auto-channel", "emote-rendering", "emote-picker", "animated-emotes", "7tv-emotes", "auto-scroll", "clickable-links", "pinned-messages", "copy-text", "chat-font-size", "viewer-count", "chat-badges", "replies", "oauth-login", "user-menu", "moderation", "notification-sound", "event-boxes", "event-bots", "follows", "polls", "inline-input-emotes", "chatter-list", "block-users", "spell-check", "predictive-text", "grammar-check", "text-selection"],
+  "supportedPlatforms": ["windows"],
+  "requiredBackends": ["plugin-events", "plugin-commands"],
+  "permissions": ["network", "read-current-media", "write-plugin-settings"],
+  "library": "kickchat.dll",
+  "configurationSchema": {
+    "type": "object",
+    "properties": {
+      "channel":        { "type": "string"  },
+      "autoChannel":    { "type": "boolean" },
+      "autoscroll":     { "type": "boolean" },
+      "chatFontSize":   { "type": "integer" },
+      "favoriteEmotes": { "type": "array"   },
+      "hiddenPin":      { "type": "string"  },
+      "showTimestamps": { "type": "boolean" },
+      "spellGerman":    { "type": "boolean" },
+      "spellEnglish":   { "type": "boolean" },
+      "spellWords":     { "type": "array"   },
+      "predictText":    { "type": "boolean" },
+      "grammarCheck":   { "type": "boolean" },
+      "grammarOnline":  { "type": "boolean" },
+      "grammarOnlineChosen": { "type": "boolean" },
+      "notifySound":    { "type": "boolean" },
+      "notifyVolume":   { "type": "integer" },
+      "boxColors":      { "type": "object"  },
+      "eventBots":      { "type": "array"   },
+      "blocked":        { "type": "array"   },
+      "showFollows":    { "type": "boolean" },
+      "pusherKey":      { "type": "string"  },
+      "pusherCluster":  { "type": "string"  }
+    }
+  },
+  "contributes": {
+    "panels": [
+      { "id": "chat", "title": { "de": "Kick Chat", "en": "Kick Chat" }, "qml": "ChatPanel.qml", "location": "sidebar" }
+    ],
+    "menu": [
+      { "id": "open", "title": { "de": "Kick Chat öffnen", "en": "Open Kick Chat" } }
+    ],
+    "hotkeys": [
+      { "id": "open", "title": { "de": "Kick Chat öffnen", "en": "Open Kick Chat" }, "default": "Ctrl+Alt+K" }
+    ]
+  }
+}

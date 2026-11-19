@@ -1,0 +1,6 @@
+{
+  "_comment": "Werte, die nicht in die öffentlichen Quellen gehören: kommen beim Build aus dem GitHub-Secret PLUGIN_BUILD_SECRETS (JSON-Objekt Name → Wert) und werden als #define eingebunden.",
+  "secrets": [
+    "KICK_DEFAULT_CLIENT_SECRET"
+  ]
+}
