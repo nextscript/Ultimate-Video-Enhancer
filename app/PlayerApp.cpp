@@ -173,6 +173,7 @@ void PlayerApp::setSetting(const QString &key, const QVariant &value)
     if (key == "subLanguages") m_player->setProperty("slang", value.toString());
     if (key == "audioLanguages") m_player->setProperty("alang", value.toString());
     if (key == "rememberHistory" && !value.toBool()) clearRecentFiles();
+    emit settingChanged(key, value);
 }
 
 bool PlayerApp::initializePlayer(QString *error)

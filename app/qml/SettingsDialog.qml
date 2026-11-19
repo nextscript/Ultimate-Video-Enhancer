@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-// Einstellungen: Allgemein, Wiedergabe, Video & GPU, Audio, Untertitel, Plugins, Effekte, Tastenkürzel, Datenschutz, Netzwerk, Erweitert
+// Einstellungen: Allgemein, Oberfläche, Wiedergabe, Video & GPU, Audio, Untertitel, Plugins, Effekte, Tastenkürzel, Datenschutz, Netzwerk, Erweitert
 Dialog {
     id: dlg
     property var theme
@@ -22,13 +22,13 @@ Dialog {
     property string conflictMsg: ""
 
     // Einstellungsseiten der Plugins (contributes.panels mit location "settings") folgen als eigene Einträge auf die festen Seiten
-    readonly property int builtinPages: 12
+    readonly property int builtinPages: 13
     readonly property var pluginPanels: (app.plugins ? app.plugins.panels : []).filter(p => p.location === "settings")
     readonly property var currentPluginPanel: page >= builtinPages ? (pluginPanels[page - builtinPages] || null) : null
     readonly property alias pageCount: nav.count
     readonly property alias pluginPage: pluginPage
     readonly property alias pluginsPage: pluginsPage
-    readonly property int pluginsPageIndex: 5
+    readonly property int pluginsPageIndex: 6
     onPluginPanelsChanged: if (page >= builtinPages + pluginPanels.length) page = pluginsPageIndex
     function pluginPageTitle(p) {
         return pluginPanels.filter(q => q.pluginId === p.pluginId).length > 1 ? p.pluginName + " – " + p.title : p.pluginName
@@ -46,6 +46,26 @@ Dialog {
 
     component SectionLabel: Label { color: theme.muted; font.pixelSize: 11; font.letterSpacing: 1; Layout.topMargin: 8 }
     component Row2: RowLayout { Layout.fillWidth: true; spacing: 12 }
+    // Prozent-Regler 0–90 % für eine Einstellung (Taste ↺ = Standardwert)
+    component PercentSlider: Row2 {
+        id: ps
+        property alias label: psLabel.text
+        property string key
+        property int defaultValue: 0
+        property alias slider: psSlider
+        Label { id: psLabel; color: theme.text; Layout.fillWidth: true; opacity: ps.enabled ? 1 : 0.5 }
+        Slider {
+            id: psSlider
+            objectName: ps.key + "Slider"
+            Layout.preferredWidth: 220
+            from: 0; to: 90; stepSize: 5; snapMode: Slider.SnapAlways
+            value: app.setting(ps.key, ps.defaultValue)
+            onMoved: app.setSetting(ps.key, Math.round(value))
+        }
+        Label { text: Math.round(psSlider.value) + " %"; color: theme.text; font.family: "Consolas"; Layout.preferredWidth: 50; opacity: ps.enabled ? 1 : 0.5 }
+        Button { text: "↺"; Layout.preferredWidth: 36; enabled: Math.round(psSlider.value) !== ps.defaultValue
+                 onClicked: { psSlider.value = ps.defaultValue; app.setSetting(ps.key, ps.defaultValue) } }
+    }
 
     RowLayout {
         anchors.fill: parent
@@ -54,7 +74,7 @@ Dialog {
             id: nav
             Layout.preferredWidth: 180
             Layout.fillHeight: true
-            model: [qsTr("Allgemein"), qsTr("Wiedergabe"), qsTr("Video & GPU"), qsTr("Audio"), qsTr("Untertitel"), qsTr("Plugins"), qsTr("Effekte"), qsTr("Tastenkürzel"), qsTr("Datenschutz"), qsTr("Netzwerk"), qsTr("Erweitert"), qsTr("Expert Settings")].concat(dlg.pluginPanels.map(p => dlg.pluginPageTitle(p)))
+            model: [qsTr("Allgemein"), qsTr("Oberfläche"), qsTr("Wiedergabe"), qsTr("Video & GPU"), qsTr("Audio"), qsTr("Untertitel"), qsTr("Plugins"), qsTr("Effekte"), qsTr("Tastenkürzel"), qsTr("Datenschutz"), qsTr("Netzwerk"), qsTr("Erweitert"), qsTr("Expert Settings")].concat(dlg.pluginPanels.map(p => dlg.pluginPageTitle(p)))
             clip: true
             delegate: ItemDelegate {
                 required property string modelData
@@ -145,6 +165,42 @@ Dialog {
                 Label {
                     Layout.fillWidth: true; wrapMode: Text.Wrap; color: theme.muted; font.pixelSize: 11
                     text: qsTr("Die Empfindlichkeit gilt für Wiedergabeliste, Einstellungen, Plugin-Seiten und die Lautstärke über dem Video: unter 100 % scrollt das Rad langsamer, über 100 % schneller.")
+                }
+                Item { Layout.fillHeight: true }
+            }
+            // Oberfläche: Seitenleiste im Vollbild, Breite, Transparenz von Plugin-Fenstern
+            ColumnLayout {
+                spacing: 8
+                SectionLabel { text: qsTr("SEITENLEISTE IM VOLLBILD") }
+                CheckBox {
+                    id: overlayBox
+                    objectName: "sidebarOverlayCheck"
+                    text: qsTr("Wiedergabeliste im Vollbild über dem Bild einblenden (Strg+L oder ☰)")
+                    checked: app.setting("sidebarOverlayFullscreen", true)
+                    onToggled: app.setSetting("sidebarOverlayFullscreen", checked)
+                }
+                PercentSlider {
+                    label: qsTr("Transparenz der Leiste im Vollbild")
+                    key: "sidebarOverlayTransparency"; defaultValue: 35
+                    enabled: overlayBox.checked
+                }
+                Label {
+                    Layout.fillWidth: true; wrapMode: Text.Wrap; color: theme.muted; font.pixelSize: 11
+                    text: qsTr("Im Vollbild liegt die Seitenleiste mit Wiedergabeliste und Plugin-Seiten über dem Video; das Bild bleibt in voller Größe. Ein- und ausblenden mit Strg+L oder ☰ in der Bedienleiste – unabhängig davon, ob sie im Fenster sichtbar ist. 0 % = deckend.")
+                }
+                SectionLabel { text: qsTr("BREITE DER SEITENLEISTE") }
+                Label {
+                    Layout.fillWidth: true; wrapMode: Text.Wrap; color: theme.muted; font.pixelSize: 11
+                    text: qsTr("Die Breite lässt sich am linken Rand der Seitenleiste mit der Maus ziehen (im Fenster und im Vollbild); Doppelklick auf den Rand stellt die Standardbreite wieder her.")
+                }
+                SectionLabel { text: qsTr("PLUGIN-FENSTER") }
+                PercentSlider {
+                    label: qsTr("Transparenz von Plugin-Fenstern")
+                    key: "pluginModalTransparency"; defaultValue: 0
+                }
+                Label {
+                    Layout.fillWidth: true; wrapMode: Text.Wrap; color: theme.muted; font.pixelSize: 11
+                    text: qsTr("Gilt für Fenster, die Plugins öffnen (z. B. Dialoge über dem Video). Schrift und Bedienelemente bleiben deckend; 0 % = deckend.")
                 }
                 Item { Layout.fillHeight: true }
             }

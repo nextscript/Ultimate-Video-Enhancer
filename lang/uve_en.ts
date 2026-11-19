@@ -2192,6 +2192,46 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>Oberfläche</source>
+        <translation>Interface</translation>
+    </message>
+    <message>
+        <source>SEITENLEISTE IM VOLLBILD</source>
+        <translation>SIDEBAR IN FULL SCREEN</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste im Vollbild über dem Bild einblenden (Strg+L oder ☰)</source>
+        <translation>Show the playlist over the picture in full screen (Ctrl+L or ☰)</translation>
+    </message>
+    <message>
+        <source>Transparenz der Leiste im Vollbild</source>
+        <translation>Sidebar transparency in full screen</translation>
+    </message>
+    <message>
+        <source>Im Vollbild liegt die Seitenleiste mit Wiedergabeliste und Plugin-Seiten über dem Video; das Bild bleibt in voller Größe. Ein- und ausblenden mit Strg+L oder ☰ in der Bedienleiste – unabhängig davon, ob sie im Fenster sichtbar ist. 0 % = deckend.</source>
+        <translation>In full screen the sidebar with the playlist and plugin pages lies over the video; the picture keeps its full size. Show and hide it with Ctrl+L or ☰ in the control bar – independently of whether it is visible in the window. 0 % = opaque.</translation>
+    </message>
+    <message>
+        <source>BREITE DER SEITENLEISTE</source>
+        <translation>SIDEBAR WIDTH</translation>
+    </message>
+    <message>
+        <source>Die Breite lässt sich am linken Rand der Seitenleiste mit der Maus ziehen (im Fenster und im Vollbild); Doppelklick auf den Rand stellt die Standardbreite wieder her.</source>
+        <translation>Drag the left edge of the sidebar with the mouse to change its width (in the window and in full screen); double-click the edge to restore the default width.</translation>
+    </message>
+    <message>
+        <source>PLUGIN-FENSTER</source>
+        <translation>PLUGIN WINDOWS</translation>
+    </message>
+    <message>
+        <source>Transparenz von Plugin-Fenstern</source>
+        <translation>Plugin window transparency</translation>
+    </message>
+    <message>
+        <source>Gilt für Fenster, die Plugins öffnen (z. B. Dialoge über dem Video). Schrift und Bedienelemente bleiben deckend; 0 % = deckend.</source>
+        <translation>Applies to windows opened by plugins (e.g. dialogs over the video). Text and controls stay opaque; 0 % = opaque.</translation>
+    </message>
+    <message>
         <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
         <translation>The settings page of the plugin could not be loaded (see the plugin error log).</translation>
     </message>

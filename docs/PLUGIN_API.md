@@ -140,7 +140,9 @@ Opening the same page again updates the open window. *Esc* and the close button 
 | `closeOnOutsideClick` | `true`: a click next to the window closes it (default `false`) |
 | `data` | any value for the page, available as `modal.data` |
 
-The page can declare `property var modal`: `modal.data`, `modal.scope`, `modal.mode`, `modal.close(result)`. When the window closes,
+The page can declare `property var modal`: `modal.data`, `modal.scope`, `modal.mode`, `modal.backgroundAlpha`, `modal.close(result)`.
+`modal.backgroundAlpha` (since 1.3.0) is the opacity of the window background from *Settings → Interface* (1 = opaque); pages
+with their own background should use it so the window looks evenly transparent. When the window closes,
 the plugin receives `modal.closed`. Windows close automatically when the plugin is disabled or removed.
 Complete example: `plugins/examples/modaldemo/` (pure QML, copy the folder to the user plugin folder).
 

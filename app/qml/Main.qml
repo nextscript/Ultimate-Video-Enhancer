@@ -20,6 +20,32 @@ ApplicationWindow {
     readonly property bool fullscreen: visibility === Window.FullScreen
     property bool minimal: false
     property bool sidebarVisible: app.setting("showSidebar", true)
+    // Vollbild: Seitenleiste als (teil)transparente Leiste über dem Bild, eigener Ein/Aus-Zustand (Strg+L, ☰)
+    property bool sidebarOverlayEnabled: app.setting("sidebarOverlayFullscreen", true)
+    property bool sidebarFullscreenVisible: app.setting("showSidebarFullscreen", false)
+    property int sidebarOverlayTransparency: app.setting("sidebarOverlayTransparency", 35)   // %
+    property int pluginModalTransparency: app.setting("pluginModalTransparency", 0)          // %
+    property int sidebarWidth: app.setting("sidebarWidth", 330)
+    readonly property int sidebarMinWidth: 240
+    readonly property int sidebarMaxWidth: Math.max(sidebarMinWidth, Math.round(width * 0.6))
+    readonly property bool sidebarOverlay: fullscreen && sidebarOverlayEnabled
+    readonly property bool sidebarShown: sidebarOverlay ? sidebarFullscreenVisible : (sidebarVisible && !overlayControls)
+    function showSidebar() {
+        if (sidebarOverlay) { sidebarFullscreenVisible = true; app.setSetting("showSidebarFullscreen", true) }
+        else { sidebarVisible = true; app.setSetting("showSidebar", true) }
+    }
+    function toggleSidebar() {
+        if (sidebarOverlay) { sidebarFullscreenVisible = !sidebarFullscreenVisible; app.setSetting("showSidebarFullscreen", sidebarFullscreenVisible) }
+        else { sidebarVisible = !sidebarVisible; app.setSetting("showSidebar", sidebarVisible) }
+    }
+    Connections {
+        target: app
+        function onSettingChanged(key, value) {
+            if (key === "sidebarOverlayFullscreen") win.sidebarOverlayEnabled = value
+            else if (key === "sidebarOverlayTransparency") win.sidebarOverlayTransparency = value
+            else if (key === "pluginModalTransparency") win.pluginModalTransparency = value
+        }
+    }
     property bool controlsVisible: true
     property bool diagnosticsVisible: false
     property string aspect: app.setting("keepAspect", "fit")
@@ -82,8 +108,7 @@ ApplicationWindow {
         } else if (p.location !== "sidebar") {
             return false
         }
-        sidebarVisible = true
-        app.setSetting("showSidebar", true)
+        showSidebar()
         return tabs.selectPanel(key)
     }
     function effectsPanel() {
@@ -92,8 +117,7 @@ ApplicationWindow {
     function showEffectsPanel() {
         var p = effectsPanel()
         if (p) { showPanel(p.key, true); return }
-        sidebarVisible = true
-        app.setSetting("showSidebar", true)
+        showSidebar()
         tabs.selectTab("Effekte")
     }
     function act(id, arg) {
@@ -151,7 +175,7 @@ ApplicationWindow {
         case "open.discImage": discDialog.openTab(1); break
         case "disc.menu": if (!app.disc.navigate("menu")) osd(app.disc.active ? qsTr("Disc-Menü nicht verfügbar") : qsTr("Keine DVD oder Blu-ray aktiv")); break
         case "playlist.save": if (playlist.count > 0) savePlaylistDialog.open(); break
-        case "sidebar.toggle": sidebarVisible = !sidebarVisible; app.setSetting("showSidebar", sidebarVisible); break
+        case "sidebar.toggle": toggleSidebar(); break
         case "mediainfo": if (player.state !== 0) mediaInfoDialog.open(); break
         case "settings": settingsDialog.open(); break
         case "quit": Qt.quit(); break
@@ -194,7 +218,7 @@ ApplicationWindow {
         }
     }
     Shortcut { sequence: "Esc"; enabled: win.modalCount === 0; onActivated: { if (win.fullscreen) win.toggleFullscreen(); else if (win.minimal) win.minimal = false } }
-    Shortcut { sequence: "F1"; enabled: win.modalCount === 0; onActivated: { settingsDialog.open(); settingsDialog.page = 7 } }
+    Shortcut { sequence: "F1"; enabled: win.modalCount === 0; onActivated: { settingsDialog.open(); settingsDialog.page = 8 } }
 
     // ------------------------------------------------------------- Menüleiste
     menuBar: MenuBar {
@@ -323,7 +347,7 @@ ApplicationWindow {
         }
         Menu {
             title: qsTr("A&nsicht")
-            MenuItem { text: qsTr("Seitenleiste"); checkable: true; checked: win.sidebarVisible; onTriggered: act("sidebar.toggle") }
+            MenuItem { text: qsTr("Seitenleiste"); checkable: true; checked: win.sidebarShown; onTriggered: act("sidebar.toggle") }
             // Einzelne Plugin-Seiten ein- und ausblenden, ohne die ganze Leiste umzuschalten
             Menu {
                 id: panelsMenu
@@ -354,7 +378,7 @@ ApplicationWindow {
         }
         Menu {
             title: qsTr("&Hilfe")
-            MenuItem { text: qsTr("Tastenkürzel"); onTriggered: { settingsDialog.open(); settingsDialog.page = 7 } }
+            MenuItem { text: qsTr("Tastenkürzel"); onTriggered: { settingsDialog.open(); settingsDialog.page = 8 } }
             MenuItem { text: qsTr("Über UVE Player"); onTriggered: aboutDialog.open() }
         }
     }
@@ -381,7 +405,7 @@ ApplicationWindow {
         Item {
             id: stage
             anchors { left: parent.left; top: safeBanner.bottom; bottom: parent.bottom
-                      right: sidebar.visible ? sidebar.left : parent.right }
+                      right: sidebar.visible && !win.sidebarOverlay ? sidebar.left : parent.right }
             Rectangle { anchors.fill: parent; color: "black" }
 
             // Bereich für Plugin-Fenster mit scope "video": das Bild ohne die Bedienleiste
@@ -652,7 +676,8 @@ ApplicationWindow {
             // OSD
             Rectangle {
                 id: osdBox
-                anchors { top: parent.top; right: parent.right; margins: 14 }
+                anchors { top: parent.top; right: parent.right; margins: 14
+                          rightMargin: 14 + (win.sidebarOverlay && sidebar.visible ? sidebar.width : 0) }
                 width: osdLabel.implicitWidth + 24; height: osdLabel.implicitHeight + 12
                 radius: 6; color: "#a6000000"
                 opacity: 0
@@ -698,11 +723,46 @@ ApplicationWindow {
         // Seitenleiste: Wiedergabeliste + Plugin-Panels (verschwinden mit dem Plugin)
         Rectangle {
             id: sidebar
-            visible: win.sidebarVisible && !win.overlayControls
-            width: visible ? 330 : 0
-            anchors { right: parent.right; top: safeBanner.bottom; bottom: parent.bottom }
-            color: theme.panel
+            visible: win.sidebarShown
+            width: visible ? Math.max(win.sidebarMinWidth, Math.min(win.sidebarMaxWidth, win.sidebarWidth)) : 0
+            anchors { right: parent.right; top: safeBanner.bottom; bottom: parent.bottom
+                      bottomMargin: win.sidebarOverlay && controls.visible ? controls.height : 0 }   // Vollbild: über der Bedienleiste
+            z: win.sidebarOverlay ? 2 : 0   // Vollbild: über dem Bild
+            // Vollbild: Hintergrund mit einstellbarer Transparenz, Schrift und Bedienelemente bleiben deckend
+            readonly property real backgroundAlpha: win.sidebarOverlay ? 1 - Math.max(0, Math.min(90, win.sidebarOverlayTransparency)) / 100 : 1
+            color: Qt.rgba(theme.panel.r, theme.panel.g, theme.panel.b, backgroundAlpha)
+            // Klicks und Rad nicht an das Bild darunter weitergeben; Bewegung hält die Bedienleiste sichtbar
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.AllButtons
+                hoverEnabled: win.sidebarOverlay
+                onPositionChanged: win.poke()
+                onWheel: (w) => w.accepted = true
+            }
             Rectangle { width: 1; height: parent.height; color: theme.line }
+            // Breite ziehen (linker Rand), wird gespeichert
+            MouseArea {
+                id: sidebarResize
+                objectName: "sidebarResizeHandle"
+                anchors { left: parent.left; top: parent.top; bottom: parent.bottom; leftMargin: -3 }
+                width: 7
+                z: 10
+                cursorShape: Qt.SizeHorCursor
+                hoverEnabled: true
+                preventStealing: true
+                property real pressX
+                property int pressWidth
+                onPressed: (m) => { pressX = mapToItem(null, m.x, m.y).x; pressWidth = sidebar.width }
+                onPositionChanged: (m) => {
+                    if (!pressed) return
+                    var dx = pressX - mapToItem(null, m.x, m.y).x
+                    win.sidebarWidth = Math.max(win.sidebarMinWidth, Math.min(win.sidebarMaxWidth, Math.round(pressWidth + dx)))
+                }
+                onReleased: app.setSetting("sidebarWidth", win.sidebarWidth)
+                onDoubleClicked: { win.sidebarWidth = 330; app.setSetting("sidebarWidth", 330) }
+                Rectangle { anchors.horizontalCenter: parent.horizontalCenter; width: 2; height: parent.height
+                            color: theme.accent; visible: sidebarResize.pressed || sidebarResize.containsMouse; opacity: 0.8 }
+            }
             readonly property var panels: (app.plugins ? app.plugins.panels : []).filter(p => p.location === "sidebar")
             // Gewählte Seite: Die Tabs werden bei jeder Änderung neu aufgebaut, sie soll trotzdem offen bleiben
             property string activeKey: ""
@@ -715,6 +775,7 @@ ApplicationWindow {
                 TabBar {
                     id: tabs
                     Layout.fillWidth: true
+                    background: Rectangle { color: win.sidebarOverlay ? "transparent" : theme.panel }
                     function selectTab(name) {
                         if (name === "Effekte") {
                             for (var i = 0; i < sidebar.panels.length; ++i)
@@ -998,6 +1059,7 @@ ApplicationWindow {
         id: pluginModalComponent
         PluginModal {
             id: pluginModal
+            transparency: win.pluginModalTransparency
             area: scope === "player" ? overlayItem : (scope === "sidebar" && sidebar.visible ? sidebar : videoScope)
             onOpened: if (blocking) win.modalCount++
             onFinished: (key, result) => {
@@ -1013,7 +1075,7 @@ ApplicationWindow {
         function onModalRequested(request) {
             var open = win.pluginModals[request.key]
             if (open) { open.request = request; return }
-            if (request.scope === "sidebar" && !win.overlayControls) { win.sidebarVisible = true; app.setSetting("showSidebar", true) }
+            if (request.scope === "sidebar" && (win.sidebarOverlay || !win.overlayControls)) win.showSidebar()
             var modal = pluginModalComponent.createObject(win, { request: request, theme: theme })
             win.pluginModals[request.key] = modal
             modal.open()
@@ -1057,6 +1119,124 @@ ApplicationWindow {
         var l = win.stDenoiseLog; l.push(e); win.stDenoiseLog = l
         app.saveWindowShot(app.selftestPath("denoise-" + name + ".png"))
         return e
+    }
+    // Selbsttest Seitenleiste (UVE_SELFTEST_ONLY=sidebar): Breite ziehen, im Vollbild als transparente Leiste über dem Bild,
+    // Transparenz-Regler für Leiste und Plugin-Fenster
+    property int stSideStep: 0
+    property var stSideModal: null
+    function sidebarSelftestStep(ui) {
+        selftestUi.interval = 700
+        if (ui.failures === undefined) ui.failures = []
+        var check = (name, ok) => { if (!ok) ui.failures.push(win.stSideStep + ": " + name) }
+        var shot = (name) => app.saveWindowShot(app.selftestPath("sidebar-" + name + ".png"))
+        var near = (a, b) => Math.abs(a - b) < 0.02
+        switch (win.stSideStep) {
+        case 0:
+            app.setSetting("showSidebarFullscreen", false); win.sidebarFullscreenVisible = false
+            app.setSetting("sidebarOverlayTransparency", 35); app.setSetting("pluginModalTransparency", 0)
+            win.sidebarVisible = true
+            win.sidebarWidth = 330
+            break
+        case 1:
+            ui.widthBefore = sidebar.width
+            ui.winWidth = win.width; ui.maxWidth = win.sidebarMaxWidth; ui.visibility = win.visibility
+            check("sidebar visible in window", sidebar.visible && !win.sidebarOverlay)
+            check("stage left of sidebar", Math.abs(stage.width + sidebar.width - stage.parent.width) < 1)
+            var h = sidebarResize.mapToItem(null, sidebarResize.width / 2, sidebarResize.height / 2)
+            app.simulateDrag(h.x, h.y, h.x - 120, h.y)
+            break
+        case 2:
+            ui.widthAfterDrag = sidebar.width
+            check("drag widens", Math.abs(sidebar.width - (ui.widthBefore + 120)) <= 2)
+            check("width saved", Number(app.setting("sidebarWidth", 0)) === win.sidebarWidth)
+            var h2 = sidebarResize.mapToItem(null, sidebarResize.width / 2, sidebarResize.height / 2)
+            app.simulateDrag(h2.x, h2.y, h2.x + 2000, h2.y)          // schmaler als erlaubt → Mindestbreite
+            break
+        case 3:
+            ui.widthMin = sidebar.width
+            check("min width", sidebar.width === win.sidebarMinWidth)
+            var h3 = sidebarResize.mapToItem(null, sidebarResize.width / 2, sidebarResize.height / 2)
+            app.simulateDrag(h3.x, h3.y, h3.x - 100, h3.y)
+            shot("resized")
+            win.toggleFullscreen()
+            selftestUi.interval = 1500
+            break
+        case 4:
+            check("fullscreen", win.fullscreen && win.sidebarOverlay)
+            check("hidden on entering fullscreen", !sidebar.visible)
+            win.act("sidebar.toggle")
+            break
+        case 5:
+            check("overlay shown", sidebar.visible && win.sidebarFullscreenVisible)
+            check("video keeps full width", Math.abs(stage.width - stage.parent.width) < 1)
+            check("over the video", sidebar.z > stage.z)
+            check("alpha 35 %", near(sidebar.color.a, 0.65))
+            check("width kept in fullscreen", sidebar.width === win.sidebarWidth)
+            check("windowed state untouched", win.sidebarVisible)
+            ui.overlayWidth = sidebar.width
+            win.poke()
+            shot("fullscreen-35")
+            app.setSetting("sidebarOverlayTransparency", 70)
+            break
+        case 6:
+            check("slider setting applied", near(sidebar.color.a, 0.3))
+            // Klick auf die Leiste darf das Video nicht pausieren
+            var wasPaused = player.paused
+            var e = sidebar.mapToItem(null, sidebar.width / 2, sidebar.height - 70)
+            app.simulateClick(e.x, e.y, 1, false)
+            ui.pausedBefore = wasPaused
+            selftestUi.interval = 900
+            break
+        case 7:
+            check("click on sidebar does not pause", player.paused === ui.pausedBefore)
+            shot("fullscreen-70")
+            app.setSetting("pluginModalTransparency", 50)
+            win.stSideModal = pluginModalComponent.createObject(win, { request: { key: "selftest/modal", scope: "video", mode: "movable",
+                                                                    title: "Selftest", width: 420, height: 220 }, theme: theme })
+            win.stSideModal.open()
+            break
+        case 8:
+            var m = win.stSideModal
+            check("modal open", m && m.opened)
+            check("modal alpha 50 %", m && near(m.card.color.a, 0.5) && near(m.titleBar.color.a, 0.5))
+            shot("modal-50")
+            app.setSetting("pluginModalTransparency", 0)
+            break
+        case 9:
+            check("modal opaque again", win.stSideModal && near(win.stSideModal.card.color.a, 1))
+            if (win.stSideModal) win.stSideModal.close()
+            app.setSetting("sidebarOverlayFullscreen", false)
+            break
+        case 10:
+            check("setting off hides overlay", !sidebar.visible && !win.sidebarOverlay)
+            app.setSetting("sidebarOverlayFullscreen", true)
+            break
+        case 11:
+            check("setting on shows it again", sidebar.visible && win.sidebarOverlay)
+            win.act("sidebar.toggle")
+            break
+        case 12:
+            check("toggle hides overlay", !sidebar.visible && !win.sidebarFullscreenVisible)
+            win.toggleFullscreen()
+            selftestUi.interval = 1500
+            break
+        case 13:
+            check("window: sidebar back", !win.fullscreen && sidebar.visible && !win.sidebarOverlay)
+            check("window: width kept", sidebar.width === win.sidebarWidth)
+            check("window: stage left of sidebar", Math.abs(stage.width + sidebar.width - stage.parent.width) < 1)
+            settingsDialog.open(); settingsDialog.page = 1
+            selftestUi.interval = 900
+            break
+        case 14:
+            shot("settings")
+            settingsDialog.close()
+            ui.ok = ui.failures.length === 0
+            ui.done = true
+            selftestUi.stop()
+            app.reportSelftestUi(ui)
+            return
+        }
+        win.stSideStep++
     }
     // Selbsttest Plugin-Fenster, -Einstellungen und Entfernen (UVE_SELFTEST_ONLY=plugins, plugins/examples/modaldemo im Benutzerordner)
     property int stPluginStep: 0
@@ -1385,7 +1565,7 @@ ApplicationWindow {
                 app.saveWindowShot(app.selftestPath("language-" + shotCode + "-menu.png"))
                 pluginsMenu.close()
                 settingsDialog.open()
-                settingsDialog.page = 5
+                settingsDialog.page = 6
                 break
             case 3:
                 app.saveWindowShot(app.selftestPath("language-" + shotCode + "-settings.png"))
@@ -1534,6 +1714,12 @@ ApplicationWindow {
                 if (!ui.done) restart()
                 return
             }
+            if (app.selftestOnly("sidebar")) {
+                win.sidebarSelftestStep(ui)
+                win.stUi = ui
+                if (!ui.done) restart()
+                return
+            }
             if (app.selftestOnly("denoise")) {
                 win.denoiseSelftestStep(ui)
                 win.stUi = ui
@@ -1639,15 +1825,15 @@ ApplicationWindow {
                 ui.galleryCount = win.effects ? win.effects.galleryItems.length : 0
                 ui.galleryInfo = win.effects ? win.effects.galleryInfo : ""
                 app.saveWindowShot(app.selftestPath("gallery.png"))     // Bildschirmfoto der Galerie
-                settingsDialog.open(); settingsDialog.page = 9          // Einstellungen → Netzwerk
+                settingsDialog.open(); settingsDialog.page = 10         // Einstellungen → Netzwerk
                 interval = 900; break
             case 15:
                 app.saveWindowShot(app.selftestPath("settings-network.png"))
-                ui.networkPageShown = settingsDialog.visible && settingsDialog.page === 9
+                ui.networkPageShown = settingsDialog.visible && settingsDialog.page === 10
                 settingsDialog.close()
                 interval = 400; break
             case 16:
-                settingsDialog.open(); settingsDialog.page = 11         // Einstellungen → Expert Settings
+                settingsDialog.open(); settingsDialog.page = 12        // Einstellungen → Expert Settings
                 interval = 900; break
             case 17:
                 app.saveWindowShot(app.selftestPath("settings-expert.png"))

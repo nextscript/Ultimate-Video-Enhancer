@@ -203,6 +203,7 @@ signals:
     void liveRewindChanged();
     void pluginPanelRequested(const QString &panelKey);   // Plugin-Befehl "panel.open"
     void mediaKey(const QString &action);   // Medientaste: play.toggle | play.play | play.pause | play.stop | play.next | play.prev
+    void settingChanged(const QString &key, const QVariant &value);   // nach jedem setSetting() (Oberfläche reagiert sofort)
 
 protected:
     // Mausrad-Empfindlichkeit (Einstellung wheelSensitivity, %): skaliert die Raddrehung für Listen, Seiten und Lautstärke

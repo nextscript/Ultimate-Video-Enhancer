@@ -2192,6 +2192,46 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>Oberfläche</source>
+        <translation>Interfaccia</translation>
+    </message>
+    <message>
+        <source>SEITENLEISTE IM VOLLBILD</source>
+        <translation>BARRA LATERALE A SCHERMO INTERO</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste im Vollbild über dem Bild einblenden (Strg+L oder ☰)</source>
+        <translation>Mostra la playlist sopra l&apos;immagine a schermo intero (Ctrl+L o ☰)</translation>
+    </message>
+    <message>
+        <source>Transparenz der Leiste im Vollbild</source>
+        <translation>Trasparenza della barra a schermo intero</translation>
+    </message>
+    <message>
+        <source>Im Vollbild liegt die Seitenleiste mit Wiedergabeliste und Plugin-Seiten über dem Video; das Bild bleibt in voller Größe. Ein- und ausblenden mit Strg+L oder ☰ in der Bedienleiste – unabhängig davon, ob sie im Fenster sichtbar ist. 0 % = deckend.</source>
+        <translation>A schermo intero la barra laterale con la playlist e le pagine dei plugin si trova sopra il video; l&apos;immagine mantiene le sue dimensioni piene. Mostrala o nascondila con Ctrl+L o ☰ nella barra dei controlli, indipendentemente dal fatto che sia visibile nella finestra. 0 % = opaca.</translation>
+    </message>
+    <message>
+        <source>BREITE DER SEITENLEISTE</source>
+        <translation>LARGHEZZA DELLA BARRA LATERALE</translation>
+    </message>
+    <message>
+        <source>Die Breite lässt sich am linken Rand der Seitenleiste mit der Maus ziehen (im Fenster und im Vollbild); Doppelklick auf den Rand stellt die Standardbreite wieder her.</source>
+        <translation>Trascina con il mouse il bordo sinistro della barra laterale per cambiarne la larghezza (nella finestra e a schermo intero); un doppio clic sul bordo ripristina la larghezza predefinita.</translation>
+    </message>
+    <message>
+        <source>PLUGIN-FENSTER</source>
+        <translation>FINESTRE DEI PLUGIN</translation>
+    </message>
+    <message>
+        <source>Transparenz von Plugin-Fenstern</source>
+        <translation>Trasparenza delle finestre dei plugin</translation>
+    </message>
+    <message>
+        <source>Gilt für Fenster, die Plugins öffnen (z. B. Dialoge über dem Video). Schrift und Bedienelemente bleiben deckend; 0 % = deckend.</source>
+        <translation>Vale per le finestre aperte dai plugin (ad es. dialoghi sopra il video). Testo e controlli restano opachi; 0 % = opaca.</translation>
+    </message>
+    <message>
         <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
         <translation>Impossibile caricare la pagina delle impostazioni del plugin (vedi il registro errori dei plugin).</translation>
     </message>

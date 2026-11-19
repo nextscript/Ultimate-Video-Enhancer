@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.3.0 – 2026-11-19
+
+### Sidebar over the picture in full screen
+- In full screen the sidebar (playlist and plugin pages) can now be shown over the video: Ctrl+L or ☰ in the control bar
+  shows and hides it, the picture keeps its full size. Whether it is shown in full screen is remembered separately from the
+  window. The bar sits above the control bar, clicks on it never reach the video.
+- New settings page *Interface*: turn the full-screen sidebar on or off and set its transparency with a slider (0–90 %,
+  default 35 %). Only the background becomes transparent; text, lists and buttons stay fully readable.
+
+### Resizable sidebar
+- Drag the left edge of the sidebar to change its width (240 px up to 60 % of the window), in the window and in full screen.
+  The width is remembered; a double-click on the edge restores the default width.
+
+### Transparent plugin windows
+- Windows opened by plugins (`modal.open`) can be made transparent with a second slider on the *Interface* page
+  (0–90 %, default 0 % = opaque). Plugin pages can read the value as `modal.backgroundAlpha` for their own backgrounds.
+
 ## 1.2.9 – 2026-11-19
 
 ### One plugin package for Windows, Linux and macOS

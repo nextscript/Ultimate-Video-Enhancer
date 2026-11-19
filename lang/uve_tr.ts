@@ -2192,6 +2192,46 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>Oberfläche</source>
+        <translation>Arayüz</translation>
+    </message>
+    <message>
+        <source>SEITENLEISTE IM VOLLBILD</source>
+        <translation>TAM EKRANDA KENAR ÇUBUĞU</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste im Vollbild über dem Bild einblenden (Strg+L oder ☰)</source>
+        <translation>Tam ekranda oynatma listesini görüntünün üzerinde göster (Ctrl+L veya ☰)</translation>
+    </message>
+    <message>
+        <source>Transparenz der Leiste im Vollbild</source>
+        <translation>Tam ekranda çubuğun saydamlığı</translation>
+    </message>
+    <message>
+        <source>Im Vollbild liegt die Seitenleiste mit Wiedergabeliste und Plugin-Seiten über dem Video; das Bild bleibt in voller Größe. Ein- und ausblenden mit Strg+L oder ☰ in der Bedienleiste – unabhängig davon, ob sie im Fenster sichtbar ist. 0 % = deckend.</source>
+        <translation>Tam ekranda oynatma listesi ve eklenti sayfalarını içeren kenar çubuğu videonun üzerinde durur; görüntü tam boyutunu korur. Pencerede görünür olup olmamasından bağımsız olarak kontrol çubuğundaki Ctrl+L veya ☰ ile gösterip gizleyin. yüzde 0 = opak.</translation>
+    </message>
+    <message>
+        <source>BREITE DER SEITENLEISTE</source>
+        <translation>KENAR ÇUBUĞU GENİŞLİĞİ</translation>
+    </message>
+    <message>
+        <source>Die Breite lässt sich am linken Rand der Seitenleiste mit der Maus ziehen (im Fenster und im Vollbild); Doppelklick auf den Rand stellt die Standardbreite wieder her.</source>
+        <translation>Genişliğini değiştirmek için kenar çubuğunun sol kenarını fareyle sürükleyin (pencerede ve tam ekranda); kenara çift tıklamak varsayılan genişliği geri yükler.</translation>
+    </message>
+    <message>
+        <source>PLUGIN-FENSTER</source>
+        <translation>EKLENTİ PENCERELERİ</translation>
+    </message>
+    <message>
+        <source>Transparenz von Plugin-Fenstern</source>
+        <translation>Eklenti pencerelerinin saydamlığı</translation>
+    </message>
+    <message>
+        <source>Gilt für Fenster, die Plugins öffnen (z. B. Dialoge über dem Video). Schrift und Bedienelemente bleiben deckend; 0 % = deckend.</source>
+        <translation>Eklentilerin açtığı pencereler için geçerlidir (ör. videonun üzerindeki iletişim kutuları). Metin ve kontroller opak kalır; yüzde 0 = opak.</translation>
+    </message>
+    <message>
         <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
         <translation>Eklentinin ayar sayfası yüklenemedi (eklenti hata günlüğüne bakın).</translation>
     </message>

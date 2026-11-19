@@ -2192,6 +2192,46 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>Oberfläche</source>
+        <translation>Interfejs</translation>
+    </message>
+    <message>
+        <source>SEITENLEISTE IM VOLLBILD</source>
+        <translation>PANEL BOCZNY NA PEŁNYM EKRANIE</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste im Vollbild über dem Bild einblenden (Strg+L oder ☰)</source>
+        <translation>Pokazuj listę odtwarzania nad obrazem na pełnym ekranie (Ctrl+L lub ☰)</translation>
+    </message>
+    <message>
+        <source>Transparenz der Leiste im Vollbild</source>
+        <translation>Przezroczystość panelu na pełnym ekranie</translation>
+    </message>
+    <message>
+        <source>Im Vollbild liegt die Seitenleiste mit Wiedergabeliste und Plugin-Seiten über dem Video; das Bild bleibt in voller Größe. Ein- und ausblenden mit Strg+L oder ☰ in der Bedienleiste – unabhängig davon, ob sie im Fenster sichtbar ist. 0 % = deckend.</source>
+        <translation>Na pełnym ekranie panel boczny z listą odtwarzania i stronami wtyczek leży nad wideo; obraz zachowuje pełny rozmiar. Pokazuj i ukrywaj go za pomocą Ctrl+L lub ☰ na pasku sterowania – niezależnie od tego, czy jest widoczny w oknie. 0 % = nieprzezroczysty.</translation>
+    </message>
+    <message>
+        <source>BREITE DER SEITENLEISTE</source>
+        <translation>SZEROKOŚĆ PANELU BOCZNEGO</translation>
+    </message>
+    <message>
+        <source>Die Breite lässt sich am linken Rand der Seitenleiste mit der Maus ziehen (im Fenster und im Vollbild); Doppelklick auf den Rand stellt die Standardbreite wieder her.</source>
+        <translation>Przeciągnij myszą lewą krawędź panelu bocznego, aby zmienić jego szerokość (w oknie i na pełnym ekranie); dwukrotne kliknięcie krawędzi przywraca domyślną szerokość.</translation>
+    </message>
+    <message>
+        <source>PLUGIN-FENSTER</source>
+        <translation>OKNA WTYCZEK</translation>
+    </message>
+    <message>
+        <source>Transparenz von Plugin-Fenstern</source>
+        <translation>Przezroczystość okien wtyczek</translation>
+    </message>
+    <message>
+        <source>Gilt für Fenster, die Plugins öffnen (z. B. Dialoge über dem Video). Schrift und Bedienelemente bleiben deckend; 0 % = deckend.</source>
+        <translation>Dotyczy okien otwieranych przez wtyczki (np. okien dialogowych nad wideo). Tekst i elementy sterujące pozostają nieprzezroczyste; 0 % = nieprzezroczyste.</translation>
+    </message>
+    <message>
         <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
         <translation>Nie można wczytać strony ustawień wtyczki (zobacz dziennik błędów wtyczek).</translation>
     </message>

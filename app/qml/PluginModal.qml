@@ -13,6 +13,8 @@ Popup {
     property var closeResult
     property real offsetX: 0
     property real offsetY: 0
+    property int transparency: 0   // % (Einstellung pluginModalTransparency): Hintergrund von Fenster und Titelleiste, Inhalt bleibt deckend
+    readonly property real backgroundAlpha: 1 - Math.max(0, Math.min(90, transparency)) / 100
     signal finished(string key, var result)
 
     readonly property string scope: request.scope || "player"
@@ -59,7 +61,7 @@ Popup {
         // Bleibt immer im Bereich, auch wenn er kleiner wird
         x: Math.round((root.width - width) / 2 + Math.max(-rangeX, Math.min(rangeX, root.offsetX)))
         y: Math.round((root.height - height) / 2 + Math.max(-rangeY, Math.min(rangeY, root.offsetY)))
-        color: root.theme.panel
+        color: Qt.rgba(root.theme.panel.r, root.theme.panel.g, root.theme.panel.b, root.backgroundAlpha)
         border.color: root.theme.line
         radius: root.mode === "fill" ? 0 : 8
         clip: true
@@ -75,7 +77,7 @@ Popup {
                 id: titleBar
                 Layout.fillWidth: true
                 implicitHeight: 36
-                color: root.theme.panel2
+                color: Qt.rgba(root.theme.panel2.r, root.theme.panel2.g, root.theme.panel2.b, root.backgroundAlpha)
                 MouseArea {
                     anchors.fill: parent
                     enabled: root.mode === "movable"
@@ -138,12 +140,13 @@ Popup {
         }
     }
 
-    // Für die Seite des Plugins (Eigenschaft "modal"): modal.data, modal.scope, modal.mode, modal.close(result)
+    // Für die Seite des Plugins (Eigenschaft "modal"): modal.data, modal.scope, modal.mode, modal.backgroundAlpha, modal.close(result)
     QtObject {
         id: handle
         readonly property var data: root.request.data
         readonly property string scope: root.scope
         readonly property string mode: root.mode
+        readonly property real backgroundAlpha: root.backgroundAlpha   // für eigene Hintergründe der Seite (1 = deckend)
         function close(result) { root.closeWith(result) }
     }
 }

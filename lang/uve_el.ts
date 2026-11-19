@@ -2192,6 +2192,46 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>Oberfläche</source>
+        <translation>Διεπαφή</translation>
+    </message>
+    <message>
+        <source>SEITENLEISTE IM VOLLBILD</source>
+        <translation>ΠΛΕΥΡΙΚΗ ΣΤΗΛΗ ΣΕ ΠΛΗΡΗ ΟΘΟΝΗ</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste im Vollbild über dem Bild einblenden (Strg+L oder ☰)</source>
+        <translation>Εμφάνιση της λίστας αναπαραγωγής πάνω από την εικόνα σε πλήρη οθόνη (Ctrl+L ή ☰)</translation>
+    </message>
+    <message>
+        <source>Transparenz der Leiste im Vollbild</source>
+        <translation>Διαφάνεια της στήλης σε πλήρη οθόνη</translation>
+    </message>
+    <message>
+        <source>Im Vollbild liegt die Seitenleiste mit Wiedergabeliste und Plugin-Seiten über dem Video; das Bild bleibt in voller Größe. Ein- und ausblenden mit Strg+L oder ☰ in der Bedienleiste – unabhängig davon, ob sie im Fenster sichtbar ist. 0 % = deckend.</source>
+        <translation>Σε πλήρη οθόνη η πλευρική στήλη με τη λίστα αναπαραγωγής και τις σελίδες των πρόσθετων βρίσκεται πάνω από το βίντεο· η εικόνα διατηρεί το πλήρες μέγεθός της. Εμφάνιση και απόκρυψη με Ctrl+L ή ☰ στη γραμμή ελέγχου – ανεξάρτητα από το αν είναι ορατή στο παράθυρο. 0 % = αδιαφανής.</translation>
+    </message>
+    <message>
+        <source>BREITE DER SEITENLEISTE</source>
+        <translation>ΠΛΑΤΟΣ ΠΛΕΥΡΙΚΗΣ ΣΤΗΛΗΣ</translation>
+    </message>
+    <message>
+        <source>Die Breite lässt sich am linken Rand der Seitenleiste mit der Maus ziehen (im Fenster und im Vollbild); Doppelklick auf den Rand stellt die Standardbreite wieder her.</source>
+        <translation>Σύρετε την αριστερή άκρη της πλευρικής στήλης με το ποντίκι για να αλλάξετε το πλάτος της (στο παράθυρο και σε πλήρη οθόνη)· διπλό κλικ στην άκρη επαναφέρει το προεπιλεγμένο πλάτος.</translation>
+    </message>
+    <message>
+        <source>PLUGIN-FENSTER</source>
+        <translation>ΠΑΡΑΘΥΡΑ ΠΡΟΣΘΕΤΩΝ</translation>
+    </message>
+    <message>
+        <source>Transparenz von Plugin-Fenstern</source>
+        <translation>Διαφάνεια παραθύρων προσθέτων</translation>
+    </message>
+    <message>
+        <source>Gilt für Fenster, die Plugins öffnen (z. B. Dialoge über dem Video). Schrift und Bedienelemente bleiben deckend; 0 % = deckend.</source>
+        <translation>Ισχύει για παράθυρα που ανοίγουν τα πρόσθετα (π.χ. διάλογοι πάνω από το βίντεο). Το κείμενο και τα στοιχεία ελέγχου παραμένουν αδιαφανή· 0 % = αδιαφανής.</translation>
+    </message>
+    <message>
         <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
         <translation>Δεν ήταν δυνατή η φόρτωση της σελίδας ρυθμίσεων του προσθέτου (δείτε το αρχείο σφαλμάτων προσθέτων).</translation>
     </message>

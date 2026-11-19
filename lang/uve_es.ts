@@ -2192,6 +2192,46 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>Oberfläche</source>
+        <translation>Interfaz</translation>
+    </message>
+    <message>
+        <source>SEITENLEISTE IM VOLLBILD</source>
+        <translation>BARRA LATERAL EN PANTALLA COMPLETA</translation>
+    </message>
+    <message>
+        <source>Wiedergabeliste im Vollbild über dem Bild einblenden (Strg+L oder ☰)</source>
+        <translation>Mostrar la lista de reproducción sobre la imagen en pantalla completa (Ctrl+L o ☰)</translation>
+    </message>
+    <message>
+        <source>Transparenz der Leiste im Vollbild</source>
+        <translation>Transparencia de la barra en pantalla completa</translation>
+    </message>
+    <message>
+        <source>Im Vollbild liegt die Seitenleiste mit Wiedergabeliste und Plugin-Seiten über dem Video; das Bild bleibt in voller Größe. Ein- und ausblenden mit Strg+L oder ☰ in der Bedienleiste – unabhängig davon, ob sie im Fenster sichtbar ist. 0 % = deckend.</source>
+        <translation>En pantalla completa, la barra lateral con la lista de reproducción y las páginas de los complementos se sitúa sobre el vídeo; la imagen mantiene su tamaño completo. Muéstrela u ocúltela con Ctrl+L o ☰ en la barra de control, independientemente de si está visible en la ventana. 0 % = opaca.</translation>
+    </message>
+    <message>
+        <source>BREITE DER SEITENLEISTE</source>
+        <translation>ANCHO DE LA BARRA LATERAL</translation>
+    </message>
+    <message>
+        <source>Die Breite lässt sich am linken Rand der Seitenleiste mit der Maus ziehen (im Fenster und im Vollbild); Doppelklick auf den Rand stellt die Standardbreite wieder her.</source>
+        <translation>Arrastre el borde izquierdo de la barra lateral con el ratón para cambiar su ancho (en la ventana y en pantalla completa); un doble clic en el borde restablece el ancho predeterminado.</translation>
+    </message>
+    <message>
+        <source>PLUGIN-FENSTER</source>
+        <translation>VENTANAS DE COMPLEMENTOS</translation>
+    </message>
+    <message>
+        <source>Transparenz von Plugin-Fenstern</source>
+        <translation>Transparencia de las ventanas de complementos</translation>
+    </message>
+    <message>
+        <source>Gilt für Fenster, die Plugins öffnen (z. B. Dialoge über dem Video). Schrift und Bedienelemente bleiben deckend; 0 % = deckend.</source>
+        <translation>Se aplica a las ventanas que abren los complementos (p. ej., diálogos sobre el vídeo). El texto y los controles permanecen opacos; 0 % = opaca.</translation>
+    </message>
+    <message>
         <source>Die Einstellungsseite des Plugins konnte nicht geladen werden (siehe Plugin-Fehlerprotokoll).</source>
         <translation>No se pudo cargar la página de ajustes del plugin (consulte el registro de errores de plugins).</translation>
     </message>
