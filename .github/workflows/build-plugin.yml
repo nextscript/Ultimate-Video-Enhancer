@@ -63,6 +63,7 @@ jobs:
       source_sha: ${{ steps.r.outputs.source_sha }}
       source_path: ${{ steps.r.outputs.source_path }}
       target: ${{ steps.r.outputs.target }}
+      build_secrets: ${{ steps.r.outputs.build_secrets }}
       package_dir: ${{ steps.r.outputs.package_dir }}
       run_tests: ${{ steps.r.outputs.run_tests }}
       player_repo: ${{ steps.r.outputs.player_repo }}
@@ -189,6 +190,17 @@ jobs:
           modules: qtimageformats qtshadertools
           cache: true
 
+      # Werte, die nicht in die öffentlichen Quellen gehören (uve-build.json → "secrets"): aus dem
+      # GitHub-Secret PLUGIN_BUILD_SECRETS als Header, der jeder Übersetzungseinheit vorangestellt wird
+      - name: Build secrets
+        if: needs.resolve.outputs.build_secrets != ''
+        env:
+          PLUGIN_BUILD_SECRETS: ${{ secrets.PLUGIN_BUILD_SECRETS }}
+        run: |
+          py=python3; command -v python3 >/dev/null || py=python
+          $py -I ci/.github/scripts/plugin_build.py secrets-header --names "${{ needs.resolve.outputs.build_secrets }}" --out "$RUNNER_TEMP/uve_build_secrets.h"
+          echo "SECRETS_HEADER=$RUNNER_TEMP/uve_build_secrets.h" >> "$GITHUB_ENV"
+
       # ---- Build: nur das Plugin-Modul. Der Pfad zur PluginApi.h geht über die üblichen Variablen
       # (UVE_PLAYER_DIR, UVE_PLAYER_SOURCE, HOST_PLUGIN_API_DIR) und zusätzlich direkt an den Compiler.
       - name: Configure
@@ -197,11 +209,15 @@ jobs:
           common=(-DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DUVE_PLAYER_DIR="$PWD/player" -DUVE_PLAYER_SOURCE="$PWD/player"
                   -DHOST_PLUGIN_API_DIR="$api" -DUVE_TARGET_KEY=${{ matrix.key }} -DBUILD_TESTING=OFF)
           if [ "$RUNNER_OS" = "Windows" ]; then
-            cmake -S "$SRC" -B build -G "Visual Studio 17 2022" -A x64 "${common[@]}"
+            win=()
+            [ -n "$SECRETS_HEADER" ] && win=(-DCMAKE_CXX_FLAGS_INIT="/FI\"$(cygpath -w "$SECRETS_HEADER")\"")
+            cmake -S "$SRC" -B build -G "Visual Studio 17 2022" -A x64 "${common[@]}" "${win[@]}"
           else
             extra=()
             [ "$RUNNER_OS" = "macOS" ] && extra=(-DCMAKE_OSX_ARCHITECTURES=arm64)
-            cmake -S "$SRC" -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "${common[@]}" "${extra[@]}" -DCMAKE_CXX_FLAGS="-I$api"
+            flags="-I$api"
+            [ -n "$SECRETS_HEADER" ] && flags="$flags -include $SECRETS_HEADER"
+            cmake -S "$SRC" -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "${common[@]}" "${extra[@]}" -DCMAKE_CXX_FLAGS="$flags"
           fi
       - name: Build
         run: |

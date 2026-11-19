@@ -252,6 +252,9 @@ def cmd_resolve(a):
             fail(f"{src_path}/CMakeLists.txt: Build-Ziel nicht eindeutig (Module: {modules or '–'}, DLL im ZIP: {stem or '–'})")
     if target not in modules:
         fail(f"{src_path}/CMakeLists.txt definiert kein Build-Ziel 'add_library({target} MODULE …)'")
+    build_cfg_raw = show(src, src_sha, f"{src_path}/uve-build.json")
+    build_cfg = json.loads(build_cfg_raw) if build_cfg_raw else {}
+    build_secrets = [n for n in build_cfg.get("secrets", []) if re.match(r"^[A-Z][A-Z0-9_]*$", n)]
     src_manifest_raw = show(src, src_sha, f"{src_path}/manifest.json")
     if src_manifest_raw is not None:
         sm = load_json_lenient(src_manifest_raw, f"{src_path}/manifest.json")
@@ -311,10 +314,32 @@ def cmd_resolve(a):
     out(mode=mode, plugin_id=pid, version=version, catalog_branch=catalog, catalog_sha=cat_sha, zip_name=zip_name,
         base_blob=base_blob, build_targets=",".join(build), matrix=json.dumps(matrix, separators=(",", ":")),
         package=package, source_repo=src_repo, source_ref=src_ref, source_sha=src_sha, source_path=src_path,
-        target=target, package_dir=entry.get("packageDir", ""), run_tests="true" if entry.get("tests", mode == "full") else "false",
+        target=target, build_secrets=",".join(build_secrets), package_dir=entry.get("packageDir", ""), run_tests="true" if entry.get("tests", mode == "full") else "false",
         player_repo=player_repo, player_ref=player_ref, player_sha=player_sha, player_version=player_version,
         player_release=player_ref if player_ref.startswith("uve-player-v") else "",
         qt_version=qt.group(1), targets=",".join(targets), libraries=json.dumps(libraries, separators=(",", ":")))
+
+
+def cmd_secrets_header(a):
+    """Werte aus PLUGIN_BUILD_SECRETS (JSON Name → Wert) als #define-Header; Werte erscheinen nie im Log."""
+    names = [n for n in a.names.split(",") if n]
+    raw = os.environ.get("PLUGIN_BUILD_SECRETS", "")
+    try:
+        values = json.loads(raw) if raw.strip() else {}
+    except ValueError:
+        fail("GitHub-Secret PLUGIN_BUILD_SECRETS ist kein gültiges JSON (erwartet {\"NAME\": \"Wert\", …})")
+    missing = [n for n in names if not isinstance(values.get(n), str) or not values.get(n)]
+    if missing:
+        fail(f"Das Plugin braucht {', '.join(missing)} – im Repository unter Settings → Secrets and variables → Actions "
+             f"das Secret PLUGIN_BUILD_SECRETS anlegen bzw. ergänzen: {{\"{missing[0]}\": \"…\"}}")
+    lines = ["#pragma once", "// beim Build erzeugt (build-plugin.yml) – nicht einchecken"]
+    for n in names:
+        v = values[n]
+        print(f"::add-mask::{v}")
+        esc = v.replace("\\", "\\\\").replace('"', '\\"')
+        lines.append(f'#define {n} "{esc}"')
+    Path(a.out).write_text("\n".join(lines) + "\n", encoding="utf8")
+    print(f"{a.out}: {', '.join(names)}")
 
 
 def cmd_locate(a):
@@ -571,12 +596,15 @@ def main():
     s.add_argument("--base-zip", default="", help="hochgeladenes Windows-ZIP, in das Linux/macOS eingefügt werden")
     s.add_argument("--zip-name", default="")
     s.add_argument("--libraries", default="{}", help="Zielschlüssel → Pfad im Paket (aus resolve)")
+    h = sub.add_parser("secrets-header")
+    h.add_argument("--names", required=True)
+    h.add_argument("--out", required=True)
     l = sub.add_parser("locate")
     l.add_argument("--target", required=True)
     l.add_argument("--key", required=True)
     l.add_argument("--roots", required=True)
     a = ap.parse_args()
-    {"resolve": cmd_resolve, "set-version": cmd_set_version, "locate": cmd_locate, "arch": cmd_arch, "assemble": cmd_assemble}[a.cmd](a)
+    {"resolve": cmd_resolve, "set-version": cmd_set_version, "locate": cmd_locate, "secrets-header": cmd_secrets_header, "arch": cmd_arch, "assemble": cmd_assemble}[a.cmd](a)
 
 
 if __name__ == "__main__":
