@@ -114,19 +114,21 @@ foreach(cfg "" _DEBUG _RELEASE _RELWITHDEBINFO _MINSIZEREL)
         RUNTIME_OUTPUT_DIRECTORY${cfg} ${TEST_OUT_DIR})
 endforeach()
 
-# Live-Probe: angeheftete Nachricht eines echten Kanals
-add_executable(pin_probe test/pin_probe.cpp test/fakehost.h ${CHAT_SOURCES} TokenVault.cpp TokenVault.h)
-set_target_properties(pin_probe PROPERTIES AUTOMOC ON WIN32_EXECUTABLE FALSE)
-target_include_directories(pin_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} "${HOST_PLUGIN_API_DIR}")
-target_link_libraries(pin_probe PRIVATE Qt6::Core Qt6::Network Qt6::Gui)
-if(WIN32)
-    target_link_libraries(pin_probe PRIVATE crypt32)
+# Live-Probe: angeheftete Nachricht eines echten Kanals (nur wenn die Quelle vorhanden ist)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/test/pin_probe.cpp")
+    add_executable(pin_probe test/pin_probe.cpp test/fakehost.h ${CHAT_SOURCES} TokenVault.cpp TokenVault.h)
+    set_target_properties(pin_probe PROPERTIES AUTOMOC ON WIN32_EXECUTABLE FALSE)
+    target_include_directories(pin_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} "${HOST_PLUGIN_API_DIR}")
+    target_link_libraries(pin_probe PRIVATE Qt6::Core Qt6::Network Qt6::Gui)
+    if(WIN32)
+        target_link_libraries(pin_probe PRIVATE crypt32)
+    endif()
+    foreach(cfg "" _DEBUG _RELEASE _RELWITHDEBINFO _MINSIZEREL)
+        set_target_properties(pin_probe PROPERTIES
+            LIBRARY_OUTPUT_DIRECTORY${cfg} ${TEST_OUT_DIR}
+            RUNTIME_OUTPUT_DIRECTORY${cfg} ${TEST_OUT_DIR})
+    endforeach()
 endif()
-foreach(cfg "" _DEBUG _RELEASE _RELWITHDEBINFO _MINSIZEREL)
-    set_target_properties(pin_probe PROPERTIES
-        LIBRARY_OUTPUT_DIRECTORY${cfg} ${TEST_OUT_DIR}
-        RUNTIME_OUTPUT_DIRECTORY${cfg} ${TEST_OUT_DIR})
-endforeach()
 
 # Test 2: Konsole – API-Parser, Thumbnail-Logik, OAuth-Zustände, Vault, Fake-Host-Integration
 add_executable(browser_test
