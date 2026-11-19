@@ -1,50 +1,42 @@
 name: Build plugin
 
-# Macht aus einem UVE-Player-Plugin EIN ZIP für Windows x64, Linux x86-64 und macOS ARM64
-# (manifest.json mit "libraries", Module unter bin/<Ziel>/) und legt es in den Zweig uve-player-plugins.
+# Macht aus einem hochgeladenen UVE-Player-Plugin EIN ZIP für Windows x64, Linux x86-64 und macOS ARM64.
 #
-# Start:  automatisch, sobald ein Windows-ZIP <Name>-<Version>.zip in uve-player-plugins hochgeladen wird
+# Start:  automatisch, sobald ein Windows-ZIP <Name>-<Version>.zip in den Zweig uve-player-plugins hochgeladen wird
 #         (.github/workflows/plugin-zip-uploaded.yml dort), oder GitHub → Actions → "Build plugin" → "Run workflow".
-# Ablauf: Liegt <Name>-<Version>.zip als reines Windows-Paket im Zweig, werden nur Linux und macOS gebaut und in
-#         genau dieses ZIP eingefügt (Windows-DLL, QML, Sprachen und README bleiben aus dem Upload). Das fertige ZIP
-#         ersetzt das hochgeladene unter demselben Namen. Ohne ZIP werden alle drei Plattformen gebaut.
-#         Hat sich das ZIP im Zweig während des Laufs geändert, wird nichts überschrieben.
-# Ergebnis: das ZIP im Zweig uve-player-plugins und zusätzlich das Artefakt "<Name>-<Version>" des Laufs.
-#
-# Welche Plugins gebaut werden können, steht in .github/plugin-builds.json (Quellpfad, Tag-Muster, Build-Ziel).
-# Quellstand: Tag der Version (z. B. glsl-manager-v1.0.1), falls vorhanden, sonst der aktuelle Stand von
-# sourceFallbackRef (Zweig uve-player-plugins, Ordner sources/…) – einmal auf einen Commit festgelegt, den alle
-# Plattformen bauen. Die eingegebene Version kommt ins Manifest des Pakets und der Module.
-# Private Quellen: Secret PLUGIN_SOURCES_TOKEN mit Lesezugriff anlegen.
+# Quellen: sources/<Name>/ im Zweig uve-player-plugins (CMakeLists.txt mit add_library(<ziel> MODULE …)), gefunden
+#         über den ZIP-Namen, den Plugin-Namen oder die ID. Einträge in .github/plugin-builds.json sind optional.
+# Ablauf: Linux und macOS werden aus den Quellen gebaut, ihre Module (lib<name>.so / lib<name>.dylib) kommen neben
+#         die Windows-DLL in genau dieses ZIP. "library" und minHostVersion bleiben (ältere Windows-Player laden
+#         weiter die DLL), "libraries" wählt ab Player 1.2.9 das Modul je System. Das fertige ZIP ersetzt das
+#         hochgeladene unter demselben Namen – außer es wurde während des Laufs im Zweig geändert.
+# Prüfungen: Architektur jedes Moduls; Laden mit den Qt-Bibliotheken des veröffentlichten Players (IID, Schnittstelle,
+#         eingebettete id/version); ID, Version und alle im Manifest genannten Dateien im fertigen ZIP.
 on:
   workflow_dispatch:
     inputs:
+      zip_file:
+        description: "ZIP im Zweig uve-player-plugins, z. B. kickchat-1.3.2.zip"
+        required: false
+        default: ""
       plugin_id:
-        description: "Plugin-ID (z. B. org.uveplayer.glsl-manager)"
-        required: true
-        default: org.uveplayer.glsl-manager
+        description: "Optional statt zip_file: Plugin-ID (z. B. org.uveplayer.glsl-manager)"
+        required: false
+        default: ""
       version:
-        description: "Version des Pakets (wie im ZIP, z. B. 1.0.1) – wird ins Manifest geschrieben"
-        required: true
-        default: "1.0.1"
+        description: "Optional statt zip_file: Version"
+        required: false
+        default: ""
       source_ref:
-        description: "Optional: Tag, Zweig oder Commit des Plugin-Quellstands (Standard: Tag der Version, sonst Zweig uve-player-plugins)"
+        description: "Optional: Tag, Zweig oder Commit der Quellen (nur für Plugins aus plugin-builds.json)"
         required: false
         default: ""
       player_ref:
         description: "Optional: Tag oder Commit des Players für Plugin-API und Qt (Standard: player.ref aus plugin-builds.json)"
         required: false
         default: ""
-      zip_file:
-        description: "Optional: ZIP im Zweig uve-player-plugins (Standard: <Name>-<Version>.zip)"
-        required: false
-        default: ""
       publish:
         description: "Fertiges ZIP in den Zweig uve-player-plugins schreiben"
-        type: boolean
-        default: true
-      run_tests:
-        description: "Tests des Plugins ausführen"
         type: boolean
         default: true
 
@@ -52,68 +44,71 @@ permissions:
   contents: read
 
 concurrency:
-  group: build-plugin-${{ inputs.plugin_id }}-${{ inputs.version }}
+  group: build-plugin-${{ inputs.zip_file }}-${{ inputs.plugin_id }}-${{ inputs.version }}
   cancel-in-progress: false
 
 jobs:
   resolve:
     runs-on: ubuntu-latest
     outputs:
+      mode: ${{ steps.r.outputs.mode }}
+      plugin_id: ${{ steps.r.outputs.plugin_id }}
+      version: ${{ steps.r.outputs.version }}
       package: ${{ steps.r.outputs.package }}
+      zip_name: ${{ steps.r.outputs.zip_name }}
+      catalog_branch: ${{ steps.r.outputs.catalog_branch }}
+      catalog_sha: ${{ steps.r.outputs.catalog_sha }}
+      base_blob: ${{ steps.r.outputs.base_blob }}
       source_repo: ${{ steps.r.outputs.source_repo }}
       source_sha: ${{ steps.r.outputs.source_sha }}
       source_path: ${{ steps.r.outputs.source_path }}
       target: ${{ steps.r.outputs.target }}
       package_dir: ${{ steps.r.outputs.package_dir }}
+      run_tests: ${{ steps.r.outputs.run_tests }}
       player_repo: ${{ steps.r.outputs.player_repo }}
       player_sha: ${{ steps.r.outputs.player_sha }}
       player_version: ${{ steps.r.outputs.player_version }}
       player_release: ${{ steps.r.outputs.player_release }}
       qt_version: ${{ steps.r.outputs.qt_version }}
       targets: ${{ steps.r.outputs.targets }}
-      libraries: ${{ steps.r.outputs.libraries }}
-      mode: ${{ steps.r.outputs.mode }}
-      catalog_branch: ${{ steps.r.outputs.catalog_branch }}
-      catalog_sha: ${{ steps.r.outputs.catalog_sha }}
-      zip_name: ${{ steps.r.outputs.zip_name }}
-      base_blob: ${{ steps.r.outputs.base_blob }}
       build_targets: ${{ steps.r.outputs.build_targets }}
+      libraries: ${{ steps.r.outputs.libraries }}
       matrix: ${{ steps.r.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
           sparse-checkout: .github
       - id: r
-        name: Resolve plugin, source and player revisions
+        name: Resolve package, sources and player
         env:
           SOURCE_TOKEN: ${{ secrets.PLUGIN_SOURCES_TOKEN }}
         run: >
           python3 -I .github/scripts/plugin_build.py resolve
-          --id "${{ inputs.plugin_id }}" --version "${{ inputs.version }}"
+          --zip-file "${{ inputs.zip_file }}" --id "${{ inputs.plugin_id }}" --version "${{ inputs.version }}"
           --source-ref "${{ inputs.source_ref }}" --player-ref "${{ inputs.player_ref }}"
-          --zip-file "${{ inputs.zip_file }}"
       - name: Summary
         run: |
           {
-            echo "### ${{ steps.r.outputs.package }} ${{ inputs.version }}"
-            echo "| | Revision |"
+            echo "### ${{ steps.r.outputs.zip_name }} – ${{ steps.r.outputs.plugin_id }} ${{ steps.r.outputs.version }}"
+            echo "| | |"
             echo "|---|---|"
-            echo "| Plugin-Quellen | \`${{ steps.r.outputs.source_repo }}\` ${{ steps.r.outputs.source_ref }} → \`${{ steps.r.outputs.source_sha }}\` (\`${{ steps.r.outputs.source_path }}\`) |"
-            echo "| Player (Plugin-API) | ${{ steps.r.outputs.player_ref }} → \`${{ steps.r.outputs.player_sha }}\` |"
-            echo "| Qt | ${{ steps.r.outputs.qt_version }} |"
-            echo "| Paket | \`${{ steps.r.outputs.zip_name }}\` in ${{ steps.r.outputs.catalog_branch }} – Modus **${{ steps.r.outputs.mode }}**, gebaut: ${{ steps.r.outputs.build_targets }} |"
+            echo "| Modus | **${{ steps.r.outputs.mode }}** – gebaut: ${{ steps.r.outputs.build_targets }} |"
+            echo "| Quellen | \`${{ steps.r.outputs.source_path }}\` (${{ steps.r.outputs.source_ref }} → \`${{ steps.r.outputs.source_sha }}\`), Ziel \`${{ steps.r.outputs.target }}\` |"
+            echo "| Player | ${{ steps.r.outputs.player_ref }} → \`${{ steps.r.outputs.player_sha }}\`, Qt ${{ steps.r.outputs.qt_version }} |"
+            echo "| Module | \`${{ steps.r.outputs.libraries }}\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   build:
     needs: resolve
     strategy:
-      fail-fast: false   # jede Plattform meldet ihr Ergebnis; das Paket entsteht nur, wenn alle drei gelingen
+      fail-fast: false   # jede Plattform meldet ihr Ergebnis; das Paket entsteht nur, wenn alle gelingen
       # windows-2022 / ubuntu-24.04 / macos-latest (Apple Silicon) wie im Player; beim Einfügen ohne Windows
       matrix: ${{ fromJSON(needs.resolve.outputs.matrix) }}
     runs-on: ${{ matrix.os }}
     env:
       QT_VERSION: ${{ needs.resolve.outputs.qt_version }}
-      PKG: build/${{ needs.resolve.outputs.package_dir }}
+      SRC: plugin/${{ needs.resolve.outputs.source_path }}
+      TARGET: ${{ needs.resolve.outputs.target }}
     defaults:
       run:
         shell: bash
@@ -142,7 +137,11 @@ jobs:
             scripts
           path: player
       - name: Set package version
-        run: python3 -I ci/.github/scripts/plugin_build.py set-version --manifest "plugin/${{ needs.resolve.outputs.source_path }}/manifest.json" --version "${{ inputs.version }}" || python -I ci/.github/scripts/plugin_build.py set-version --manifest "plugin/${{ needs.resolve.outputs.source_path }}/manifest.json" --version "${{ inputs.version }}"
+        run: |
+          py=python3; command -v python3 >/dev/null || py=python
+          if [ -f "$SRC/manifest.json" ]; then
+            $py -I ci/.github/scripts/plugin_build.py set-version --manifest "$SRC/manifest.json" --version "${{ needs.resolve.outputs.version }}"
+          fi
 
       # ---- Toolchain und Qt wie im Release-Workflow des Players
       - name: Cache Qt (Windows)
@@ -190,23 +189,26 @@ jobs:
           modules: qtimageformats qtshadertools
           cache: true
 
-      # ---- Build
+      # ---- Build: nur das Plugin-Modul. Der Pfad zur PluginApi.h geht über die üblichen Variablen
+      # (UVE_PLAYER_DIR, UVE_PLAYER_SOURCE, HOST_PLUGIN_API_DIR) und zusätzlich direkt an den Compiler.
       - name: Configure
         run: |
-          src="plugin/${{ needs.resolve.outputs.source_path }}"
+          api="$PWD/player/src/plugins"
+          common=(-DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" -DUVE_PLAYER_DIR="$PWD/player" -DUVE_PLAYER_SOURCE="$PWD/player"
+                  -DHOST_PLUGIN_API_DIR="$api" -DUVE_TARGET_KEY=${{ matrix.key }} -DBUILD_TESTING=OFF)
           if [ "$RUNNER_OS" = "Windows" ]; then
-            cmake -S "$src" -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" \
-              -DUVE_PLAYER_DIR="$PWD/player" -DUVE_TARGET_KEY=${{ matrix.key }}
+            cmake -S "$SRC" -B build -G "Visual Studio 17 2022" -A x64 "${common[@]}"
           else
-            extra=""
-            [ "$RUNNER_OS" = "macOS" ] && extra="-DCMAKE_OSX_ARCHITECTURES=arm64"
-            cmake -S "$src" -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR" $extra \
-              -DUVE_PLAYER_DIR="$PWD/player" -DUVE_TARGET_KEY=${{ matrix.key }}
+            extra=()
+            [ "$RUNNER_OS" = "macOS" ] && extra=(-DCMAKE_OSX_ARCHITECTURES=arm64)
+            cmake -S "$SRC" -B build -G Ninja -DCMAKE_BUILD_TYPE=Release "${common[@]}" "${extra[@]}" -DCMAKE_CXX_FLAGS="-I$api"
           fi
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: |
+          cmake --build build --config Release --parallel --target "$TARGET"
+          if [ "${{ needs.resolve.outputs.mode }}" = "full" ]; then cmake --build build --config Release --parallel; fi
       - name: Tests
-        if: inputs.run_tests
+        if: needs.resolve.outputs.run_tests == 'true'
         env:
           QT_QPA_PLATFORM: offscreen
         run: ctest --test-dir build -C Release --output-on-failure
@@ -215,24 +217,35 @@ jobs:
         id: mod
         env:
           LIBRARIES: ${{ needs.resolve.outputs.libraries }}
+          PKG_DIR: ${{ needs.resolve.outputs.package_dir }}
         run: |
-          rel=$(python3 -I -c "import json,os;print(json.loads(os.environ['LIBRARIES'])['${{ matrix.key }}'])" 2>/dev/null || python -I -c "import json,os;print(json.loads(os.environ['LIBRARIES'])['${{ matrix.key }}'])")
-          if [ ! -f "$PKG/$rel" ]; then
-            echo "::error::Build-Ziel ${{ needs.resolve.outputs.target }} hat $rel nicht erzeugt. Inhalt von $PKG:"; find "$PKG" -type f; exit 1
+          py=python3; command -v python3 >/dev/null || py=python
+          rel=$($py -I -c "import json,os;print(json.loads(os.environ['LIBRARIES'])['${{ matrix.key }}'])")
+          mkdir -p stage
+          if [ "${{ needs.resolve.outputs.mode }}" = "full" ]; then
+            # Plugin legt seinen fertigen Ordner selbst an (packageDir), Modul unter dem Pfad aus "libraries"
+            cp -R "build/$PKG_DIR/." stage/
+            [ -f "stage/$rel" ] || { echo "::error::Build hat $rel nicht in build/$PKG_DIR erzeugt"; find stage -type f; exit 1; }
+          else
+            $py -I ci/.github/scripts/plugin_build.py locate --target "$TARGET" --key ${{ matrix.key }} --roots "build,plugin" | tee locate.txt
+            built=$(sed -n 's/^path=//p' locate.txt)
+            rel=$(basename "$rel")
+            cp "$built" "stage/$rel"
           fi
-          echo "rel=$rel" >> "$GITHUB_OUTPUT"
-          echo "module=$PWD/$PKG/$rel" >> "$GITHUB_OUTPUT"
+          echo "module=$PWD/stage/$rel" >> "$GITHUB_OUTPUT"
       - name: Remove build rpath (macOS)
         if: runner.os == 'macOS'
         run: |
           # Der absolute Qt-Pfad des Runners gehört nicht ins Paket; im Player kommt Qt aus dem App-Bundle
           m="${{ steps.mod.outputs.module }}"
           for p in $(otool -l "$m" | awk '/cmd LC_RPATH/{getline; getline; print $2}'); do install_name_tool -delete_rpath "$p" "$m"; done
-          install_name_tool -add_rpath @executable_path/../Frameworks "$m"   # Qt-Frameworks im App-Bundle des Players
+          install_name_tool -add_rpath @executable_path/../Frameworks "$m"
           codesign --force --sign - "$m"
           otool -l "$m" | grep -A2 LC_RPATH || echo "no LC_RPATH"
       - name: Check architecture
-        run: python3 -I ci/.github/scripts/plugin_build.py arch --module "${{ steps.mod.outputs.module }}" --key ${{ matrix.key }} || python -I ci/.github/scripts/plugin_build.py arch --module "${{ steps.mod.outputs.module }}" --key ${{ matrix.key }}
+        run: |
+          py=python3; command -v python3 >/dev/null || py=python
+          $py -I ci/.github/scripts/plugin_build.py arch --module "${{ steps.mod.outputs.module }}" --key ${{ matrix.key }}
 
       # ---- Laufzeitabhängigkeiten im Ziel-Player: Modul mit den Qt-Bibliotheken des veröffentlichten Players laden
       - name: Build load check
@@ -275,7 +288,8 @@ jobs:
           PLAYER_DIR: ${{ steps.player.outputs.dir }}
           MODULE: ${{ steps.mod.outputs.module }}
         run: |
-          manifest="$PKG/manifest.json"
+          manifest=""
+          [ -f "$SRC/manifest.json" ] && manifest="$PWD/$SRC/manifest.json"   # eingebettetes Manifest: id/version
           # Ausgabe der Ladeprüfung immer zeigen; bei einem Fehler zusätzlich als Annotation (Log braucht Anmeldung)
           check() {
             set +e
@@ -283,7 +297,7 @@ jobs:
             set -e
             echo "$out"
             if [ $rc -ne 0 ]; then
-              msg=$(echo "$out" | grep -viE 'looking at|checking directory|loaded library' | tail -n 25 | awk '{gsub(/%/,"%25"); printf "%s%%0A", $0}')
+              msg=$(echo "$out" | grep -viE 'looking at|checking directory|loaded library|Trying\.\.\.' | tail -n 25 | awk '{gsub(/%/,"%25"); printf "%s%%0A", $0}')
               echo "::error title=Ladeprüfung ${{ matrix.key }} (exit $rc)::$msg"
               exit 1
             fi
@@ -293,17 +307,14 @@ jobs:
           fi
           case "$RUNNER_OS" in
             Windows)
-              exe=loadcheck/Release/uve-plugin-loadcheck.exe
               dir="${PLAYER_DIR:-$QT_ROOT_DIR/bin}"
-              cp "$exe" "$dir/"   # neben den Qt-DLLs des Players: Windows lädt sie aus dem Programmordner
-              dumpbin=$(find "/c/Program Files/Microsoft Visual Studio" -name dumpbin.exe -path '*Hostx64/x64*' | head -1)
-              [ -n "$dumpbin" ] && "$dumpbin" -nologo -dependents "$MODULE" | sed -n '/Image has the following dependencies/,/Summary/p'
-              check "$dir/uve-plugin-loadcheck.exe" "$MODULE" "$manifest" ;;
+              cp loadcheck/Release/uve-plugin-loadcheck.exe "$dir/"   # neben den Qt-DLLs des Players
+              check "$dir/uve-plugin-loadcheck.exe" "$MODULE" $manifest ;;
             Linux)
               export LD_LIBRARY_PATH="${PLAYER_DIR:-$QT_ROOT_DIR/lib}"
               ldd "$MODULE"
-              if ldd "$MODULE" | grep -q "not found"; then echo "::error::Nicht auflösbare Abhängigkeiten"; exit 1; fi
-              check ./loadcheck/uve-plugin-loadcheck "$MODULE" "$manifest" ;;
+              if ldd "$MODULE" | grep -q "not found"; then echo "::error::Nicht auflösbare Abhängigkeiten: $(ldd "$MODULE" | grep 'not found' | tr '\n' ' ')"; exit 1; fi
+              check ./loadcheck/uve-plugin-loadcheck "$MODULE" $manifest ;;
             macOS)
               lc=loadcheck/uve-plugin-loadcheck
               if [ -n "$PLAYER_DIR" ]; then
@@ -312,18 +323,15 @@ jobs:
                 codesign --force --sign - "$lc"
               fi
               otool -L "$MODULE"
-              otool -l "$lc" | grep -A2 LC_RPATH || true
-              ls "$PLAYER_DIR" | head -40 || true
-              if otool -L "$MODULE" | tail -n +2 | awk '{print $1}' | grep -vE '^(@rpath/Qt[A-Za-z]+\.framework/|/usr/lib/|/System/Library/)'; then
-                echo "::error::Abhängigkeiten außerhalb von Qt und System – im Player nicht vorhanden"; exit 1
-              fi
-              check "$lc" "$MODULE" "$manifest" ;;
+              bad=$(otool -L "$MODULE" | tail -n +2 | awk '{print $1}' | grep -vE '^(@rpath/Qt[A-Za-z]+\.framework/|/usr/lib/|/System/Library/)' || true)
+              if [ -n "$bad" ]; then echo "::error::Abhängigkeiten außerhalb von Qt und System (im Player nicht vorhanden): $bad"; exit 1; fi
+              check "$lc" "$MODULE" $manifest ;;
           esac
 
       - uses: actions/upload-artifact@v4
         with:
           name: module-${{ matrix.key }}
-          path: ${{ env.PKG }}
+          path: stage
           if-no-files-found: error
           retention-days: 7
 
@@ -350,11 +358,14 @@ jobs:
           ls -l base.zip
       - id: zip
         name: Assemble and verify package
+        env:
+          LIBRARIES: ${{ needs.resolve.outputs.libraries }}
         run: >
           python3 -I .github/scripts/plugin_build.py assemble --parts parts
-          --id "${{ inputs.plugin_id }}" --version "${{ inputs.version }}"
+          --id "${{ needs.resolve.outputs.plugin_id }}" --version "${{ needs.resolve.outputs.version }}"
           --package "${{ needs.resolve.outputs.package }}" --targets "${{ needs.resolve.outputs.targets }}"
           --built "${{ needs.resolve.outputs.build_targets }}" --zip-name "${{ needs.resolve.outputs.zip_name }}"
+          --libraries "$LIBRARIES"
           ${{ needs.resolve.outputs.mode == 'insert' && '--base-zip base.zip' || '' }} --out dist
       - uses: actions/upload-artifact@v4
         with:
@@ -365,15 +376,13 @@ jobs:
       - name: Summary
         run: |
           {
-            echo "### ${{ steps.zip.outputs.name }}.zip"
+            echo "### ${{ steps.zip.outputs.file }}"
             echo "SHA-256 \`${{ steps.zip.outputs.sha256 }}\`"
-            echo
-            echo "Wird nach \`${{ needs.resolve.outputs.catalog_branch }}\` geschrieben (Job *publish*); zusätzlich Artefakt **${{ steps.zip.outputs.name }}** unten."
           } >> "$GITHUB_STEP_SUMMARY"
 
   publish:
     needs: [resolve, package]
-    if: inputs.publish
+    if: ${{ !cancelled() && needs.package.result == 'success' && (github.event_name != 'workflow_dispatch' || inputs.publish) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -393,20 +402,26 @@ jobs:
         env:
           ZIP: ${{ needs.resolve.outputs.zip_name }}
           BASE_BLOB: ${{ needs.resolve.outputs.base_blob }}
+          BRANCH: ${{ needs.resolve.outputs.catalog_branch }}
         run: |
-          # Nur ersetzen, was der Lauf als Grundlage genommen hat: ein neuerer Upload bleibt unberührt
-          now=$(git rev-parse "HEAD:$ZIP" 2>/dev/null || true)
-          if [ "$now" != "$BASE_BLOB" ]; then
-            echo "::error::$ZIP wurde während des Laufs im Zweig geändert (vorher ${BASE_BLOB:-fehlt}, jetzt ${now:-fehlt}) – nichts überschrieben. Artefakt des Laufs nutzen oder neu starten."
-            exit 1
-          fi
-          cp "new/$ZIP" "$ZIP"
-          git add "$ZIP"
-          if git diff --cached --quiet; then echo "$ZIP unverändert"; exit 0; fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -q -m "$ZIP: Windows, Linux und macOS" -m "Gebaut von ${{ github.workflow }} #${{ github.run_number }} (${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}), Modus ${{ needs.resolve.outputs.mode }}."
-          # Andere Uploads seit dem Start übernehmen; ein Konflikt am selben ZIP bricht ab
-          git pull -q --rebase origin "${{ needs.resolve.outputs.catalog_branch }}"
-          git push origin "HEAD:${{ needs.resolve.outputs.catalog_branch }}"
-          echo "### $ZIP liegt jetzt in \`${{ needs.resolve.outputs.catalog_branch }}\`" >> "$GITHUB_STEP_SUMMARY"
+          for attempt in 1 2 3; do
+            git fetch -q origin "$BRANCH" && git reset -q --hard "origin/$BRANCH"
+            # Nur ersetzen, was der Lauf als Grundlage genommen hat: ein neuerer Upload bleibt unberührt
+            now=$(git rev-parse "HEAD:$ZIP" 2>/dev/null || true)
+            if [ "$now" != "$BASE_BLOB" ]; then
+              echo "::error::$ZIP wurde während des Laufs im Zweig geändert (vorher ${BASE_BLOB:-fehlt}, jetzt ${now:-fehlt}) – nichts überschrieben."
+              exit 1
+            fi
+            cp "new/$ZIP" "$ZIP"
+            git add "$ZIP"
+            if git diff --cached --quiet; then echo "$ZIP unverändert"; exit 0; fi
+            git commit -q -m "$ZIP: Windows, Linux und macOS" -m "Gebaut von ${{ github.workflow }} #${{ github.run_number }} (${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}), Modus ${{ needs.resolve.outputs.mode }}."
+            if git push -q origin "HEAD:$BRANCH"; then
+              echo "### $ZIP liegt jetzt in \`$BRANCH\`" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Push abgelehnt (gleichzeitiger Upload) – neuer Versuch"; sleep 5
+          done
+          echo "::error::$ZIP konnte nicht nach $BRANCH geschrieben werden"; exit 1

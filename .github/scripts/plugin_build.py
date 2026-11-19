@@ -1,12 +1,19 @@
 """Hilfsschritte für .github/workflows/build-plugin.yml (UVE-Player-Plugins für Windows, Linux und macOS).
 
-  resolve   --id ID --version V [--source-ref REF] [--player-ref REF]
-            Plugin aus .github/plugin-builds.json, Quellstand auflösen (Tag der Version, sonst sourceFallbackRef)
-            und prüfen → $GITHUB_OUTPUT
+  resolve   [--zip-file NAME] [--id ID --version V] [--source-ref REF] [--player-ref REF]
+            Paket im Katalog-Zweig, Quellen (sources/<Name>/ oder .github/plugin-builds.json), Build-Ziel, Player
+            und Modus bestimmen → $GITHUB_OUTPUT
   set-version --manifest FILE --version V      Version des Pakets ins Manifest des Quellstands schreiben
+  locate    --target T --key K --roots A,B      gebautes Modul eines CMake-Ziels finden
   arch      --module FILE --key TARGET          Architektur des Moduls prüfen (PE / ELF / Mach-O)
-  assemble  --parts DIR --id ID --version V --package NAME --targets K1,K2,… --out DIR
-            Module der Plattform-Jobs mit gemeinsamem Manifest und Ressourcen zu <NAME>-<V>.zip packen und prüfen
+  assemble  --parts DIR --id ID --version V --package NAME --targets K1,K2,… --out DIR [--base-zip ZIP --built …]
+            Module zu einem ZIP packen (mit --base-zip: in das hochgeladene Windows-ZIP einfügen) und prüfen
+
+Modi:
+  insert  Im Katalog-Zweig liegt <Name>-<Version>.zip als reines Windows-Paket: nur Linux und macOS werden aus den
+          Quellen gebaut und neben die Windows-DLL in dieses ZIP gelegt. "library" und minHostVersion bleiben
+          (ältere Windows-Player laden weiter die DLL), "libraries" kommt dazu.
+  full    Plugin mit packageDir in plugin-builds.json und ohne hochgeladenes ZIP: alle drei Plattformen bauen.
 
 Ohne Erfolg endet jeder Schritt mit "error: …" und Exit-Code 1.
 """
@@ -121,62 +128,147 @@ def check_libraries(manifest, targets, where):
     return libs
 
 
+def load_json_lenient(raw, where):
+    """JSON wie Qt es liest: ungültige Escapes (z. B. Backslash-Punkt in regulären Ausdrücken) als Text behandeln."""
+    text = raw.decode("utf-8-sig", "replace") if isinstance(raw, bytes) else raw
+    try:
+        return json.loads(text)
+    except ValueError:
+        try:
+            return json.loads(re.sub(r'\\(?!["\\/bfnrtu])', r"\\\\", text))
+        except ValueError as e:
+            fail(f"{where}: manifest.json ist kein gültiges JSON ({e})")
+
+
+def zip_key(name):
+    m = re.match(r"^(.+?)[-_ ]v?(\d+(?:\.\d+)*)\.zip$", name, re.I)   # wie PluginUpdater::splitPackageName
+    return (m.group(1), m.group(2)) if m else (None, None)
+
+
 def cmd_resolve(a):
     cfg = json.loads(CONFIG.read_text(encoding="utf8"))
     plugins = cfg.get("plugins", {})
-    if a.id not in plugins:
-        fail(f"Plugin '{a.id}' ist nicht in .github/plugin-builds.json eingetragen (bekannt: {', '.join(plugins) or '–'})")
-    if not VERSION_RE.match(a.version):
-        fail(f"Ungültige Version '{a.version}' (erwartet z. B. 1.0.2)")
-    p = plugins[a.id]
-    for field in ("package", "sourceRef", "sourcePath", "target", "packageDir"):
-        if not p.get(field):
-            fail(f".github/plugin-builds.json: '{a.id}' ohne '{field}'")
     targets = cfg.get("targets") or ["windows-x64", "linux-x86_64", "macos-arm64"]
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    tmp = Path(tempfile.mkdtemp())
 
-    src_repo = p.get("sourceRepository") or os.environ.get("GITHUB_REPOSITORY", "")
-    src_url = repo_url(src_repo, "SOURCE_TOKEN")
-    if a.source_ref:
-        src_ref = a.source_ref
-        src_sha, src_kind = resolve_ref(src_url, src_ref, f"Quellstand {src_repo}")
+    # ---- Katalog-Zweig: hochgeladene Pakete und Quellen (sources/<Name>/) im selben Commit
+    catalog = cfg.get("catalogBranch", "uve-player-plugins")
+    cat_url = os.environ.get("PLUGIN_CATALOG_URL") or repo_url(repo, "CATALOG_TOKEN")   # Override nur für lokale Tests
+    cat_sha, _ = resolve_ref(cat_url, catalog, f"Katalog-Zweig {catalog}")
+    cat = tmp / "catalog"
+    cat.mkdir()
+    git("init", "-q", cwd=cat)
+    git("fetch", "-q", "--depth", "1", cat_url, cat_sha, cwd=cat)
+    root_files = git("ls-tree", "--name-only", cat_sha, cwd=cat).split()
+
+    zip_name = a.zip_file.strip()
+    if not zip_name:
+        if not a.id or not a.version:
+            fail("Bitte zip_file angeben (z. B. kickchat-1.3.2.zip) oder Plugin-ID und Version")
+        entry = plugins.get(a.id)
+        guess = f"{entry['package']}-{a.version}.zip" if entry and entry.get("package") else ""
+        if guess in root_files:
+            zip_name = guess
+        else:   # Paket dieser ID und Version im Katalog suchen
+            for f in root_files:
+                if f.lower().endswith(".zip"):
+                    m = read_zip_manifest(show(cat, cat_sha, f), f)
+                    if m.get("id") == a.id and m.get("version") == a.version:
+                        zip_name = f
+                        break
+        zip_name = zip_name or guess
+    if "/" in zip_name or not zip_name.lower().endswith(".zip"):
+        fail(f"Ungültiger ZIP-Name '{zip_name}' (erwartet <Name>-<Version>.zip im Wurzelverzeichnis von {catalog})")
+    prefix, _ = zip_key(zip_name)
+
+    base_blob, base = "", None
+    if zip_name in root_files:
+        base_blob = git("rev-parse", f"{cat_sha}:{zip_name}", cwd=cat).strip()
+        base = read_zip_manifest(show(cat, cat_sha, zip_name), zip_name)
+    pid = (base or {}).get("id") or a.id
+    version = (base or {}).get("version") or a.version
+    if a.id and pid != a.id:
+        fail(f"{zip_name} enthält das Plugin '{pid}', erwartet '{a.id}'")
+    if a.version and version != a.version:
+        fail(f"{zip_name} hat Version '{version}', erwartet '{a.version}'")
+    if not pid or not VERSION_RE.match(version or ""):
+        fail(f"{zip_name} liegt nicht in {catalog} – ohne hochgeladenes Paket bitte Plugin-ID und Version angeben")
+    entry = plugins.get(pid, {})
+
+    if base and base.get("libraries"):
+        fail(f"{zip_name} ist schon ein Mehrplattform-Paket (manifest.json mit \"libraries\") – nichts zu tun")
+    if base:
+        mode = "insert"
+        if not base.get("library"):
+            fail(f"{zip_name}: manifest.json ohne \"library\" – reine QML-Plugins laufen schon überall, native Pakete brauchen das Windows-Modul")
+    elif entry.get("packageDir"):
+        mode = "full"
     else:
-        # Tag der Version, falls es einen gibt; sonst der aktuelle Stand des Quellzweigs (z. B. uve-player-plugins)
-        src_ref = p["sourceRef"].replace("{version}", a.version)
-        src_sha, src_kind = lookup_ref(src_url, src_ref)
-        if not src_sha:
-            fallback = p.get("sourceFallbackRef")
-            if not fallback:
-                fail(f"Quellstand {src_repo}: Tag '{src_ref}' nicht gefunden und kein sourceFallbackRef eingetragen")
-            print(f"Kein Tag {src_ref} – baue den aktuellen Stand von {fallback}")
-            src_ref = fallback
-            src_sha, src_kind = resolve_ref(src_url, src_ref, f"Quellstand {src_repo}")
+        fail(f"{zip_name} liegt nicht in {catalog} – zuerst das Windows-ZIP hochladen")
+    package = entry.get("package") or prefix or pid.split(".")[-1]
 
+    # ---- Quellen: Eintrag in plugin-builds.json, sonst sources/<Name>/ im Katalog-Zweig
+    if entry.get("sourcePath"):
+        src_repo = entry.get("sourceRepository") or repo
+        src_url = repo_url(src_repo, "SOURCE_TOKEN")
+        if a.source_ref:
+            src_ref = a.source_ref
+            src_sha, _ = resolve_ref(src_url, src_ref, f"Quellstand {src_repo}")
+        else:
+            src_ref = entry.get("sourceRef", "").replace("{version}", version)
+            src_sha, _ = lookup_ref(src_url, src_ref) if src_ref else (None, None)
+            if not src_sha:
+                src_ref = entry.get("sourceFallbackRef") or catalog
+                src_sha, _ = resolve_ref(src_url, src_ref, f"Quellstand {src_repo}")
+        src_path = entry["sourcePath"].strip("/")
+        if src_sha == cat_sha:
+            src = cat
+        else:
+            src = tmp / "src"
+            fetch_commit(src_url, src_sha, src)
+    else:
+        src_repo, src_ref, src_sha, src, src_url = repo, catalog, cat_sha, cat, cat_url
+        dirs = [d.split("/", 1)[1] for d in git("ls-tree", "-d", "--name-only", cat_sha, "sources/", cwd=cat).split("\n") if d]
+        keys = {normalize(k) for k in (prefix or "", (base or {}).get("name", ""), pid.split(".")[-1], pid) if k}
+        hits = [d for d in dirs if normalize(d) in keys]
+        if not hits:
+            fail(f"Keine Quellen für {pid}: im Zweig {catalog} fehlt der Ordner sources/{prefix or package}/ "
+                 f"(CMakeLists.txt mit add_library(… MODULE …) und Quellcode). Vorhanden: {', '.join(dirs) or '–'}")
+        if len(hits) > 1:
+            fail(f"Mehrere Quellordner passen zu {pid}: {hits}")
+        src_path = f"sources/{hits[0]}"
+
+    cmake = show(src, src_sha, f"{src_path}/CMakeLists.txt")
+    if cmake is None:
+        fail(f"{src_path}/CMakeLists.txt fehlt ({src_ref}, {src_sha[:10]}) – kein Build-Ziel")
+    modules = re.findall(r"add_library\(\s*([A-Za-z0-9_.+-]+)\s+MODULE\b", cmake.decode("utf8", "replace"))
+    target = entry.get("target")
+    if not target:
+        stem = PurePosixPath(base["library"]).stem if base else ""
+        same = [m for m in modules if m == stem or normalize(m) == normalize(stem)]
+        target = (same or (modules if len(modules) == 1 else [None]))[0]
+        if not target:
+            fail(f"{src_path}/CMakeLists.txt: Build-Ziel nicht eindeutig (Module: {modules or '–'}, DLL im ZIP: {stem or '–'})")
+    if target not in modules:
+        fail(f"{src_path}/CMakeLists.txt definiert kein Build-Ziel 'add_library({target} MODULE …)'")
+    src_manifest_raw = show(src, src_sha, f"{src_path}/manifest.json")
+    if src_manifest_raw is not None:
+        sm = load_json_lenient(src_manifest_raw, f"{src_path}/manifest.json")
+        if sm.get("id") != pid:
+            fail(f"{src_path}/manifest.json gehört zu '{sm.get('id')}', das Paket zu '{pid}'")
+        if sm.get("version") != version:
+            print(f"::warning::{src_path}/manifest.json hat Version {sm.get('version')}, das Paket {version} – "
+                  f"sind die Quellen aktuell? Gebaut wird mit Version {version}.")
+
+    # ---- Player (Plugin-API, Qt-Version)
     player = cfg.get("player", {})
-    player_repo = player.get("repository") or os.environ.get("GITHUB_REPOSITORY", "")
+    player_repo = player.get("repository") or repo
     player_ref = a.player_ref or player.get("ref")
     if not player_ref:
         fail(".github/plugin-builds.json: player.ref fehlt (fester Player-Tag oder Commit)")
     player_url = repo_url(player_repo, "PLAYER_TOKEN")
     player_sha, _ = resolve_ref(player_url, player_ref, f"Player {player_repo}")
-
-    tmp = Path(tempfile.mkdtemp())
-    fetch_commit(src_url, src_sha, tmp / "src")
-    base = p["sourcePath"].strip("/")
-    raw = show(tmp / "src", src_sha, f"{base}/manifest.json")
-    if raw is None:
-        fail(f"Quellstand {src_ref} ({src_sha[:10]}): {base}/manifest.json fehlt – Plugin-Quellen nicht gefunden")
-    cmake = show(tmp / "src", src_sha, f"{base}/CMakeLists.txt")
-    if cmake is None:
-        fail(f"Quellstand {src_ref} ({src_sha[:10]}): {base}/CMakeLists.txt fehlt – kein Build-Ziel")
-    if not re.search(rf"add_library\(\s*{re.escape(p['target'])}\s+MODULE\b", cmake.decode("utf8", "replace")):
-        fail(f"Quellstand {src_ref}: {base}/CMakeLists.txt definiert kein Build-Ziel 'add_library({p['target']} MODULE …)'")
-    manifest = json.loads(raw.decode("utf8"))
-    if manifest.get("id") != a.id:
-        fail(f"Quellstand {src_ref}: manifest.json hat id '{manifest.get('id')}', erwartet '{a.id}'")
-    if manifest.get("version") != a.version:
-        print(f"::notice::manifest.json im Quellstand hat Version {manifest.get('version')} – das Paket bekommt {a.version}")
-    check_libraries(manifest, targets, f"Quellstand {src_ref}")
-
     fetch_commit(player_url, player_sha, tmp / "player")
     if show(tmp / "player", player_sha, "src/plugins/PluginApi.h") is None:
         fail(f"Player {player_ref} ({player_sha[:10]}): src/plugins/PluginApi.h fehlt")
@@ -187,54 +279,60 @@ def cmd_resolve(a):
     cml = (show(tmp / "player", player_sha, "CMakeLists.txt") or b"").decode("utf8")
     pv = re.search(r"project\(UVEPlayer VERSION ([0-9.]+)", cml)
     player_version = pv.group(1) if pv else ""
-    min_host = manifest.get("minHostVersion", "")
-    if player_version and min_host and tuple(map(int, player_version.split("."))) < tuple(map(int, min_host.split(".")[:3])):
-        fail(f"minHostVersion {min_host} ist neuer als der Player {player_ref} ({player_version})")
-    if player_version and (not min_host or tuple(map(int, min_host.split(".")[:3])) < (1, 2, 9)):
-        fail(f"minHostVersion '{min_host}': Pakete mit \"libraries\" brauchen mindestens 1.2.9")
-    # Hochgeladenes Paket im Katalog-Zweig: reines Windows-ZIP → Linux/macOS einfügen, sonst alles bauen
-    catalog = cfg.get("catalogBranch", "uve-player-plugins")
-    cat_url = repo_url(os.environ.get("GITHUB_REPOSITORY", "") or src_repo, "CATALOG_TOKEN")
-    cat_sha, _ = resolve_ref(cat_url, catalog, f"Katalog-Zweig {catalog}")
-    zip_name = a.zip_file or f"{p['package']}-{a.version}.zip"
-    if "/" in zip_name or not zip_name.lower().endswith(".zip"):
-        fail(f"Ungültiger ZIP-Name '{zip_name}' (erwartet <Name>-<Version>.zip im Wurzelverzeichnis von {catalog})")
-    where = tmp / "catalog"
-    where.mkdir()
-    git("init", "-q", cwd=where)
-    git("fetch", "-q", "--depth", "1", cat_url, cat_sha, cwd=where)
-    blob = subprocess.run(["git", "rev-parse", f"{cat_sha}:{zip_name}"], cwd=where, capture_output=True, text=True).stdout.strip()
-    mode, base_blob, build = "new", "", list(targets)
-    if blob:
-        base_blob = blob
-        data = show(where, cat_sha, zip_name)
-        base_manifest = read_zip_manifest(data, zip_name)
-        if base_manifest.get("id") != a.id:
-            fail(f"{zip_name}: enthält '{base_manifest.get('id')}', erwartet '{a.id}'")
-        if base_manifest.get("libraries"):
-            mode = "rebuild"   # schon ein Mehrplattform-Paket: komplett neu bauen und ersetzen
-        else:
-            if base_manifest.get("version") != a.version:
-                fail(f"{zip_name}: manifest.json hat Version '{base_manifest.get('version')}', erwartet '{a.version}'")
-            win = [k for k in targets if k.startswith("windows-")]
-            if not base_manifest.get("library") or not win:
-                fail(f"{zip_name}: kein Windows-Modul (\"library\") zum Übernehmen")
-            mode = "insert"   # Windows-Modul und Ressourcen aus dem ZIP, Linux und macOS werden gebaut
-            build = [k for k in targets if k not in win]
-        print(f"{zip_name} in {catalog} ({cat_sha[:10]}): Modus {mode}")
+
+    # ---- Wohin die Module kommen
+    win = [k for k in targets if k.startswith("windows-")]
+    if mode == "insert":
+        lib = base["library"].replace("\\", "/")
+        folder = PurePosixPath(lib).parent.as_posix()
+        folder = "" if folder == "." else folder + "/"
+        stem = PurePosixPath(lib).stem
+        libraries = {}
+        for k in targets:
+            plat = k.split("-", 1)[0]
+            libraries[k] = lib if plat == "windows" else f"{folder}lib{stem}{SUFFIX[plat]}"
+        existing = set(zip_entries(show(cat, cat_sha, zip_name), zip_name))
+        clash = [v for k, v in libraries.items() if not k.startswith("windows-") and v in existing]
+        if clash:
+            fail(f"{zip_name} enthält schon {clash} – Mehrplattform-Paket? Dann ist nichts zu tun")
+        build = [k for k in targets if k not in win]
     else:
-        print(f"{zip_name} liegt nicht in {catalog} – alle Plattformen werden gebaut, das Paket kommt neu dazu")
+        sm = load_json_lenient(src_manifest_raw or b"{}", f"{src_path}/manifest.json")
+        libraries = check_libraries(sm, targets, f"{src_path}/manifest.json")
+        if player_version and version_tuple(sm.get("minHostVersion", "0")) < (1, 2, 9):
+            fail(f"{src_path}/manifest.json: minHostVersion muss für \"libraries\" mindestens 1.2.9 sein")
+        build = list(targets)
     runners = {"windows-x64": "windows-2022", "linux-x86_64": "ubuntu-24.04", "macos-arm64": "macos-latest"}
     matrix = {"include": [{"key": k, "os": runners[k]} for k in build]}
+    print(f"{zip_name}: {pid} {version}, Modus {mode}, Quellen {src_path} ({src_ref} → {src_sha[:10]}), Ziel {target}, "
+          f"gebaut: {', '.join(build)}")
     shutil.rmtree(tmp, ignore_errors=True)
 
-    out(mode=mode, catalog_branch=catalog, catalog_sha=cat_sha, zip_name=zip_name, base_blob=base_blob,
-        build_targets=",".join(build), matrix=json.dumps(matrix, separators=(",", ":")),
-        package=p["package"], source_repo=src_repo, source_ref=src_ref, source_sha=src_sha, source_path=base,
-        target=p["target"], package_dir=p["packageDir"], player_repo=player_repo, player_ref=player_ref,
-        player_sha=player_sha, player_version=player_version,
+    out(mode=mode, plugin_id=pid, version=version, catalog_branch=catalog, catalog_sha=cat_sha, zip_name=zip_name,
+        base_blob=base_blob, build_targets=",".join(build), matrix=json.dumps(matrix, separators=(",", ":")),
+        package=package, source_repo=src_repo, source_ref=src_ref, source_sha=src_sha, source_path=src_path,
+        target=target, package_dir=entry.get("packageDir", ""), run_tests="true" if entry.get("tests", mode == "full") else "false",
+        player_repo=player_repo, player_ref=player_ref, player_sha=player_sha, player_version=player_version,
         player_release=player_ref if player_ref.startswith("uve-player-v") else "",
-        qt_version=qt.group(1), targets=",".join(targets), libraries=json.dumps(manifest["libraries"], separators=(",", ":")))
+        qt_version=qt.group(1), targets=",".join(targets), libraries=json.dumps(libraries, separators=(",", ":")))
+
+
+def cmd_locate(a):
+    """Gebautes Modul eines CMake-Ziels finden (Ausgabeordner legt jedes Plugin selbst fest)."""
+    plat = a.key.split("-", 1)[0]
+    t = a.target
+    names = {"windows": [f"{t}.dll"], "linux": [f"lib{t}.so", f"{t}.so"],
+             "macos": [f"lib{t}.dylib", f"lib{t}.so", f"{t}.dylib", f"{t}.so", f"lib{t}.bundle", f"{t}.bundle"]}[plat]
+    found = []
+    for r in a.roots.split(","):
+        rp = Path(r)
+        if rp.is_dir():
+            found += [f for f in rp.rglob("*") if f.is_file() and f.name in names and "CMakeFiles" not in f.parts]
+    if not found:
+        fail(f"Gebautes Modul von '{t}' nicht gefunden (gesucht: {', '.join(names)} in {a.roots})")
+    best = max(found, key=lambda f: f.stat().st_mtime)
+    print(f"Modul: {best}")
+    out(path=str(best.resolve()))
 
 
 def read_zip_manifest(data, name):
@@ -242,7 +340,7 @@ def read_zip_manifest(data, name):
     entries = zip_entries(data, name)
     if "manifest.json" not in entries:
         fail(f"{name}: keine manifest.json im Paket")
-    return json.loads(entries["manifest.json"])
+    return load_json_lenient(entries["manifest.json"], name)
 
 
 def zip_entries(data, name):
@@ -337,55 +435,54 @@ def cmd_assemble(a):
     def same(x, y):   # Zeilenenden zählen nicht (Git unter Windows kann CRLF auschecken)
         return x.replace(b"\r\n", b"\n") == y.replace(b"\r\n", b"\n")
 
+    if a.base_zip:
+        first, shared, built_manifest = None, {}, {}
     # Gemeinsame Dateien der Builds: Linux (LF wie im Repository), sonst der erste
-    first = next((k for k in built if k.startswith("linux-")), built[0])
-    shared = {k: v.read_bytes() for k, v in common(trees[first]).items()}
-    if "manifest.json" not in shared:
+    first = None if a.base_zip else next((k for k in built if k.startswith("linux-")), built[0])
+    shared = {k: v.read_bytes() for k, v in common(trees[first]).items()} if first else {}
+    if first and "manifest.json" not in shared:
         fail(f"Build {first}: manifest.json fehlt im Paketordner")
-    for key in [k for k in built if k != first]:
+    for key in [k for k in built if first and k != first]:
         other = common(trees[key])
         if set(other) != set(shared):
             fail(f"Gemeinsame Dateien von {key} und {first} unterscheiden sich: {sorted(set(other) ^ set(shared))}")
         for rel in shared:
             if not rel.endswith(".qm") and not same(shared[rel], other[rel].read_bytes()):
                 fail(f"{rel} unterscheidet sich zwischen {first} und {key} – unterschiedlicher Quellstand?")
-    built_manifest = json.loads(shared["manifest.json"])
-    libs = check_libraries(built_manifest, targets, "manifest.json (Quellstand)")
+    if first:
+        built_manifest = json.loads(shared["manifest.json"])
+        libs = check_libraries(built_manifest, targets, "manifest.json (Quellstand)")
 
     if a.base_zip:
-        # Einfügen: hochgeladenes Windows-ZIP bleibt Grundlage (Modul, QML, Sprachen, README …)
+        # Einfügen: hochgeladenes Windows-ZIP bleibt, wie es ist; die Module der anderen Systeme kommen neben die DLL
         base = zip_entries(Path(a.base_zip).read_bytes(), Path(a.base_zip).name)
-        manifest = json.loads(base["manifest.json"])
+        manifest = load_json_lenient(base["manifest.json"], Path(a.base_zip).name)
+        libs = json.loads(a.libraries)
         win_keys = [k for k in targets if k not in built]
         if len(win_keys) != 1 or not win_keys[0].startswith("windows-"):
             fail(f"Einfügen erwartet genau ein Windows-Ziel aus dem ZIP, nicht {win_keys}")
-        old_lib = manifest.get("library", "")
-        if old_lib not in base:
-            fail(f"{Path(a.base_zip).name}: Windows-Modul '{old_lib}' fehlt im Paket")
+        if libs[win_keys[0]] not in base:
+            fail(f"{Path(a.base_zip).name}: Windows-Modul '{libs[win_keys[0]]}' fehlt im Paket")
         tmpdll = Path(a.out) / "_win_module"
         tmpdll.parent.mkdir(parents=True, exist_ok=True)
-        tmpdll.write_bytes(base[old_lib])
+        tmpdll.write_bytes(base[libs[win_keys[0]]])
         cmd_arch(argparse.Namespace(module=str(tmpdll), key=win_keys[0]))
         tmpdll.unlink()
-        files = {k: v for k, v in base.items() if k not in ("manifest.json", old_lib)}
-        files[libs[win_keys[0]]] = base[old_lib]
-        # Hinweis, wenn die Quellen für Linux/macOS nicht zum hochgeladenen Paket passen
-        differ = [k for k, v in shared.items() if k != "manifest.json" and not k.endswith(".qm") and k in base and not same(v, base[k])]
-        missing = [k for k in shared if k != "manifest.json" and k not in base]
-        if differ or missing:
-            print(f"::warning::Quellen (sources/…) und hochgeladenes ZIP unterscheiden sich: {sorted(differ + missing)} – "
-                  "Linux/macOS sind aus den Quellen gebaut, Windows und Ressourcen stammen aus dem ZIP")
-        # Manifest des Pakets: libraries statt library, alle Plattformen, Mindestversion des Players
+        files = {k: v for k, v in base.items() if k != "manifest.json"}
+        for key in built:
+            mods = [f for f in trees[key].values()]
+            if len(mods) != 1:
+                fail(f"Build {key}: genau ein Modul erwartet, gefunden {[m.name for m in mods]}")
+            if libs[key] in files:
+                fail(f"{libs[key]} liegt schon im ZIP")
+            files[libs[key]] = mods[0].read_bytes()
         new = {}
         for k, v in manifest.items():
-            if k == "library":
-                new["libraries"] = {t: libs[t] for t in targets}
-                continue
             new[k] = v
-        new.setdefault("libraries", {t: libs[t] for t in targets})
-        new["supportedPlatforms"] = sorted({t.split("-", 1)[0] for t in targets}, key=["windows", "linux", "macos"].index)
-        if version_tuple(new.get("minHostVersion", "0.0.0")) < (1, 2, 9):
-            new["minHostVersion"] = "1.2.9"
+            if k == "library":   # bleibt für Player vor 1.2.9 (Windows), dahinter die Auswahl je System
+                new["libraries"] = {t: libs[t] for t in targets}
+        plats = list(dict.fromkeys((manifest.get("supportedPlatforms") or []) + [t.split("-", 1)[0] for t in targets]))
+        new["supportedPlatforms"] = sorted(plats, key=lambda x: ["windows", "linux", "macos"].index(x) if x in ("windows", "linux", "macos") else 9)
         manifest = new
     else:
         manifest = built_manifest
@@ -403,7 +500,7 @@ def cmd_assemble(a):
     if normalize(a.package) not in keys:
         fail(f"Paketname '{a.package}' passt nicht zu name/id des Manifests – der Plugin-Updater fände das Paket nicht")
 
-    for key in built:
+    for key in built if not a.base_zip else []:
         lib = libs[key]
         own = {k: v for k, v in trees[key].items() if k.startswith("bin/")}
         if lib not in own:
@@ -433,8 +530,6 @@ def cmd_assemble(a):
         packed = json.loads(z.read("manifest.json"))
         if packed != manifest:
             fail(f"{zip_path.name}: manifest.json weicht ab")
-        if "library" in packed:
-            fail(f"{zip_path.name}: manifest.json enthält noch \"library\"")
         for key, lib in libs.items():
             if lib not in names:
                 fail(f"{zip_path.name}: {lib} ({key}) fehlt")
@@ -458,8 +553,8 @@ def main():
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
     r = sub.add_parser("resolve")
-    r.add_argument("--id", required=True)
-    r.add_argument("--version", required=True)
+    r.add_argument("--id", default="")
+    r.add_argument("--version", default="")
     r.add_argument("--source-ref", default="")
     r.add_argument("--player-ref", default="")
     r.add_argument("--zip-file", default="")
@@ -475,8 +570,13 @@ def main():
     s.add_argument("--built", default="", help="tatsächlich gebaute Ziele (Standard: alle)")
     s.add_argument("--base-zip", default="", help="hochgeladenes Windows-ZIP, in das Linux/macOS eingefügt werden")
     s.add_argument("--zip-name", default="")
+    s.add_argument("--libraries", default="{}", help="Zielschlüssel → Pfad im Paket (aus resolve)")
+    l = sub.add_parser("locate")
+    l.add_argument("--target", required=True)
+    l.add_argument("--key", required=True)
+    l.add_argument("--roots", required=True)
     a = ap.parse_args()
-    {"resolve": cmd_resolve, "set-version": cmd_set_version, "arch": cmd_arch, "assemble": cmd_assemble}[a.cmd](a)
+    {"resolve": cmd_resolve, "set-version": cmd_set_version, "locate": cmd_locate, "arch": cmd_arch, "assemble": cmd_assemble}[a.cmd](a)
 
 
 if __name__ == "__main__":
