@@ -1,0 +1,31 @@
+{
+  "id": "org.uveplayer.uvespotify",
+  "name": "UVESpotify",
+  "version": "1.0.4",
+  "apiVersion": 1,
+  "minHostVersion": "1.1.6",
+  "type": "utility",
+  "capabilities": ["media-preload"],
+  "description": {
+    "de": "Spielt Spotify-Links (Titel, Alben, Playlists, Künstler) ab, indem der passende Titel von YouTube gestreamt wird – ohne Werbung. Mit Spotify-Anmeldung werden die eigenen Playlists und Lieblingssongs angezeigt und abgespielt.",
+    "en": "Plays Spotify links (tracks, albums, playlists, artists) by streaming the matching track from YouTube – without ads. Sign in to Spotify to list and play your own playlists and liked songs.",
+    "es": "Reproduce enlaces de Spotify (canciones, álbumes, listas, artistas) transmitiendo la canción correspondiente desde YouTube, sin anuncios. Inicia sesión en Spotify para ver y reproducir tus propias listas y canciones favoritas.",
+    "it": "Riproduce link di Spotify (brani, album, playlist, artisti) trasmettendo il brano corrispondente da YouTube, senza pubblicità. Accedi a Spotify per vedere e riprodurre le tue playlist e i brani preferiti.",
+    "pl": "Odtwarza linki Spotify (utwory, albumy, playlisty, wykonawców), przesyłając pasujący utwór z YouTube – bez reklam. Po zalogowaniu do Spotify wyświetla i odtwarza własne playlisty i polubione utwory.",
+    "tr": "Spotify bağlantılarını (şarkılar, albümler, çalma listeleri, sanatçılar) eşleşen parçayı YouTube'dan akışla oynatarak çalar – reklamsız. Spotify'a giriş yaparak kendi çalma listelerinizi ve beğenilen şarkılarınızı görüp çalabilirsiniz.",
+    "el": "Αναπαράγει συνδέσμους Spotify (κομμάτια, άλμπουμ, λίστες, καλλιτέχνες) μεταδίδοντας το αντίστοιχο κομμάτι από το YouTube – χωρίς διαφημίσεις. Με σύνδεση στο Spotify εμφανίζονται και αναπαράγονται οι δικές σας λίστες και τα αγαπημένα τραγούδια."
+  },
+  "author": "UVE Player",
+  "license": "MIT",
+  "library": "uve_uvespotify.dll",
+  "supportedPlatforms": ["windows"],
+  "requiredBackends": ["plugin-events", "plugin-commands"],
+  "contributes": {
+    "panels": [
+      { "id": "main", "title": "UVESpotify", "qml": "qrc:/uvespotify/UveSpotifyPanel.qml", "location": "sidebar" }
+    ],
+    "urlHandlers": [
+      "^https?://(open|play)\\.spotify\\.com/"
+    ]
+  }
+}

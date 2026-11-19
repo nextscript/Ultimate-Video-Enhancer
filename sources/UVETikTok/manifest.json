@@ -1,0 +1,30 @@
+{
+  "id": "org.uveplayer.uvetiktok",
+  "name": "UVETikTok",
+  "version": "1.0.2",
+  "apiVersion": 1,
+  "minHostVersion": "1.1.6",
+  "type": "utility",
+  "description": {
+    "de": "Spielt TikTok-Videos und TikTok-LIVE-Streams direkt als Stream ab (Video-, Kurz-, LIVE- und Profil-Links). Es wird nichts auf der Festplatte gespeichert.",
+    "en": "Plays TikTok videos and TikTok LIVE streams directly as a stream (video, short, LIVE and profile links). Nothing is saved to disk.",
+    "es": "Reproduce vídeos de TikTok y directos de TikTok LIVE directamente como stream (enlaces de vídeo, cortos, LIVE y de perfil). No se guarda nada en el disco.",
+    "it": "Riproduce video TikTok e dirette TikTok LIVE direttamente in streaming (link a video, brevi, LIVE e di profilo). Nulla viene salvato su disco.",
+    "pl": "Odtwarza filmy TikTok i transmisje TikTok LIVE bezpośrednio jako strumień (linki do filmów, skrócone, LIVE i profili). Nic nie jest zapisywane na dysku.",
+    "tr": "TikTok videolarını ve TikTok LIVE yayınlarını doğrudan akış olarak oynatır (video, kısa, LIVE ve profil bağlantıları). Diske hiçbir şey kaydedilmez.",
+    "el": "Αναπαράγει βίντεο TikTok και ζωντανές μεταδόσεις TikTok LIVE απευθείας ως ροή (σύνδεσμοι βίντεο, σύντομοι, LIVE και προφίλ). Δεν αποθηκεύεται τίποτα στον δίσκο."
+  },
+  "author": "UVE Player",
+  "license": "MIT",
+  "library": "uve_uvetiktok.dll",
+  "supportedPlatforms": ["windows"],
+  "requiredBackends": ["plugin-events", "plugin-commands"],
+  "contributes": {
+    "panels": [
+      { "id": "main", "title": "UVETikTok", "qml": "qrc:/uvetiktok/UveTikTokPanel.qml", "location": "sidebar", "defaultPlacement": "hidden" }
+    ],
+    "urlHandlers": [
+      "^https?://([a-z0-9-]+\\.)*tiktok\\.com/"
+    ]
+  }
+}

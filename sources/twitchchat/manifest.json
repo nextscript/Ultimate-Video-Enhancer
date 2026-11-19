@@ -1,0 +1,59 @@
+{
+  "id": "cc.ts3x.twitch-chat",
+  "name": "Twitch Chat",
+  "version": "2.2.8",
+  "apiVersion": 1,
+  "minHostVersion": "1.0.6",
+  "type": "utility",
+  "entrypoint": "TwitchChatPlugin",
+  "description": {
+    "de": "Twitch-Chat im Player: native IRC-Verbindung (lesen anonym, schreiben mit Token-Login). Twitch-, BTTV-, FFZ- und 7TV-Emotes werden direkt im Chat dargestellt, statisch und animiert (WebP/GIF), inklusive Zero-Width-Emotes (ohne Login, dank Raum-ID). Emote-Browser mit Tabs, Suche und Favoriten; Rechtschreib- und Satzbauprüfung (Deutsch, US- und britisches Englisch) mit Korrekturen und Wortvorschlägen beim Tippen; Auto-Scroll hält die Ansicht am Chat-Ende. Kanalerkennung automatisch aus laufenden Twitch-Medien.",
+    "en": "Twitch chat in the player: native IRC connection (read anonymously, write with token login). Twitch, BTTV, FFZ and 7TV emotes are shown right in the chat, static and animated (WebP/GIF), including zero-width emotes (no login needed, thanks to the room ID). Emote browser with tabs, search and favorites; spelling and grammar check (German, US and British English) with corrections and word suggestions while typing; auto-scroll keeps the view at the end of the chat. The channel is detected automatically from playing Twitch media.",
+    "es": "Chat de Twitch en el reproductor: conexión IRC nativa (leer de forma anónima, escribir con inicio de sesión por token). Los emotes de Twitch, BTTV, FFZ y 7TV se muestran directamente en el chat, estáticos y animados (WebP/GIF), incluidos los emotes zero-width (sin iniciar sesión, gracias al ID de sala). Explorador de emotes con pestañas, búsqueda y favoritos; corrector ortográfico y gramatical (alemán, inglés de EE. UU. y británico) con correcciones y sugerencias de palabras al escribir; el desplazamiento automático mantiene la vista al final del chat. El canal se detecta automáticamente del contenido de Twitch en reproducción.",
+    "it": "Chat di Twitch nel player: connessione IRC nativa (lettura anonima, scrittura con login tramite token). Le emote di Twitch, BTTV, FFZ e 7TV vengono mostrate direttamente in chat, statiche e animate (WebP/GIF), incluse le emote zero-width (senza login, grazie all'ID della stanza). Browser delle emote con schede, ricerca e preferiti; controllo ortografico e grammaticale (tedesco, inglese americano e britannico) con correzioni e suggerimenti di parole durante la digitazione; lo scorrimento automatico mantiene la vista alla fine della chat. Il canale viene rilevato automaticamente dai contenuti Twitch in riproduzione.",
+    "pl": "Czat Twitch w odtwarzaczu: natywne połączenie IRC (czytanie anonimowo, pisanie po zalogowaniu tokenem). Emotki Twitch, BTTV, FFZ i 7TV są wyświetlane bezpośrednio w czacie, statyczne i animowane (WebP/GIF), w tym emotki zero-width (bez logowania, dzięki ID pokoju). Przeglądarka emotek z kartami, wyszukiwaniem i ulubionymi; sprawdzanie pisowni i gramatyki (niemiecki, angielski amerykański i brytyjski) z poprawkami i podpowiedziami słów podczas pisania; automatyczne przewijanie utrzymuje widok na końcu czatu. Kanał jest wykrywany automatycznie z odtwarzanych mediów Twitch.",
+    "tr": "Oynatıcıda Twitch sohbeti: yerel IRC bağlantısı (anonim okuma, token girişiyle yazma). Twitch, BTTV, FFZ ve 7TV emote'ları doğrudan sohbette, statik ve animasyonlu (WebP/GIF) gösterilir; zero-width emote'lar dahil (oda kimliği sayesinde girişsiz). Sekmeler, arama ve favorilerle emote tarayıcısı; yazarken düzeltme ve kelime önerileriyle yazım ve dil bilgisi denetimi (Almanca, ABD ve İngiliz İngilizcesi); otomatik kaydırma görünümü sohbetin sonunda tutar. Kanal, oynatılan Twitch medyasından otomatik algılanır.",
+    "el": "Συνομιλία Twitch μέσα στον player: εγγενής σύνδεση IRC (ανάγνωση ανώνυμα, γραφή με σύνδεση μέσω token). Τα emotes των Twitch, BTTV, FFZ και 7TV εμφανίζονται απευθείας στη συνομιλία, στατικά και κινούμενα (WebP/GIF), μαζί με τα zero-width emotes (χωρίς σύνδεση, χάρη στο ID του δωματίου). Περιηγητής emotes με καρτέλες, αναζήτηση και αγαπημένα· ορθογραφικός και γραμματικός έλεγχος (γερμανικά, αμερικανικά και βρετανικά αγγλικά) με διορθώσεις και προτάσεις λέξεων κατά την πληκτρολόγηση· η αυτόματη κύλιση κρατά την προβολή στο τέλος της συνομιλίας. Το κανάλι εντοπίζεται αυτόματα από τα μέσα Twitch που παίζουν."
+  },
+  "author": "ts3x.cc (für UVE Player)",
+  "license": "MIT",
+  "capabilities": ["twitch-chat", "websocket-client", "auto-channel", "emote-rendering", "emote-picker", "animated-emotes", "bttv-emotes", "ffz-emotes", "7tv-emotes", "zero-width-emotes", "auto-scroll", "spell-check", "grammar-check", "predictive-text", "clickable-links", "pinned-messages", "copy-text", "chat-font-size", "whispers", "chatter-list", "viewer-count", "user-menu", "moderation", "mention-autocomplete", "device-login", "automod", "follows", "event-bots", "bits", "chat-badges"],
+  "supportedPlatforms": ["windows"],
+  "requiredBackends": ["plugin-events", "plugin-commands"],
+  "permissions": ["network", "read-current-media", "write-plugin-settings"],
+  "library": "twitchchat.dll",
+  "configurationSchema": {
+    "type": "object",
+    "properties": {
+      "channel":        { "type": "string"  },
+      "autoChannel":    { "type": "boolean" },
+      "autoscroll":     { "type": "boolean" },
+      "roomIds":        { "type": "object"  },
+      "favoriteEmotes": { "type": "array"   },
+      "spellGerman":    { "type": "boolean" },
+      "spellEnglish":   { "type": "boolean" },
+      "spellWords":     { "type": "array"   },
+      "grammarCheck":   { "type": "boolean" },
+      "grammarOnline":  { "type": "boolean" },
+      "predictText":    { "type": "boolean" },
+      "hiddenPin":      { "type": "string"  },
+      "chatFontSize":   { "type": "integer" },
+      "pinCollapsed":   { "type": "boolean" },
+      "notifySound":    { "type": "boolean" },
+      "notifyVolume":   { "type": "integer" }
+    }
+  },
+  "contributes": {
+    "panels": [
+      { "id": "chat", "title": { "de": "Twitch Chat", "en": "Twitch Chat" }, "qml": "ChatPanel.qml", "location": "sidebar" },
+      { "id": "live", "title": { "de": "Live-Kanäle", "en": "Live channels" }, "qml": "LiveChannels.qml", "location": "modal",
+        "modal": { "scope": "video", "mode": "movable", "width": 780, "height": 540 } }
+    ],
+    "menu": [
+      { "id": "open", "title": { "de": "Twitch Chat öffnen", "en": "Open Twitch Chat" } }
+    ],
+    "hotkeys": [
+      { "id": "open", "title": { "de": "Twitch Chat öffnen", "en": "Open Twitch Chat" }, "default": "Ctrl+Alt+T" }
+    ]
+  }
+}

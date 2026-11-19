@@ -1,0 +1,31 @@
+{
+  "id": "org.uveplayer.uvesuno",
+  "name": "UVESuno",
+  "version": "1.0.1",
+  "apiVersion": 1,
+  "minHostVersion": "1.1.6",
+  "type": "utility",
+  "capabilities": ["media-preload"],
+  "description": {
+    "de": "Spielt Songs, Playlists und Profile von suno.com direkt als Stream ab – Playlists und Profile komplett mit Titeln und Längen, ab UVE Player 1.2.2 nahtlos. Es wird nichts auf der Festplatte gespeichert.",
+    "en": "Plays songs, playlists and profiles from suno.com directly as a stream – playlists and profiles completely with titles and lengths, gapless from UVE Player 1.2.2. Nothing is saved to disk.",
+    "es": "Reproduce canciones, listas y perfiles de suno.com directamente como stream: listas y perfiles completos con títulos y duraciones, sin pausas a partir de UVE Player 1.2.2. No se guarda nada en el disco.",
+    "it": "Riproduce brani, playlist e profili di suno.com direttamente in streaming: playlist e profili completi di titoli e durate, senza pause da UVE Player 1.2.2. Nulla viene salvato su disco.",
+    "pl": "Odtwarza utwory, playlisty i profile z suno.com bezpośrednio jako strumień – playlisty i profile w całości z tytułami i długościami, bez przerw od UVE Player 1.2.2. Nic nie jest zapisywane na dysku.",
+    "tr": "suno.com'daki şarkıları, çalma listelerini ve profilleri doğrudan akış olarak oynatır – çalma listeleri ve profiller başlık ve sürelerle eksiksiz, UVE Player 1.2.2'den itibaren kesintisiz. Diske hiçbir şey kaydedilmez.",
+    "el": "Αναπαράγει τραγούδια, λίστες και προφίλ από το suno.com απευθείας ως ροή – λίστες και προφίλ ολόκληρα με τίτλους και διάρκειες, χωρίς κενά από το UVE Player 1.2.2. Δεν αποθηκεύεται τίποτα στον δίσκο."
+  },
+  "author": "UVE Player",
+  "license": "MIT",
+  "library": "uve_uvesuno.dll",
+  "supportedPlatforms": ["windows"],
+  "requiredBackends": ["plugin-events", "plugin-commands"],
+  "contributes": {
+    "panels": [
+      { "id": "main", "title": "UVESuno", "qml": "qrc:/uvesuno/UveSunoPanel.qml", "location": "sidebar", "defaultPlacement": "hidden" }
+    ],
+    "urlHandlers": [
+      "^https?://((www|app)\\.)?suno\\.(com|ai)/(song|embed|playlist|s|@)"
+    ]
+  }
+}

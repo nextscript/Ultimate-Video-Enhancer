@@ -1,0 +1,37 @@
+{
+  "id": "org.uveplayer.uvesponsorskip",
+  "name": "UVESponsorSkip",
+  "version": "1.0.2",
+  "apiVersion": 1,
+  "minHostVersion": "1.1.6",
+  "type": "utility",
+  "description": {
+    "de": "Überspringt bei YouTube-Videos Sponsoren, Intros, Outros und mehr aus der SponsorBlock-Datenbank – je Kategorie automatisch oder per Taste. Mit „Sprung rückgängig“.",
+    "en": "Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – per category automatically or by key. With “Undo skip”.",
+    "es": "Omite patrocinios, intros, outros y más en vídeos de YouTube con la base de datos de SponsorBlock: por categoría, automáticamente o con una tecla. Con «Deshacer salto».",
+    "it": "Salta sponsor, intro, outro e altro nei video di YouTube grazie al database SponsorBlock – per categoria in automatico o con un tasto. Con «Annulla salto».",
+    "pl": "Pomija sponsorów, intra, outra i inne fragmenty filmów YouTube na podstawie bazy SponsorBlock – dla każdej kategorii automatycznie lub klawiszem. Z opcją „Cofnij przeskok”.",
+    "tr": "SponsorBlock veritabanıyla YouTube videolarındaki sponsorları, girişleri, kapanışları ve daha fazlasını atlar – kategoriye göre otomatik veya tuşla. „Atlamayı geri al” ile.",
+    "el": "Παραλείπει χορηγίες, εισαγωγές, κλεισίματα και άλλα σε βίντεο YouTube με τη βάση SponsorBlock – ανά κατηγορία αυτόματα ή με πλήκτρο. Με «Αναίρεση άλματος»."
+  },
+  "author": "UVE Player",
+  "license": "MIT",
+  "library": "uve_uvesponsorskip.dll",
+  "supportedPlatforms": ["windows"],
+  "requiredBackends": ["plugin-events", "plugin-commands"],
+  "contributes": {
+    "panels": [
+      { "id": "settings", "title": "UVESponsorSkip", "qml": "qrc:/uvesponsorskip/UveSponsorSkipPanel.qml", "location": "settings" }
+    ],
+    "menu": [
+      { "id": "skip", "title": { "de": "SponsorSkip: Segment überspringen", "en": "SponsorSkip: skip segment" } },
+      { "id": "undo", "title": { "de": "SponsorSkip: Sprung rückgängig", "en": "SponsorSkip: undo skip" } },
+      { "id": "toggle", "title": { "de": "SponsorSkip an/aus", "en": "SponsorSkip on/off" } }
+    ],
+    "hotkeys": [
+      { "id": "skip", "title": { "de": "SponsorSkip: Segment überspringen", "en": "SponsorSkip: skip segment" }, "default": "Ctrl+Alt+S" },
+      { "id": "undo", "title": { "de": "SponsorSkip: Sprung rückgängig", "en": "SponsorSkip: undo skip" }, "default": "Ctrl+Alt+Z" },
+      { "id": "toggle", "title": { "de": "SponsorSkip an/aus", "en": "SponsorSkip on/off" }, "default": "Ctrl+Alt+Shift+S" }
+    ]
+  }
+}

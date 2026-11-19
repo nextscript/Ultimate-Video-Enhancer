@@ -1,0 +1,25 @@
+{
+  "id": "org.lumascale.fsr",
+  "name": "LumaScale",
+  "version": "1.0.1",
+  "apiVersion": 1,
+  "minHostVersion": "1.1.2",
+  "type": "gpu-effect",
+  "entrypoint": "LumaScalePlugin",
+  "description": {
+    "de": "AMD FidelityFX Super Resolution (EASU + RCAS) als mpv-GPU-Shader auf der Luma-Ebene, mit allen Parametern im eigenen Tab der Seitenleiste.",
+    "en": "AMD FidelityFX Super Resolution (EASU + RCAS) as an mpv GPU shader on the luma plane, with all parameters in its own sidebar tab.",
+    "es": "AMD FidelityFX Super Resolution (EASU + RCAS) como shader GPU de mpv sobre el plano de luma, con todos los parámetros en su propia pestaña de la barra lateral.",
+    "it": "AMD FidelityFX Super Resolution (EASU + RCAS) come shader GPU di mpv sul piano luma, con tutti i parametri in una scheda dedicata della barra laterale.",
+    "pl": "AMD FidelityFX Super Resolution (EASU + RCAS) jako shader GPU mpv na płaszczyźnie luminancji, ze wszystkimi parametrami we własnej karcie paska bocznego.",
+    "tr": "Luma düzleminde mpv GPU gölgelendiricisi olarak AMD FidelityFX Super Resolution (EASU + RCAS); tüm parametreler kenar çubuğundaki kendi sekmesinde.",
+    "el": "AMD FidelityFX Super Resolution (EASU + RCAS) ως GPU shader του mpv στο επίπεδο φωτεινότητας (luma), με όλες τις παραμέτρους σε δική του καρτέλα της πλαϊνής στήλης."
+  },
+  "author": "LumaScale (FSR: AMD, mpv-Port: agyild)",
+  "license": "MIT",
+  "library": "lumascale.dll",
+  "capabilities": ["video-effects", "upscaling"],
+  "supportedPlatforms": ["windows"],
+  "requiredBackends": ["mpv-user-shaders"],
+  "permissions": ["write-plugin-data"]
+}

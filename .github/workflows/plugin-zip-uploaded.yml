@@ -1,15 +1,16 @@
 name: Plugin ZIP uploaded
 
-# Neues oder geändertes Plugin-ZIP im Wurzelverzeichnis dieses Zweigs → Mehrplattform-Build auf main starten
-# (.github/workflows/build-plugin.yml). Der baut Linux und macOS, fügt sie in genau dieses ZIP ein und legt es
-# unter demselben Namen wieder hier ab. Übersprungen werden:
-#   • fertige Mehrplattform-Pakete (manifest.json mit "libraries") – sonst baute jeder Upload des Ergebnisses neu
-#   • Plugins, die nicht in .github/plugin-builds.json auf main stehen
-# Der Quellstand ergibt sich aus der Version im ZIP (Tag-Muster in plugin-builds.json, z. B. glsl-manager-v1.0.2).
+# Neues oder geändertes Plugin-ZIP im Wurzelverzeichnis dieses Zweigs → .github/workflows/build-plugin.yml auf main.
+# Der baut Linux und macOS aus sources/<Name>/, fügt die Module in genau dieses ZIP ein und legt es unter demselben
+# Namen wieder hier ab. Übersprungen werden:
+#   • fertige Mehrplattform-Pakete (manifest.json mit "libraries") – auch das Ergebnis des Builds selbst
+#   • reine QML-Plugins (laufen ohnehin auf allen Systemen)
+#   • Plugins ohne Quellordner sources/<Name>/ (und ohne Eintrag in .github/plugin-builds.json auf main)
+# Ändern sich Quellen unter sources/<Name>/, wird das passende reine Windows-ZIP (höchste Version) gepatcht.
 on:
   push:
     branches: [uve-player-plugins]
-    paths: ["*.zip"]
+    paths: ["*.zip", "sources/**"]
 
 permissions:
   contents: read
@@ -36,30 +37,63 @@ jobs:
             git diff --name-only --diff-filter=AM "$BEFORE" "$AFTER" > /tmp/changed
           fi
           python3 -I - <<'EOF'
-          import json, subprocess, zipfile
-          cfg = json.load(open("/tmp/plugin-builds.json", encoding="utf8"))["plugins"]
-          for name in open("/tmp/changed", encoding="utf8").read().split("\n"):
-              if not name.lower().endswith(".zip") or "/" in name:
-                  continue
+          import json, os, re, subprocess, zipfile
+          cfg = json.load(open("/tmp/plugin-builds.json", encoding="utf8")).get("plugins", {})
+          norm = lambda s: "".join(c.lower() for c in s if c.isalnum())
+          sources = {norm(d): d for d in os.listdir("sources")} if os.path.isdir("sources") else {}
+
+          def manifest_of(name):
+              with zipfile.ZipFile(name) as z:
+                  paths = [n for n in z.namelist() if n.replace("\\", "/") == "manifest.json"
+                           or (n.replace("\\", "/").count("/") == 1 and n.replace("\\", "/").endswith("/manifest.json"))]
+                  if len(paths) != 1:
+                      return None
+                  raw = z.read(paths[0]).decode("utf-8-sig", "replace")
               try:
-                  with zipfile.ZipFile(name) as z:
-                      paths = [n for n in z.namelist() if n.replace("\\", "/") == "manifest.json"
-                               or (n.replace("\\", "/").count("/") == 1 and n.replace("\\", "/").endswith("/manifest.json"))]
-                      manifest = json.loads(z.read(paths[0])) if len(paths) == 1 else None
+                  return json.loads(raw)
+              except ValueError:   # wie Qt: ungültige Escapes in regulären Ausdrücken tolerieren
+                  return json.loads(re.sub(r'\\(?!["\\/bfnrtu])', r"\\\\", raw))
+
+          changed = [n for n in open("/tmp/changed", encoding="utf8").read().split("\n") if n]
+          zips = [n for n in changed if n.lower().endswith(".zip") and "/" not in n]
+          # Geänderte Quellen → zugehöriges ZIP im Wurzelverzeichnis (höchste Version)
+          ver = lambda v: tuple(int(x) for x in re.findall(r"\d+", v)[:3])
+          for d in sorted({n.split("/")[1] for n in changed if n.startswith("sources/") and n.count("/") >= 2}):
+              cands = []
+              for f in os.listdir("."):
+                  fm = re.match(r"^(.+?)[-_ ]v?(\d+(?:\.\d+)*)\.zip$", f, re.I)
+                  if fm and norm(fm.group(1)) == norm(d):
+                      cands.append((ver(fm.group(2)), f))
+              if not cands:
+                  print(f"sources/{d} geändert – kein passendes ZIP im Zweig")
+                  continue
+              best = max(cands)[1]
+              print(f"sources/{d} geändert → {best}")
+              if best not in zips:
+                  zips.append(best)
+
+          for name in zips:
+              try:
+                  m = manifest_of(name)
               except Exception as e:
                   print(f"::warning::{name}: nicht lesbar ({e})")
                   continue
-              if not manifest:
+              if not m:
                   print(f"::warning::{name}: keine manifest.json")
                   continue
-              pid, version = manifest.get("id", ""), manifest.get("version", "")
-              if manifest.get("libraries"):
-                  print(f"{name}: fertiges Mehrplattform-Paket ({pid} {version}) – kein neuer Build")
+              pid, version = m.get("id", ""), m.get("version", "")
+              if m.get("libraries"):
+                  print(f"{name}: Mehrplattform-Paket ({pid} {version}) – kein Build")
                   continue
-              if pid not in cfg:
-                  print(f"{name}: {pid} wird nicht für mehrere Plattformen gebaut (nicht in plugin-builds.json)")
+              if not m.get("library"):
+                  print(f"{name}: ohne native Bibliothek – läuft schon auf allen Systemen")
+                  continue
+              prefix = re.match(r"^(.+?)[-_ ]v?\d+(?:\.\d+)*\.zip$", name, re.I)
+              keys = {norm(k) for k in ((prefix.group(1) if prefix else ""), m.get("name", ""), pid.split(".")[-1], pid) if k}
+              if pid not in cfg and not (keys & set(sources)):
+                  print(f"::notice::{name}: keine Quellen unter sources/<Name>/ – bleibt ein reines Windows-Paket. "
+                        f"Ordner sources/{prefix.group(1) if prefix else pid}/ mit CMakeLists.txt anlegen, dann neu hochladen.")
                   continue
               print(f"{name}: starte Build für {pid} {version}")
-              subprocess.run(["gh", "workflow", "run", "build-plugin.yml", "--ref", "main",
-                              "-f", f"plugin_id={pid}", "-f", f"version={version}", "-f", f"zip_file={name}"], check=True)
+              subprocess.run(["gh", "workflow", "run", "build-plugin.yml", "--ref", "main", "-f", f"zip_file={name}"], check=True)
           EOF
