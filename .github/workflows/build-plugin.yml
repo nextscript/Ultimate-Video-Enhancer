@@ -88,7 +88,7 @@ jobs:
   build:
     needs: resolve
     strategy:
-      fail-fast: true   # ohne alle drei Module gibt es ohnehin kein Paket
+      fail-fast: false   # jede Plattform meldet ihr Ergebnis; das Paket entsteht nur, wenn alle drei gelingen
       matrix:
         include:
           - key: windows-x64
@@ -213,6 +213,7 @@ jobs:
           # Der absolute Qt-Pfad des Runners gehört nicht ins Paket; im Player kommt Qt aus dem App-Bundle
           m="${{ steps.mod.outputs.module }}"
           for p in $(otool -l "$m" | awk '/cmd LC_RPATH/{getline; getline; print $2}'); do install_name_tool -delete_rpath "$p" "$m"; done
+          install_name_tool -add_rpath @executable_path/../Frameworks "$m"   # Qt-Frameworks im App-Bundle des Players
           codesign --force --sign - "$m"
           otool -l "$m" | grep -A2 LC_RPATH || echo "no LC_RPATH"
       - name: Check architecture
@@ -260,6 +261,18 @@ jobs:
           MODULE: ${{ steps.mod.outputs.module }}
         run: |
           manifest="$PKG/manifest.json"
+          # Ausgabe der Ladeprüfung immer zeigen; bei einem Fehler zusätzlich als Annotation (Log braucht Anmeldung)
+          check() {
+            set +e
+            out=$(QT_DEBUG_PLUGINS=1 "$@" 2>&1); rc=$?
+            set -e
+            echo "$out"
+            if [ $rc -ne 0 ]; then
+              msg=$(echo "$out" | grep -viE 'looking at|checking directory|loaded library' | tail -n 25 | awk '{gsub(/%/,"%25"); printf "%s%%0A", $0}')
+              echo "::error title=Ladeprüfung ${{ matrix.key }} (exit $rc)::$msg"
+              exit 1
+            fi
+          }
           if [ -z "$PLAYER_DIR" ]; then
             echo "::warning::Player-Ref ist kein Release-Tag – Ladeprüfung nur gegen das Qt des Runners"
           fi
@@ -270,12 +283,12 @@ jobs:
               cp "$exe" "$dir/"   # neben den Qt-DLLs des Players: Windows lädt sie aus dem Programmordner
               dumpbin=$(find "/c/Program Files/Microsoft Visual Studio" -name dumpbin.exe -path '*Hostx64/x64*' | head -1)
               [ -n "$dumpbin" ] && "$dumpbin" -nologo -dependents "$MODULE" | sed -n '/Image has the following dependencies/,/Summary/p'
-              "$dir/uve-plugin-loadcheck.exe" "$MODULE" "$manifest" ;;
+              check "$dir/uve-plugin-loadcheck.exe" "$MODULE" "$manifest" ;;
             Linux)
               export LD_LIBRARY_PATH="${PLAYER_DIR:-$QT_ROOT_DIR/lib}"
               ldd "$MODULE"
               if ldd "$MODULE" | grep -q "not found"; then echo "::error::Nicht auflösbare Abhängigkeiten"; exit 1; fi
-              ./loadcheck/uve-plugin-loadcheck "$MODULE" "$manifest" ;;
+              check ./loadcheck/uve-plugin-loadcheck "$MODULE" "$manifest" ;;
             macOS)
               lc=loadcheck/uve-plugin-loadcheck
               if [ -n "$PLAYER_DIR" ]; then
@@ -284,10 +297,12 @@ jobs:
                 codesign --force --sign - "$lc"
               fi
               otool -L "$MODULE"
+              otool -l "$lc" | grep -A2 LC_RPATH || true
+              ls "$PLAYER_DIR" | head -40 || true
               if otool -L "$MODULE" | tail -n +2 | awk '{print $1}' | grep -vE '^(@rpath/Qt[A-Za-z]+\.framework/|/usr/lib/|/System/Library/)'; then
                 echo "::error::Abhängigkeiten außerhalb von Qt und System – im Player nicht vorhanden"; exit 1
               fi
-              "$lc" "$MODULE" "$manifest" ;;
+              check "$lc" "$MODULE" "$manifest" ;;
           esac
 
       - uses: actions/upload-artifact@v4
