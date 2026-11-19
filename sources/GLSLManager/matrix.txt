@@ -1,0 +1,119 @@
+// @select float u_mxr_charset 1 "Character Set" 0:Binary,1:Digits,2:Symbols,3:Katakana
+// @uniform float u_mxr_columns 200.0 40.0 400.0 "Character Size"
+// @uniform float u_mxr_aspect 1.6 1.0 3.0 "Character Aspect"
+// @uniform float u_mxr_speed 0.4 0.0 2.0 "Rain Speed"
+// @uniform float u_mxr_density 3.0 1.0 8.0 "Rain Density"
+// @uniform float u_mxr_trail_decay 0.12 0.02 0.6 "Trail Decay"
+// @uniform float u_mxr_trail_light 0.7 0.0 1.0 "Trail Brightness"
+// @uniform float u_mxr_head 2.0 1.0 4.0 "Head Glow Size"
+// @uniform float u_mxr_video_mix 0.85 0.0 1.0 "Video Influence"
+// @uniform float u_mxr_glow 0.35 0.0 1.0 "Rain Glow Boost"
+// @uniform float u_mxr_variance 1.2 0.0 2.0 "Speed Variance"
+
+float hash(float n){ return fract(sin(n)*43758.5453); }
+float hash2(vec2 p){ return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
+
+float getBit(int ch, int row, int col){
+    int idx = row * 5 + col;
+    if(ch==0){float b[35];b[0]=0.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=0.;b[5]=1.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=1.;b[10]=1.;b[11]=0.;b[12]=0.;b[13]=1.;b[14]=1.;b[15]=1.;b[16]=0.;b[17]=1.;b[18]=0.;b[19]=1.;b[20]=1.;b[21]=1.;b[22]=0.;b[23]=0.;b[24]=1.;b[25]=1.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=1.;b[30]=0.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=0.;return b[idx];}
+    if(ch==1){float b[35];b[0]=0.;b[1]=0.;b[2]=1.;b[3]=0.;b[4]=0.;b[5]=0.;b[6]=1.;b[7]=1.;b[8]=0.;b[9]=0.;b[10]=0.;b[11]=0.;b[12]=1.;b[13]=0.;b[14]=0.;b[15]=0.;b[16]=0.;b[17]=1.;b[18]=0.;b[19]=0.;b[20]=0.;b[21]=0.;b[22]=1.;b[23]=0.;b[24]=0.;b[25]=0.;b[26]=0.;b[27]=1.;b[28]=0.;b[29]=0.;b[30]=0.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=0.;return b[idx];}
+    if(ch==2){float b[35];b[0]=0.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=0.;b[5]=1.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=1.;b[10]=0.;b[11]=0.;b[12]=0.;b[13]=1.;b[14]=0.;b[15]=0.;b[16]=0.;b[17]=1.;b[18]=0.;b[19]=0.;b[20]=0.;b[21]=1.;b[22]=0.;b[23]=0.;b[24]=0.;b[25]=1.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=0.;b[30]=1.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=1.;return b[idx];}
+    if(ch==3){float b[35];b[0]=1.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=0.;b[5]=0.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=1.;b[10]=0.;b[11]=0.;b[12]=1.;b[13]=1.;b[14]=0.;b[15]=0.;b[16]=0.;b[17]=0.;b[18]=0.;b[19]=1.;b[20]=0.;b[21]=0.;b[22]=0.;b[23]=0.;b[24]=1.;b[25]=0.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=1.;b[30]=1.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=0.;return b[idx];}
+    if(ch==4){float b[35];b[0]=0.;b[1]=0.;b[2]=0.;b[3]=1.;b[4]=0.;b[5]=0.;b[6]=0.;b[7]=1.;b[8]=1.;b[9]=0.;b[10]=0.;b[11]=1.;b[12]=0.;b[13]=1.;b[14]=0.;b[15]=1.;b[16]=0.;b[17]=0.;b[18]=1.;b[19]=0.;b[20]=1.;b[21]=1.;b[22]=1.;b[23]=1.;b[24]=1.;b[25]=0.;b[26]=0.;b[27]=0.;b[28]=1.;b[29]=0.;b[30]=0.;b[31]=0.;b[32]=0.;b[33]=1.;b[34]=0.;return b[idx];}
+    if(ch==5){float b[35];b[0]=1.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=1.;b[5]=1.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=0.;b[10]=1.;b[11]=1.;b[12]=1.;b[13]=1.;b[14]=0.;b[15]=0.;b[16]=0.;b[17]=0.;b[18]=0.;b[19]=1.;b[20]=0.;b[21]=0.;b[22]=0.;b[23]=0.;b[24]=1.;b[25]=0.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=1.;b[30]=1.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=0.;return b[idx];}
+    if(ch==6){float b[35];b[0]=0.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=0.;b[5]=1.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=0.;b[10]=1.;b[11]=1.;b[12]=1.;b[13]=1.;b[14]=0.;b[15]=1.;b[16]=0.;b[17]=0.;b[18]=0.;b[19]=1.;b[20]=1.;b[21]=0.;b[22]=0.;b[23]=0.;b[24]=1.;b[25]=1.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=1.;b[30]=0.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=0.;return b[idx];}
+    if(ch==7){float b[35];b[0]=1.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=1.;b[5]=0.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=1.;b[10]=0.;b[11]=0.;b[12]=0.;b[13]=1.;b[14]=0.;b[15]=0.;b[16]=0.;b[17]=1.;b[18]=0.;b[19]=0.;b[20]=0.;b[21]=1.;b[22]=0.;b[23]=0.;b[24]=0.;b[25]=0.;b[26]=1.;b[27]=0.;b[28]=0.;b[29]=0.;b[30]=0.;b[31]=1.;b[32]=0.;b[33]=0.;b[34]=0.;return b[idx];}
+    if(ch==8){float b[35];b[0]=0.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=0.;b[5]=1.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=1.;b[10]=0.;b[11]=1.;b[12]=1.;b[13]=1.;b[14]=0.;b[15]=1.;b[16]=0.;b[17]=0.;b[18]=0.;b[19]=1.;b[20]=1.;b[21]=0.;b[22]=0.;b[23]=0.;b[24]=1.;b[25]=1.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=1.;b[30]=0.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=0.;return b[idx];}
+    if(ch==9){float b[35];b[0]=0.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=0.;b[5]=1.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=1.;b[10]=0.;b[11]=1.;b[12]=1.;b[13]=1.;b[14]=1.;b[15]=0.;b[16]=0.;b[17]=0.;b[18]=0.;b[19]=1.;b[20]=0.;b[21]=0.;b[22]=0.;b[23]=0.;b[24]=1.;b[25]=1.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=1.;b[30]=0.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=0.;return b[idx];}
+    if(ch==10){float b[35];b[0]=0.;b[1]=0.;b[2]=0.;b[3]=0.;b[4]=1.;b[5]=0.;b[6]=0.;b[7]=0.;b[8]=1.;b[9]=0.;b[10]=0.;b[11]=0.;b[12]=1.;b[13]=0.;b[14]=0.;b[15]=0.;b[16]=1.;b[17]=0.;b[18]=0.;b[19]=0.;b[20]=1.;b[21]=0.;b[22]=0.;b[23]=0.;b[24]=0.;b[25]=0.;b[26]=1.;b[27]=0.;b[28]=0.;b[29]=0.;b[30]=1.;b[31]=0.;b[32]=0.;b[33]=0.;b[34]=0.;return b[idx];}
+    if(ch==11){float b[35];b[0]=0.;b[1]=0.;b[2]=1.;b[3]=0.;b[4]=0.;b[5]=0.;b[6]=0.;b[7]=1.;b[8]=0.;b[9]=0.;b[10]=0.;b[11]=0.;b[12]=1.;b[13]=0.;b[14]=0.;b[15]=0.;b[16]=0.;b[17]=1.;b[18]=0.;b[19]=0.;b[20]=0.;b[21]=0.;b[22]=1.;b[23]=0.;b[24]=0.;b[25]=0.;b[26]=0.;b[27]=1.;b[28]=0.;b[29]=0.;b[30]=0.;b[31]=0.;b[32]=1.;b[33]=0.;b[34]=0.;return b[idx];}
+    if(ch==12){float b[35];b[0]=0.;b[1]=0.;b[2]=0.;b[3]=0.;b[4]=0.;b[5]=0.;b[6]=0.;b[7]=1.;b[8]=0.;b[9]=0.;b[10]=1.;b[11]=1.;b[12]=1.;b[13]=1.;b[14]=1.;b[15]=0.;b[16]=0.;b[17]=1.;b[18]=0.;b[19]=0.;b[20]=0.;b[21]=0.;b[22]=1.;b[23]=0.;b[24]=0.;b[25]=0.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=0.;b[30]=0.;b[31]=0.;b[32]=0.;b[33]=0.;b[34]=0.;return b[idx];}
+    if(ch==13){float b[35];b[0]=0.;b[1]=0.;b[2]=0.;b[3]=0.;b[4]=0.;b[5]=1.;b[6]=0.;b[7]=1.;b[8]=0.;b[9]=1.;b[10]=0.;b[11]=1.;b[12]=1.;b[13]=1.;b[14]=0.;b[15]=1.;b[16]=0.;b[17]=1.;b[18]=0.;b[19]=1.;b[20]=0.;b[21]=1.;b[22]=0.;b[23]=1.;b[24]=0.;b[25]=0.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=0.;b[30]=0.;b[31]=0.;b[32]=0.;b[33]=0.;b[34]=0.;return b[idx];}
+    if(ch==20){float b[35];b[0]=0.;b[1]=0.;b[2]=1.;b[3]=0.;b[4]=0.;b[5]=0.;b[6]=1.;b[7]=0.;b[8]=1.;b[9]=0.;b[10]=1.;b[11]=0.;b[12]=0.;b[13]=0.;b[14]=1.;b[15]=1.;b[16]=1.;b[17]=1.;b[18]=1.;b[19]=1.;b[20]=1.;b[21]=0.;b[22]=0.;b[23]=0.;b[24]=1.;b[25]=1.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=1.;b[30]=1.;b[31]=0.;b[32]=0.;b[33]=0.;b[34]=1.;return b[idx];}
+    if(ch==21){float b[35];b[0]=1.;b[1]=0.;b[2]=0.;b[3]=0.;b[4]=1.;b[5]=1.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=1.;b[10]=1.;b[11]=0.;b[12]=1.;b[13]=0.;b[14]=1.;b[15]=1.;b[16]=1.;b[17]=0.;b[18]=1.;b[19]=1.;b[20]=1.;b[21]=0.;b[22]=1.;b[23]=1.;b[24]=0.;b[25]=1.;b[26]=0.;b[27]=0.;b[28]=1.;b[29]=0.;b[30]=0.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=0.;return b[idx];}
+    if(ch==22){float b[35];b[0]=0.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=0.;b[5]=1.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=1.;b[10]=0.;b[11]=0.;b[12]=0.;b[13]=0.;b[14]=1.;b[15]=0.;b[16]=0.;b[17]=0.;b[18]=0.;b[19]=1.;b[20]=0.;b[21]=0.;b[22]=0.;b[23]=1.;b[24]=0.;b[25]=0.;b[26]=0.;b[27]=1.;b[28]=0.;b[29]=0.;b[30]=0.;b[31]=1.;b[32]=1.;b[33]=0.;b[34]=0.;return b[idx];}
+    if(ch==23){float b[35];b[0]=1.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=1.;b[5]=0.;b[6]=0.;b[7]=1.;b[8]=0.;b[9]=0.;b[10]=0.;b[11]=0.;b[12]=1.;b[13]=0.;b[14]=0.;b[15]=1.;b[16]=1.;b[17]=1.;b[18]=1.;b[19]=1.;b[20]=0.;b[21]=0.;b[22]=1.;b[23]=0.;b[24]=0.;b[25]=0.;b[26]=0.;b[27]=1.;b[28]=0.;b[29]=0.;b[30]=1.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=1.;return b[idx];}
+    if(ch==24){float b[35];b[0]=0.;b[1]=1.;b[2]=1.;b[3]=1.;b[4]=0.;b[5]=1.;b[6]=0.;b[7]=0.;b[8]=0.;b[9]=1.;b[10]=1.;b[11]=0.;b[12]=1.;b[13]=0.;b[14]=1.;b[15]=1.;b[16]=0.;b[17]=0.;b[18]=0.;b[19]=1.;b[20]=1.;b[21]=0.;b[22]=0.;b[23]=0.;b[24]=1.;b[25]=1.;b[26]=0.;b[27]=0.;b[28]=0.;b[29]=1.;b[30]=0.;b[31]=1.;b[32]=1.;b[33]=1.;b[34]=0.;return b[idx];}
+    return 0.0;
+}
+
+void main(){
+    // GLSL uniforms are injected as float by Ultimate Video Enhancer.
+    int   charSet         = int(clamp(floor(u_mxr_charset + 0.5), 0.0, 3.0));
+    float charSize        = max(u_mxr_columns, 1.0);
+    float charAspect      = max(u_mxr_aspect, 0.1);
+    float rainSpeed       = max(u_mxr_speed, 0.0);
+    float rainDensity     = clamp(u_mxr_density, 1.0, 8.0);
+    float trailLength     = max(u_mxr_trail_decay, 0.001);
+    float trailBrightness = clamp(u_mxr_trail_light, 0.0, 1.0);
+    float headSize        = max(u_mxr_head, 0.1);
+    float videoInfluence  = clamp(u_mxr_video_mix, 0.0, 1.0);
+    float charBrightness  = clamp(u_mxr_glow, 0.0, 1.0);
+    float speedVariance   = clamp(u_mxr_variance, 0.0, 2.0);
+
+    float cols      = charSize;
+    float charH     = charAspect;
+    float colW      = 1.0 / cols;
+    float rowH      = colW * charH;
+    float totalRows = 1.0 / rowH;
+
+    float colIdx   = floor(v_uv.x * cols);
+    float flippedY = 1.0 - v_uv.y;
+    float rowIdx   = floor(flippedY / rowH);
+
+    // FIX: beide cellUV-Achsen auf flippedY-Basis
+    vec2 cellUV = vec2(fract(v_uv.x * cols), fract(flippedY / rowH));
+
+    vec2  cellCenter = vec2((colIdx + 0.5) * colW, (rowIdx + 0.5) * rowH);
+    float videoLum   = dot(texture(u_video, vec2(cellCenter.x, 1.0 - cellCenter.y)).rgb,
+                           vec3(0.299, 0.587, 0.114));
+
+    // FIX: Zeichen pro Zelle (colIdx + rowIdx) – jede Zelle eigenes Zeichen
+    float rnd = hash2(vec2(colIdx, rowIdx));
+    int ch;
+    if(charSet == 0){ ch = int(step(0.5, rnd)); }
+    else if(charSet == 1){ ch = int(floor(rnd * 10.0)); }
+    else if(charSet == 2){ ch = 10 + int(floor(rnd * 4.0)); }
+    else { ch = 20 + int(floor(rnd * 5.0)); }
+
+    int bRow = int(cellUV.y * 7.0);
+    int bCol = int(cellUV.x * 5.0);
+    float lit = getBit(ch, bRow, bCol);
+
+    float baseBrightness = pow(videoLum, 0.5);
+    vec3 dark   = vec3(0.0,  0.28, 0.04);
+    vec3 mid    = vec3(0.02, 0.75, 0.12);
+    vec3 bright = vec3(0.6,  1.0,  0.65);
+    vec3 white  = vec3(0.85, 1.0,  0.88);
+
+    float rain   = 0.0;
+    vec3 charCol = mix(dark, mid, baseBrightness);
+
+    int numFalls = int(rainDensity);
+    for(int i = 0; i < 8; i++){
+        if(i >= numFalls) break;
+        float fi      = float(i);
+        float speed   = rainSpeed * (0.5 + hash(colIdx * (fi + 1.0) * 3.7) * speedVariance);
+        float offset  = hash(colIdx * 7.3 + fi * 13.1) * totalRows;
+        float headRow = mod(u_time * speed * totalRows * 0.25 + offset, totalRows);
+
+        float dist = rowIdx - headRow;
+        float head, trail;
+        if(dist >= 0.0 && dist < headSize){
+            head  = smoothstep(headSize, 0.0, dist);
+            trail = 0.0;
+        } else {
+            head  = 0.0;
+            float behind = -dist;
+            trail = behind > 0.0 ? exp(-behind * trailLength) * trailBrightness : 0.0;
+        }
+
+        float rainI = clamp(head * 2.0 + trail, 0.0, 1.0);
+        rain    = clamp(rain + rainI, 0.0, 1.0);
+        charCol = mix(charCol, bright, rainI * 0.6);
+        charCol = mix(charCol, white,  head * head);
+    }
+
+    float brightness = clamp(baseBrightness * videoInfluence + rain * charBrightness, 0.0, 1.0);
+    fragColor = vec4(charCol * lit * brightness, 1.0);
+}

@@ -1,0 +1,13 @@
+{
+  "id": "org.uveplayer.glsl-test-driver",
+  "name": "GLSL test driver",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "minHostVersion": "1.1.5",
+  "type": "utility",
+  "description": "Nur für Tests: öffnet den GLSL-Tab und das Editor-Fenster im echten Player und speichert Bildschirmfotos.",
+  "author": "test",
+  "license": "MIT",
+  "main": "Main.qml",
+  "contributes": { "panels": [ { "id": "driver", "title": "T", "qml": "Driver.qml", "location": "sidebar" } ] }
+}

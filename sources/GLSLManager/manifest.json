@@ -1,0 +1,43 @@
+{
+  "id": "org.uveplayer.glsl-manager",
+  "name": "GLSL Manager",
+  "version": "1.0.2",
+  "apiVersion": 1,
+  "minHostVersion": "1.2.9",
+  "type": "gpu-effect",
+  "description": {
+    "de": "Spielt die GLSL-Filter (Custom Filter Codes) des Ultimate Video Enhancer als mpv-Shader ab: einfügen, bearbeiten, ordnen, importieren und exportieren. Auch mpv-Hook-Shader wie Anime4K laufen direkt.",
+    "en": "Runs the GLSL filters (Custom Filter Codes) of Ultimate Video Enhancer as mpv shaders: add, edit, reorder, import and export them. mpv hook shaders such as Anime4K run directly too.",
+    "es": "Ejecuta los filtros GLSL (Custom Filter Codes) de Ultimate Video Enhancer como shaders de mpv: añadir, editar, ordenar, importar y exportar. Los shaders hook de mpv, como Anime4K, también funcionan directamente.",
+    "it": "Esegue i filtri GLSL (Custom Filter Codes) di Ultimate Video Enhancer come shader mpv: inserire, modificare, ordinare, importare ed esportare. Anche gli shader hook di mpv come Anime4K funzionano direttamente.",
+    "pl": "Uruchamia filtry GLSL (Custom Filter Codes) z Ultimate Video Enhancer jako shadery mpv: dodawanie, edycja, kolejność, import i eksport. Shadery hook mpv, takie jak Anime4K, również działają bezpośrednio.",
+    "tr": "Ultimate Video Enhancer'ın GLSL filtrelerini (Custom Filter Codes) mpv gölgelendiricisi olarak çalıştırır: ekleme, düzenleme, sıralama, içe ve dışa aktarma. Anime4K gibi mpv hook gölgelendiricileri de doğrudan çalışır.",
+    "el": "Εκτελεί τα φίλτρα GLSL (Custom Filter Codes) του Ultimate Video Enhancer ως shaders του mpv: προσθήκη, επεξεργασία, ταξινόμηση, εισαγωγή και εξαγωγή. Και τα hook shaders του mpv, όπως το Anime4K, λειτουργούν απευθείας."
+  },
+  "author": "UVE Player community (Filterformat: Ultimate Video Enhancer von Freak288)",
+  "license": "MIT",
+  "libraries": {
+    "windows-x64": "bin/windows-x64/glsl_manager.dll",
+    "linux-x86_64": "bin/linux-x86_64/libglsl_manager.so",
+    "macos-arm64": "bin/macos-arm64/libglsl_manager.dylib"
+  },
+  "capabilities": ["video-effects", "custom-shaders", "profile-import"],
+  "supportedPlatforms": ["windows", "linux", "macos"],
+  "requiredBackends": ["mpv-user-shaders", "plugin-events", "plugin-commands"],
+  "permissions": ["write-plugin-data", "read-user-selected-presets", "network-on-user-request"],
+  "contributes": {
+    "panels": [
+      { "id": "main", "title": "GLSL", "qml": "qml/GlslPanel.qml", "location": "sidebar" },
+      { "id": "editor", "title": { "de": "GLSL-Filter bearbeiten", "en": "Edit GLSL filter" }, "qml": "qml/GlslEditor.qml", "location": "modal",
+        "modal": { "scope": "sidebar", "mode": "fill" } }
+    ],
+    "menu": [
+      { "id": "open", "title": { "de": "GLSL Manager öffnen", "en": "Open GLSL Manager" } },
+      { "id": "toggle-all", "title": { "de": "Alle GLSL-Filter an/aus", "en": "All GLSL filters on/off" } }
+    ],
+    "hotkeys": [
+      { "id": "toggle-all", "title": { "de": "Alle GLSL-Filter an/aus", "en": "All GLSL filters on/off" }, "default": "Ctrl+Alt+Shift+G" }
+    ],
+    "translations": "lang"
+  }
+}

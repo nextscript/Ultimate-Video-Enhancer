@@ -1,0 +1,64 @@
+name: Plugin ZIP uploaded
+
+# Neues oder geändertes Plugin-ZIP im Wurzelverzeichnis dieses Zweigs → Mehrplattform-Build auf main starten
+# (.github/workflows/build-plugin.yml). Übersprungen werden:
+#   • fertige Mehrplattform-Pakete (manifest.json mit "libraries") – sonst baute jeder Upload des Ergebnisses neu
+#   • Plugins, die nicht in .github/plugin-builds.json auf main stehen
+# Der Quellstand ergibt sich aus der Version im ZIP (Tag-Muster in plugin-builds.json, z. B. glsl-manager-v1.0.2).
+on:
+  push:
+    branches: [uve-player-plugins]
+    paths: ["*.zip"]
+
+permissions:
+  contents: read
+  actions: write   # workflow_dispatch auf main
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Find new plugin packages and start builds
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+        run: |
+          git fetch -q --depth 1 origin main
+          git show FETCH_HEAD:.github/plugin-builds.json > /tmp/plugin-builds.json
+          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BEFORE" 2>/dev/null; then
+            git diff-tree --root --no-commit-id --name-only --diff-filter=AM -r "$AFTER" > /tmp/changed
+          else
+            git diff --name-only --diff-filter=AM "$BEFORE" "$AFTER" > /tmp/changed
+          fi
+          python3 -I - <<'EOF'
+          import json, subprocess, zipfile
+          cfg = json.load(open("/tmp/plugin-builds.json", encoding="utf8"))["plugins"]
+          for name in open("/tmp/changed", encoding="utf8").read().split("\n"):
+              if not name.lower().endswith(".zip") or "/" in name:
+                  continue
+              try:
+                  with zipfile.ZipFile(name) as z:
+                      paths = [n for n in z.namelist() if n.replace("\\", "/") == "manifest.json"
+                               or (n.replace("\\", "/").count("/") == 1 and n.replace("\\", "/").endswith("/manifest.json"))]
+                      manifest = json.loads(z.read(paths[0])) if len(paths) == 1 else None
+              except Exception as e:
+                  print(f"::warning::{name}: nicht lesbar ({e})")
+                  continue
+              if not manifest:
+                  print(f"::warning::{name}: keine manifest.json")
+                  continue
+              pid, version = manifest.get("id", ""), manifest.get("version", "")
+              if manifest.get("libraries"):
+                  print(f"{name}: fertiges Mehrplattform-Paket ({pid} {version}) – kein neuer Build")
+                  continue
+              if pid not in cfg:
+                  print(f"{name}: {pid} wird nicht für mehrere Plattformen gebaut (nicht in plugin-builds.json)")
+                  continue
+              print(f"{name}: starte Build für {pid} {version}")
+              subprocess.run(["gh", "workflow", "run", "build-plugin.yml", "--ref", "main",
+                              "-f", f"plugin_id={pid}", "-f", f"version={version}"], check=True)
+          EOF
