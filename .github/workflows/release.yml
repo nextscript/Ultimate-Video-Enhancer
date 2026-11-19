@@ -99,10 +99,15 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: System packages
+        # Ubuntu-Spiegel liefern gelegentlich kurz Fehler (apt-get Exit 100) -> mit Wiederholungen
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libmpv-dev ninja-build pkg-config \
-            libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-0 libxcb-cursor0 libfuse2 file
+          for i in 1 2 3; do
+            sudo apt-get -o Acquire::Retries=5 update &&
+            sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends libmpv-dev ninja-build pkg-config \
+              libgl1-mesa-dev libxkbcommon-dev libxkbcommon-x11-0 libxcb-cursor0 libfuse2 file && exit 0
+            echo "apt-get fehlgeschlagen (Versuch $i), neuer Versuch in 30 s"; sleep 30
+          done
+          exit 1
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
