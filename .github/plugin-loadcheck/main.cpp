@@ -6,6 +6,7 @@
 
 #include <QCoreApplication>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QLibraryInfo>
 #include <QPluginLoader>
@@ -18,7 +19,11 @@ int main(int argc, char **argv)
     if (args.size() < 2) { std::fprintf(stderr, "usage: uve-plugin-loadcheck <module> [manifest.json]\n"); return 2; }
     std::printf("Qt %s from %s\n", qVersion(), qPrintable(QLibraryInfo::path(QLibraryInfo::LibrariesPath)));
 
-    QPluginLoader loader(args.at(1));
+    // Absoluter Pfad wie im Player: einen relativen Namen sucht QPluginLoader nur in den Qt-Bibliothekspfaden
+    const QString module = QFileInfo(args.at(1)).absoluteFilePath();
+    if (!QFileInfo(module).isFile()) { std::fprintf(stderr, "error: %s not found\n", qPrintable(module)); return 1; }
+    std::printf("module: %s\n", qPrintable(module));
+    QPluginLoader loader(module);
     const QJsonObject meta = loader.metaData();
     const QString iid = meta.value("IID").toString();
     std::printf("IID: %s\n", qPrintable(iid));

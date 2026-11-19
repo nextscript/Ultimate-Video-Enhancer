@@ -206,7 +206,7 @@ jobs:
             echo "::error::Build-Ziel ${{ needs.resolve.outputs.target }} hat $rel nicht erzeugt. Inhalt von $PKG:"; find "$PKG" -type f; exit 1
           fi
           echo "rel=$rel" >> "$GITHUB_OUTPUT"
-          echo "module=$PKG/$rel" >> "$GITHUB_OUTPUT"
+          echo "module=$PWD/$PKG/$rel" >> "$GITHUB_OUTPUT"
       - name: Remove build rpath (macOS)
         if: runner.os == 'macOS'
         run: |
