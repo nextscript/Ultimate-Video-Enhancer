@@ -2192,6 +2192,18 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>GLASEFFEKT</source>
+        <translation>EFEKT SZKŁA</translation>
+    </message>
+    <message>
+        <source>Glaseffekt für transparente Leiste und Plugin-Fenster</source>
+        <translation>Efekt szkła dla przezroczystego panelu i okien wtyczek</translation>
+    </message>
+    <message>
+        <source>Wie mattes Glas: Das Bild dahinter wird weichgezeichnet und am Rand wie durch eine Glaskante gebrochen, mit Glanzkante und abgerundeten Ecken. Die Transparenz-Regler bestimmen, wie stark das Glas getönt ist. Braucht etwas mehr Grafikleistung.</source>
+        <translation>Jak matowe szkło: obraz za nim jest rozmyty i załamany na krawędzi jak przez brzeg szyby, z błyszczącą krawędzią i zaokrąglonymi rogami. Suwaki przezroczystości określają, jak mocno szkło jest zabarwione. Wymaga nieco większej wydajności graficznej.</translation>
+    </message>
+    <message>
         <source>Oberfläche</source>
         <translation>Interfejs</translation>
     </message>

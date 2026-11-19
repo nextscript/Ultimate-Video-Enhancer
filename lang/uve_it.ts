@@ -2192,6 +2192,18 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>GLASEFFEKT</source>
+        <translation>EFFETTO VETRO</translation>
+    </message>
+    <message>
+        <source>Glaseffekt für transparente Leiste und Plugin-Fenster</source>
+        <translation>Effetto vetro per la barra trasparente e le finestre dei plugin</translation>
+    </message>
+    <message>
+        <source>Wie mattes Glas: Das Bild dahinter wird weichgezeichnet und am Rand wie durch eine Glaskante gebrochen, mit Glanzkante und abgerundeten Ecken. Die Transparenz-Regler bestimmen, wie stark das Glas getönt ist. Braucht etwas mehr Grafikleistung.</source>
+        <translation>Come vetro smerigliato: l&apos;immagine dietro viene sfocata e rifratta sul bordo come attraverso lo spigolo di una lastra, con un bordo lucido e angoli arrotondati. I cursori della trasparenza stabiliscono quanto è colorato il vetro. Richiede un po&apos; più di prestazioni grafiche.</translation>
+    </message>
+    <message>
         <source>Oberfläche</source>
         <translation>Interfaccia</translation>
     </message>

@@ -2192,6 +2192,18 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>GLASEFFEKT</source>
+        <translation>EFECTO CRISTAL</translation>
+    </message>
+    <message>
+        <source>Glaseffekt für transparente Leiste und Plugin-Fenster</source>
+        <translation>Efecto cristal para la barra transparente y las ventanas de complementos</translation>
+    </message>
+    <message>
+        <source>Wie mattes Glas: Das Bild dahinter wird weichgezeichnet und am Rand wie durch eine Glaskante gebrochen, mit Glanzkante und abgerundeten Ecken. Die Transparenz-Regler bestimmen, wie stark das Glas getönt ist. Braucht etwas mehr Grafikleistung.</source>
+        <translation>Como cristal esmerilado: la imagen de detrás se difumina y se refracta en el borde como a través del canto de un cristal, con un borde brillante y esquinas redondeadas. Los controles de transparencia determinan cuánto se tiñe el cristal. Requiere algo más de rendimiento gráfico.</translation>
+    </message>
+    <message>
         <source>Oberfläche</source>
         <translation>Interfaz</translation>
     </message>

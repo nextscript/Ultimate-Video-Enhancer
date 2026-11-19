@@ -1,4 +1,4 @@
-# UVE Player 1.3.0
+# UVE Player 1.3.1
 ![GUI](player.png)
 Native media player for Windows built with **C++20, Qt 6, and libmpv** – featuring **Ultimate Video Enhancer** as a GPU effects plugin, network streaming (YouTube, Twitch, HLS, tcp://) with proxy support, and seven languages.
 
@@ -6,9 +6,9 @@ Native media player for Windows built with **C++20, Qt 6, and libmpv** – featu
 
 | File | Description |
 |---|---|
-| `UVE-Player-1.3.0-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
-| `UVE-Player-1.3.0-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
-| `UVE-Player-1.3.0-portable.zip` | Portable folder archive (data stored in `.\data`) |
+| `UVE-Player-1.3.1-setup.exe` | Per-user installer (no administrator privileges required), Start Menu integration, optional desktop shortcut, "Open with" for all supported formats, and Explorer video thumbnails with the UVE icon when UVE Player is the default app |
+| `UVE-Player-1.3.1-portable.exe` | Standalone executable that runs without installation; settings are stored in the adjacent `UVE Player Data` folder |
+| `UVE-Player-1.3.1-portable.zip` | Portable folder archive (data stored in `.\data`) |
 | `SHA256SUMS.txt` | SHA-256 checksums |
 
 All versions include libmpv, yt-dlp, and 7zr – no additional software installation is required.
@@ -24,7 +24,7 @@ All versions include libmpv, yt-dlp, and 7zr – no additional software installa
 - **Network Streaming:** YouTube/Twitch (via yt-dlp, YouTube playlists start at the video given by `index=`), HTTP(S), HLS, DASH, TCP/UDP/RTMP/RTSP/SRT; automatic update checks for yt-dlp and libmpv.
 - **Optical media (1.1.8):** DVD-Video, unencrypted Blu-ray and audio CDs from a drive, plus DVD/Blu-ray ISO images and `VIDEO_TS`/`BDMV` folders (*File → Open disc…*). DVD/Blu-ray menus with keyboard and on-screen navigation where the bundled libmpv supports them (Windows build: DVD menus and Blu-ray HDMV menus; no BD-J); otherwise the main title plays. Encrypted Blu-rays are not supported. No physical drive was available for testing – see [TEST_REPORT](docs/TEST_REPORT.md#optical-media-118).
 - **Updates:** *Help → About UVE Player* checks for updates when it opens (like Chrome) and installs a release from there.
-- **Sidebar over the picture (1.3.0):** in fullscreen the playlist sidebar can be shown over the video with adjustable transparency; the sidebar width can be dragged, and plugin windows can be made transparent (*Settings → Interface*).
+- **Sidebar over the picture (1.3.0):** in fullscreen the playlist sidebar can be shown over the video with adjustable transparency; the sidebar width can be dragged, and plugin windows can be made transparent (*Settings → Interface*). Since 1.3.1 optionally with a frosted-glass effect (blur, refraction at the rim, glossy edge).
 - **Multi-platform plugin packages (1.2.9):** one plugin ZIP can carry native modules for Windows x64, Linux x86-64 and macOS ARM64; the player installs and loads the one for its own system and refuses packages without one, leaving the installed version untouched.
 - **Live rewind on the timeline (1.2.5–1.2.8):** live streams with a rewind buffer (provided by a plugin) can be rewound by clicking or dragging on the timeline, which runs from the moment you started watching to the live edge; the part that is no longer in the buffer is hatched with an orange line marking how far back you can rewind. After rewinding, a LIVE badge at the end of the timeline jumps back to live. The time display shows the played position on the timeline and its length (e.g. *14:52 / 15:00*), like a web player.
 - **Scroll sensitivity fix (1.2.4):** the mouse wheel sensitivity now really changes how far lists and pages scroll, immediately after changing it.

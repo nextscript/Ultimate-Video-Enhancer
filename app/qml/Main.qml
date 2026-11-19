@@ -25,6 +25,7 @@ ApplicationWindow {
     property bool sidebarFullscreenVisible: app.setting("showSidebarFullscreen", false)
     property int sidebarOverlayTransparency: app.setting("sidebarOverlayTransparency", 35)   // %
     property int pluginModalTransparency: app.setting("pluginModalTransparency", 0)          // %
+    property bool glassEffect: app.setting("glassEffect", false)   // Glaseffekt für Vollbild-Seitenleiste und Plugin-Fenster
     property int sidebarWidth: app.setting("sidebarWidth", 330)
     readonly property int sidebarMinWidth: 240
     readonly property int sidebarMaxWidth: Math.max(sidebarMinWidth, Math.round(width * 0.6))
@@ -44,6 +45,7 @@ ApplicationWindow {
             if (key === "sidebarOverlayFullscreen") win.sidebarOverlayEnabled = value
             else if (key === "sidebarOverlayTransparency") win.sidebarOverlayTransparency = value
             else if (key === "pluginModalTransparency") win.pluginModalTransparency = value
+            else if (key === "glassEffect") win.glassEffect = value
         }
     }
     property bool controlsVisible: true
@@ -726,11 +728,25 @@ ApplicationWindow {
             visible: win.sidebarShown
             width: visible ? Math.max(win.sidebarMinWidth, Math.min(win.sidebarMaxWidth, win.sidebarWidth)) : 0
             anchors { right: parent.right; top: safeBanner.bottom; bottom: parent.bottom
-                      bottomMargin: win.sidebarOverlay && controls.visible ? controls.height : 0 }   // Vollbild: über der Bedienleiste
+                      // Vollbild: über der Bedienleiste; mit Glaseffekt als schwebende, abgerundete Scheibe
+                      rightMargin: glass ? 12 : 0; topMargin: glass ? 12 : 0
+                      bottomMargin: (win.sidebarOverlay && controls.visible ? controls.height : 0) + (glass ? 12 : 0) }
             z: win.sidebarOverlay ? 2 : 0   // Vollbild: über dem Bild
             // Vollbild: Hintergrund mit einstellbarer Transparenz, Schrift und Bedienelemente bleiben deckend
             readonly property real backgroundAlpha: win.sidebarOverlay ? 1 - Math.max(0, Math.min(90, win.sidebarOverlayTransparency)) / 100 : 1
-            color: Qt.rgba(theme.panel.r, theme.panel.g, theme.panel.b, backgroundAlpha)
+            readonly property bool glass: win.sidebarOverlay && win.glassEffect
+            radius: glass ? 16 : 0
+            color: glass ? "transparent" : Qt.rgba(theme.panel.r, theme.panel.g, theme.panel.b, backgroundAlpha)
+            GlassBackground {
+                id: sidebarGlass
+                anchors.fill: parent
+                visible: sidebar.glass && sidebar.visible
+                sourceItem: visible ? stage : null
+                sourceRect: Qt.rect(sidebar.x - stage.x, sidebar.y - stage.y, sidebar.width, sidebar.height)
+                radius: sidebar.radius
+                tint: theme.panel
+                tintAlpha: sidebar.backgroundAlpha * 0.85
+            }
             // Klicks und Rad nicht an das Bild darunter weitergeben; Bewegung hält die Bedienleiste sichtbar
             MouseArea {
                 anchors.fill: parent
@@ -739,7 +755,7 @@ ApplicationWindow {
                 onPositionChanged: win.poke()
                 onWheel: (w) => w.accepted = true
             }
-            Rectangle { width: 1; height: parent.height; color: theme.line }
+            Rectangle { width: 1; height: parent.height; color: theme.line; visible: !sidebar.glass }
             // Breite ziehen (linker Rand), wird gespeichert
             MouseArea {
                 id: sidebarResize
@@ -770,7 +786,10 @@ ApplicationWindow {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 1
+                anchors.leftMargin: sidebar.glass ? 6 : 1
+                anchors.rightMargin: sidebar.glass ? 6 : 0
+                anchors.topMargin: sidebar.glass ? 6 : 0
+                anchors.bottomMargin: sidebar.glass ? 6 : 0
                 spacing: 0
                 TabBar {
                     id: tabs
@@ -1060,6 +1079,8 @@ ApplicationWindow {
         PluginModal {
             id: pluginModal
             transparency: win.pluginModalTransparency
+            glass: win.glassEffect
+            glassSource: win.contentItem
             area: scope === "player" ? overlayItem : (scope === "sidebar" && sidebar.visible ? sidebar : videoScope)
             onOpened: if (blocking) win.modalCount++
             onFinished: (key, result) => {
@@ -1132,6 +1153,7 @@ ApplicationWindow {
         var near = (a, b) => Math.abs(a - b) < 0.02
         switch (win.stSideStep) {
         case 0:
+            playlist.repeat = "all"   // die Testvideos sind kurz: Ende der Liste soll den Ablauf nicht stören
             app.setSetting("showSidebarFullscreen", false); win.sidebarFullscreenVisible = false
             app.setSetting("sidebarOverlayTransparency", 35); app.setSetting("pluginModalTransparency", 0)
             win.sidebarVisible = true
@@ -1200,34 +1222,49 @@ ApplicationWindow {
             check("modal open", m && m.opened)
             check("modal alpha 50 %", m && near(m.card.color.a, 0.5) && near(m.titleBar.color.a, 0.5))
             shot("modal-50")
-            app.setSetting("pluginModalTransparency", 0)
+            app.setSetting("glassEffect", true)
+            app.setSetting("sidebarOverlayTransparency", 80)
             break
         case 9:
+            check("glass on", win.glassEffect && sidebar.glass && sidebarGlass.visible)
+            check("glass sidebar floats", sidebar.radius > 0 && sidebar.color.a === 0)
+            check("glass modal", win.stSideModal && win.stSideModal.glass && win.stSideModal.card.color.a === 0
+                                 && win.stSideModal.glassRect.width === win.stSideModal.card.width)
+            shot("glass")
+            app.setSetting("sidebarOverlayTransparency", 35)
+            break
+        case 10:
+            shot("glass-35")
+            app.setSetting("glassEffect", false)
+            app.setSetting("pluginModalTransparency", 0)
+            break
+        case 11:
+            check("glass off", !sidebar.glass && !sidebarGlass.visible && near(sidebar.color.a, 0.65))
             check("modal opaque again", win.stSideModal && near(win.stSideModal.card.color.a, 1))
             if (win.stSideModal) win.stSideModal.close()
             app.setSetting("sidebarOverlayFullscreen", false)
             break
-        case 10:
+        case 12:
             check("setting off hides overlay", !sidebar.visible && !win.sidebarOverlay)
             app.setSetting("sidebarOverlayFullscreen", true)
             break
-        case 11:
+        case 13:
             check("setting on shows it again", sidebar.visible && win.sidebarOverlay)
             win.act("sidebar.toggle")
             break
-        case 12:
+        case 14:
             check("toggle hides overlay", !sidebar.visible && !win.sidebarFullscreenVisible)
             win.toggleFullscreen()
             selftestUi.interval = 1500
             break
-        case 13:
+        case 15:
             check("window: sidebar back", !win.fullscreen && sidebar.visible && !win.sidebarOverlay)
             check("window: width kept", sidebar.width === win.sidebarWidth)
             check("window: stage left of sidebar", Math.abs(stage.width + sidebar.width - stage.parent.width) < 1)
             settingsDialog.open(); settingsDialog.page = 1
             selftestUi.interval = 900
             break
-        case 14:
+        case 16:
             shot("settings")
             settingsDialog.close()
             ui.ok = ui.failures.length === 0

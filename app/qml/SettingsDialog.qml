@@ -202,6 +202,17 @@ Dialog {
                     Layout.fillWidth: true; wrapMode: Text.Wrap; color: theme.muted; font.pixelSize: 11
                     text: qsTr("Gilt für Fenster, die Plugins öffnen (z. B. Dialoge über dem Video). Schrift und Bedienelemente bleiben deckend; 0 % = deckend.")
                 }
+                SectionLabel { text: qsTr("GLASEFFEKT") }
+                CheckBox {
+                    objectName: "glassEffectCheck"
+                    text: qsTr("Glaseffekt für transparente Leiste und Plugin-Fenster")
+                    checked: app.setting("glassEffect", false)
+                    onToggled: app.setSetting("glassEffect", checked)
+                }
+                Label {
+                    Layout.fillWidth: true; wrapMode: Text.Wrap; color: theme.muted; font.pixelSize: 11
+                    text: qsTr("Wie mattes Glas: Das Bild dahinter wird weichgezeichnet und am Rand wie durch eine Glaskante gebrochen, mit Glanzkante und abgerundeten Ecken. Die Transparenz-Regler bestimmen, wie stark das Glas getönt ist. Braucht etwas mehr Grafikleistung.")
+                }
                 Item { Layout.fillHeight: true }
             }
             // Wiedergabe

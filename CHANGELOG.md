@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.1 – 2026-11-19
+
+### Glass effect
+- New switch *Glass effect* on *Settings → Interface* (off by default): the transparent full-screen sidebar and plugin
+  windows look like frosted glass. The picture behind them is blurred and slightly more saturated, bent at the rim as if
+  through the edge of a pane (with faint colour fringes), with a glossy edge lit from the top left and rounded corners.
+  In full screen the sidebar then floats as a rounded pane with a small gap to the screen edges.
+- The transparency sliders keep working and set how strongly the glass is tinted.
+
 ## 1.3.0 – 2026-11-19
 
 ### Sidebar over the picture in full screen

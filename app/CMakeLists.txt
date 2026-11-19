@@ -61,14 +61,15 @@ qt_add_qml_module(uve-player
         qml/DiagnosticsOverlay.qml
         qml/IconButton.qml
         qml/VecIcon.qml
+        qml/GlassBackground.qml
     RESOURCES
         resources/icon.png
 )
 
-# Qt-Shader (RHI): Vorher/Nachher-Zusammensetzung → :/uve/shaders/splitview.frag.qsb
+# Qt-Shader (RHI): Vorher/Nachher-Zusammensetzung → :/uve/shaders/splitview.frag.qsb, Glaseffekt → glass.frag.qsb
 qt_add_shaders(uve-player "uve_shaders"
     PREFIX "/uve"
-    FILES shaders/splitview.frag
+    FILES shaders/splitview.frag shaders/glass.frag
 )
 
 target_link_libraries(uve-player PRIVATE uvecore Qt6::Quick Qt6::QuickControls2 Qt6::Qml Qt6::Network)

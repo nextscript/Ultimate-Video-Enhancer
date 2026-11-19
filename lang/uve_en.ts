@@ -2192,6 +2192,18 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>GLASEFFEKT</source>
+        <translation>GLASS EFFECT</translation>
+    </message>
+    <message>
+        <source>Glaseffekt für transparente Leiste und Plugin-Fenster</source>
+        <translation>Glass effect for the transparent sidebar and plugin windows</translation>
+    </message>
+    <message>
+        <source>Wie mattes Glas: Das Bild dahinter wird weichgezeichnet und am Rand wie durch eine Glaskante gebrochen, mit Glanzkante und abgerundeten Ecken. Die Transparenz-Regler bestimmen, wie stark das Glas getönt ist. Braucht etwas mehr Grafikleistung.</source>
+        <translation>Like frosted glass: the picture behind is blurred and bent at the rim as if through the edge of a pane, with a glossy edge and rounded corners. The transparency sliders set how strongly the glass is tinted. Needs a little more graphics performance.</translation>
+    </message>
+    <message>
         <source>Oberfläche</source>
         <translation>Interface</translation>
     </message>

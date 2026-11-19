@@ -2192,6 +2192,18 @@
 <context>
     <name>SettingsDialog</name>
     <message>
+        <source>GLASEFFEKT</source>
+        <translation>CAM EFEKTİ</translation>
+    </message>
+    <message>
+        <source>Glaseffekt für transparente Leiste und Plugin-Fenster</source>
+        <translation>Saydam çubuk ve eklenti pencereleri için cam efekti</translation>
+    </message>
+    <message>
+        <source>Wie mattes Glas: Das Bild dahinter wird weichgezeichnet und am Rand wie durch eine Glaskante gebrochen, mit Glanzkante und abgerundeten Ecken. Die Transparenz-Regler bestimmen, wie stark das Glas getönt ist. Braucht etwas mehr Grafikleistung.</source>
+        <translation>Buzlu cam gibi: arkadaki görüntü bulanıklaştırılır ve kenarda bir cam kenarından bakılıyormuş gibi kırılır; parlak bir kenar ve yuvarlatılmış köşelerle. Saydamlık kaydırıcıları camın ne kadar renklendirileceğini belirler. Biraz daha fazla grafik gücü gerektirir.</translation>
+    </message>
+    <message>
         <source>Oberfläche</source>
         <translation>Arayüz</translation>
     </message>

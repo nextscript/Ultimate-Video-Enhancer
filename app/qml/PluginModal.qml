@@ -15,6 +15,16 @@ Popup {
     property real offsetY: 0
     property int transparency: 0   // % (Einstellung pluginModalTransparency): Hintergrund von Fenster und Titelleiste, Inhalt bleibt deckend
     readonly property real backgroundAlpha: 1 - Math.max(0, Math.min(90, transparency)) / 100
+    property bool glass: false        // Glaseffekt (Einstellung glassEffect): Hintergrund weichgezeichnet, Glaskante
+    property Item glassSource: null   // was hinter dem Fenster liegt (Fensterinhalt; das Fenster selbst liegt in der Overlay-Ebene)
+    // Lage der Karte in glassSource; hängt an allem, was sie verschiebt
+    readonly property rect glassRect: {
+        var deps = [card.x, card.y, card.width, card.height, x, y, width, height, opened,
+                    area ? area.x : 0, area ? area.y : 0, area ? area.width : 0, area ? area.height : 0]
+        if (!glassSource || !card.visible) return Qt.rect(0, 0, 0, 0)
+        var p = card.mapToItem(glassSource, 0, 0)
+        return Qt.rect(p.x, p.y, card.width, card.height)
+    }
     signal finished(string key, var result)
 
     readonly property string scope: request.scope || "player"
@@ -61,10 +71,20 @@ Popup {
         // Bleibt immer im Bereich, auch wenn er kleiner wird
         x: Math.round((root.width - width) / 2 + Math.max(-rangeX, Math.min(rangeX, root.offsetX)))
         y: Math.round((root.height - height) / 2 + Math.max(-rangeY, Math.min(rangeY, root.offsetY)))
-        color: Qt.rgba(root.theme.panel.r, root.theme.panel.g, root.theme.panel.b, root.backgroundAlpha)
-        border.color: root.theme.line
-        radius: root.mode === "fill" ? 0 : 8
+        color: root.glass ? "transparent" : Qt.rgba(root.theme.panel.r, root.theme.panel.g, root.theme.panel.b, root.backgroundAlpha)
+        border.color: root.glass ? "transparent" : root.theme.line
+        radius: root.mode === "fill" ? 0 : (root.glass ? 14 : 8)
         clip: true
+
+        GlassBackground {
+            anchors.fill: parent
+            visible: root.glass && root.glassSource !== null
+            sourceItem: visible ? root.glassSource : null
+            sourceRect: root.glassRect
+            radius: card.radius
+            tint: root.theme.panel
+            tintAlpha: root.backgroundAlpha * 0.85
+        }
 
         // Klicks auf das Fenster nicht an den Hintergrund weitergeben
         MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: (wheel) => wheel.accepted = true }
@@ -77,7 +97,10 @@ Popup {
                 id: titleBar
                 Layout.fillWidth: true
                 implicitHeight: 36
-                color: Qt.rgba(root.theme.panel2.r, root.theme.panel2.g, root.theme.panel2.b, root.backgroundAlpha)
+                // Glaseffekt: Titelleiste gehört zur Scheibe, nur eine feine Trennlinie
+                Rectangle { visible: root.glass; anchors { left: parent.left; right: parent.right; bottom: parent.bottom; leftMargin: 10; rightMargin: 10 }
+                            height: 1; color: Qt.rgba(1, 1, 1, 0.12) }
+                color: Qt.rgba(root.theme.panel2.r, root.theme.panel2.g, root.theme.panel2.b, root.glass ? 0 : root.backgroundAlpha)
                 MouseArea {
                     anchors.fill: parent
                     enabled: root.mode === "movable"
