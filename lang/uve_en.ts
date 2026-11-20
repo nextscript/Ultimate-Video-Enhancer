@@ -2456,6 +2456,10 @@
         <translation>Automatically load subtitle files with the same name</translation>
     </message>
     <message>
+        <source>Untertitel automatisch einschalten</source>
+        <translation>Turn on subtitles automatically</translation>
+    </message>
+    <message>
         <source>Schriftgröße</source>
         <translation>Font size</translation>
     </message>

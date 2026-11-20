@@ -2456,6 +2456,10 @@
         <translation>Carica automaticamente i file di sottotitoli con lo stesso nome</translation>
     </message>
     <message>
+        <source>Untertitel automatisch einschalten</source>
+        <translation>Attiva automaticamente i sottotitoli</translation>
+    </message>
+    <message>
         <source>Schriftgröße</source>
         <translation>Dimensione carattere</translation>
     </message>

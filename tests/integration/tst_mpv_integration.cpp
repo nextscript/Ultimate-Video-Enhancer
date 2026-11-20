@@ -84,6 +84,8 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(m->duration() > 9.5, 5000);
         QCOMPARE(m->audioTracks().size(), 2);
         QCOMPARE(m->subtitleTracks().size(), 1);
+        // Untertitel starten standardmäßig aus (1.3.2), die Spur bleibt wählbar
+        QVERIFY(!m->subtitleTracks().at(0).toMap().value("selected").toBool());
         QVERIFY(m->hasVideo());
         QTRY_COMPARE_WITH_TIMEOUT(m->state(), MpvController::Playing, 5000);
         // Bezeichnungen enthalten Sprache und Codec

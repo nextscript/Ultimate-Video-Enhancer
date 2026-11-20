@@ -28,6 +28,7 @@ static QJsonObject defaults()
         {"checkToolUpdates", true},
         {"streamQualityLimit", 0},   // 0 = immer beste Qualität
         {"subAuto", true},
+        {"subAutoSelect", false},   // Untertitel nicht automatisch einschalten
         {"keepAspect", "fit"},
         {"plugins", QJsonObject()},
         {"pluginSettings", QJsonObject()},

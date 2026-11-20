@@ -2456,6 +2456,10 @@
         <translation>Automatycznie wczytuj pliki napisów o tej samej nazwie</translation>
     </message>
     <message>
+        <source>Untertitel automatisch einschalten</source>
+        <translation>Automatycznie włączaj napisy</translation>
+    </message>
+    <message>
         <source>Schriftgröße</source>
         <translation>Rozmiar czcionki</translation>
     </message>

@@ -285,6 +285,7 @@ Dialog {
             ColumnLayout {
                 spacing: 8
                 CheckBox { text: qsTr("Untertiteldateien mit gleichem Namen automatisch laden"); checked: app.setting("subAuto", true); onToggled: app.setSetting("subAuto", checked) }
+                CheckBox { text: qsTr("Untertitel automatisch einschalten"); checked: app.setting("subAutoSelect", false); onToggled: app.setSetting("subAutoSelect", checked) }
                 Row2 { Label { text: qsTr("Schriftgröße"); color: theme.text; Layout.fillWidth: true }
                     SpinBox { from: 20; to: 100; value: app.setting("subFontSize", 46); onValueModified: app.setSetting("subFontSize", value) } }
                 Row2 { Label { text: qsTr("Bevorzugte Untertitelsprachen"); color: theme.text; Layout.fillWidth: true }

@@ -2456,6 +2456,10 @@
         <translation>Αυτόματη φόρτωση αρχείων υποτίτλων με το ίδιο όνομα</translation>
     </message>
     <message>
+        <source>Untertitel automatisch einschalten</source>
+        <translation>Αυτόματη ενεργοποίηση υποτίτλων</translation>
+    </message>
+    <message>
         <source>Schriftgröße</source>
         <translation>Μέγεθος γραμματοσειράς</translation>
     </message>

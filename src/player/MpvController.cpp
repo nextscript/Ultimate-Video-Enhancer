@@ -166,6 +166,9 @@ bool MpvController::initialize(const QVariantMap &options, QString *error)
         {"brightness", MPV_FORMAT_DOUBLE}, {"contrast", MPV_FORMAT_DOUBLE}, {"saturation", MPV_FORMAT_DOUBLE}, {"hue", MPV_FORMAT_DOUBLE},
     };
     for (const auto &p : props) mpv_observe_property(m_mpv, 0, p.name, p.fmt);
+    // Vor dem Öffnen jeder Datei: Untertitel nur für diese Datei abschalten, wenn sie nicht automatisch an sein sollen.
+    // file-local-options gilt bis zum Ende der Datei, eine Wahl im Menü schaltet also nur die laufende Datei ein.
+    mpv_hook_add(m_mpv, 0, "on_load", 0);
 
     mpv_set_wakeup_callback(m_mpv, &MpvController::wakeup, this);
 
@@ -219,6 +222,13 @@ void MpvController::handleEvent(mpv_event *e)
         else if (p->format == MPV_FORMAT_STRING) v = QString::fromUtf8(*static_cast<char **>(p->data));
         else if (p->format == MPV_FORMAT_NODE) v = nodeToVariant(static_cast<mpv_node *>(p->data));
         handlePropertyChange(QString::fromUtf8(p->name), v);
+        break;
+    }
+    case MPV_EVENT_HOOK: {
+        auto *hook = static_cast<mpv_event_hook *>(e->data);
+        if (qstrcmp(hook->name, "on_load") == 0 && !m_subAutoSelect)
+            mpv_set_property_string(m_mpv, "file-local-options/sid", "no");
+        mpv_hook_continue(m_mpv, hook->id);
         break;
     }
     case MPV_EVENT_START_FILE:

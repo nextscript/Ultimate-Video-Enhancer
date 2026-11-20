@@ -107,6 +107,9 @@ public:
 
     Q_INVOKABLE void setAudioTrack(int id);
     Q_INVOKABLE void setSubtitleTrack(int id); // 0 = aus
+    // false: jede Datei startet ohne Untertitel (Spuren bleiben im Menü wählbar), true: mpv wählt nach slang/Standard-Flag
+    void setSubtitleAutoSelect(bool on) { m_subAutoSelect = on; }
+    bool subtitleAutoSelect() const { return m_subAutoSelect; }
     Q_INVOKABLE void cycleAudio();
     Q_INVOKABLE void cycleSubtitle();
     Q_INVOKABLE void addSubtitle(const QString &file);
@@ -195,6 +198,7 @@ private:
     double m_position = 0, m_duration = 0, m_volume = 100, m_speed = 1;
     double m_bufferedUntil = 0, m_subDelay = 0, m_audioDelay = 0;
     double m_abA = -1, m_abB = -1;
+    bool m_subAutoSelect = false;
     bool m_paused = false, m_muted = false, m_seekable = false, m_buffering = false, m_loaded = false;
     QString m_title, m_path, m_error;
     QVariantList m_audio, m_subs, m_video;

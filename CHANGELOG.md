@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.2 – 2026-11-20
+
+### Subtitles off by default
+- Subtitles are no longer switched on automatically: every file starts without subtitles, even if it has a track in a
+  preferred language or one flagged as default. Tracks stay available in the CC menu, with V and in the context menu;
+  a track chosen there applies to the current file.
+- New switch *Turn on subtitles automatically* on *Settings → Subtitles* (off by default) restores the old behaviour
+  (choice by preferred subtitle languages). Subtitle files added by hand or dropped onto the player are still shown at once.
+
 ## 1.3.1 – 2026-11-19
 
 ### Glass effect

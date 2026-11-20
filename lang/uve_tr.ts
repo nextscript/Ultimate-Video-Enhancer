@@ -2456,6 +2456,10 @@
         <translation>Aynı ada sahip altyazı dosyalarını otomatik yükle</translation>
     </message>
     <message>
+        <source>Untertitel automatisch einschalten</source>
+        <translation>Altyazıları otomatik aç</translation>
+    </message>
+    <message>
         <source>Schriftgröße</source>
         <translation>Yazı tipi boyutu</translation>
     </message>

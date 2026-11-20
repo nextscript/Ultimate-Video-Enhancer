@@ -169,6 +169,7 @@ void PlayerApp::setSetting(const QString &key, const QVariant &value)
     m_settings->setValue(key, value);
     if (key == "streamQualityLimit") applyYtdlOptions();
     if (key == "subAuto") m_player->setProperty("sub-auto", value.toBool() ? "fuzzy" : "no");
+    if (key == "subAutoSelect") m_player->setSubtitleAutoSelect(value.toBool());
     if (key == "subFontSize") m_player->setProperty("sub-font-size", value.toInt());
     if (key == "subLanguages") m_player->setProperty("slang", value.toString());
     if (key == "audioLanguages") m_player->setProperty("alang", value.toString());
@@ -196,6 +197,7 @@ bool PlayerApp::initializePlayer(QString *error)
         optsDiag.insert("msg-level", "all=v");
     }
     const QVariantMap &opts2 = optsDiag;
+    m_player->setSubtitleAutoSelect(m_settings->value("subAutoSelect", false).toBool());
     if (!m_player->initialize(opts2, error)) return false;
     m_disc->attach();   // Disc-Fähigkeiten der geladenen libmpv, CD-Leser anmelden
     applyRenderQuality(m_settings->value("renderQuality", "balanced").toString());
@@ -1570,7 +1572,7 @@ void PlayerApp::runSelftestStep()
         QVariantMap r{
             {"source", m_playlist->pathAt(m_selftestIndex)}, {"state", QVariant::fromValue(m_player->state()).toString()},
             {"error", m_player->errorString()}, {"position", m_player->position()}, {"duration", m_player->duration()},
-            {"audioTracks", m_player->audioTracks().size()}, {"subtitleTracks", m_player->subtitleTracks().size()},
+            {"audioTracks", m_player->audioTracks().size()}, {"subtitleTracks", m_player->subtitleTracks().size()}, {"sid", m_player->getProperty("sid")},
             {"title", m_player->mediaTitle()}, {"startMs", elapsed},
             {"hwdec", m_player->getProperty("hwdec-current")}, {"vo", m_player->getProperty("current-vo")},
             {"videoCodec", m_player->getProperty("video-codec")}, {"audioCodec", m_player->getProperty("audio-codec-name")},
