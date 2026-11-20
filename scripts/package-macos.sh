@@ -10,6 +10,16 @@ ARCH=$(uname -m)
 OUT="$ROOT/release"
 echo "UVE Player $VERSION (macOS $ARCH)"
 
+# Homebrew-mpv verlangt per pkg-config auch keg-only-Pakete (z. B. libarchive), deren .pc-Dateien nicht im
+# Standardsuchpfad liegen. Ohne sie liefert "pkg-config --cflags mpv" nichts und mpv/client.h fehlt beim Bauen.
+if command -v brew >/dev/null; then
+    for pc in "$(brew --prefix)"/opt/*/lib/pkgconfig; do
+        if [ -d "$pc" ]; then PKG_CONFIG_PATH="${PKG_CONFIG_PATH:+$PKG_CONFIG_PATH:}$pc"; fi
+    done
+    export PKG_CONFIG_PATH
+fi
+pkg-config --cflags mpv >/dev/null || { echo "pkg-config findet mpv nicht vollständig"; pkg-config --print-errors --cflags mpv; exit 1; }
+
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release ${QT_ROOT_DIR:+-DCMAKE_PREFIX_PATH="$QT_ROOT_DIR"}
 cmake --build build --parallel
 
