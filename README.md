@@ -15,6 +15,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **YouTube** | 1.0.1 | Utility | Browse YouTube inside the player – no sign-in needed: search, trending / *For you*, channels, playlists, plus subscriptions, history, watch later and favourites kept by the plugin. Optional: connect your Google account in your default browser. Hover frames on every thumbnail (8 colours, rainbow, glow, zoom), resizable window. `Ctrl+Alt+Y`. [Details](#youtube) |
 | **UVESponsorSkip** | 1.0.2 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
 | **UVEPreview** | 1.0.1 | Utility | Picture preview above the timeline: hovering over or dragging the progress bar shows a small picture of that position with a time stamp (local video files). [Details](#uvepreview) |
+| **UVEWatchParty** | 1.0.5 | Utility | Watch together in sync with friends – no server, no account, no port forwarding. Rooms with a 6-character ID and optional password, chat, common start, automatic sync. Local files, links (YouTube, Twitch …) and plugin-resolved streams; the host can relay everything so guests need no site plugin. [Details](#uvewatchparty) |
 
 ## Twitch Chat
 
@@ -159,11 +160,43 @@ underneath. While dragging, the picture follows the pointer.
   network and live streams and discs show the normal time tooltip.
 - On/off switch on its settings page *Settings → UVEPreview* (on by default).
 
+## UVEWatchParty
+
+Open the *Watch Party* sidebar tab, create a room and send the room ID to your friends – that's all. Nobody needs a server,
+an account or a port forwarding.
+
+- **Rooms:** *Create room* (room name, nickname, optionally *Private room* with a password) and *Join room* are two tabs. The
+  room ID has 6 characters, e.g. `K7M3QX` (no easily confused characters; upper/lower case doesn't matter). *Copy room ID*
+  puts only the ID on the clipboard, never the password. The panel shows members, ready state and connection.
+- **Sync:** play, pause and jumps of the host follow on every device. Guests stay in sync automatically – small drift is
+  corrected by a slightly changed speed, local pauses or jumps are brought back to the room by themselves. The host's clock is
+  the reference; if the host disappears, the longest connected ready member takes over and the room continues.
+- **Common start:** when the host starts a new video, it waits at the beginning until everybody has loaded it, then starts for
+  all at once (at the latest after 45 s; pressing play starts right away).
+- **What can be watched:**
+  - *Local files* are streamed from the host automatically – guests without their own copy watch it at once; guests with a
+    copy open it and press *Ready*.
+  - *Links* (YouTube, Twitch, other streams): every guest opens the same link automatically. Live streams only follow
+    play/pause. A room created while something already plays takes it over.
+  - *Host as the source:* if a guest's player cannot open a link (e.g. because a site plugin is missing), the host relays it
+    automatically. The switch *Stream everything myself as the source (YouTube & co. too)* does this for every medium – the
+    guests get exactly the host's video and sound and need no site plugin. Seeking works; HLS/DASH playlists are relayed too.
+- **Chat** in the room for everybody, with the last 40 messages for newcomers and join/leave notes; messages from others also
+  appear briefly on the video.
+- **How it works:** room messages travel end-to-end encrypted (AES-256-GCM, key from room ID + password) over several public
+  Nostr relays; each session signs with a fresh random key. Video goes directly between the devices over WebRTC (Cloudflare
+  STUN), shared files as a private block swarm with SHA-256 checks. Optional: own relays, STUN or a TURN relay in
+  *Settings → Watch Party*.
+- **Limits:** a direct connection is not possible in every network (e.g. some mobile carriers); without TURN the panel then
+  says so – links still work, because every guest loads them from the source. Relaying needs the host's upload (about the
+  video bitrate per viewer).
+- Windows x64 and Linux x86-64 in one package (macOS ARM64 added by the plugin build).
+
 ## Other files
 
 - `gvf_filter_codes_2026-11-09_01-08.json` – exported filter set in the userscript format (Matrix, FSR 1.0 Luma Upscale, Game Boy, Auto Color Enhance), importable into GLSL Manager.
 
 ## Requirements
 
-Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify, UVESuno and UVESponsorSkip ≥ 1.1.6; titles and lengths for Spotify, Suno and TikTok playlists ≥ 1.2.1; YouTube ≥ 1.3.0; UVEPreview ≥ 1.2.9).
+Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify, UVESuno and UVESponsorSkip ≥ 1.1.6; titles and lengths for Spotify, Suno and TikTok playlists ≥ 1.2.1; YouTube ≥ 1.3.0; UVEPreview and UVEWatchParty ≥ 1.2.9).
 All plugins are MIT-licensed.
