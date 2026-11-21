@@ -14,7 +14,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **UVESuno** | 1.0.1 | Utility | Plays songs, playlists and whole profiles from suno.com as a stream, with titles, lengths and gapless transitions. [Details](#uvesuno) |
 | **YouTube** | 1.0.1 | Utility | Browse YouTube inside the player – no sign-in needed: search, trending / *For you*, channels, playlists, plus subscriptions, history, watch later and favourites kept by the plugin. Optional: connect your Google account in your default browser. Hover frames on every thumbnail (8 colours, rainbow, glow, zoom), resizable window. `Ctrl+Alt+Y`. [Details](#youtube) |
 | **UVESponsorSkip** | 1.0.2 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
-| **UVEPreview** | 1.0.1 | Utility | Picture preview above the timeline: hovering over or dragging the progress bar shows a small picture of that position with a time stamp (local video files). [Details](#uvepreview) |
+| **UVEPreview** | 1.0.2 | Utility | Picture preview above the timeline: hovering over or dragging the progress bar shows a small picture of that position with a time stamp (local video files). [Details](#uvepreview) |
 | **UVEWatchParty** | 1.0.5 | Utility | Watch together in sync with friends – no server, no account, no port forwarding. Rooms with a 6-character ID and optional password, chat, common start, automatic sync. Local files, links (YouTube, Twitch …) and plugin-resolved streams; the host can relay everything so guests need no site plugin. [Details](#uvewatchparty) |
 
 ## Twitch Chat
