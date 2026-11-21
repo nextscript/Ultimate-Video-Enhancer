@@ -1,0 +1,33 @@
+{
+  "id": "org.uveplayer.uvewatchparty",
+  "name": "UVEWatchParty",
+  "version": "1.0.5",
+  "apiVersion": 1,
+  "minHostVersion": "1.2.9",
+  "type": "utility",
+  "description": {
+    "de": "Watch Party: Filme mit Freunden synchron schauen. Raum mit kopierbarer ID und optionalem Passwort erstellen, Start/Pause/Sprünge des Hosts laufen bei allen mit. Wer die Datei nicht hat, schaut über den privaten Raumstream (WebRTC, Peer-to-Peer) – ohne Portfreigabe.",
+    "en": "Watch Party: watch films in sync with friends. Create a room with a copyable ID and optional password; the host's play/pause/seek follow on every device. Members without the file watch through the private room stream (WebRTC, peer-to-peer) – no port forwarding.",
+    "es": "Watch Party: ver películas sincronizadas con amigos. Crea una sala con ID copiable y contraseña opcional; reproducir/pausar/saltos del anfitrión se siguen en todos los equipos. Quien no tenga el archivo lo ve por el stream privado de la sala (WebRTC, P2P), sin abrir puertos.",
+    "it": "Watch Party: guarda film in sincronia con gli amici. Crea una stanza con ID copiabile e password opzionale; play/pausa/salti dell'host seguono su tutti i dispositivi. Chi non ha il file guarda tramite lo stream privato della stanza (WebRTC, peer-to-peer), senza aprire porte.",
+    "pl": "Watch Party: oglądaj filmy synchronicznie ze znajomymi. Utwórz pokój z kopiowalnym ID i opcjonalnym hasłem; odtwarzanie/pauza/przeskoki gospodarza działają u wszystkich. Kto nie ma pliku, ogląda przez prywatny strumień pokoju (WebRTC, P2P) – bez przekierowania portów.",
+    "tr": "Watch Party: filmleri arkadaşlarınla senkron izle. Kopyalanabilir kimlik ve isteğe bağlı parola ile oda oluştur; sunucunun oynat/duraklat/atlamaları herkeste uygulanır. Dosyası olmayanlar özel oda akışıyla (WebRTC, eşler arası) izler – port yönlendirme gerekmez.",
+    "el": "Watch Party: δείτε ταινίες συγχρονισμένα με φίλους. Δημιουργήστε δωμάτιο με αντιγράψιμο ID και προαιρετικό κωδικό· αναπαραγωγή/παύση/μεταπηδήσεις του οικοδεσπότη ακολουθούν παντού. Όποιος δεν έχει το αρχείο βλέπει μέσω της ιδιωτικής ροής του δωματίου (WebRTC, P2P) – χωρίς προώθηση θυρών."
+  },
+  "author": "UVE Player",
+  "license": "MIT",
+  "library": "uve_uvewatchparty.dll",
+  "libraries": {
+    "windows-x64": "uve_uvewatchparty.dll",
+    "linux-x86_64": "libuvewatchparty.so",
+    "macos-arm64": "libuvewatchparty.dylib"
+  },
+  "supportedPlatforms": ["windows", "linux", "macos"],
+  "requiredBackends": ["plugin-events", "plugin-commands"],
+  "contributes": {
+    "panels": [
+      { "id": "main", "title": "Watch Party", "qml": "qrc:/uvewatchparty/WatchPartyPanel.qml", "location": "sidebar" },
+      { "id": "settings", "title": "Watch Party", "qml": "qrc:/uvewatchparty/WatchPartySettings.qml", "location": "settings" }
+    ]
+  }
+}
