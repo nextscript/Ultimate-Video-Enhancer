@@ -3,7 +3,7 @@
 # libmpv wird nicht gelinkt: das Modul nutzt zur Laufzeit die libmpv, die der Player schon geladen hat
 # (Header der Client-/Render-API liegen unter third_party/mpv, ISC-Lizenz).
 cmake_minimum_required(VERSION 3.25)
-project(UVEPreview VERSION 1.0.1 LANGUAGES CXX)
+project(UVEPreview VERSION 1.0.2 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -17,7 +17,7 @@ set(UVE_PLAYER_DIR "M:/LAPS/UVE Player" CACHE PATH "Quellordner des UVE Player")
 option(BUILD_TESTING "Tests bauen" ON)
 set(qt_parts Core Gui Qml Quick)
 if(BUILD_TESTING)
-    list(APPEND qt_parts Test)
+    list(APPEND qt_parts Test Network)   # Network nur für den HTTP-Testserver
 endif()
 find_package(Qt6 6.5 REQUIRED COMPONENTS ${qt_parts})
 qt_standard_project_setup(REQUIRES 6.5)
@@ -36,7 +36,7 @@ if(BUILD_TESTING)
     enable_testing()
     qt_add_executable(tst_uvepreview tst_uvepreview.cpp)
     target_include_directories(tst_uvepreview PRIVATE "${UVE_PLAYER_DIR}/src/plugins")
-    target_link_libraries(tst_uvepreview PRIVATE uvepreview_worker Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Test)
+    target_link_libraries(tst_uvepreview PRIVATE uvepreview_worker Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Test Qt6::Network)
     target_compile_definitions(tst_uvepreview PRIVATE UVEPREVIEW_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
                                                       UVE_PLAYER_DIR="${UVE_PLAYER_DIR}")
     add_test(NAME tst_uvepreview COMMAND tst_uvepreview)

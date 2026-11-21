@@ -36,11 +36,13 @@ Item {
             wrapMode: Text.Wrap
             color: root.mutedColor
             text: root.t("Beim Überfahren oder Ziehen des Fortschrittsbalkens erscheint ein kleines Bild der Stelle mit Zeitstempel. "
-                         + "Gilt für lokale Videodateien; bei Audio, Netzwerk- und Livestreams sowie Discs zeigt die Zeitleiste wie gewohnt die Zeit. "
-                         + "Die Vorschau dekodiert die Datei separat – Position, Pause, Ton und Effekte der Wiedergabe bleiben unverändert.",
+                         + "Gilt für Videodateien und Online-Videos (z. B. HLS, MP4-Links, Videoseiten über yt-dlp oder Plugins); "
+                         + "bei Audio, Livestreams und Discs zeigt die Zeitleiste wie gewohnt die Zeit. "
+                         + "Die Vorschau dekodiert das Video separat – Position, Pause, Ton und Effekte der Wiedergabe bleiben unverändert.",
                          "Hovering over or dragging the progress bar shows a small picture of that position with a time stamp. "
-                         + "Works for local video files; for audio, network and live streams and discs the timeline shows the time as usual. "
-                         + "The preview decodes the file separately – position, pause, sound and effects of the playback stay unchanged.")
+                         + "Works for video files and online videos (e.g. HLS, MP4 links, video sites via yt-dlp or plugins); "
+                         + "for audio, live streams and discs the timeline shows the time as usual. "
+                         + "The preview decodes the video separately – position, pause, sound and effects of the playback stay unchanged.")
         }
         Label {
             visible: !!controller && controller.status !== ""

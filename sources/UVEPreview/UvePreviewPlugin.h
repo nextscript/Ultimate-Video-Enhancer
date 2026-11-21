@@ -68,6 +68,7 @@ private:
     void updateAvailable();
     void setStatus(const QString &s);
     void invalidate();
+    QVariant mpvGet(const char *name) const;
 
     struct Frame { QString url; int w = 0; int h = 0; quint64 used = 0; };
 
@@ -82,7 +83,9 @@ private:
     QString m_status;
 
     quint64 m_media = 0;          // Wiedergabesitzung (wechselt mit jedem Medium)
-    QString m_path;               // lokaler Pfad oder leer
+    QString m_path;               // lokaler Pfad, Stream-Adresse oder leer
+    bool m_network = false;       // m_path ist ein Stream
+    StreamAccess m_access;        // Kopfzeilen/Cookies/Proxy des Players für den Stream
     double m_duration = 0;
     double m_step = 1;
 

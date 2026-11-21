@@ -31,6 +31,11 @@ namespace {
 constexpr int kOpenLimitMs = 12000;   // Datei öffnen + erstes Bild
 constexpr int kSeekLimitMs = 6000;    // ein Sprung + Bild
 constexpr int kIdleCloseMs = 2500;    // ohne Aufträge die Datei wieder freigeben
+// Streams: Öffnen und Springen dauern übers Netz länger; die Instanz bleibt länger offen, weil erneutes Öffnen
+// teuer ist und keine Datei gesperrt wird
+constexpr int kNetOpenLimitMs = 25000;
+constexpr int kNetSeekLimitMs = 15000;
+constexpr int kNetIdleCloseMs = 30000;
 
 // ------------------------------------------------------------------ libmpv des Players finden
 // Kein eigenes libmpv im Paket: der Player hat seine libmpv schon geladen (Windows: libmpv-2.dll, Linux/macOS:
@@ -212,7 +217,8 @@ struct PreviewWorker::Instance {
     std::unique_ptr<StreamSource> source;   // lebt bis nach mpv_terminate_destroy
     quint64 media = 0;
     QString path;
-    qint64 pixels = 0;       // Videogröße (Breite × Höhe) für die Wahl exakt/Keyframe
+    bool network = false;
+    qint64 pixels = 0;      // Videogröße (Breite × Höhe) für die Wahl exakt/Keyframe
     bool transient = false;  // Öffnen vorübergehend fehlgeschlagen (Datei gesperrt) → beim nächsten Auftrag neu versuchen
     bool failed = false;     // Medium hat keine nutzbare Videospur → alle weiteren Aufträge sofort ablehnen
     QString failReason;
@@ -287,7 +293,7 @@ void PreviewWorker::run()
             // Leerlauf: Instanz bleibt kurz offen (schnelle nächste Vorschau), dann Datei freigeben
             const auto ready = [this] { return m_stop || m_close || m_hasJob; };
             if (inst.handle) {
-                if (!m_cv.wait_for(l, std::chrono::milliseconds(kIdleCloseMs), ready)) {
+                if (!m_cv.wait_for(l, std::chrono::milliseconds(inst.network ? kNetIdleCloseMs : kIdleCloseMs), ready)) {
                     l.unlock();
                     destroyInstance(inst);
                     continue;
@@ -305,7 +311,7 @@ void PreviewWorker::run()
             job = m_job;
             m_hasJob = false;
         }
-        if (inst.handle && (inst.media != job.media || inst.path != job.path)) destroyInstance(inst);
+        if (inst.handle && (inst.media != job.media || inst.path != job.path || inst.network != job.network)) destroyInstance(inst);
         if (inst.failed && inst.media == job.media) {
             emit frameFailed(job.id, job.media, job.index, inst.failReason);
             continue;
@@ -440,9 +446,11 @@ bool PreviewWorker::openInstance(Instance &inst, const PreviewJob &job, QString 
     if (qEnvironmentVariable("UVEPREVIEW_SOURCE") == QLatin1String("render")) g_source = 1;   // Test des Rückfallwegs
     inst.media = job.media;
     inst.path = job.path;
+    inst.network = job.network;
     inst.failed = false;
     if (qEnvironmentVariableIsSet("UVEPREVIEW_DEBUG"))
-        qDebug("preview open %s (%s)", qPrintable(QFileInfo(job.path).fileName()), g_source == 1 ? "render api" : "screenshot");
+        qDebug("preview open %s (%s)", qPrintable(job.network ? job.path.left(80) : QFileInfo(job.path).fileName()),
+               g_source == 1 ? "render api" : "screenshot");
     inst.handle = m.create();
     if (!inst.handle) { *reason = QStringLiteral("mpv_create failed"); return false; }
     {
@@ -468,7 +476,25 @@ bool PreviewWorker::openInstance(Instance &inst, const PreviewJob &job, QString 
     for (auto &o : opts) m.set_option_string(inst.handle, o[0], o[1]);
     if (!vf.isEmpty()) m.set_option_string(inst.handle, "vf", vf.constData());
     if (g_source == 1) m.set_option_string(inst.handle, "video-rotate", "no");
+    if (job.network) {
+        // Stream wie im Player abrufen; bei HLS die kleinste Variante (reicht für 240 px und lädt am schnellsten)
+        const StreamAccess &a = job.access;
+        m.set_option_string(inst.handle, "network-timeout", "15");
+        m.set_option_string(inst.handle, "hls-bitrate", "min");
+        if (!a.userAgent.isEmpty()) m.set_option_string(inst.handle, "user-agent", a.userAgent.toUtf8().constData());
+        if (!a.referrer.isEmpty()) m.set_option_string(inst.handle, "referrer", a.referrer.toUtf8().constData());
+        if (!a.proxy.isEmpty()) m.set_option_string(inst.handle, "http-proxy", a.proxy.toUtf8().constData());
+        if (a.cookies) m.set_option_string(inst.handle, "cookies", "yes");
+        if (!a.cookiesFile.isEmpty()) m.set_option_string(inst.handle, "cookies-file", a.cookiesFile.toUtf8().constData());
+    }
     if (m.initialize(inst.handle) < 0) { *reason = QStringLiteral("mpv_initialize failed"); return false; }
+    if (job.network) {
+        for (const QString &field : job.access.headerFields) {
+            const QByteArray value = field.toUtf8();
+            const char *add[] = {"change-list", "http-header-fields", "append", value.constData(), nullptr};
+            m.command(inst.handle, add);
+        }
+    }
 
     inst.wake = std::make_unique<Wake>();
     m.set_wakeup_callback(inst.handle, onWakeup, inst.wake.get());
@@ -485,22 +511,28 @@ bool PreviewWorker::openInstance(Instance &inst, const PreviewJob &job, QString 
         m.rc_set_update_callback(inst.render, onWakeup, inst.wake.get());
     }
 
-    // Datei selbst öffnen (QFile: Qt-Pfadlogik für Leerzeichen, Unicode, lange Pfade) und über uvepreview://
-    // an mpv geben; der Dateiname im Pfad hilft nur bei der Formaterkennung
-    inst.source = std::make_unique<StreamSource>();
-    inst.source->path = QFileInfo(job.path).absoluteFilePath();
-    if (m.stream_cb_add_ro(inst.handle, "uvepreview", inst.source.get(), streamOpen) < 0) {
-        *reason = QStringLiteral("stream callback not available");
-        return false;
+    QByteArray path;
+    if (job.network) {
+        path = job.path.toUtf8();   // Stream: dieselbe Adresse, die der Player geöffnet hat
+    } else {
+        // Datei selbst öffnen (QFile: Qt-Pfadlogik für Leerzeichen, Unicode, lange Pfade) und über uvepreview://
+        // an mpv geben; der Dateiname im Pfad hilft nur bei der Formaterkennung
+        inst.source = std::make_unique<StreamSource>();
+        inst.source->path = QFileInfo(job.path).absoluteFilePath();
+        if (m.stream_cb_add_ro(inst.handle, "uvepreview", inst.source.get(), streamOpen) < 0) {
+            *reason = QStringLiteral("stream callback not available");
+            return false;
+        }
+        path = "uvepreview://" + QUrl::toPercentEncoding(QFileInfo(job.path).fileName());
     }
-    const QByteArray path = "uvepreview://" + QUrl::toPercentEncoding(QFileInfo(job.path).fileName());
     const char *cmd[] = {"loadfile", path.constData(), nullptr};
     if (m.command(inst.handle, cmd) < 0) { *reason = QStringLiteral("loadfile failed"); return false; }
 
+    const int openLimit = job.network ? kNetOpenLimitMs : kOpenLimitMs;
     QElapsedTimer t;
     t.start();
     bool loaded = false, ready = false;
-    while (!ready && t.elapsed() < kOpenLimitMs) {
+    while (!ready && t.elapsed() < openLimit) {
         if (interrupted()) { *reason = QStringLiteral("cancelled"); return false; }
         for (;;) {
             mpv_event *ev = m.wait_event(inst.handle, 0);
@@ -512,6 +544,8 @@ bool PreviewWorker::openInstance(Instance &inst, const PreviewJob &job, QString 
                 if (ef->error == MPV_ERROR_NOTHING_TO_PLAY || ef->error == MPV_ERROR_UNKNOWN_FORMAT) {
                     *reason = QStringLiteral("no playable video"); return false;
                 }
+                // Stream abgelehnt (z. B. 403, Adresse abgelaufen): kein Netzlaufwerk-Fall, nicht wiederholen
+                if (job.network) { *reason = QStringLiteral("stream not available"); return false; }
                 // Öffnen fehlgeschlagen: Netzlaufwerke (z. B. RaiDrive/WinFsp) verweigern einen zweiten Zugriff,
                 // solange sie die gerade geladene Datei noch zwischenspeichern → kurz warten, erneut laden
                 if (t.elapsed() > kOpenLimitMs - 1500) {
@@ -554,7 +588,16 @@ bool PreviewWorker::openInstance(Instance &inst, const PreviewJob &job, QString 
         }
         if (!ready) inst.wake->wait(50);
     }
-    if (!ready) { *reason = loaded ? QStringLiteral("no frame decoded") : QStringLiteral("timeout opening file"); return false; }
+    if (!ready) {
+        // Langsamer Stream: kein Urteil über das Medium, beim nächsten Überfahren neu versuchen
+        if (job.network && !loaded) {
+            inst.transient = true;
+            *reason = QStringLiteral("stream slow");
+            return false;
+        }
+        *reason = loaded ? QStringLiteral("no frame decoded") : QStringLiteral("timeout opening file");
+        return false;
+    }
 
     int64_t vw = 0, vh = 0;
     m.get_property(inst.handle, "video-params/w", MPV_FORMAT_INT64, &vw);
@@ -580,7 +623,9 @@ QImage PreviewWorker::renderAt(Instance &inst, const PreviewJob &job, QString *r
     const QByteArray pos = QByteArray::number(qMax(0.0, job.time), 'f', 3);
     // Exakt bis 1920×1200; größere Videos (4K, lange GOPs: ~0,5 s pro exaktem Sprung) nur bei kurzer Länge exakt,
     // sonst Keyframe (~60 ms) – die Vorschau soll dem Zeiger folgen
-    const bool exact = job.exact && (inst.pixels <= 1920 * 1200 || job.duration <= 60);
+    // Streams immer Keyframe: ein exakter Sprung lädt und dekodiert übers Netz bis zur Zielstelle
+    const bool exact = !inst.network && job.exact && (inst.pixels <= 1920 * 1200 || job.duration <= 60);
+    const int seekLimit = inst.network ? kNetSeekLimitMs : kSeekLimitMs;
     const char *cmd[] = {"seek", pos.constData(), exact ? "absolute+exact" : "absolute+keyframes", nullptr};
     // Liegengebliebene Ereignisse (z. B. PLAYBACK_RESTART vom Öffnen) verwerfen – nur der Restart nach
     // diesem Sprung zählt
@@ -594,7 +639,7 @@ QImage PreviewWorker::renderAt(Instance &inst, const PreviewJob &job, QString *r
     if (inst.render) {
         // Rückfallweg: neue Bilder laufend abholen (die VO wartet sonst bis zu 200 ms darauf), das endgültige Bild
         // aber erst nach PLAYBACK_RESTART rendern – ältere libmpv meldet direkt nach dem SEEK noch das alte Bild
-        while (!restarted && t.elapsed() < kSeekLimitMs) {
+        while (!restarted && t.elapsed() < seekLimit) {
             if (interrupted()) { *reason = QStringLiteral("cancelled"); return {}; }
             for (;;) {
                 mpv_event *ev = m.wait_event(inst.handle, 0);
@@ -612,7 +657,7 @@ QImage PreviewWorker::renderAt(Instance &inst, const PreviewJob &job, QString *r
         m.rc_update(inst.render);
         return renderCurrent(m, inst.handle, inst.render, job.boxWidth, job.boxHeight, reason);
     }
-    while (!restarted && t.elapsed() < kSeekLimitMs) {
+    while (!restarted && t.elapsed() < seekLimit) {
         if (interrupted()) { *reason = QStringLiteral("cancelled"); return {}; }
         for (;;) {
             mpv_event *ev = m.wait_event(inst.handle, 0);

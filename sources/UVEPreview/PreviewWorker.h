@@ -1,10 +1,11 @@
 #pragma once
 // UVEPreview: Vorschau-Decoder. Eine eigene libmpv-Instanz (dieselbe libmpv, die der Player schon geladen hat)
-// in einem Hintergrund-Thread lädt das lokale Medium ein zweites Mal, springt an die gewünschte Stelle und rendert
-// mit dem Software-Renderer der Render-API ein kleines Bild. Die Hauptwiedergabe bleibt unberührt.
+// in einem Hintergrund-Thread lädt das Medium (lokale Datei oder Stream) ein zweites Mal, springt an die gewünschte
+// Stelle und holt ein kleines Bild. Die Hauptwiedergabe bleibt unberührt.
 // Pro Medium höchstens eine Instanz; es wartet immer nur der neueste Auftrag (ältere werden ersetzt).
 #include <QImage>
 #include <QString>
+#include <QStringList>
 #include <QThread>
 
 #include <condition_variable>
@@ -20,10 +21,22 @@ inline double previewStep(double duration)
     return duration <= 0 ? 1.0 : std::clamp(duration / 400.0, 0.04, 10.0);
 }
 
+// Abruf eines Streams wie im Player: dieselben Kopfzeilen, Cookies und derselbe Proxy
+struct StreamAccess {
+    QString userAgent;
+    QString referrer;
+    QStringList headerFields;   // "Name: Wert", einzeln angehängt (Werte dürfen Kommas enthalten)
+    QString proxy;
+    bool cookies = false;
+    QString cookiesFile;
+};
+
 struct PreviewJob {
     quint64 id = 0;        // Anfragekennung
     quint64 media = 0;     // Kennung der Wiedergabesitzung
-    QString path;          // lokaler Dateipfad
+    QString path;          // lokaler Dateipfad oder (network) die Adresse, die der Player geöffnet hat
+    bool network = false;  // Stream (http/https/ftp/edl) statt lokaler Datei
+    StreamAccess access;   // nur bei network
     double time = 0;       // Zielzeit in Sekunden
     int index = -1;        // Rasterplatz (Cache-Schlüssel)
     int boxWidth = 240;    // Bild passt in boxWidth × boxHeight, Seitenverhältnis bleibt

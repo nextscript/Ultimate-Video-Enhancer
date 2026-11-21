@@ -9,6 +9,7 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QQuickWindow>
+#include <QRegularExpression>
 #include <QTimer>
 #include <QUrl>
 
@@ -105,14 +106,39 @@ static bool isLocalVideoPath(const QString &path, QString *local)
     if (path.isEmpty()) return false;
     QString p = path;
     const QUrl url(path);
-    // Laufwerksbuchstabe "C:/…" ist kein URL-Schema; file:// in einen Pfad wandeln; alle anderen Schemata
-    // (http, tcp, dvd, bd, cdda, edl, memory …) sind Netzwerk/Disc → keine Bildvorschau in 1.0.0
+    // Laufwerksbuchstabe "C:/…" ist kein URL-Schema; file:// in einen Pfad wandeln; andere Schemata sind keine Datei
     if (url.isLocalFile()) p = url.toLocalFile();
     else if (!url.scheme().isEmpty() && url.scheme().size() > 1) return false;
     const QFileInfo fi(p);
     if (!fi.exists() || !fi.isFile()) return false;
     *local = fi.absoluteFilePath();
     return true;
+}
+
+// Streams, die eine zweite Instanz unabhängig vom Player öffnen kann: http(s)/ftp und EDL-Listen (von yt-dlp oder
+// Plugins zusammengesetzte Video-/Audiospuren bzw. Segmente). Rohe TCP/UDP/RTSP/RTMP-Streams sind live oder lassen
+// sich nicht zweimal öffnen, Discs (dvd, bd, cdda) gehören dem Player.
+static bool isPreviewableStream(const QString &url)
+{
+    const QString scheme = QUrl(url).scheme().toLower();
+    if (scheme == QLatin1String("edl")) return url.size() > 6;
+    if (scheme != QLatin1String("http") && scheme != QLatin1String("https") && scheme != QLatin1String("ftp")) return false;
+    return !QUrl(url).host().isEmpty();
+}
+
+// Für die Statuszeile: Server des Streams (bei EDL der erste enthaltene)
+static QString streamLabel(const QString &url)
+{
+    const qsizetype at = url.indexOf(QLatin1String("://"), url.startsWith(QLatin1String("edl://")) ? 6 : 0);
+    if (at < 0) return url.left(60);
+    const qsizetype start = url.lastIndexOf(QRegularExpression(QStringLiteral("[^a-zA-Z]")), at - 1) + 1;
+    const QString host = QUrl(url.mid(start)).host();
+    return host.isEmpty() ? url.left(60) : host;
+}
+
+QVariant UvePreviewController::mpvGet(const char *name) const
+{
+    return m_host->call(kId, QStringLiteral("mpv.get"), {{"name", QString::fromLatin1(name)}});
 }
 
 void UvePreviewController::mediaChanged(const QString &path, double duration)
@@ -125,10 +151,28 @@ void UvePreviewController::mediaChanged(const QString &path, double duration)
     ++m_media;
     m_unsupported = false;
     m_path.clear();
+    m_network = false;
+    m_access = {};
     m_duration = duration;
     QString local;
-    if (isLocalVideoPath(path, &local)) {
-        m_path = local;
+    if (!path.isEmpty() && !isLocalVideoPath(path, &local)) {
+        // Stream: die Adresse, die mpv tatsächlich geöffnet hat (bei Seiten-Links von yt-dlp aufgelöst)
+        QString open = mpvGet("stream-open-filename").toString();
+        if (open.isEmpty() || !isPreviewableStream(open)) open = path;
+        if (isPreviewableStream(open)) {
+            m_path = open;
+            m_network = true;
+            // Gleicher Abruf wie im Player (Plugins wie UVEBeeg und yt-dlp setzen Referer, Agent, Cookies je Video)
+            m_access.userAgent = mpvGet("user-agent").toString();
+            m_access.referrer = mpvGet("referrer").toString();
+            m_access.headerFields = mpvGet("http-header-fields").toStringList();
+            m_access.proxy = mpvGet("http-proxy").toString();
+            m_access.cookies = mpvGet("cookies").toBool();
+            m_access.cookiesFile = mpvGet("cookies-file").toString();
+        }
+    }
+    if (!m_path.isEmpty() || isLocalVideoPath(path, &local)) {
+        if (!m_network) m_path = local;
         // Hauptwiedergabe schon bekannt als ohne Video (Audiodatei, nur Cover) → gar nicht erst laden
         const QVariant albumart = m_host->call(kId, QStringLiteral("mpv.get"), {{"name", QStringLiteral("current-tracks/video/albumart")}});
         const QVariant vid = m_host->call(kId, QStringLiteral("mpv.get"), {{"name", QStringLiteral("current-tracks/video/id")}});
@@ -150,10 +194,11 @@ void UvePreviewController::updateAvailable()
     if (!avail) clearImage();
     if (!mpvOk) setStatus(text("libmpv nicht gefunden – keine Bildvorschau.", "libmpv not found – no picture preview."));
     else if (!m_enabled) setStatus(text("Aus – die Zeitleiste zeigt nur die Zeit.", "Off – the timeline only shows the time."));
-    else if (m_path.isEmpty()) setStatus(text("Kein lokales Video geöffnet – die Zeitleiste zeigt nur die Zeit.",
-                                              "No local video open – the timeline only shows the time."));
-    else if (m_unsupported) setStatus(text("Keine Videospur – die Zeitleiste zeigt nur die Zeit.",
-                                           "No video track – the timeline only shows the time."));
+    else if (m_path.isEmpty()) setStatus(text("Kein Video mit Vorschau geöffnet – die Zeitleiste zeigt nur die Zeit.",
+                                              "No video with preview open – the timeline only shows the time."));
+    else if (m_unsupported) setStatus(text("Keine Videospur oder Stream nicht abrufbar – die Zeitleiste zeigt nur die Zeit.",
+                                           "No video track or stream not available – the timeline only shows the time."));
+    else if (m_network) setStatus(text("Bereit (Stream): %1", "Ready (stream): %1").arg(streamLabel(m_path)));
     else setStatus(text("Bereit: %1", "Ready: %1").arg(QFileInfo(m_path).fileName()));
 }
 
@@ -184,6 +229,8 @@ void UvePreviewController::dispatch()
     job.id = ++m_seq;
     job.media = m_media;
     job.path = m_path;
+    job.network = m_network;
+    job.access = m_access;
     job.index = m_wanted;
     // Letzter Rasterplatz: kurz vor das Ende, damit es sicher ein Bild gibt
     job.time = qMin(m_wanted * m_step, qMax(0.0, m_duration - qMin(0.25, m_duration / 50.0)));
@@ -223,7 +270,8 @@ void UvePreviewController::onFailed(quint64 id, quint64 media, int index, const 
     if (media != m_media) return;
     if (id == m_lastSent) m_sentIndex = -1;
     // Vorübergehend (abgebrochen, Datei gesperrt): beim nächsten Überfahren neu versuchen
-    if (reason != QLatin1String("cancelled") && reason != QLatin1String("file busy")) m_failed.insert(index);
+    if (reason != QLatin1String("cancelled") && reason != QLatin1String("file busy") && reason != QLatin1String("stream slow"))
+        m_failed.insert(index);
     if (reason != QLatin1String("cancelled"))
         m_host->log(kId, QStringLiteral("debug"), QStringLiteral("preview %1: %2").arg(index).arg(reason));
     // Bei Fehler bleibt der Tooltip mit der Zeit (kein Bild für diese Stelle)
@@ -232,7 +280,8 @@ void UvePreviewController::onFailed(quint64 id, quint64 media, int index, const 
 void UvePreviewController::onUnsupported(quint64 media, const QString &reason)
 {
     if (media != m_media) return;
-    m_host->log(kId, QStringLiteral("info"), QStringLiteral("no preview for %1: %2").arg(QFileInfo(m_path).fileName(), reason));
+    m_host->log(kId, QStringLiteral("info"), QStringLiteral("no preview for %1: %2")
+                                                  .arg(m_network ? streamLabel(m_path) : QFileInfo(m_path).fileName(), reason));
     m_unsupported = true;
     m_worker->closeMedia();
     updateAvailable();

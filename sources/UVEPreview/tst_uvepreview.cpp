@@ -16,6 +16,8 @@
 #include <QQuickView>
 #include <QSignalSpy>
 #include <QStandardPaths>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -86,6 +88,71 @@ public:
     bool hasCommand(const QString &) const override { return true; }
 };
 
+// ---------------------------------------------------------------- Kleiner HTTP-Server für Stream-Tests
+// Liefert Dateien aus einem Ordner mit Range-Unterstützung (Springen in MP4) und merkt sich die Kopfzeilen.
+// Mit `requireReferer` antwortet er ohne passenden Referer mit 403 (wie Hoster, die den Referer prüfen).
+class TestHttpServer : public QTcpServer
+{
+public:
+    QString root;
+    QByteArray requireReferer;
+    QList<QByteArray> requests;   // erste Zeile + Kopfzeilen je Anfrage
+    explicit TestHttpServer(const QString &dir) : root(dir)
+    {
+        connect(this, &QTcpServer::newConnection, this, [this] {
+            while (QTcpSocket *s = nextPendingConnection()) {
+                connect(s, &QTcpSocket::readyRead, s, [this, s] { serve(s); });
+                connect(s, &QTcpSocket::disconnected, s, &QObject::deleteLater);
+            }
+        });
+    }
+    QString url(const QString &file) const { return QStringLiteral("http://127.0.0.1:%1/%2").arg(serverPort()).arg(file); }
+
+private:
+    void serve(QTcpSocket *s)
+    {
+        QByteArray &buf = m_pending[s];
+        buf += s->readAll();
+        const qsizetype end = buf.indexOf("\r\n\r\n");
+        if (end < 0) return;
+        const QByteArray head = buf.left(end);
+        buf.remove(0, end + 4);
+        requests << head;
+        const QList<QByteArray> lines = head.split('\n');
+        const QList<QByteArray> first = lines.value(0).trimmed().split(' ');
+        QByteArray range, referer;
+        for (const QByteArray &l : lines) {
+            if (l.toLower().startsWith("range:")) range = l.mid(6).trimmed();
+            if (l.toLower().startsWith("referer:")) referer = l.mid(8).trimmed();
+        }
+        const QString name = QUrl::fromPercentEncoding(first.value(1).mid(1));
+        QFile f(QDir(root).filePath(name));
+        if ((!requireReferer.isEmpty() && referer != requireReferer) || !f.open(QIODevice::ReadOnly)) {
+            s->write("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            s->disconnectFromHost();
+            return;
+        }
+        const qint64 size = f.size();
+        qint64 from = 0, to = size - 1;
+        const bool partial = range.startsWith("bytes=");
+        if (partial) {
+            const QList<QByteArray> r = range.mid(6).split('-');
+            from = r.value(0).toLongLong();
+            if (!r.value(1).isEmpty()) to = qMin(size - 1, r.value(1).toLongLong());
+        }
+        f.seek(from);
+        const QByteArray body = f.read(to - from + 1);
+        const QByteArray type = name.endsWith(".m3u8") ? "application/vnd.apple.mpegurl" : name.endsWith(".ts") ? "video/mp2t" : "video/mp4";
+        QByteArray resp = partial ? "HTTP/1.1 206 Partial Content\r\n" : "HTTP/1.1 200 OK\r\n";
+        resp += "Content-Type: " + type + "\r\nAccept-Ranges: bytes\r\nContent-Length: " + QByteArray::number(body.size()) + "\r\n";
+        if (partial) resp += "Content-Range: bytes " + QByteArray::number(from) + "-" + QByteArray::number(to) + "/" + QByteArray::number(size) + "\r\n";
+        resp += "Connection: close\r\n\r\n";
+        s->write(resp + body);
+        s->disconnectFromHost();
+    }
+    QHash<QTcpSocket *, QByteArray> m_pending;
+};
+
 // ---------------------------------------------------------------- Test
 class TstUvePreview : public QObject
 {
@@ -102,11 +169,13 @@ private slots:
     void lockedFileRetry();
     void userFile();
     void releasesFileWhenIdle();
+    void httpStreams();
     void seekbarIntegration();
 
 private:
     bool makeVideo(const QString &file, const QStringList &args);
-    QImage grab(PreviewWorker &w, quint64 media, const QString &path, double t, bool exact = true, QString *err = nullptr);
+    QImage grab(PreviewWorker &w, quint64 media, const QString &path, double t, bool exact = true, QString *err = nullptr,
+                const StreamAccess *access = nullptr);
 
     QTemporaryDir m_dir;
     bool m_ffmpeg = false;
@@ -165,7 +234,8 @@ void TstUvePreview::initTestCase()
     QVERIFY(makeVideo(m_audio, {"-f", "lavfi", "-i", "sine=frequency=440:duration=3", "-c:a", "libmp3lame"}));
 }
 
-QImage TstUvePreview::grab(PreviewWorker &w, quint64 media, const QString &path, double t, bool exact, QString *err)
+QImage TstUvePreview::grab(PreviewWorker &w, quint64 media, const QString &path, double t, bool exact, QString *err,
+                           const StreamAccess *access)
 {
     static quint64 id = 0;
     QSignalSpy ok(&w, &PreviewWorker::frameReady);
@@ -174,12 +244,16 @@ QImage TstUvePreview::grab(PreviewWorker &w, quint64 media, const QString &path,
     job.id = ++id;
     job.media = media;
     job.path = path;
+    if (access) {
+        job.network = true;
+        job.access = *access;
+    }
     job.time = t;
     job.index = int(t * 10);
     job.exact = exact;
     job.duration = 600;   // lang genug, damit große Videos die Keyframe-Regel nutzen
     w.submit(job);
-    if (!QTest::qWaitFor([&] { return ok.size() + fail.size() > 0; }, 20000)) { if (err) *err = QStringLiteral("timeout"); return {}; }
+    if (!QTest::qWaitFor([&] { return ok.size() + fail.size() > 0; }, 40000)) { if (err) *err = QStringLiteral("timeout"); return {}; }
     if (!fail.isEmpty()) { if (err) *err = fail.first().at(3).toString(); return {}; }
     return ok.first().at(3).value<QImage>();
 }
@@ -349,14 +423,19 @@ void TstUvePreview::lockedFileRetry()
 
 void TstUvePreview::userFile()
 {
-    // Optional: echte Datei prüfen, z. B. UVEPREVIEW_FILE=O:\movies\film.mkv
+    // Optional: echte Datei oder echten Stream prüfen, z. B. UVEPREVIEW_FILE=O:\movies\film.mkv oder
+    // UVEPREVIEW_FILE=https://…/video.mp4 (dazu UVEPREVIEW_REFERER)
     const QString f = qEnvironmentVariable("UVEPREVIEW_FILE");
     if (f.isEmpty()) QSKIP("UVEPREVIEW_FILE not set");
+    const bool stream = f.contains(QLatin1String("://"));
+    StreamAccess access;
+    access.userAgent = QStringLiteral("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36");
+    access.referrer = qEnvironmentVariable("UVEPREVIEW_REFERER");
     PreviewWorker w;
-    for (double pos : {1.0, 30.0, 60.0}) {
+    for (double pos : {1.0, 30.0, 60.0, 300.0}) {
         QElapsedTimer t; t.start();
         QString err;
-        const QImage img = grab(w, 1, f, pos, true, &err);
+        const QImage img = grab(w, 1, f, pos, true, &err, stream ? &access : nullptr);
         qInfo() << pos << "s:" << (img.isNull() ? err : QStringLiteral("%1x%2").arg(img.width()).arg(img.height())) << t.elapsed() << "ms";
         QVERIFY2(!img.isNull(), qPrintable(err));
         img.save(m_dir.filePath(QStringLiteral("user_%1.png").arg(int(pos))));
@@ -391,6 +470,58 @@ void TstUvePreview::releasesFileWhenIdle()
     qInfo() << "closeMedia(wait) released the file after" << t.elapsed() << "ms";
     w.shutdown();
 #endif
+}
+
+void TstUvePreview::httpStreams()
+{
+    if (!m_ffmpeg) QSKIP("ffmpeg missing");
+    // MP4 und HLS über HTTP: Bilder an verschiedenen Stellen, Kopfzeilen wie im Player
+    const QString web = m_dir.filePath("web");
+    QVERIFY(QDir().mkpath(web));
+    QVERIFY(QFile::copy(m_main, web + "/main.mp4"));
+    QVERIFY(makeVideo(web + "/hls.m3u8", {"-i", m_main, "-c", "copy", "-f", "hls", "-hls_time", "2", "-hls_list_size", "0",
+                                          "-hls_playlist_type", "vod"}));
+    TestHttpServer server(web);
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    StreamAccess access;
+    access.userAgent = "UVE-Test/1";
+    access.referrer = "https://site.test/";
+    access.headerFields = {"X-Test: a,b", "Cookie: k=v; other=1,2"};
+    server.requireReferer = access.referrer.toUtf8();
+
+    for (const QString &file : {QStringLiteral("main.mp4"), QStringLiteral("hls.m3u8")}) {
+        PreviewWorker w;
+        QString err;
+        QElapsedTimer t; t.start();
+        const QImage a = grab(w, 1, server.url(file), 2.0, true, &err, &access);
+        QVERIFY2(!a.isNull(), qPrintable(file + ": " + err));
+        qInfo() << file << "open + first picture:" << t.elapsed() << "ms";
+        t.restart();
+        const QImage b = grab(w, 1, server.url(file), 14.0, true, &err, &access);
+        QVERIFY2(!b.isNull(), qPrintable(file + ": " + err));
+        qInfo() << file << "seek in open stream:" << t.elapsed() << "ms";
+        QCOMPARE(a.size(), QSize(240, 135));
+        QVERIFY2(meanDiff(a, b) > 8, "two positions look the same");
+        b.save(m_dir.filePath("http_" + QFileInfo(file).baseName() + ".png"));
+        w.shutdown();
+    }
+    // Kopfzeilen des Players kommen an; Kommas in Werten bleiben erhalten
+    const QByteArray all = server.requests.join("\n---\n");
+    QVERIFY2(all.contains("User-Agent: UVE-Test/1"), all.left(400).constData());
+    QVERIFY(all.contains("X-Test: a,b"));
+    QVERIFY(all.contains("Cookie: k=v; other=1,2"));
+
+    // Ohne Referer verweigert der Server → keine Vorschau für dieses Medium, kein Hängen
+    PreviewWorker w;
+    QSignalSpy un(&w, &PreviewWorker::mediaUnsupported);
+    StreamAccess none;
+    QString err;
+    QElapsedTimer t; t.start();
+    QVERIFY(grab(w, 9, server.url("main.mp4"), 1.0, true, &err, &none).isNull());
+    QCOMPARE(un.size(), 1);
+    qInfo() << "refused stream:" << err << t.elapsed() << "ms";
+    QVERIFY(t.elapsed() < 10000);
+    w.shutdown();
 }
 
 void TstUvePreview::seekbarIntegration()
@@ -499,9 +630,31 @@ void TstUvePreview::seekbarIntegration()
     QVERIFY(!popup->isVisible());
     QTRY_COMPARE(ctl->property("available").toBool(), false);
 
-    // Netzwerkadresse → keine Vorschau
+    // Stream-Adressen: http(s)/EDL mit Vorschau; Live-Quellen wie tcp/udp/rtmp und Discs ohne
     events->onEvent("media.loaded", {{"path", "https://example.com/video.mp4"}, {"duration", 60.0}});
-    QCOMPARE(ctl->property("available").toBool(), false);
+    QCOMPARE(ctl->property("available").toBool(), true);
+    QVERIFY(ctl->property("status").toString().contains("example.com"));
+    events->onEvent("media.loaded", {{"path", "edl://%30%https://cdn.example.com/a/v.mp4"}, {"duration", 60.0}});
+    QCOMPARE(ctl->property("available").toBool(), true);
+    QVERIFY(ctl->property("status").toString().contains("cdn.example.com"));
+    for (const char *live : {"tcp://127.0.0.1:9000", "udp://239.0.0.1:1234", "rtmp://live.example.com/app", "dvd://", "cdda://"}) {
+        events->onEvent("media.loaded", {{"path", QString::fromLatin1(live)}, {"duration", 60.0}});
+        QVERIFY2(!ctl->property("available").toBool(), live);
+    }
+
+    // Stream über die echte Zeitleiste: Hover zeigt ein Bild
+    const QString web = m_dir.filePath("web2");
+    QVERIFY(QDir().mkpath(web));
+    QVERIFY(QFile::copy(m_main, web + "/v.mp4"));
+    TestHttpServer server(web);
+    QVERIFY(server.listen(QHostAddress::LocalHost));
+    events->onEvent("media.loaded", {{"path", server.url("v.mp4")}, {"duration", 20.0}});
+    player.duration = 20; emit player.changed();
+    QTest::mouseMove(&win, QPoint(500, 410));
+    QTRY_VERIFY_WITH_TIMEOUT(popup->isVisible(), 20000);
+    win.grabWindow().save(m_dir.filePath("seekbar_stream.png"));
+    events->onEvent("media.loading", {{"url", "x"}});
+    QTRY_VERIFY(!popup->isVisible());
 
     // Hochformat-Video, dann Plugin deaktivieren: Ebene weg, Tooltip normal
     events->onEvent("media.loaded", {{"path", m_portrait}, {"duration", 4.0}});

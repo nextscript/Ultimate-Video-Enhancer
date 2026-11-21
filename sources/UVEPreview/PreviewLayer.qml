@@ -17,7 +17,7 @@ Item {
 
     readonly property real dur: player && player.duration > 0 ? player.duration : 0
     readonly property bool hovering: !!mouse && (mouse.containsMouse || mouse.pressed)
-    // Nur lokale, seekbare Videos mit bekannter Dauer; Live, Rückspulpuffer usw. behalten die normale Zeitleiste
+    // Nur seekbare Videos (Datei oder Stream) mit bekannter Dauer; Live, Rückspulpuffer usw. behalten die normale Zeitleiste
     readonly property bool usable: !!controller && controller.enabled && controller.available && dur > 0
                                    && !!mouse && mouse.enabled && !!bar && bar.rewind !== true && bar.live !== true
     // Dieselbe Rechnung wie Tooltip und Sprung der SeekBar

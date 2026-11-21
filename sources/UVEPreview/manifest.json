@@ -1,18 +1,18 @@
 {
   "id": "org.uveplayer.uvepreview",
   "name": "UVEPreview",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "apiVersion": 1,
   "minHostVersion": "1.2.9",
   "type": "utility",
   "description": {
-    "de": "Vorschaubild über der Zeitleiste: Beim Überfahren oder Ziehen des Fortschrittsbalkens erscheint ein kleines Bild der Stelle mit Zeitstempel (lokale Videodateien).",
-    "en": "Picture preview above the timeline: hovering over or dragging the progress bar shows a small picture of that position with a time stamp (local video files).",
-    "es": "Vista previa sobre la línea de tiempo: al pasar o arrastrar sobre la barra de progreso aparece una imagen pequeña de esa posición con la hora (archivos de vídeo locales).",
-    "it": "Anteprima sopra la timeline: passando o trascinando sulla barra di avanzamento appare una piccola immagine del punto con l'orario (file video locali).",
-    "pl": "Podgląd nad osią czasu: po najechaniu lub przeciągnięciu paska postępu pojawia się mały obraz tego miejsca ze znacznikiem czasu (lokalne pliki wideo).",
-    "tr": "Zaman çizelgesi üzerinde önizleme: ilerleme çubuğunun üzerine gelindiğinde veya sürüklendiğinde o konumun küçük bir resmi zaman damgasıyla görünür (yerel video dosyaları).",
-    "el": "Προεπισκόπηση πάνω από τη γραμμή χρόνου: περνώντας ή σύροντας στη γραμμή προόδου εμφανίζεται μια μικρή εικόνα του σημείου με χρονοσφραγίδα (τοπικά αρχεία βίντεο)."
+    "de": "Vorschaubild über der Zeitleiste: Beim Überfahren oder Ziehen des Fortschrittsbalkens erscheint ein kleines Bild der Stelle mit Zeitstempel (Videodateien und Online-Videos).",
+    "en": "Picture preview above the timeline: hovering over or dragging the progress bar shows a small picture of that position with a time stamp (video files and online videos).",
+    "es": "Vista previa sobre la línea de tiempo: al pasar o arrastrar sobre la barra de progreso aparece una imagen pequeña de esa posición con la hora (archivos de vídeo y vídeos en línea).",
+    "it": "Anteprima sopra la timeline: passando o trascinando sulla barra di avanzamento appare una piccola immagine del punto con l'orario (file video e video online).",
+    "pl": "Podgląd nad osią czasu: po najechaniu lub przeciągnięciu paska postępu pojawia się mały obraz tego miejsca ze znacznikiem czasu (pliki wideo i filmy online).",
+    "tr": "Zaman çizelgesi üzerinde önizleme: ilerleme çubuğunun üzerine gelindiğinde veya sürüklendiğinde o konumun küçük bir resmi zaman damgasıyla görünür (video dosyaları ve çevrimiçi videolar).",
+    "el": "Προεπισκόπηση πάνω από τη γραμμή χρόνου: περνώντας ή σύροντας στη γραμμή προόδου εμφανίζεται μια μικρή εικόνα του σημείου με χρονοσφραγίδα (αρχεία βίντεο και διαδικτυακά βίντεο)."
   },
   "author": "UVE Player",
   "license": "MIT",
@@ -21,7 +21,12 @@
   "requiredBackends": ["plugin-events", "plugin-commands"],
   "contributes": {
     "panels": [
-      { "id": "settings", "title": "UVEPreview", "qml": "qrc:/uvepreview/UvePreviewSettings.qml", "location": "settings" }
+      {
+        "id": "settings",
+        "title": "UVEPreview",
+        "qml": "qrc:/uvepreview/UvePreviewSettings.qml",
+        "location": "settings"
+      }
     ]
   }
 }
