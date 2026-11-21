@@ -82,6 +82,17 @@ def lookup_ref(url, ref):
     return None, None
 
 
+PLAYER_BRANCH = "uve-player"
+
+
+def latest_player_release(url):
+    """Neuester Tag uve-player-v<x.y.z> im Player-Repo oder "" (dann Ladeprüfung nur gegen das Qt des Runners)."""
+    tags = [l.split("refs/tags/", 1)[1] for l in git("ls-remote", "--tags", url, "uve-player-v*").splitlines()
+            if "refs/tags/" in l and not l.endswith("^{}")]
+    tags = [t for t in tags if re.fullmatch(r"uve-player-v\d+\.\d+\.\d+", t)]
+    return max(tags, key=lambda t: version_tuple(t[len("uve-player-v"):]), default="")
+
+
 def resolve_ref(url, ref, what):
     sha, kind = lookup_ref(url, ref)
     if not sha:
@@ -268,11 +279,17 @@ def cmd_resolve(a):
     # ---- Player (Plugin-API, Qt-Version)
     player = cfg.get("player", {})
     player_repo = player.get("repository") or repo
-    player_ref = a.player_ref or player.get("ref")
-    if not player_ref:
-        fail(".github/plugin-builds.json: player.ref fehlt (fester Player-Tag oder Commit)")
+    # Kein Tag nötig: Standard ist der Player-Zweig. Gibt es den angegebenen Ref (z. B. einen gelöschten Tag) nicht
+    # mehr, wird ebenfalls der Zweig genommen.
     player_url = repo_url(player_repo, "PLAYER_TOKEN")
-    player_sha, _ = resolve_ref(player_url, player_ref, f"Player {player_repo}")
+    player_ref = a.player_ref or player.get("ref") or PLAYER_BRANCH
+    player_sha, _ = lookup_ref(player_url, player_ref)
+    if not player_sha and player_ref != PLAYER_BRANCH:
+        print(f"::warning::Player-Ref '{player_ref}' gibt es nicht (mehr) – nehme Zweig {PLAYER_BRANCH}")
+        player_ref = PLAYER_BRANCH
+        player_sha, _ = lookup_ref(player_url, player_ref)
+    if not player_sha:
+        fail(f"Player {player_repo}: '{player_ref}' ist weder Tag, Zweig noch Commit")
     fetch_commit(player_url, player_sha, tmp / "player")
     if show(tmp / "player", player_sha, "src/plugins/PluginApi.h") is None:
         fail(f"Player {player_ref} ({player_sha[:10]}): src/plugins/PluginApi.h fehlt")
@@ -283,6 +300,11 @@ def cmd_resolve(a):
     cml = (show(tmp / "player", player_sha, "CMakeLists.txt") or b"").decode("utf8")
     pv = re.search(r"project\(UVEPlayer VERSION ([0-9.]+)", cml)
     player_version = pv.group(1) if pv else ""
+    # Ladeprüfung gegen einen veröffentlichten Player: der angegebene Release-Tag, sonst der neueste vorhandene
+    player_release = player_ref if player_ref.startswith("uve-player-v") else latest_player_release(player_url)
+    if player_release and player_release != player_ref:
+        player_version = player_release[len("uve-player-v"):]   # Dateinamen der Release-Assets
+        print(f"Ladeprüfung gegen den neuesten Player-Release {player_release}")
 
     # ---- Wohin die Module kommen
     win = [k for k in targets if k.startswith("windows-")]
@@ -319,7 +341,7 @@ def cmd_resolve(a):
         package=package, source_repo=src_repo, source_ref=src_ref, source_sha=src_sha, source_path=src_path,
         target=target, build_secrets=",".join(build_secrets), package_dir=entry.get("packageDir", ""), run_tests="true" if entry.get("tests", mode == "full") else "false",
         player_repo=player_repo, player_ref=player_ref, player_sha=player_sha, player_version=player_version,
-        player_release=player_ref if player_ref.startswith("uve-player-v") else "",
+        player_release=player_release,
         qt_version=qt.group(1), targets=",".join(targets), libraries=json.dumps(libraries, separators=(",", ":")))
 
 

@@ -126,12 +126,18 @@ def cmd_resolve(a):
     # Qt-Version des Players (wie build-plugin.yml): player.ref aus plugin-builds.json → release.yml
     cfg = json.loads(CONFIG.read_text(encoding="utf8"))
     player = cfg.get("player", {})
-    repo, ref = player.get("repository", ""), player.get("ref", "")
-    url = f"https://raw.githubusercontent.com/{repo}/{ref}/.github/workflows/release.yml"
-    try:
-        release = urllib.request.urlopen(url, timeout=30).read().decode("utf8")
-    except Exception as e:
-        fail(f"{url} nicht ladbar: {e}")
+    # Kein Tag nötig: Standard ist der Player-Zweig; fehlt der angegebene Ref (z. B. gelöschter Tag), ebenfalls
+    repo, ref = player.get("repository", ""), player.get("ref") or "uve-player"
+    release = None
+    for r in dict.fromkeys([ref, "uve-player"]):
+        url = f"https://raw.githubusercontent.com/{repo}/{r}/.github/workflows/release.yml"
+        try:
+            release = urllib.request.urlopen(url, timeout=30).read().decode("utf8")
+            break
+        except Exception as e:
+            print(f"::warning::{url} nicht ladbar: {e}")
+    if release is None:
+        fail(f"release.yml des Players {repo} nicht ladbar")
     qt = re.search(r'^\s*QT_VERSION:\s*"?([0-9.]+)"?', release, re.M)
     if not qt:
         fail(f"Qt-Version in {url} nicht gefunden")

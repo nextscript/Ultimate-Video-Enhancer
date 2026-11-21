@@ -1,8 +1,8 @@
 {
-  "_comment": "Plugins, die .github/workflows/build-plugin.yml baut. sourceRef: Tag des Quellstands ({version} = Plugin-Version), ohne Tag gilt sourceFallbackRef (Zweig, zum Start auf einen Commit festgelegt). player.ref: fester Player-Tag für PluginApi.h, Qt-Version und Toolchain.",
+  "_comment": "Plugins, die .github/workflows/build-plugin.yml baut. sourceRef: Tag des Quellstands ({version} = Plugin-Version), ohne Tag gilt sourceFallbackRef (Zweig, zum Start auf einen Commit festgelegt). player.ref: Zweig, Tag oder Commit des Players für PluginApi.h, Qt-Version und Toolchain (Standard und Rückfall: Zweig uve-player; die Ladeprüfung nimmt automatisch den neuesten Player-Release).",
   "player": {
     "repository": "nextscript/Ultimate-Video-Enhancer",
-    "ref": "uve-player-v1.2.9"
+    "ref": "uve-player"
   },
   "catalogBranch": "uve-player-plugins",
   "targets": ["windows-x64", "linux-x86_64", "macos-arm64"],
