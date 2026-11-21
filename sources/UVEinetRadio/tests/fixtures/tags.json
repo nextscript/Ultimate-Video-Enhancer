@@ -1,0 +1,14 @@
+[
+ {
+  "name": "pop",
+  "stationcount": 7000
+ },
+ {
+  "name": "jazz",
+  "stationcount": 1200
+ },
+ {
+  "name": "news",
+  "stationcount": 900
+ }
+]

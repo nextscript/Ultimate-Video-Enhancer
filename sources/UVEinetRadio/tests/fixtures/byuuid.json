@@ -1,0 +1,30 @@
+[
+ {
+  "changeuuid": "00000000-0000-0000-0000-000000009000",
+  "stationuuid": "00000000-0000-0000-0000-000000001000",
+  "name": "Testsender 00 (neu)",
+  "url": "https://fresh.example.invalid/new",
+  "url_resolved": "https://fresh.example.invalid/new.mp3",
+  "homepage": "https://www.sender0.example.invalid/",
+  "favicon": "",
+  "tags": "pop,rock",
+  "country": "Germany",
+  "countrycode": "DE",
+  "iso_3166_2": null,
+  "state": "",
+  "language": "german",
+  "languagecodes": "de",
+  "votes": 100,
+  "lastchangetime_iso8601": "2026-11-01T10:00:00Z",
+  "codec": "MP3",
+  "bitrate": 128,
+  "hls": 0,
+  "lastcheckok": 1,
+  "clickcount": 1000,
+  "clicktrend": 0,
+  "ssl_error": 0,
+  "geo_lat": null,
+  "geo_long": null,
+  "has_extended_info": false
+ }
+]

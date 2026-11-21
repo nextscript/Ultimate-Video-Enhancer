@@ -1,0 +1,22 @@
+[
+ {
+  "name": "Germany",
+  "iso_3166_1": "DE",
+  "stationcount": 5000
+ },
+ {
+  "name": "Austria",
+  "iso_3166_1": "AT",
+  "stationcount": 800
+ },
+ {
+  "name": "",
+  "iso_3166_1": "",
+  "stationcount": 3
+ },
+ {
+  "name": "Zeroland",
+  "iso_3166_1": "ZZ",
+  "stationcount": 0
+ }
+]

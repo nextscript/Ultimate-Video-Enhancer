@@ -1,0 +1,57 @@
+# UVEinetRadio 1.0.0
+
+Internet radio for the UVE Player: search the free [Radio Browser](https://www.radio-browser.info/) catalogue, keep
+favourites and listen through the player's existing libmpv playback (volume, audio output and error display stay the
+player's). No account, no API key, no web view, no server.
+
+## Host requirements
+
+`minHostVersion` is **1.2.9**: the upload workflow adds `libraries` (Windows x64 / Linux x86-64 / macOS ARM64), which
+older players do not understand. Functionally the plugin uses only API v1 commands that exist since 1.2.1
+(`playlist.add` with `titles`, `playlist.items`, `playlist.play`, `player.state`, `player.stop`, `mpv.get`, `osd.show`,
+`panel.open`) and the events `media.loading`, `media.loaded`, `media.ended`, `player.stopped`, `playback.paused`,
+`action.triggered`.
+
+## How it works
+
+| Part | Behaviour |
+|---|---|
+| Playback | **▶ / Play** or double-click only. The station is appended with its name via `playlist.add {urls, titles, play:true}` (fallback `player.load`); an existing playlist entry with the same address is played instead of adding a duplicate. Other entries stay. |
+| Status | *Checking → Connecting → Playing*. "Playing" only after `media.loaded` for exactly the requested source. Results for an older station or after a stop are dropped (generation counter); `media.ended` with `reason=error` shows the player's error text. |
+| Now playing | Artist/title polled from mpv `metadata` (`icy-title`, or `artist`/`title` for HLS/ID3) while the player still has this station; reset on every station change. No metadata → only the station name. Plain text only. |
+| Stream check | Before handing a URL to the player: only http/https, redirects only to http/https and never HTTPS→HTTP, TLS certificate errors are not ignored, HTML answers are rejected as web pages (content sniffing, so `text/html` streams with audio data still work). Anything Qt cannot judge (e.g. old `ICY 200` servers) is left to mpv. |
+| Catalogue | Mirrors from DNS (`_api._tcp.radio-browser.info` SRV + `all.api.radio-browser.info` A/AAAA with reverse lookup), shuffled, HTTPS by host name; next mirror on timeout/5xx/network error, at most 3 attempts. `User-Agent: UVEinetRadio/1.0.0 …`. Search via `/json/stations/search` (`name`, `countrycode`, `language`, `tag`, `order`, `hidebroken=true`, `limit=30`, `offset`), debounced 350 ms, superseded requests aborted. Filters from `/json/countries`, `/json/languages`, `/json/tags`. |
+| Clicks | `/json/url/<stationuuid>` only if *Report station clicks* is on (off by default) and only when a station is played from the search. Never for favourites, history or own URLs. |
+| Data | `<plugin.dataDir>/library.json` (format `uveinetradio-library`, version 1, written with `QSaveFile`): favourites incl. own streams and their last working URL, history (20). A broken file is kept as `library.json.broken-<time>`. Caches in `cache/catalog` (8 MB / 200 files, used when the API is down) and `cache/logos` (40 MB / 600 files, ≤ 1 MB per logo), clearable separately in the settings page. |
+| Network | Catalogue and logos use the player's mpv `http-proxy` if set, otherwise Qt's application/system proxy. Streams go through the player as usual. |
+| UI | QML files in `qml/`, German source strings with `qsTr`, English in `lang/uveinetradio_en.qm` (player translation format). Colours from the player theme. |
+
+## Build
+
+```
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=<Qt 6.12> -DUVE_PLAYER_DIR=<player sources>
+cmake --build build
+```
+
+Package: `manifest.json`, `uve_uveinetradio.dll`, `qml/*.qml`, `lang/*.qm` (the build copies them next to the module).
+Translations: `lupdate qml -source-language de -ts lang/uveinetradio_en.ts`, then `lrelease`.
+
+## Tests
+
+* `tst_uveinetradio` – offline, local HTTP server with fixtures from `tests/fixtures` (Radio Browser answers), fake host:
+  search parameters and paging, filters, debounce/stale results, mirror failover (refused, HTTP 503, hanging mirror),
+  limited retries, offline cache, favourites after restart (incl. offline), broken library file, history limit,
+  nothing plays without *Play*, own stream, web page rejection, redirects, unreachable stream, player error +
+  catalogue refresh, fast station switching, stop during the check, missing/arriving title metadata, click endpoint
+  only when enabled, last working URL, logo cache, all QML pages load without warnings, English translation.
+* `tst_uveinetradio_live` (`-DUVEINETRADIO_MPV_DIR=…`, run with `UVEINETRADIO_LIVE=1`) – real catalogue (DNS mirror
+  discovery, live failover from a dead mirror) and real libmpv playback (`ao=null`, `vo=null`) of an MP3, an AAC and an
+  HLS station picked from the catalogue's most-clicked stations.
+
+### Tested on 2026-11-21
+
+| System | Build | Offline tests | Live playback (libmpv) | Install in the player |
+|---|---|---|---|---|
+| Windows 10 x64 (MSVC 2022, Qt 6.12) | ✔ | 29/29 | MP3 ✔ (ICY title), AAC ✔ (ICY title), HLS ✔ (no titles → name stays) – libmpv-2.dll from the player | package and module metadata checked (`qtplugininfo`: player IID, manifest); not installed in the running player |
+| Linux x86-64 (WSL Ubuntu 24.04, GCC, Qt 6.12) | ✔ | 28/28 (+1 skipped snapshot) | MP3 ✔, AAC ✔, HLS ✔ – system libmpv 0.37 | not tested |
+| macOS ARM64 | built by the plugin workflow only | – | – | not tested |

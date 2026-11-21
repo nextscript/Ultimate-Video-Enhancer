@@ -1,0 +1,12 @@
+[
+ {
+  "name": "german",
+  "iso_639": "de",
+  "stationcount": 6000
+ },
+ {
+  "name": "english",
+  "iso_639": "en",
+  "stationcount": 9000
+ }
+]

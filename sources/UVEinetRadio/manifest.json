@@ -1,0 +1,42 @@
+{
+  "id": "org.uveplayer.uveinetradio",
+  "name": "UVEinetRadio",
+  "version": "1.0.0",
+  "apiVersion": 1,
+  "minHostVersion": "1.2.9",
+  "type": "utility",
+  "description": {
+    "de": "Internetradio: Zehntausende Live-Sender aus dem freien Radio-Browser-Katalog suchen (Name, Land, Sprache, Genre), als Favoriten speichern und im Player hören – ohne Konto und ohne API-Schlüssel. Mit Zuletzt gehört, Jetzt läuft (Künstler/Titel, sofern der Sender sie liefert) und eigenen Stream-Adressen.",
+    "en": "Internet radio: search tens of thousands of live stations from the free Radio Browser catalogue (name, country, language, genre), keep favourites and listen in the player – no account, no API key. With recently played, now playing (artist/title when the station sends them) and your own stream addresses.",
+    "es": "Radio por Internet: busca decenas de miles de emisoras en directo del catálogo libre Radio Browser (nombre, país, idioma, género), guarda favoritas y escúchalas en el reproductor, sin cuenta ni clave de API.",
+    "it": "Radio Internet: cerca decine di migliaia di stazioni dal catalogo libero Radio Browser (nome, paese, lingua, genere), salva i preferiti e ascoltale nel player, senza account né chiave API.",
+    "pl": "Radio internetowe: wyszukuj dziesiątki tysięcy stacji na żywo z wolnego katalogu Radio Browser (nazwa, kraj, język, gatunek), zapisuj ulubione i słuchaj w odtwarzaczu – bez konta i klucza API.",
+    "tr": "İnternet radyosu: ücretsiz Radio Browser kataloğundaki on binlerce canlı istasyonu arayın (ad, ülke, dil, tür), favorilere ekleyin ve oynatıcıda dinleyin – hesap ve API anahtarı gerekmez.",
+    "el": "Διαδικτυακό ραδιόφωνο: αναζητήστε δεκάδες χιλιάδες ζωντανούς σταθμούς από τον ελεύθερο κατάλογο Radio Browser (όνομα, χώρα, γλώσσα, είδος), κρατήστε αγαπημένα και ακούστε στο πρόγραμμα αναπαραγωγής – χωρίς λογαριασμό και κλειδί API."
+  },
+  "author": "UVE Player",
+  "license": "MIT",
+  "library": "uve_uveinetradio.dll",
+  "supportedPlatforms": ["windows", "linux", "macos"],
+  "requiredBackends": ["plugin-events", "plugin-commands"],
+  "contributes": {
+    "panels": [
+      {
+        "id": "main",
+        "title": { "de": "Internetradio", "en": "Internet radio" },
+        "qml": "qml/RadioPanel.qml",
+        "location": "sidebar"
+      },
+      {
+        "id": "settings",
+        "title": { "de": "Internetradio", "en": "Internet radio" },
+        "qml": "qml/RadioSettings.qml",
+        "location": "settings"
+      }
+    ],
+    "menu": [
+      { "id": "open", "title": { "de": "Internetradio", "en": "Internet radio" } }
+    ],
+    "translations": "lang"
+  }
+}
