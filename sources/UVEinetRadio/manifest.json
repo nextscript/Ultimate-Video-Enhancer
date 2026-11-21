@@ -1,7 +1,7 @@
 {
   "id": "org.uveplayer.uveinetradio",
   "name": "UVEinetRadio",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "apiVersion": 1,
   "minHostVersion": "1.2.9",
   "type": "utility",

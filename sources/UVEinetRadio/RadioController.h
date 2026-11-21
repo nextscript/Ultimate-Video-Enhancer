@@ -5,6 +5,7 @@
 #include "PluginApi.h"
 #include "RadioBrowser.h"
 #include "RadioTypes.h"
+#include "StationListModel.h"
 #include "StationStore.h"
 
 #include <QObject>
@@ -25,6 +26,10 @@ class RadioController : public QObject
     Q_OBJECT
     // Suche
     Q_PROPERTY(QVariantList results READ results NOTIFY resultsChanged)
+    // Für die Listen im Panel: Modelle, die beim Nachladen/Ändern nur Zeilen einfügen (kein Sprung nach oben)
+    Q_PROPERTY(QObject *resultsModel READ resultsModel CONSTANT)
+    Q_PROPERTY(QObject *favoritesModel READ favoritesModel CONSTANT)
+    Q_PROPERTY(QObject *historyModel READ historyModel CONSTANT)
     Q_PROPERTY(bool searchBusy READ searchBusy NOTIFY searchStateChanged)
     Q_PROPERTY(bool searchDone READ searchDone NOTIFY searchStateChanged)
     Q_PROPERTY(bool hasMore READ hasMore NOTIFY searchStateChanged)
@@ -75,6 +80,9 @@ public:
     QNetworkAccessManager *network() const { return m_nam; }
 
     QVariantList results() const { return m_results; }
+    QObject *resultsModel() { return &m_resultsModel; }
+    QObject *favoritesModel() { return &m_favoritesModel; }
+    QObject *historyModel() { return &m_historyModel; }
     bool searchBusy() const { return m_searchBusy; }
     bool searchDone() const { return m_searchDone; }
     bool hasMore() const { return m_hasMore; }
@@ -177,6 +185,9 @@ private:
     quint64 m_searchReq = 0;
     QTimer m_debounce;
     QVariantList m_results;
+    StationListModel m_resultsModel;
+    StationListModel m_favoritesModel;
+    StationListModel m_historyModel;
     bool m_searchBusy = false;
     bool m_searchDone = false;
     bool m_hasMore = false;

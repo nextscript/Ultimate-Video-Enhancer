@@ -9,7 +9,7 @@
 namespace uve::radio {
 
 inline constexpr const char *kPluginId = "org.uveplayer.uveinetradio";
-inline constexpr const char *kPluginVersion = "1.0.0";
+inline constexpr const char *kPluginVersion = "1.0.1";
 QString userAgent();
 
 struct Station

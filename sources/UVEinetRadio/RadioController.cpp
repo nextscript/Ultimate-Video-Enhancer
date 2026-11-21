@@ -47,6 +47,13 @@ RadioController::RadioController(uve::IPlayerHost *host, const QString &dataDir,
     connect(m_browser.get(), &RadioBrowser::mirrorChanged, this, &RadioController::mirrorChanged);
 
     if (!m_store.load()) m_storageError = m_store.lastError();
+    connect(this, &RadioController::resultsChanged, this, [this] { m_resultsModel.setItems(m_results); });
+    connect(this, &RadioController::libraryChanged, this, [this] {
+        m_favoritesModel.setItems(favorites());
+        m_historyModel.setItems(history());
+    });
+    m_favoritesModel.setItems(favorites());
+    m_historyModel.setItems(history());
 
     if (m_host) {
         const QJsonObject s = m_host->loadPluginSettings(kId);

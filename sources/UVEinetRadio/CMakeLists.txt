@@ -3,7 +3,7 @@
 # Same Qt (6.12) and toolchain as the player. The package also needs the files from qml/ and lang/*.qm next to the module.
 # Optional live test with real libmpv: -DUVEINETRADIO_MPV_DIR=<folder with include/mpv and the import library>
 cmake_minimum_required(VERSION 3.25)
-project(UVEinetRadio VERSION 1.0.0 LANGUAGES CXX)
+project(UVEinetRadio VERSION 1.0.1 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -31,6 +31,7 @@ add_library(uveinetradio_core STATIC
     Caches.cpp Caches.h
     StationStore.cpp StationStore.h
     StreamProbe.cpp StreamProbe.h
+    StationListModel.cpp StationListModel.h
     RadioController.cpp RadioController.h)
 target_include_directories(uveinetradio_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "${UVE_PLAYER_DIR}/src/plugins")
 target_link_libraries(uveinetradio_core PUBLIC Qt6::Core Qt6::Gui Qt6::Network)

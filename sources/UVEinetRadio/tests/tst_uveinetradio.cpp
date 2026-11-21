@@ -199,7 +199,7 @@ private slots:
         for (const char *p : {"name=Test", "countrycode=DE", "language=german", "tag=pop", "hidebroken=true", "limit=30",
                               "offset=0", "order=name"})
             QVERIFY2(req.contains(QLatin1String(p)), qPrintable(req));
-        QVERIFY(m_api->lastHeaders().contains("User-Agent: UVEinetRadio/1.0.0"));
+        QVERIFY(m_api->lastHeaders().contains("User-Agent: UVEinetRadio/1.0.1"));
 
         // Seitenweise: zweite Seite anhängen
         c->loadMore();
@@ -274,8 +274,9 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(done, 5000);
         QVERIFY2(res.ok, qPrintable(res.error));
         QCOMPARE(res.data.array().size(), 31);
-        QCOMPARE(down.hits("/json/stations/search"), 1);
-        QCOMPARE(hang.hits("/json/stations/search"), 1);
+        // Qt kann eine Anfrage nach abgebrochener Verbindung intern einmal wiederholen – daher „mindestens einmal“
+        QVERIFY(down.hits("/json/stations/search") >= 1);
+        QVERIFY(hang.hits("/json/stations/search") >= 1);
         QCOMPARE(mirrorSpy.count(), 3);
         QCOMPARE(rb.currentMirror(), QStringLiteral("127.0.0.1"));
         // Der funktionierende Spiegel bleibt gewählt
@@ -283,8 +284,9 @@ private slots:
         const int apiHits = m_api->hits("/json/stations/search");
         rb.search(SearchQuery{}, [&](const RadioBrowser::Result &r) { res = r; done = true; });
         QTRY_VERIFY(done);
+        const int downHits = down.hits("/json/stations/search");
         QCOMPARE(m_api->hits("/json/stations/search"), apiHits + 1);
-        QCOMPARE(down.hits("/json/stations/search"), 1);
+        QCOMPARE(down.hits("/json/stations/search"), downHits);   // kaputter Spiegel wird nicht erneut gefragt
     }
 
     void limitedRetriesAndOfflineCache()
@@ -666,6 +668,45 @@ private slots:
         QCOMPARE(c->favorites().size(), 1);   // Favoriten bleiben
     }
 
+
+    // Nachladen und Stern dürfen die Liste nicht neu aufbauen – sonst springt sie nach oben (1.0.1)
+    void scrollPositionKept()
+    {
+        FakeHost host;
+        auto c = makeController(host);
+        c->search("Test", {}, {}, {}, "name");
+        QTRY_VERIFY(!c->searchBusy() && c->results().size() == 30);
+        QQmlEngine engine;
+        QQmlComponent comp(&engine);
+        comp.setData("import QtQuick\nListView { width: 300; height: 200; property var c\n"
+                     " model: c.resultsModel\n delegate: Item { required property var modelData; width: 300; height: 50 } }", QUrl());
+        std::unique_ptr<QObject> view(comp.createWithInitialProperties({{"c", QVariant::fromValue<QObject *>(c.get())}}));
+        QVERIFY2(view, qPrintable(comp.errorString()));
+        QTRY_COMPARE(view->property("count").toInt(), 30);
+        view->setProperty("contentY", 1100.0);   // weit unten
+        auto *model = qobject_cast<QAbstractItemModel *>(c->resultsModel());
+        QSignalSpy resets(model, &QAbstractItemModel::modelReset);
+        QSignalSpy inserts(model, &QAbstractItemModel::rowsInserted);
+        c->loadMore();
+        QTRY_COMPARE(view->property("count").toInt(), 35);
+        QCOMPARE(resets.count(), 0);
+        QVERIFY(inserts.count() > 0);
+        QCOMPARE(view->property("contentY").toDouble(), 1100.0);
+        // Favorit setzen ändert die Trefferliste nicht
+        c->toggleFavorite(c->results().at(25).toMap());
+        QCOMPARE(view->property("contentY").toDouble(), 1100.0);
+
+        // Favoriten-/Verlaufsmodell: Entfernen/Hinzufügen ohne Neuaufbau, Reihenfolge stimmt
+        auto *fav = qobject_cast<QAbstractItemModel *>(c->favoritesModel());
+        QSignalSpy favResets(fav, &QAbstractItemModel::modelReset);
+        for (int i = 0; i < 5; ++i) c->toggleFavorite(c->results().at(i).toMap());
+        c->removeFavorite(c->results().at(2).toMap().value("id").toString());
+        QCOMPARE(fav->rowCount(), 5);
+        QCOMPARE(favResets.count(), 0);
+        const QVariantList expect = c->favorites();
+        for (int i = 0; i < fav->rowCount(); ++i)
+            QCOMPARE(fav->data(fav->index(i, 0), Qt::UserRole).toMap().value("id"), expect.at(i).toMap().value("id"));
+    }
     // ------------------------------------------------------------------ Oberfläche
 
     void englishTranslation()

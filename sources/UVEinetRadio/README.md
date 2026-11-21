@@ -1,8 +1,14 @@
-# UVEinetRadio 1.0.0
+# UVEinetRadio 1.0.1
 
 Internet radio for the UVE Player: search the free [Radio Browser](https://www.radio-browser.info/) catalogue, keep
 favourites and listen through the player's existing libmpv playback (volume, audio output and error display stay the
 player's). No account, no API key, no web view, no server.
+
+## Changes
+
+- **1.0.1** – lists keep their scroll position: loading the next page of results, starring a station or a new history
+  entry no longer jumps back to the top (list models with row inserts instead of replacing the whole list).
+- **1.0.0** – first version.
 
 ## Host requirements
 
@@ -52,6 +58,6 @@ Translations: `lupdate qml -source-language de -ts lang/uveinetradio_en.ts`, the
 
 | System | Build | Offline tests | Live playback (libmpv) | Install in the player |
 |---|---|---|---|---|
-| Windows 10 x64 (MSVC 2022, Qt 6.12) | ✔ | 29/29 | MP3 ✔ (ICY title), AAC ✔ (ICY title), HLS ✔ (no titles → name stays) – libmpv-2.dll from the player | package and module metadata checked (`qtplugininfo`: player IID, manifest); not installed in the running player |
-| Linux x86-64 (WSL Ubuntu 24.04, GCC, Qt 6.12) | ✔ | 28/28 (+1 skipped snapshot) | MP3 ✔, AAC ✔, HLS ✔ – system libmpv 0.37 | not tested |
+| Windows 10 x64 (MSVC 2022, Qt 6.12) | ✔ | 29/29 (+1 skipped snapshot) | MP3 ✔ (ICY title), AAC ✔ (ICY title), HLS ✔ (no titles → name stays) – libmpv-2.dll from the player | package and module metadata checked (`qtplugininfo`: player IID, manifest); not installed in the running player |
+| Linux x86-64 (WSL Ubuntu 24.04, GCC, Qt 6.12) | ✔ | 29/29 (+1 skipped snapshot) | MP3 ✔, AAC ✔, HLS ✔ – system libmpv 0.37 | not tested |
 | macOS ARM64 | built by the plugin workflow only | – | – | not tested |

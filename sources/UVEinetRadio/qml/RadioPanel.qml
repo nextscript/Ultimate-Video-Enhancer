@@ -192,7 +192,7 @@ Item {
                     Layout.fillHeight: true
                     clip: true
                     spacing: 2
-                    model: controller ? controller.results : []
+                    model: controller ? controller.resultsModel : null
                     boundsBehavior: Flickable.StopAtBounds
                     ScrollBar.vertical: ScrollBar {}
                     delegate: StationRow {
@@ -242,7 +242,7 @@ Item {
                     Layout.fillHeight: true
                     clip: true
                     spacing: 2
-                    model: controller ? controller.favorites : []
+                    model: controller ? controller.favoritesModel : null
                     ScrollBar.vertical: ScrollBar {}
                     delegate: StationRow {
                         required property var modelData
@@ -293,7 +293,7 @@ Item {
                     Layout.fillHeight: true
                     clip: true
                     spacing: 2
-                    model: controller ? controller.history : []
+                    model: controller ? controller.historyModel : null
                     ScrollBar.vertical: ScrollBar {}
                     delegate: StationRow {
                         required property var modelData
