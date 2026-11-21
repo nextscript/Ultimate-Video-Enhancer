@@ -16,7 +16,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **UVESponsorSkip** | 1.0.2 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
 | **UVEPreview** | 1.0.1 | Utility | Picture preview above the timeline: hovering over or dragging the progress bar shows a small picture of that position with a time stamp (local video files). [Details](#uvepreview) |
 | **UVEWatchParty** | 1.0.5 | Utility | Watch together in sync with friends – no server, no account, no port forwarding. Rooms with a 6-character ID and optional password, chat, common start, automatic sync. Local files, links (YouTube, Twitch …) and plugin-resolved streams; the host can relay everything so guests need no site plugin. [Details](#uvewatchparty) |
-| **UVEinetRadio** | 1.0.1 | Utility | Internet radio from the free Radio Browser catalogue – no account, no API key: search by name, country, language and genre, favourites (also offline), recently played, *Now playing* with artist/title when the station sends them, and your own stream addresses. Plays in the player itself (volume, audio output, playlist). [Details](#uveinetradio) |
+| **UVEinetRadio** | 1.0.3 | Utility | Internet radio from the free Radio Browser catalogue – no account, no API key: search by name, country, language and genre, favourites (also offline), recently played, *Now playing* with artist/title when the station sends them, your own stream addresses and a rotating 3D globe with every station on the map. Plays in the player itself (volume, audio output, playlist). [Details](#uveinetradio) |
 
 ## Twitch Chat
 
@@ -210,6 +210,12 @@ start anything – a station plays only with ▶ or a double-click. Closing the 
   used for stations you pick yourself.
 - **Settings → Internet radio:** report station clicks to Radio Browser (off by default; only for stations played from
   the search) and clear the catalogue and logo caches without touching favourites.
+- **Station map (1.0.2):** *Map* in the panel or *Plugins → Internet radio – station map* opens a window over the
+  picture with a rotating 3D globe: every green dot is a place with stations (about 11 000 stations in 4 600 places from
+  the catalogue). Drag to spin, mouse wheel to zoom, click a dot – or let a dot go under the crosshair, like on
+  radio.garden – and the stations there appear on the right; ▶ or a double-click plays. The playing station is marked
+  orange, ◎ flies to it. Drag the grip in the bottom-right corner to resize the window (1.0.3); the size is remembered. The world map is built in (Natural Earth), no map service needed; the station positions are
+  loaded once and kept for 7 days.
 - Catalogue mirrors are found via DNS and switched automatically when one fails. English and German.
 
 ## Other files
