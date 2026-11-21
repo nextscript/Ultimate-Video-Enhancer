@@ -14,6 +14,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **UVESuno** | 1.0.1 | Utility | Plays songs, playlists and whole profiles from suno.com as a stream, with titles, lengths and gapless transitions. [Details](#uvesuno) |
 | **YouTube** | 1.0.1 | Utility | Browse YouTube inside the player – no sign-in needed: search, trending / *For you*, channels, playlists, plus subscriptions, history, watch later and favourites kept by the plugin. Optional: connect your Google account in your default browser. Hover frames on every thumbnail (8 colours, rainbow, glow, zoom), resizable window. `Ctrl+Alt+Y`. [Details](#youtube) |
 | **UVESponsorSkip** | 1.0.2 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
+| **UVEPreview** | 1.0.1 | Utility | Picture preview above the timeline: hovering over or dragging the progress bar shows a small picture of that position with a time stamp (local video files). [Details](#uvepreview) |
 
 ## Twitch Chat
 
@@ -140,11 +141,29 @@ Play a YouTube video and UVESponsorSkip looks up its segments in the community d
   categories, the segments of the current video – click to jump to one – and skip/undo buttons.
 - Segment data: SponsorBlock, CC BY-NC-SA 4.0.
 
+## UVEPreview
+
+Hover over the progress bar of a local video and a small picture of that position appears above it, with the time
+underneath. While dragging, the picture follows the pointer.
+
+- **Separate decoder:** a second, independent libmpv instance (the one the player already ships) opens the file in the
+  background. Position, pause, sound and effects of the playback are never touched.
+- **Fast:** the first picture usually comes in under 50 ms, later ones from a small memory cache. While dragging quickly,
+  only the latest position is decoded. Very short videos use a finer time grid. Large videos (above 1920×1200) longer
+  than a minute jump to the nearest keyframe.
+- **Network drives** (e.g. RaiDrive): the preview reads the file without disturbing the playback and releases it after
+  2.5 s without hovering, so the player can always reload the file (since 1.0.1).
+- **Fits the window:** keeps the aspect ratio (portrait and rotated videos too) and stays inside the window, also in full screen.
+  HDR videos are tone-mapped to SDR for the preview.
+- Click, drag, chapters, A–B loop, SponsorSkip markers, live rewind and the LIVE badge keep working as before. Audio files,
+  network and live streams and discs show the normal time tooltip.
+- On/off switch on its settings page *Settings → UVEPreview* (on by default).
+
 ## Other files
 
 - `gvf_filter_codes_2026-11-09_01-08.json` – exported filter set in the userscript format (Matrix, FSR 1.0 Luma Upscale, Game Boy, Auto Color Enhance), importable into GLSL Manager.
 
 ## Requirements
 
-Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify, UVESuno and UVESponsorSkip ≥ 1.1.6; titles and lengths for Spotify, Suno and TikTok playlists ≥ 1.2.1; YouTube ≥ 1.3.0).
+Windows, UVE Player ≥ 1.0.6 (GLSL Manager ≥ 1.1.5, UVETikTok, UVESpotify, UVESuno and UVESponsorSkip ≥ 1.1.6; titles and lengths for Spotify, Suno and TikTok playlists ≥ 1.2.1; YouTube ≥ 1.3.0; UVEPreview ≥ 1.2.9).
 All plugins are MIT-licensed.
