@@ -17,17 +17,29 @@
   "author": "UVE Player",
   "license": "MIT",
   "library": "uve_uvewatchparty.dll",
-  "libraries": {
-    "windows-x64": "uve_uvewatchparty.dll",
-    "linux-x86_64": "libuvewatchparty.so",
-    "macos-arm64": "libuvewatchparty.dylib"
-  },
-  "supportedPlatforms": ["windows", "linux", "macos"],
-  "requiredBackends": ["plugin-events", "plugin-commands"],
+  "supportedPlatforms": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "requiredBackends": [
+    "plugin-events",
+    "plugin-commands"
+  ],
   "contributes": {
     "panels": [
-      { "id": "main", "title": "Watch Party", "qml": "qrc:/uvewatchparty/WatchPartyPanel.qml", "location": "sidebar" },
-      { "id": "settings", "title": "Watch Party", "qml": "qrc:/uvewatchparty/WatchPartySettings.qml", "location": "settings" }
+      {
+        "id": "main",
+        "title": "Watch Party",
+        "qml": "qrc:/uvewatchparty/WatchPartyPanel.qml",
+        "location": "sidebar"
+      },
+      {
+        "id": "settings",
+        "title": "Watch Party",
+        "qml": "qrc:/uvewatchparty/WatchPartySettings.qml",
+        "location": "settings"
+      }
     ]
   }
 }

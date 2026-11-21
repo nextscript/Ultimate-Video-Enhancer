@@ -86,11 +86,8 @@ add_library(uve_uvewatchparty MODULE WatchPartyPlugin.cpp WatchPartyPlugin.h man
 qt_add_resources(uve_uvewatchparty "uvewatchparty_qml" PREFIX "/uvewatchparty"
     FILES WatchPartyPanel.qml WatchPartySettings.qml)
 target_link_libraries(uve_uvewatchparty PRIVATE uvewp_core Qt6::Qml Qt6::Quick)
-if(APPLE)
-    set_target_properties(uve_uvewatchparty PROPERTIES PREFIX "lib" OUTPUT_NAME "uvewatchparty" SUFFIX ".dylib")
-elseif(UNIX)
-    set_target_properties(uve_uvewatchparty PROPERTIES PREFIX "lib" OUTPUT_NAME "uvewatchparty")
-endif()
+# Default module names (uve_uvewatchparty.dll, libuve_uvewatchparty.so/.dylib): the plugin build finds the module by
+# its target name and adds it next to the Windows DLL itself
 
 if(BUILD_TESTING)
     enable_testing()
