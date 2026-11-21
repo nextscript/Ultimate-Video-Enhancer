@@ -1,7 +1,7 @@
 {
   "id": "org.uveplayer.uveinetradio",
   "name": "UVEinetRadio",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "apiVersion": 1,
   "minHostVersion": "1.2.9",
   "type": "utility",
@@ -32,10 +32,18 @@
         "title": { "de": "Internetradio", "en": "Internet radio" },
         "qml": "qml/RadioSettings.qml",
         "location": "settings"
+      },
+      {
+        "id": "globe",
+        "title": { "de": "Senderkarte", "en": "Station map" },
+        "qml": "qml/RadioGlobe.qml",
+        "location": "modal",
+        "modal": { "scope": "video", "mode": "movable", "width": 1040, "height": 660 }
       }
     ],
     "menu": [
-      { "id": "open", "title": { "de": "Internetradio", "en": "Internet radio" } }
+      { "id": "open", "title": { "de": "Internetradio", "en": "Internet radio" } },
+      { "id": "globe", "title": { "de": "Internetradio – Senderkarte", "en": "Internet radio – station map" } }
     ],
     "translations": "lang"
   }

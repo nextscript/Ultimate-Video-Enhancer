@@ -16,7 +16,7 @@ Rectangle {
     signal removeRequested()
     signal clicked()
 
-    readonly property bool isCurrent: controller && controller.current && controller.current.id === station.id
+    readonly property bool isCurrent: !!controller && !!controller.current && controller.current.id === station.id
                                       && (controller.state === "playing" || controller.state === "connecting" || controller.state === "checking")
     readonly property bool favorite: controller ? (controller.libraryRevision, controller.isFavorite(station.id)) : false
 

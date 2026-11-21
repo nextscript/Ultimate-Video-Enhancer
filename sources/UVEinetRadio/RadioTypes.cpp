@@ -84,6 +84,10 @@ Station Station::fromJson(const QJsonObject &o)
     s.bitrate = int(num(o, "bitrate"));
     s.hls = flag(o, "hls");
     s.custom = flag(o, "custom");
+    s.clickCount = num(o, "clickCount");
+    s.region = str(o, "region");
+    s.lat = o.value(QStringLiteral("lat")).toDouble();
+    s.lon = o.value(QStringLiteral("lon")).toDouble();
     return s;
 }
 
@@ -121,6 +125,8 @@ QJsonObject Station::toJson() const
     if (bitrate > 0) o.insert(QStringLiteral("bitrate"), bitrate);
     if (hls) o.insert(QStringLiteral("hls"), true);
     if (custom) o.insert(QStringLiteral("custom"), true);
+    if (lat != 0 || lon != 0) { o.insert(QStringLiteral("lat"), lat); o.insert(QStringLiteral("lon"), lon); }
+    put("region", region);
     return o;
 }
 
@@ -134,6 +140,8 @@ QVariantMap Station::toVariant() const
     m.insert(QStringLiteral("hls"), hls);
     m.insert(QStringLiteral("custom"), custom);
     m.insert(QStringLiteral("clickCount"), clickCount);
+    m.remove(QStringLiteral("lat"));
+    m.remove(QStringLiteral("lon"));
     m.insert(QStringLiteral("votes"), votes);
     const QString play = playUrl();
     m.insert(QStringLiteral("playUrl"), play);

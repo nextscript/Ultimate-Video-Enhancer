@@ -27,8 +27,11 @@ QObject *UveInetRadioPlugin::controller() { return m_controller; }
 void UveInetRadioPlugin::onEvent(const QString &name, const QVariantMap &data)
 {
     if (name == QLatin1String("action.triggered")) {
-        if (data.value(QStringLiteral("id")).toString() == QLatin1String("open") && m_host)
+        const QString id = data.value(QStringLiteral("id")).toString();
+        if (id == QLatin1String("open") && m_host)
             m_host->call(QLatin1String(kPluginId), QStringLiteral("panel.open"), {{"panel", QStringLiteral("main")}});
+        else if (id == QLatin1String("globe") && m_controller)
+            m_controller->openGlobe();
         return;
     }
     if (m_controller) m_controller->handleEvent(name, data);

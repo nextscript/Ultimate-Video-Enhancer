@@ -40,6 +40,68 @@
     </message>
 </context>
 <context>
+    <name>RadioGlobe</name>
+    <message numerus="yes">
+        <source>%n Sender</source>
+        <translation>
+            <numerusform>%n Sender</numerusform>
+            <numerusform>%n Sender</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Lade Senderkarte aus dem Katalog …</source>
+        <translation>Lade Senderkarte aus dem Katalog …</translation>
+    </message>
+    <message>
+        <source>Senderkarte konnte nicht geladen werden: %1</source>
+        <translation>Senderkarte konnte nicht geladen werden: %1</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Erneut versuchen</translation>
+    </message>
+    <message>
+        <source>Vergrößern</source>
+        <translation>Vergrößern</translation>
+    </message>
+    <message>
+        <source>Verkleinern</source>
+        <translation>Verkleinern</translation>
+    </message>
+    <message>
+        <source>Zum laufenden Sender</source>
+        <translation>Zum laufenden Sender</translation>
+    </message>
+    <message>
+        <source>Ganze Erde</source>
+        <translation>Ganze Erde</translation>
+    </message>
+    <message>
+        <source>%1 Sender an %2 Orten</source>
+        <translation>%1 Sender an %2 Orten</translation>
+    </message>
+    <message>
+        <source>Katalog offline – gespeicherter Stand</source>
+        <translation>Katalog offline – gespeicherter Stand</translation>
+    </message>
+    <message>
+        <source>Ziehen: drehen · Mausrad: zoomen · Klick: Ort wählen</source>
+        <translation>Ziehen: drehen · Mausrad: zoomen · Klick: Ort wählen</translation>
+    </message>
+    <message>
+        <source>Kein Ort gewählt</source>
+        <translation>Kein Ort gewählt</translation>
+    </message>
+    <message>
+        <source>Dreh die Erde und klick auf einen grünen Punkt – oder lass einen Punkt unter dem Fadenkreuz los.</source>
+        <translation>Dreh die Erde und klick auf einen grünen Punkt – oder lass einen Punkt unter dem Fadenkreuz los.</translation>
+    </message>
+    <message>
+        <source>Ziehen: Fenstergröße ändern</source>
+        <translation>Ziehen: Fenstergröße ändern</translation>
+    </message>
+</context>
+<context>
     <name>RadioPanel</name>
     <message>
         <source>Suchen</source>
@@ -60,6 +122,14 @@
     <message>
         <source>Sendername suchen …</source>
         <translation>Sendername suchen …</translation>
+    </message>
+    <message>
+        <source>Karte</source>
+        <translation>Karte</translation>
+    </message>
+    <message>
+        <source>Senderkarte: Sender auf einem drehbaren Globus entdecken</source>
+        <translation>Senderkarte: Sender auf einem drehbaren Globus entdecken</translation>
     </message>
     <message>
         <source>Alle Länder</source>

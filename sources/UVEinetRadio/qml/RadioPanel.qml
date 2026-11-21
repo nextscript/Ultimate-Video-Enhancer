@@ -26,8 +26,14 @@ Item {
                           sortBox.currentIndex === 1 ? "name" : "popularity")
     }
 
-    Component.onCompleted: {
-        if (!controller) return
+    // Der Player setzt controller/theme erst in Loader.onLoaded – also nach Component.onCompleted.
+    // Deshalb beim Eintreffen des Controllers starten (und beim Erzeugen, falls er schon da ist).
+    property bool _started: false
+    Component.onCompleted: init()
+    onControllerChanged: init()
+    function init() {
+        if (!controller || _started) return
+        _started = true
         var ls = controller.lastSearch || {}
         nameField.text = ls.name || ""
         countryBox.value = ls.country || ""
@@ -86,13 +92,23 @@ Item {
             // ------------------------------------------------------------- Sender suchen
             ColumnLayout {
                 spacing: 6
-                RField {
-                    id: nameField
+                RowLayout {
                     Layout.fillWidth: true
-                    theme: root.theme
-                    placeholderText: qsTr("Sendername suchen …")
-                    onTextEdited: root.startSearch()
-                    Keys.onReturnPressed: root.startSearch()
+                    spacing: 6
+                    RField {
+                        id: nameField
+                        Layout.fillWidth: true
+                        theme: root.theme
+                        placeholderText: qsTr("Sendername suchen …")
+                        onTextEdited: root.startSearch()
+                        Keys.onReturnPressed: root.startSearch()
+                    }
+                    RButton {
+                        theme: root.theme
+                        text: qsTr("Karte")
+                        tip: qsTr("Senderkarte: Sender auf einem drehbaren Globus entdecken")
+                        onClicked: controller.openGlobe()
+                    }
                 }
                 GridLayout {
                     Layout.fillWidth: true
@@ -152,10 +168,10 @@ Item {
                 // Zustand der Suche
                 RowLayout {
                     Layout.fillWidth: true
-                    visible: controller && (controller.searchBusy || controller.facetsBusy || controller.searchError !== "")
+                    visible: !!controller && (controller.searchBusy || controller.facetsBusy || controller.searchError !== "")
                     spacing: 6
                     BusyIndicator {
-                        visible: controller && (controller.searchBusy || controller.facetsBusy)
+                        visible: !!controller && (controller.searchBusy || controller.facetsBusy)
                         running: visible
                         implicitWidth: 20
                         implicitHeight: 20
@@ -174,14 +190,14 @@ Item {
                     }
                     RButton {
                         theme: root.theme
-                        visible: controller && controller.searchError !== "" && !controller.searchBusy
+                        visible: !!controller && controller.searchError !== "" && !controller.searchBusy
                         text: qsTr("Erneut versuchen")
                         onClicked: controller.retrySearch()
                     }
                 }
                 Text {
                     Layout.fillWidth: true
-                    visible: controller && controller.facetsError !== "" && !controller.facetsBusy
+                    visible: !!controller && controller.facetsError !== "" && !controller.facetsBusy
                     text: qsTr("Filterlisten konnten nicht geladen werden.")
                     color: root.cMuted
                     font.pixelSize: 11
@@ -213,17 +229,17 @@ Item {
                         height: controller && controller.hasMore ? 44 : 0
                         RButton {
                             anchors.centerIn: parent
-                            visible: controller && controller.hasMore
+                            visible: !!controller && controller.hasMore
                             theme: root.theme
                             text: controller && controller.searchBusy ? qsTr("Lade …") : qsTr("Mehr laden")
-                            enabled: controller && !controller.searchBusy
+                            enabled: !!controller && !controller.searchBusy
                             onClicked: controller.loadMore()
                         }
                     }
                     Text {
                         anchors.centerIn: parent
                         width: parent.width - 20
-                        visible: resultList.count === 0 && controller && controller.searchDone && !controller.searchBusy && controller.searchError === ""
+                        visible: resultList.count === 0 && !!controller && controller.searchDone && !controller.searchBusy && controller.searchError === ""
                         text: qsTr("Keine Sender gefunden. Ändere den Suchbegriff oder die Filter.")
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.Wrap
@@ -283,7 +299,7 @@ Item {
                         theme: root.theme
                         danger: true
                         text: qsTr("Liste leeren")
-                        enabled: controller && controller.history.length > 0
+                        enabled: !!controller && controller.history.length > 0
                         onClicked: controller.clearHistory()
                     }
                 }
@@ -399,7 +415,7 @@ Item {
 
         Text {
             Layout.fillWidth: true
-            visible: controller && controller.storageError !== ""
+            visible: !!controller && controller.storageError !== ""
             text: qsTr("Favoriten konnten nicht gespeichert/gelesen werden: %1").arg(controller ? controller.storageError : "")
             color: root.cError
             font.pixelSize: 11

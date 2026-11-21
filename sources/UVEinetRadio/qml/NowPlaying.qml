@@ -48,7 +48,7 @@ Rectangle {
                         color: root.st === "error" ? (theme ? theme.error : "#ff6b6b")
                              : root.live ? "#3ecf6e" : (theme ? theme.muted : "#8b93a1")
                         SequentialAnimation on opacity {
-                            running: root.st === "connecting" || root.st === "checking" || (controller && controller.buffering)
+                            running: root.st === "connecting" || root.st === "checking" || (!!controller && controller.buffering)
                             loops: Animation.Infinite
                             NumberAnimation { to: 0.2; duration: 500 }
                             NumberAnimation { to: 1; duration: 500 }
@@ -128,12 +128,12 @@ Rectangle {
             wrapMode: Text.Wrap
         }
         RowLayout {
-            visible: controller && controller.canRefresh
+            visible: !!controller && controller.canRefresh
             spacing: 8
             RButton {
                 theme: root.theme
                 text: controller && controller.refreshing ? qsTr("Aktualisiere …") : qsTr("Katalogeintrag aktualisieren")
-                enabled: controller && !controller.refreshing
+                enabled: !!controller && !controller.refreshing
                 tip: qsTr("Holt die aktuelle Stream-Adresse des Senders aus dem Katalog und versucht es erneut")
                 onClicked: controller.refreshCurrent()
             }

@@ -2,6 +2,8 @@
 // Keine Verbindung ins Internet, kein Fenster (QT_QPA_PLATFORM=offscreen).
 #include "Caches.h"
 #include "FakeHost.h"
+#include "GeoIndex.h"
+#include "GlobeItem.h"
 #include "RadioBrowser.h"
 #include "RadioController.h"
 #include "RadioTypes.h"
@@ -40,6 +42,7 @@ static TestResponse apiHandler(const QString &path, const QUrlQuery &q, const QB
 {
     TestResponse r;
     if (path == QLatin1String("/json/stations/search")) {
+        if (q.queryItemValue("has_geo_info") == QLatin1String("true")) { r.body = fixture("geo.json"); return r; }
         if (q.queryItemValue("hidebroken") != QLatin1String("true")) return TestResponse{400};
         if (q.queryItemValue("name") == QLatin1String("nichts")) { r.body = "[]"; return r; }
         r.body = q.queryItemValue("offset").toInt() >= 30 ? fixture("search_page2.json") : fixture("search_page1.json");
@@ -199,7 +202,7 @@ private slots:
         for (const char *p : {"name=Test", "countrycode=DE", "language=german", "tag=pop", "hidebroken=true", "limit=30",
                               "offset=0", "order=name"})
             QVERIFY2(req.contains(QLatin1String(p)), qPrintable(req));
-        QVERIFY(m_api->lastHeaders().contains("User-Agent: UVEinetRadio/1.0.1"));
+        QVERIFY(m_api->lastHeaders().contains("User-Agent: UVEinetRadio/1.0.3"));
 
         // Seitenweise: zweite Seite anhängen
         c->loadMore();
@@ -707,6 +710,164 @@ private slots:
         for (int i = 0; i < fav->rowCount(); ++i)
             QCOMPARE(fav->data(fav->index(i, 0), Qt::UserRole).toMap().value("id"), expect.at(i).toMap().value("id"));
     }
+    // ------------------------------------------------------------------ Senderkarte (1.0.2)
+    void geoPlaces()
+    {
+        FakeHost host;
+        auto c = makeController(host);
+        auto *geo = c->geoIndex();
+        c->loadGeo(false);
+        QTRY_COMPARE(geo->state(), QStringLiteral("ready"));
+        QVERIFY(m_api->log().last().contains("has_geo_info=true"));
+        QCOMPARE(geo->stationCount(), 4);          // ohne 0/0, ohne Koordinaten, ungültig
+        QCOMPARE(geo->placeCount(), 3);            // Berlin (2 Sender), Hamburg, Sydney
+        const int berlin = geo->placeOfStation("00000000-0000-0000-0000-000000000001");
+        QCOMPARE(geo->placeOfStation("00000000-0000-0000-0000-000000000002"), berlin);
+        QCOMPARE(geo->placeStationCount(berlin), 2);
+        QCOMPARE(geo->placeLabel(berlin), QStringLiteral("Berlin, Germany"));
+        QCOMPARE(geo->stationsAt(berlin).first().toMap().value("name").toString(), QStringLiteral("Berlin Eins"));
+        // Gespeichert: nach „Neustart“ ohne Netz verfügbar
+        const QString dir = host.dataDir;
+        FakeHost host2;
+        auto c2 = makeController(host2, dir);
+        c2->browser()->setMirrors({QUrl(QStringLiteral("http://127.0.0.1:%1").arg(closedPort()))});
+        const int hits = m_api->hits("/json/stations/search");
+        c2->loadGeo(false);
+        QTRY_COMPARE(c2->geoIndex()->state(), QStringLiteral("ready"));
+        QCOMPARE(c2->geoIndex()->placeCount(), 3);
+        QCOMPARE(c2->geoIndex()->placeLabel(c2->geoIndex()->placeOfStation("00000000-0000-0000-0000-000000000001")),
+                 QStringLiteral("Berlin, Germany"));
+        QCOMPARE(m_api->hits("/json/stations/search"), hits);
+        QVERIFY(c2->catalogCacheBytes() > 0);
+        c2->clearCatalogCache();
+        QVERIFY(!QFile::exists(QDir(dir).filePath("cache/geo/places.json")));
+        // Offline ohne Cache → Fehler
+        c2->loadGeo(true);
+        QTRY_COMPARE(c2->geoIndex()->state(), QStringLiteral("error"));
+    }
+
+    void globeInteraction()
+    {
+        FakeHost host;
+        auto c = makeController(host);
+        c->loadGeo(false);
+        QTRY_COMPARE(c->geoIndex()->state(), QStringLiteral("ready"));
+        QQuickItem parent;
+        parent.setSize(QSizeF(800, 600));
+        auto *g = qobject_cast<GlobeItem *>(c->createGlobe(&parent));
+        QVERIFY(g);
+        QCOMPARE(g->width(), 800.0);
+        parent.setWidth(900);
+        QCOMPARE(g->width(), 900.0);   // folgt der Seite
+        auto *geo = c->geoIndex();
+        const int sydney = geo->placeOfStation("00000000-0000-0000-0000-000000000004");
+        const int berlin = geo->placeOfStation("00000000-0000-0000-0000-000000000001");
+        // Über Berlin zentriert: Berlin im Fadenkreuz, Sydney auf der Rückseite unsichtbar
+        g->setCenterLat(52.5); g->setCenterLon(13.4); g->setZoom(3);
+        QCOMPARE(g->centerPlace(), berlin);
+        QCOMPARE(g->placeAt(450, 300), berlin);
+        QCOMPARE(g->placeScreenPos(sydney), QPointF(-1, -1));
+        // Hamburg liegt nordwestlich: oben links vom Zentrum
+        const QPointF hh = g->placeScreenPos(geo->placeOfStation("00000000-0000-0000-0000-000000000003"));
+        QVERIFY(hh.x() < 450 && hh.y() < 300);
+        // Fliegen
+        g->flyToPlace(sydney, 2);
+        QTRY_COMPARE(g->zoom(), 2.0);   // Animation beendet
+        QCOMPARE(g->centerPlace(), sydney);
+        // Längengrad bleibt im Bereich
+        g->setCenterLon(400);
+        QVERIFY(g->centerLon() >= -180 && g->centerLon() <= 180);
+        g->flyToPlace(sydney, 2);
+        QTRY_COMPARE(g->centerPlace(), sydney);
+        // Klick wählt, spielt aber nichts
+        QSignalSpy clicked(g, &GlobeItem::placeClicked);
+        const QPointF sp = g->placeScreenPos(sydney);
+        QMouseEvent press(QEvent::MouseButtonPress, sp, sp, Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QMouseEvent release(QEvent::MouseButtonRelease, sp, sp, Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(g, &press);
+        QCoreApplication::sendEvent(g, &release);
+        QCOMPARE(clicked.count(), 1);
+        QCOMPARE(g->selectedPlace(), sydney);
+        QCOMPARE(host.loadedUrls().size(), 0);
+        QTest::qWait(800);   // Flug zum angeklickten Ort abwarten
+        // Ziehen dreht
+        const double lon = g->centerLon();
+        QMouseEvent p2(QEvent::MouseButtonPress, QPointF(450, 300), QPointF(450, 300), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QMouseEvent m2(QEvent::MouseMove, QPointF(350, 300), QPointF(350, 300), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+        QMouseEvent r2(QEvent::MouseButtonRelease, QPointF(350, 300), QPointF(350, 300), Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(g, &p2);
+        QCoreApplication::sendEvent(g, &m2);
+        QCoreApplication::sendEvent(g, &r2);
+        QVERIFY(std::abs(g->centerLon() - lon) > 1);
+    }
+
+
+    // Player-Ablauf: Seite laden, danach controller setzen → Startsuche läuft, Globus entsteht und lädt Daten
+    void pagesStartAfterLoaderSetsController()
+    {
+        FakeHost host;
+        auto c = makeController(host);
+        QQmlEngine engine;
+        {
+            QQmlComponent comp(&engine, QUrl::fromLocalFile(QStringLiteral(UVEINETRADIO_SOURCE_DIR "/qml/RadioPanel.qml")));
+            std::unique_ptr<QObject> page(comp.create());
+            QVERIFY2(page, qPrintable(comp.errorString()));
+            QTest::qWait(100);
+            const int before = m_api->hits("/json/stations/search");
+            page->setProperty("controller", QVariant::fromValue<QObject *>(c.get()));
+            QTRY_VERIFY(!c->searchBusy() && c->results().size() == 30);
+            QVERIFY(m_api->hits("/json/stations/search") > before);
+            // erneutes Setzen startet nicht noch einmal
+            const int hits = m_api->hits("/json/stations/search");
+            page->setProperty("controller", QVariant::fromValue<QObject *>(c.get()));
+            QTest::qWait(200);
+            QCOMPARE(m_api->hits("/json/stations/search"), hits);
+        }
+        {
+            QQmlComponent comp(&engine, QUrl::fromLocalFile(QStringLiteral(UVEINETRADIO_SOURCE_DIR "/qml/RadioGlobe.qml")));
+            std::unique_ptr<QObject> page(comp.create());
+            QVERIFY2(page, qPrintable(comp.errorString()));
+            QVERIFY(!page->property("globe").value<QObject *>());
+            page->setProperty("controller", QVariant::fromValue<QObject *>(c.get()));
+            auto *g = qobject_cast<GlobeItem *>(page->property("globe").value<QObject *>());
+            QVERIFY(g);
+            QTRY_COMPARE(c->geoIndex()->state(), QStringLiteral("ready"));
+            QCOMPARE(c->geoIndex()->placeCount(), 3);
+            auto *item = qobject_cast<QQuickItem *>(page.get());
+            item->setSize(QSizeF(1000, 600));
+            QVERIFY(g->width() > 100 && g->height() > 100);   // Globus hat Platz bekommen
+        }
+    }
+
+    // 1.0.3: Kartenfenster lässt sich vergrößern; Größe wird gemerkt und beim Öffnen verwendet
+    void globeResize()
+    {
+        FakeHost host;
+        auto c = makeController(host);
+        c->openGlobe();
+        auto last = [&host] { for (int i = int(host.calls.size()) - 1; i >= 0; --i) if (host.calls[i].name == "modal.open") return host.calls[i].args; return QVariantMap{}; };
+        QCOMPARE(last().value("panel").toString(), QStringLiteral("globe"));
+        QCOMPARE(last().value("width").toInt(), 1040);
+        c->resizeGlobe(1300, 820, false);
+        QCOMPARE(last().value("width").toInt(), 1300);
+        QCOMPARE(last().value("height").toInt(), 820);
+        QVERIFY(!host.settings.contains("globeSize"));
+        c->resizeGlobe(200, 100, true);   // Mindestgröße
+        QCOMPARE(last().value("width").toInt(), 560);
+        QCOMPARE(last().value("height").toInt(), 380);
+        c->resizeGlobe(1200, 700, true);
+        QCOMPARE(host.settings.value("globeSize").toObject().value("w").toInt(), 1200);
+        // Neustart: gemerkte Größe
+        FakeHost host2;
+        host2.settings = host.settings;
+        auto c2 = makeController(host2, host.dataDir);
+        c2->openGlobe();
+        QCOMPARE(host2.calls.last().args.value("width").toInt(), 1200);
+        QCOMPARE(host2.calls.last().args.value("height").toInt(), 700);
+        // Andere Einstellungen überschreiben die Größe nicht
+        c2->setSendClicks(true);
+        QCOMPARE(host2.settings.value("globeSize").toObject().value("h").toInt(), 700);
+    }
     // ------------------------------------------------------------------ Oberfläche
 
     void englishTranslation()
@@ -753,17 +914,34 @@ private slots:
                   "property color muted: '#8b93a1'; property color accent: '#ff8a1f'; property color accent2: '#ffb15c';"
                   "property color focus: '#4da3ff'; property color error: '#ff6b6b' }", QUrl());
         std::unique_ptr<QObject> theme(t.create());
-        for (const char *file : {"RadioPanel.qml", "RadioSettings.qml"}) {
+        const QString geoJson = qEnvironmentVariable("UVEINETRADIO_GEOJSON");
+        if (!geoJson.isEmpty()) {
+            QFile gf(geoJson);
+            QVERIFY(gf.open(QIODevice::ReadOnly));
+            c->geoIndex()->build(QJsonDocument::fromJson(gf.readAll()).array(), true);
+        }
+        for (const char *file : {"RadioPanel.qml", "RadioSettings.qml", "RadioGlobe.qml"}) {
             QQmlComponent comp(&engine, QUrl::fromLocalFile(QStringLiteral(UVEINETRADIO_SOURCE_DIR "/qml/") + QLatin1String(file)));
-            auto *item = qobject_cast<QQuickItem *>(comp.createWithInitialProperties(
-                {{"controller", QVariant::fromValue<QObject *>(c.get())}, {"theme", QVariant::fromValue(theme.get())}}));
+            auto *item = qobject_cast<QQuickItem *>(comp.create());
             QVERIFY2(item, qPrintable(comp.errorString()));
+            item->setProperty("theme", QVariant::fromValue(theme.get()));
+            item->setProperty("controller", QVariant::fromValue<QObject *>(c.get()));
             QQuickWindow win;
             win.setColor(QColor("#14171c"));
-            win.resize(380, 720);
+            const bool big = QLatin1String(file) == QLatin1String("RadioGlobe.qml");
+            win.resize(big ? 1040 : 380, big ? 660 : 720);
             item->setParentItem(win.contentItem());
-            item->setWidth(380);
-            item->setHeight(720);
+            item->setWidth(win.width());
+            item->setHeight(win.height());
+            if (big) {
+                QTest::qWait(300);
+                auto *g = qobject_cast<GlobeItem *>(item->property("globe").value<QObject *>());
+                QVERIFY(g);
+                auto *geo = c->geoIndex();
+                const int p = geo->placeCount() > 0 ? geo->placeOfStation(geo->stationsAt(0).value(0).toMap().value("id").toString()) : -1;
+                g->setCenterLat(49); g->setCenterLon(9); g->setZoom(2.2);
+                if (p >= 0) { g->setSelectedPlace(p); item->setProperty("place", p); }
+            }
             win.show();
             QTest::qWait(1500);
             QVERIFY(win.grabWindow().save(QDir(out).filePath(QString::fromLatin1(file).replace(".qml", ".png"))));
@@ -773,7 +951,7 @@ private slots:
     void qmlPagesLoad_data()
     {
         QTest::addColumn<QString>("file");
-        for (const char *f : {"RadioPanel.qml", "RadioSettings.qml", "NowPlaying.qml", "StationRow.qml"}) QTest::newRow(f) << f;
+        for (const char *f : {"RadioPanel.qml", "RadioSettings.qml", "NowPlaying.qml", "StationRow.qml", "RadioGlobe.qml"}) QTest::newRow(f) << f;
     }
     void qmlPagesLoad()
     {
@@ -794,9 +972,11 @@ private slots:
         }
         QList<QQmlError> warnings;
         connect(&engine, &QQmlEngine::warnings, this, [&warnings](const QList<QQmlError> &w) { warnings << w; });
-        QObject *obj = comp.createWithInitialProperties({{"controller", QVariant::fromValue<QObject *>(c.get())},
-                                                         {"theme", QVariant::fromValue(theme)}});
+        // Wie der Player (Loader.onLoaded): erst erzeugen, dann theme und controller setzen
+        QObject *obj = comp.create();
         QVERIFY2(obj, qPrintable(comp.errorString()));
+        obj->setProperty("theme", QVariant::fromValue(theme));
+        obj->setProperty("controller", QVariant::fromValue<QObject *>(c.get()));
         if (auto *item = qobject_cast<QQuickItem *>(obj)) { item->setWidth(380); item->setHeight(700); }
         QTest::qWait(300);   // Startsuche läuft gegen den Test-Server
         QStringList w;

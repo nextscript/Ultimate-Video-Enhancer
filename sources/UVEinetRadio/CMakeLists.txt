@@ -3,7 +3,7 @@
 # Same Qt (6.12) and toolchain as the player. The package also needs the files from qml/ and lang/*.qm next to the module.
 # Optional live test with real libmpv: -DUVEINETRADIO_MPV_DIR=<folder with include/mpv and the import library>
 cmake_minimum_required(VERSION 3.25)
-project(UVEinetRadio VERSION 1.0.1 LANGUAGES CXX)
+project(UVEinetRadio VERSION 1.0.3 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,7 +18,7 @@ set(UVE_PLAYER_DIR "M:/LAPS/UVE Player" CACHE PATH "Source folder of the UVE Pla
 set(UVEINETRADIO_MPV_DIR "" CACHE PATH "libmpv (include/ + import library) for the optional live playback test")
 option(BUILD_TESTING "Build tests" ON)
 
-set(qt_parts Core Gui Network Qml)
+set(qt_parts Core Gui Network Qml Quick)
 if(BUILD_TESTING)
     list(APPEND qt_parts Test Quick QuickControls2)
 endif()
@@ -32,18 +32,22 @@ add_library(uveinetradio_core STATIC
     StationStore.cpp StationStore.h
     StreamProbe.cpp StreamProbe.h
     StationListModel.cpp StationListModel.h
+    GeoIndex.cpp GeoIndex.h
+    GlobeItem.cpp GlobeItem.h
     RadioController.cpp RadioController.h)
 target_include_directories(uveinetradio_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} "${UVE_PLAYER_DIR}/src/plugins")
-target_link_libraries(uveinetradio_core PUBLIC Qt6::Core Qt6::Gui Qt6::Network)
+target_link_libraries(uveinetradio_core PUBLIC Qt6::Core Qt6::Gui Qt6::Network Qt6::Quick)
+# Weltkarte für den Globus (Natural Earth 1:110 Mio., gemeinfrei) – fest im Modul
+qt_add_resources(uveinetradio_core "uveinetradio_world" PREFIX "/uveinetradio" FILES world/land.bin world/borders.bin)
 
 # Module name uve_uveinetradio.dll / libuve_uveinetradio.so / .dylib – the plugin build finds it by its target name
 add_library(uve_uveinetradio MODULE UveInetRadioPlugin.cpp UveInetRadioPlugin.h manifest.json)
-target_link_libraries(uve_uveinetradio PRIVATE uveinetradio_core Qt6::Qml)
+target_link_libraries(uve_uveinetradio PRIVATE uveinetradio_core Qt6::Qml Qt6::Quick)
 
 # Pages and translations are plain files in the package (qml/, lang/); copy them next to the module
 set(UVEINETRADIO_QML
     qml/RadioPanel.qml qml/RadioSettings.qml qml/NowPlaying.qml qml/StationRow.qml qml/StationLogo.qml
-    qml/RButton.qml qml/RField.qml qml/RFilter.qml qml/RadioTexts.qml)
+    qml/RButton.qml qml/RField.qml qml/RFilter.qml qml/RadioTexts.qml qml/RadioGlobe.qml)
 set(UVEINETRADIO_TS lang/uveinetradio_en.ts lang/uveinetradio_de.ts)
 foreach(f ${UVEINETRADIO_QML})
     add_custom_command(TARGET uve_uveinetradio POST_BUILD

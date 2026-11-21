@@ -9,15 +9,18 @@
 #include "StationStore.h"
 
 #include <QObject>
+#include <QSize>
 #include <QTimer>
 #include <QVariantList>
 #include <memory>
 
 class QNetworkAccessManager;
+class QQuickItem;
 
 namespace uve::radio {
 
 class CatalogCache;
+class GeoIndex;
 class LogoCache;
 class StreamProbe;
 
@@ -66,6 +69,8 @@ class RadioController : public QObject
     Q_PROPERTY(qint64 logoCacheBytes READ logoCacheBytes NOTIFY cacheChanged)
     Q_PROPERTY(int logoRevision READ logoRevision NOTIFY logosChanged)
     Q_PROPERTY(QString version READ version CONSTANT)
+    // Senderkarte
+    Q_PROPERTY(QObject *geo READ geo CONSTANT)
 
 public:
     RadioController(uve::IPlayerHost *host, const QString &dataDir, QObject *parent = nullptr);
@@ -120,6 +125,8 @@ public:
     qint64 logoCacheBytes() const;
     int logoRevision() const { return m_logoRevision; }
     QString version() const { return QLatin1String(kPluginVersion); }
+    QObject *geo() const;
+    GeoIndex *geoIndex() const { return m_geo.get(); }
 
     // ---- aus dem QML
     Q_INVOKABLE void search(const QString &name, const QString &countryCode, const QString &language, const QString &tag,
@@ -141,6 +148,13 @@ public:
     Q_INVOKABLE QString logoUrl(const QString &remote);
     Q_INVOKABLE void clearCatalogCache();
     Q_INVOKABLE void clearLogoCache();
+    // Senderkarte: Daten laden (force = neu vom Katalog), Globus in ein Element der Seite setzen, Fenster öffnen
+    Q_INVOKABLE void loadGeo(bool force = false);
+    Q_INVOKABLE QObject *createGlobe(QQuickItem *parent);
+    Q_INVOKABLE void openGlobe();
+    // Größe des Kartenfensters ändern (erneutes modal.open aktualisiert das offene Fenster); save = merken
+    Q_INVOKABLE void resizeGlobe(int width, int height, bool save);
+    Q_INVOKABLE QSize globeSize() const { return m_globeSize; }
 
     // ---- vom Plugin
     void handleEvent(const QString &name, const QVariantMap &data);
@@ -177,6 +191,7 @@ private:
     std::unique_ptr<LogoCache> m_logos;
     std::unique_ptr<RadioBrowser> m_browser;
     std::unique_ptr<StreamProbe> m_probe;
+    std::unique_ptr<GeoIndex> m_geo;
     StationStore m_store;
 
     // Suche
@@ -222,6 +237,7 @@ private:
     int m_logoRevision = 0;
     QTimer m_logoBatch;
     QString m_appliedProxy;
+    QSize m_globeSize{1040, 660};
 };
 
 } // namespace uve::radio

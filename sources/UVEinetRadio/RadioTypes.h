@@ -9,7 +9,7 @@
 namespace uve::radio {
 
 inline constexpr const char *kPluginId = "org.uveplayer.uveinetradio";
-inline constexpr const char *kPluginVersion = "1.0.1";
+inline constexpr const char *kPluginVersion = "1.0.3";
 QString userAgent();
 
 struct Station
@@ -31,6 +31,8 @@ struct Station
     bool custom = false;
     qint64 clickCount = 0;
     qint64 votes = 0;
+    double lat = 0, lon = 0;   // nur Sender der Karte
+    QString region;            // state aus dem Katalog
 
     bool isValid() const { return !id.isEmpty() && !name.isEmpty() && !playUrl().isEmpty(); }
     // Bevorzugt: zuletzt funktionierende Adresse, dann gültige url_resolved, dann url

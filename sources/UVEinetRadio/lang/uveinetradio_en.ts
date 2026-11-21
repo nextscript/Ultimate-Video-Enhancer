@@ -29,7 +29,7 @@
     </message>
     <message>
         <source>Holt die aktuelle Stream-Adresse des Senders aus dem Katalog und versucht es erneut</source>
-        <translation>Fetches the station's current stream address from the catalogue and tries again</translation>
+        <translation>Fetches the station&apos;s current stream address from the catalogue and tries again</translation>
     </message>
 </context>
 <context>
@@ -37,6 +37,68 @@
     <message>
         <source>Alle</source>
         <translation>All</translation>
+    </message>
+</context>
+<context>
+    <name>RadioGlobe</name>
+    <message numerus="yes">
+        <source>%n Sender</source>
+        <translation>
+            <numerusform>%n station</numerusform>
+            <numerusform>%n stations</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>Lade Senderkarte aus dem Katalog …</source>
+        <translation>Loading the station map from the catalogue …</translation>
+    </message>
+    <message>
+        <source>Senderkarte konnte nicht geladen werden: %1</source>
+        <translation>The station map could not be loaded: %1</translation>
+    </message>
+    <message>
+        <source>Erneut versuchen</source>
+        <translation>Try again</translation>
+    </message>
+    <message>
+        <source>Vergrößern</source>
+        <translation>Zoom in</translation>
+    </message>
+    <message>
+        <source>Verkleinern</source>
+        <translation>Zoom out</translation>
+    </message>
+    <message>
+        <source>Zum laufenden Sender</source>
+        <translation>Go to the playing station</translation>
+    </message>
+    <message>
+        <source>Ganze Erde</source>
+        <translation>Whole earth</translation>
+    </message>
+    <message>
+        <source>%1 Sender an %2 Orten</source>
+        <translation>%1 stations in %2 places</translation>
+    </message>
+    <message>
+        <source>Katalog offline – gespeicherter Stand</source>
+        <translation>Catalogue offline – saved data</translation>
+    </message>
+    <message>
+        <source>Ziehen: drehen · Mausrad: zoomen · Klick: Ort wählen</source>
+        <translation>Drag: rotate · Wheel: zoom · Click: choose a place</translation>
+    </message>
+    <message>
+        <source>Kein Ort gewählt</source>
+        <translation>No place selected</translation>
+    </message>
+    <message>
+        <source>Dreh die Erde und klick auf einen grünen Punkt – oder lass einen Punkt unter dem Fadenkreuz los.</source>
+        <translation>Spin the earth and click a green dot – or release a dot under the crosshair.</translation>
+    </message>
+    <message>
+        <source>Ziehen: Fenstergröße ändern</source>
+        <translation>Drag: resize the window</translation>
     </message>
 </context>
 <context>
@@ -60,6 +122,14 @@
     <message>
         <source>Sendername suchen …</source>
         <translation>Search station name …</translation>
+    </message>
+    <message>
+        <source>Karte</source>
+        <translation>Map</translation>
+    </message>
+    <message>
+        <source>Senderkarte: Sender auf einem drehbaren Globus entdecken</source>
+        <translation>Station map: discover stations on a rotating globe</translation>
     </message>
     <message>
         <source>Alle Länder</source>
@@ -139,7 +209,7 @@
     </message>
     <message>
         <source>Direkte Stream-Adresse eines Senders (MP3, AAC, Ogg, HLS .m3u8 oder Playlist .m3u/.pls). Webseiten von Sendern funktionieren nicht.</source>
-        <translation>A station's direct stream address (MP3, AAC, Ogg, HLS .m3u8 or playlist .m3u/.pls). Station web pages do not work.</translation>
+        <translation>A station&apos;s direct stream address (MP3, AAC, Ogg, HLS .m3u8 or playlist .m3u/.pls). Station web pages do not work.</translation>
     </message>
     <message>
         <source>Sendername</source>
@@ -257,7 +327,7 @@
     </message>
     <message>
         <source>Das HTTPS-Zertifikat des Senders ist ungültig – Verbindung abgelehnt.</source>
-        <translation>The station's HTTPS certificate is invalid – connection refused.</translation>
+        <translation>The station&apos;s HTTPS certificate is invalid – connection refused.</translation>
     </message>
     <message>
         <source>Unsichere oder ungültige Weiterleitung abgelehnt (nur http/https, kein Wechsel von HTTPS zu HTTP).</source>

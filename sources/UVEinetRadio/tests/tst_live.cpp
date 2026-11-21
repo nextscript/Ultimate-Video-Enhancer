@@ -50,8 +50,16 @@ public:
         mpv = mpv_create();
         mpv_set_option_string(mpv, "vo", "null");
         mpv_set_option_string(mpv, "ao", "null");
-        mpv_set_option_string(mpv, "ytdl", "no");
         mpv_set_option_string(mpv, "idle", "yes");
+        // Wie MpvController des Players
+        mpv_set_option_string(mpv, "keep-open", "yes");
+        mpv_set_option_string(mpv, "ytdl", "yes");
+        mpv_set_option_string(mpv, "prefetch-playlist", "yes");
+        mpv_set_option_string(mpv, "cache", "yes");
+        mpv_set_option_string(mpv, "demuxer-max-bytes", "150MiB");
+        mpv_set_option_string(mpv, "config", "no");
+        // Pegelmessung in der Audiokette (statt Lautsprecher)
+        mpv_set_option_string(mpv, "af", "@lvl:lavfi=[astats=metadata=1:reset=20]");
         mpv_set_option_string(mpv, "network-timeout", "15");
         mpv_initialize(mpv);
         host.override = [this](const QString &cmd, const QVariantMap &a) -> QVariant {
@@ -188,6 +196,32 @@ private slots:
             q.addQueryItem(k, v);
         m_top = fetch(c, q);
         QVERIFY(m_top.size() > 100);
+    }
+
+    // Ein bestimmter Sender (UVEINETRADIO_URL): Status, Format, Titel und Pegel alle 3 s über 45 s
+    void playUrl()
+    {
+        const QString url = qEnvironmentVariable("UVEINETRADIO_URL");
+        if (url.isEmpty()) QSKIP("UVEINETRADIO_URL nicht gesetzt");
+        MpvHost m;
+        m.host.dataDir = m_dir.filePath("url");
+        RadioController c(&m.host, m.host.dataDir);
+        m.controller = &c;
+        c.setMetadataIntervalMs(1000);
+        c.playCustom("Test", url, false);
+        QVERIFY(QTest::qWaitFor([&] { return c.state() == "playing" || c.state() == "error"; }, 30000));
+        qInfo().noquote() << "Status:" << c.state() << c.errorCode() << c.errorDetail();
+        for (int t = 0; t < 45; t += 3) {
+            QTest::qWait(3000);
+            QVariantMap lvl = m.host.call({}, "mpv.get", {{"name", "af-metadata/lvl"}}, nullptr).toMap();
+            const QVariantMap ap = m.host.call({}, "mpv.get", {{"name", "audio-params"}}, nullptr).toMap();
+            const double pos = m.host.call({}, "mpv.get", {{"name", "audio-pts"}}, nullptr).toDouble();
+            const QString path = m.host.call({}, "mpv.get", {{"name", "path"}}, nullptr).toString();
+            qInfo().noquote() << QStringLiteral("t=%1s pts=%2 RMS=%3 dB Peak=%4 dB %5 Hz %6 | state=%7 title=%8 | %9")
+                .arg(t + 3).arg(pos, 0, 'f', 1)
+                .arg(lvl.value("lavfi.astats.Overall.RMS_level").toString(), lvl.value("lavfi.astats.Overall.Peak_level").toString())
+                .arg(ap.value("samplerate").toInt()).arg(ap.value("hr-channels").toString(), c.state(), c.title(), path.left(90));
+        }
     }
 
     void playMp3() { play([](const Station &s) { return s.codec.compare("MP3", Qt::CaseInsensitive) == 0 && !s.hls; }, "MP3"); }

@@ -1,8 +1,13 @@
 #include "RadioController.h"
 #include "Caches.h"
 #include "StreamProbe.h"
+#include "GeoIndex.h"
+#include "GlobeItem.h"
 
+#include <QDir>
+#include <QFileInfo>
 #include <QJsonArray>
+#include <QQuickItem>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkProxy>
@@ -22,6 +27,7 @@ RadioController::RadioController(uve::IPlayerHost *host, const QString &dataDir,
       m_logos(std::make_unique<LogoCache>(dataDir, m_nam)),
       m_browser(std::make_unique<RadioBrowser>(m_nam, m_catalogCache.get())),
       m_probe(std::make_unique<StreamProbe>(m_nam)),
+      m_geo(std::make_unique<GeoIndex>(dataDir)),
       m_store(dataDir)
 {
     // Kein Zwischenspeichern von Zugangsdaten o. Ä. – nur HSTS respektieren
@@ -60,6 +66,9 @@ RadioController::RadioController(uve::IPlayerHost *host, const QString &dataDir,
         m_sendClicks = s.value(QStringLiteral("sendClicks")).toBool(false);
         m_lastSearch = s.value(QStringLiteral("lastSearch")).toObject().toVariantMap();
         m_query.order = m_lastSearch.value(QStringLiteral("order"), QStringLiteral("popularity")).toString();
+        const QJsonObject gs = s.value(QStringLiteral("globeSize")).toObject();
+        if (gs.value(QStringLiteral("w")).toInt() > 0 && gs.value(QStringLiteral("h")).toInt() > 0)
+            m_globeSize = QSize(qMax(560, gs.value(QStringLiteral("w")).toInt()), qMax(380, gs.value(QStringLiteral("h")).toInt()));
     }
 }
 
@@ -488,12 +497,19 @@ void RadioController::saveSettings()
 }
 
 QString RadioController::logoUrl(const QString &remote) { return m_logos->logoUrl(remote); }
-qint64 RadioController::catalogCacheBytes() const { return m_catalogCache->sizeBytes(); }
+qint64 RadioController::catalogCacheBytes() const
+{
+    qint64 geo = 0;
+    const QFileInfo f(QDir(m_dataDir).filePath(QStringLiteral("cache/geo/places.json")));
+    if (f.exists()) geo = f.size();
+    return m_catalogCache->sizeBytes() + geo;
+}
 qint64 RadioController::logoCacheBytes() const { return m_logos->sizeBytes(); }
 
 void RadioController::clearCatalogCache()
 {
     m_catalogCache->clear();
+    m_geo->clearCache();
     m_facetsLoaded = false;
     emit cacheChanged();
 }
@@ -504,6 +520,50 @@ void RadioController::clearLogoCache()
     ++m_logoRevision;
     emit logosChanged();
     emit cacheChanged();
+}
+
+// --------------------------------------------------------------------------- Senderkarte
+QObject *RadioController::geo() const { return m_geo.get(); }
+
+void RadioController::loadGeo(bool force)
+{
+    applyProxy();
+    m_geo->load(m_browser.get(), force);
+    connect(m_geo.get(), &GeoIndex::changed, this, &RadioController::cacheChanged, Qt::UniqueConnection);
+}
+
+QObject *RadioController::createGlobe(QQuickItem *parent)
+{
+    // Kein qmlRegisterType: der Typ gehört zur Plugin-Bibliothek und darf nach dem Entladen nicht registriert bleiben.
+    // Das Element lebt als Kind des Seitenelements und verschwindet mit dem Fenster.
+    if (!parent) return nullptr;
+    auto *g = new GlobeItem(parent);
+    g->setParentItem(parent);
+    g->setIndex(m_geo.get());
+    auto fit = [g, parent] { g->setSize(QSizeF(parent->width(), parent->height())); };
+    connect(parent, &QQuickItem::widthChanged, g, fit);
+    connect(parent, &QQuickItem::heightChanged, g, fit);
+    fit();
+    return g;
+}
+
+void RadioController::openGlobe()
+{
+    call(QStringLiteral("modal.open"), {{"panel", QStringLiteral("globe")},
+                                        {"width", m_globeSize.width()}, {"height", m_globeSize.height()}});
+}
+
+void RadioController::resizeGlobe(int width, int height, bool save)
+{
+    // Der Player begrenzt das Fenster selbst auf den Bildbereich
+    m_globeSize = QSize(qBound(560, width, 8000), qBound(380, height, 8000));
+    call(QStringLiteral("modal.open"), {{"panel", QStringLiteral("globe")},
+                                        {"width", m_globeSize.width()}, {"height", m_globeSize.height()}});
+    if (save && m_host) {
+        QJsonObject s = m_host->loadPluginSettings(kId);
+        s.insert(QStringLiteral("globeSize"), QJsonObject{{"w", m_globeSize.width()}, {"h", m_globeSize.height()}});
+        m_host->savePluginSettings(kId, s);
+    }
 }
 
 } // namespace uve::radio
