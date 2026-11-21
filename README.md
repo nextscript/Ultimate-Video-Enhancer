@@ -16,7 +16,7 @@ Install each ZIP via *Settings → Plugins → Install plugin…* and restart th
 | **UVESponsorSkip** | 1.0.2 | Utility | Skips sponsors, intros, outros and more in YouTube videos using the SponsorBlock database – automatically or by key, with *Undo skip*. `Ctrl+Alt+S` / `Ctrl+Alt+Z`. [Details](#uvesponsorskip) |
 | **UVEPreview** | 1.0.1 | Utility | Picture preview above the timeline: hovering over or dragging the progress bar shows a small picture of that position with a time stamp (local video files). [Details](#uvepreview) |
 | **UVEWatchParty** | 1.0.5 | Utility | Watch together in sync with friends – no server, no account, no port forwarding. Rooms with a 6-character ID and optional password, chat, common start, automatic sync. Local files, links (YouTube, Twitch …) and plugin-resolved streams; the host can relay everything so guests need no site plugin. [Details](#uvewatchparty) |
-| **UVEinetRadio** | 1.0.0 | Utility | Internet radio from the free Radio Browser catalogue – no account, no API key: search by name, country, language and genre, favourites (also offline), recently played, *Now playing* with artist/title when the station sends them, and your own stream addresses. Plays in the player itself (volume, audio output, playlist). [Details](#uveinetradio) |
+| **UVEinetRadio** | 1.0.1 | Utility | Internet radio from the free Radio Browser catalogue – no account, no API key: search by name, country, language and genre, favourites (also offline), recently played, *Now playing* with artist/title when the station sends them, and your own stream addresses. Plays in the player itself (volume, audio output, playlist). [Details](#uveinetradio) |
 
 ## Twitch Chat
 
