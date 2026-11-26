@@ -79,7 +79,10 @@ public:
 
     bool initializePlayer(QString *error);
     void startPlugins();
+    void finishStartup();
     void restoreSessionAndOpen(const QStringList &args);
+    void beginShutdown();
+    bool isShuttingDown() const { return m_shuttingDown; }
     void shutdown();
 
     QObject *playerObject() const;
@@ -277,6 +280,7 @@ private:
     QTimer m_resumeTimer;
     QString m_loadedPath;
     bool m_stoppedByUser = false;
+    bool m_shuttingDown = false;
     // Netzlaufwerke (z. B. RaiDrive): Öffnen schlägt kurzzeitig fehl, solange ein anderer Prozess
     // (Explorer, Virenscanner) die noch nicht zwischengespeicherte Datei liest → automatisch erneut versuchen
     QString m_retryPath;

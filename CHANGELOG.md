@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.3.3 – 2026-11-26
+
+- Stop audio playback as soon as the player window closes, including media waiting for the video renderer.
+- Show the player window before plugin discovery and session restoration run.
+
 ## 1.3.2 – 2026-11-20
 
 ### Subtitles off by default

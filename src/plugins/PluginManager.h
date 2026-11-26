@@ -169,6 +169,7 @@ private:
     QQmlEngine *m_engine = nullptr;
     QStringList m_dirs;
     bool m_safeMode;
+    bool m_shuttingDown = false;
     QString m_language = QStringLiteral("de");
     QList<Entry> m_entries;
     QHash<QString, Command> m_commands;

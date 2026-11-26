@@ -513,6 +513,8 @@ void PluginManager::setSuspended(const QString &id, bool suspended)
 
 void PluginManager::shutdown()
 {
+    if (m_shuttingDown) return;
+    m_shuttingDown = true;
     emitEvent(QStringLiteral("app.quit"));
     for (auto &e : m_entries) {
         if (e.instance) {

@@ -568,7 +568,11 @@ void MpvController::markRenderReady()
     }
 }
 
-void MpvController::stop() { command({"stop"}); }
+void MpvController::stop()
+{
+    m_pendingLoad.clear();
+    command({"stop"});
+}
 void MpvController::setPaused(bool p) { setProperty("pause", p); }
 void MpvController::togglePause() { command({"cycle", "pause"}); }
 

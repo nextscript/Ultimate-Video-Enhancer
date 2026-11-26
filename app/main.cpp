@@ -22,6 +22,7 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QStandardPaths>
+#include <QTimer>
 
 #ifdef UVE_WITH_WEBENGINE
 #include <QtWebEngineQuick>
@@ -29,6 +30,7 @@
 
 #include <clocale>
 #include <cstring>
+#include <memory>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -197,7 +199,21 @@ int main(int argc, char *argv[])
         if (auto *win = qobject_cast<QQuickWindow *>(engine->rootObjects().first())) win->grabWindow().save(file);
     });
 
-    if (selftestOut.isEmpty()) player->restoreSessionAndOpen(args);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, player, &PlayerApp::beginShutdown);
+    // Das Fenster zuerst zeichnen; Plugin-Suche und Sitzungswiederherstellung dürfen den ersten Frame nicht blockieren.
+    const auto startupDone = std::make_shared<bool>(false);
+    const auto finishStartup = [player, args, selftestOut, startupDone] {
+        if (*startupDone || player->isShuttingDown()) return;
+        *startupDone = true;
+        player->finishStartup();
+        if (selftestOut.isEmpty()) player->restoreSessionAndOpen(args);
+    };
+    if (auto *window = qobject_cast<QQuickWindow *>(engine->rootObjects().value(0))) {
+        QObject::connect(window, &QQuickWindow::frameSwapped, player,
+                         [player, finishStartup] { QTimer::singleShot(0, player, finishStartup); },
+                         Qt::SingleShotConnection);
+        QTimer::singleShot(1000, player, finishStartup); // Rückfall, falls keine Bildwechsel gemeldet werden
+    }
 
     const int rc = app.exec();
 

@@ -723,6 +723,11 @@ void PlayerApp::startPlugins()
         if (m_plugins) m_plugins->cancelResolve(id);   // Plugin-Antwort kommt danach nicht mehr an
         onMediaResolved(id, QString(), tr("keine Antwort (Zeitüberschreitung)"), tr("Plugin"));
     });
+}
+
+void PlayerApp::finishStartup()
+{
+    if (m_shuttingDown) return;
     if (!m_safe->active()) m_safe->markPluginsLoading();
     m_plugins->discoverAndStart();
     // Nach 10 s stabiler Laufzeit gilt der Plugin-Start als erfolgreich (Absturzerkennung)
@@ -938,6 +943,7 @@ void PlayerApp::stop()
 
 void PlayerApp::onFileLoaded()
 {
+    if (m_shuttingDown) return;
     const int i = m_playlist->currentIndex();
     // Direkt bei mpv abfragen: die beobachtete Eigenschaft "path" kann erst nach FILE_LOADED eintreffen
     m_loadedPath = m_player->getProperty(QStringLiteral("path")).toString();
@@ -965,6 +971,7 @@ void PlayerApp::onFileLoaded()
 
 void PlayerApp::onEndOfFile(const QString &reason)
 {
+    if (m_shuttingDown) return;
     const int i = m_playlist->currentIndex();
     if (m_plugins) m_plugins->emitEvent(QStringLiteral("media.ended"), {{"reason", reason}, {"path", m_loadedPath},
                                                                         {"source", m_playlist->pathAt(i)}, {"error", reason == QLatin1String("error") ? m_player->errorString() : QString()}});
@@ -1153,11 +1160,25 @@ void PlayerApp::saveWindowGeometry()
 
 void PlayerApp::shutdown()
 {
+    beginShutdown();
     saveWindowGeometry();
-    saveResume();
     saveSession();
     if (m_plugins) m_plugins->shutdown();
     m_settings->flush();
+}
+
+void PlayerApp::beginShutdown()
+{
+    if (m_shuttingDown) return;
+    m_shuttingDown = true;
+    m_resumeTimer.stop();
+    m_preloadTimer.stop();
+    m_resolveTimeout.stop();
+    ++m_loadGeneration;
+    saveResume();
+    cancelPendingResolve();
+    clearStreamQualities();
+    if (m_player) m_player->stop();
 }
 
 bool PlayerApp::savePlaylist(const QUrl &file)
@@ -1429,6 +1450,7 @@ bool PlayerApp::scrollFlickable(QQuickItem *it, QWheelEvent *w)
 
 bool PlayerApp::eventFilter(QObject *watched, QEvent *event)
 {
+    if (watched == m_window && event->type() == QEvent::Close) beginShutdown();
     if (event->type() == QEvent::KeyPress && watched == m_window) {
         // Medientasten bei aktivem Fenster (Qt meldet sie als Tasten); im Hintergrund kommt dasselbe über MediaKeys
         static const QHash<int, QString> keys{{Qt::Key_MediaTogglePlayPause, "play.toggle"}, {Qt::Key_MediaPlay, "play.play"},
