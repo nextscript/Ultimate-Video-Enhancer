@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.17.5
+// @version      1.17.6
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -621,6 +621,7 @@
         USER_PROFILE_MANAGER_POS: 'gvf_user_profile_manager_pos',
         LUT_PROFILE_MANAGER_POS: 'gvf_lut_profile_manager_pos',
         EXPERT_MANAGER_POS: 'gvf_expert_modal_pos',
+        WS_MANAGER_POS: 'gvf_webscaly_modal_pos',
 
         // Custom SVG filter codes
         CUSTOM_SVG_CODES: 'gvf_custom_svg_codes',
@@ -638,6 +639,61 @@
     const nFix = (n, digits = 1) => Number((Number(n) || 0).toFixed(digits));
     const gmGet = (key, fallback) => { try { return GM_getValue(key, fallback); } catch (_) { return fallback; } };
     const gmSet = (key, val) => { try { GM_setValue(key, val); } catch (_) { } };
+
+    // SVG detail controls for the video filter. Neural WebGPU models are
+    // not part of this userscript. Keep the existing storage key for saved settings.
+    const WS_KEY = 'gvf_webscaly_settings_v1';
+    const WS_DEFAULTS = Object.freeze({ enabled: false, algorithm: 'spatial', scale: 'auto',
+        strength: 0.35, denoise: 0.12, deband: 0,
+        vibrance: 0, contrast: 0, brightness: 0 });
+    const WS_PRESETS = Object.freeze([
+        { name: 'Anime', settings: { algorithm: 'anime4k', scale: '1.5', strength: .15, denoise: .1, deband: .35, vibrance: .1 } },
+        { name: 'Live action', settings: { algorithm: 'fsrcnnx', scale: '1.5', strength: .3, denoise: .12, deband: .15 } },
+        { name: 'Low-res rescue', settings: { algorithm: 'fsrcnnx', scale: '2', strength: .45, denoise: .3, deband: .3, vibrance: .05, contrast: .05 } },
+        { name: 'Soft detail', settings: { algorithm: 'spatial', scale: 'native', strength: .3, denoise: 0, deband: 0 } }
+    ]);
+    function wsNormalize(value) {
+        const s = value && typeof value === 'object' ? value : {};
+        const pick = (key, allowed) => allowed.includes(s[key]) ? s[key] : WS_DEFAULTS[key];
+        const num = (key, min, max) => Number.isFinite(Number(s[key])) ? clamp(Number(s[key]), min, max) : WS_DEFAULTS[key];
+        return { enabled: typeof s.enabled === 'boolean' ? s.enabled : WS_DEFAULTS.enabled,
+            algorithm: pick('algorithm', ['spatial', 'anime4k', 'fsrcnnx']),
+            scale: pick('scale', ['auto', 'native', '1.5', '2']),
+            strength: num('strength', 0, 1),
+            denoise: num('denoise', 0, 1), deband: num('deband', 0, 1),
+            vibrance: num('vibrance', -1, 1), contrast: num('contrast', -1, 1),
+            brightness: num('brightness', -1, 1) };
+    }
+    function wsNormalizeConfig(data) {
+        const sites = Array.isArray(data?.sites) ? data.sites.filter(x => x && typeof x.origin === 'string')
+            .slice(0, 200).map(x => ({ origin: x.origin, subdomains: !!x.subdomains, settings: wsNormalize(x.settings) })) : [];
+        const presets = Array.isArray(data?.presets) ? data.presets.filter(x => x && typeof x.name === 'string')
+            .slice(0, 30).map(x => ({ name: x.name.slice(0, 50), settings: wsNormalize(x.settings) })) : [];
+        return { defaults: wsNormalize(data?.defaults), sites, presets,
+            preferences: { paused: !!data?.preferences?.paused } };
+    }
+    function wsLoad() {
+        try {
+            const raw = gmGet(WS_KEY, null);
+            const data = typeof raw === 'string' ? JSON.parse(raw) : raw;
+            return wsNormalizeConfig(data);
+        } catch (_) { return { defaults: wsNormalize(), sites: [], presets: [], preferences: { paused: false } }; }
+    }
+    let wsConfig = wsLoad();
+    const wsSave = () => gmSet(WS_KEY, JSON.stringify(wsConfig));
+    function wsOrigin() { try { return location.origin; } catch (_) { return ''; } }
+    function wsSite() {
+        const origin = wsOrigin();
+        return wsConfig.sites.find(x => x.origin === origin) || wsConfig.sites.find(x => {
+            try { const u = new URL(x.origin); return x.subdomains && u.protocol === location.protocol &&
+                location.hostname.endsWith('.' + u.hostname); } catch (_) { return false; }
+        }) || null;
+    }
+    function wsActive() { return wsSite()?.settings || wsConfig.defaults; }
+    function wsEnabled() {
+        const s = wsActive();
+        return renderMode === 'svg' && s.enabled && !wsConfig.preferences.paused && !isFilterBlockedByDrm();
+    }
     const nowMs = () => (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     const isFirefox = () => { try { return /firefox/i.test(navigator.userAgent || ''); } catch (_) { return false; } };
 
@@ -10116,7 +10172,6 @@ if (!gl) {
                 void main() {
                     vec4 texColor = texture2D(uVideoTex, vTexCoord);
                     vec3 color = texColor.rgb;
-
                     // RGB Gain
                     color.r *= uRGBGain.x;
                     color.g *= uRGBGain.y;
@@ -11791,6 +11846,167 @@ if (!gl) {
     // -------------------------
     // Config Menu (User Profile Management)
     // -------------------------
+    const WS_MODAL_ID = 'gvf-svg-detail-modal';
+    function wsRendererStatus(message) {
+        const status = document.querySelector(`#${WS_MODAL_ID} [data-status]`);
+        if (status) status.textContent = message;
+    }
+    function wsRendererSummary() {
+        if (!wsEnabled()) return 'Detail enhancement is off or SVG mode is not active.';
+        return 'SVG filter active.';
+    }
+    function wsRefreshRenderer() {
+        if (renderMode === 'svg') regenerateSvgImmediately();
+        scheduleOverlayUpdate();
+        wsRendererStatus(wsRendererSummary());
+    }
+    function wsOpenModal() {
+        const old = document.getElementById(WS_MODAL_ID);
+        if (old) { if (typeof old._gvfClose === 'function') old._gvfClose(); else old.remove(); return; }
+        const modal = document.createElement('div');
+        modal.id = WS_MODAL_ID;
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-label', 'SVG Detail Enhancer settings');
+        modal.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:900px;max-width:96vw;height:84vh;max-height:780px;z-index:2147483647;display:flex;flex-direction:column;overflow:hidden;background:rgba(20,20,20,.98);border:2px solid #8b5cf6;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.8),0 0 0 1px rgba(255,255,255,.1) inset;box-sizing:border-box;font:13px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;color:#eaeaea;user-select:none;pointer-events:auto';
+        const modalStyle = document.createElement('style');
+        modalStyle.textContent = `
+            #${WS_MODAL_ID} *{box-sizing:border-box}
+            #${WS_MODAL_ID} .ws-header{display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:2px solid #8b5cf6;flex:none}
+            #${WS_MODAL_ID} .ws-title{flex:1;min-width:0}
+            #${WS_MODAL_ID} h2{font-size:19px;font-weight:900;letter-spacing:.2px;margin:0;color:#fff}
+            #${WS_MODAL_ID} .ws-body{flex:1;min-height:0;overflow-y:auto;padding:18px 22px}
+            #${WS_MODAL_ID} .ws-footer{flex:none;padding:12px 20px;border-top:1px solid rgba(255,255,255,.08);background:rgba(0,0,0,.2)}
+            #${WS_MODAL_ID} h3{font-size:14px;margin:18px 0 9px;color:#c4b5fd}
+            #${WS_MODAL_ID} .ws-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px 14px}
+            #${WS_MODAL_ID} label{display:flex;flex-direction:column;gap:6px;min-width:0;padding:10px 12px;border:1px solid rgba(255,255,255,.08);border-radius:10px;background:rgba(255,255,255,.04)}
+            #${WS_MODAL_ID} label.ws-check{flex-direction:row;align-items:center}
+            #${WS_MODAL_ID} input,#${WS_MODAL_ID} select,#${WS_MODAL_ID} button{font:inherit;color:#eee;background:#28242f;border:1px solid rgba(255,255,255,.16);border-radius:9px;padding:8px 11px}
+            #${WS_MODAL_ID} input[type=checkbox]{width:auto}
+            #${WS_MODAL_ID} input[type=range]{width:100%;padding:0;accent-color:#8b5cf6}
+            #${WS_MODAL_ID} .ws-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+            #${WS_MODAL_ID} [data-scope]{margin-bottom:12px}
+            #${WS_MODAL_ID} button{cursor:pointer}
+            #${WS_MODAL_ID} button:hover{background:rgba(139,92,246,.35);border-color:#8b5cf6}
+            #${WS_MODAL_ID} [data-close]{width:36px;height:36px;flex:none;padding:0;display:grid;place-items:center;font-size:24px;line-height:1}
+            #${WS_MODAL_ID} .ws-note{color:#a9a3c0;line-height:1.4;margin:0}
+            #${WS_MODAL_ID} .ws-footer .ws-note{margin-top:9px}
+        `;
+        const part = (tag, className, content) => {
+            const el = document.createElement(tag);
+            if (className) el.className = className;
+            if (content) el.textContent = content;
+            return el;
+        };
+        const slot = (tag, className, name) => {
+            const el = part(tag, className);
+            el.dataset[name] = '';
+            return el;
+        };
+        const header = slot('div', 'ws-header', 'dragHandle');
+        const title = part('div', 'ws-title');
+        title.append(part('h2', '', 'SVG Detail Enhancer'),
+            part('p', 'ws-note', 'SVG picture controls · Changes are saved automatically.'));
+        const closeButton = slot('button', '', 'close');
+        closeButton.type = 'button';
+        closeButton.title = 'Close';
+        closeButton.setAttribute('aria-label', 'Close');
+        closeButton.textContent = '×';
+        header.append(title, closeButton);
+        const body = part('div', 'ws-body');
+        body.append(
+            part('p', 'ws-note', 'The SVG filter enhances detail while the browser enlarges the video. Upscaling settings adjust the detail effect; they do not change the video resolution. Anime4K and FSRCNNX are approximations.'),
+            slot('div', 'ws-actions', 'scope'), slot('div', 'ws-grid', 'preferences'),
+            part('h3', '', 'Picture'), slot('div', 'ws-grid', 'picture'),
+            part('h3', '', 'Presets'), slot('div', 'ws-actions', 'presets'));
+        const footer = part('div', 'ws-footer');
+        footer.append(slot('div', 'ws-actions', 'actions'), slot('p', 'ws-note', 'status'));
+        modal.append(modalStyle, header, body, footer);
+        stopEventsOn(modal); stopClicksOn(modal);
+        const q = sel => modal.querySelector(sel);
+        const status = text => { q('[data-status]').textContent = text; };
+        let scope = wsSite() ? 'site' : 'global';
+        const current = () => scope === 'site' ? wsSite()?.settings || wsConfig.defaults : wsConfig.defaults;
+        const save = () => { wsSave(); wsRefreshRenderer(); };
+        const button = (parent, label, action) => {
+            const b = document.createElement('button'); b.type = 'button'; b.textContent = label;
+            b.addEventListener('click', action); parent.appendChild(b); return b;
+        };
+        const select = (parent, label, values, key, onChange) => {
+            const wrap = document.createElement('label'); wrap.textContent = label;
+            const el = document.createElement('select');
+            values.forEach(([value, text]) => { const o = document.createElement('option'); o.value = String(value); o.textContent = text; el.appendChild(o); });
+            el.value = String(current()[key]);
+            el.addEventListener('change', () => { onChange ? onChange(el.value) : (current()[key] = el.value); save(); });
+            wrap.appendChild(el); parent.appendChild(wrap);
+        };
+        const number = (parent, label, key, min, max, step) => {
+            const wrap = document.createElement('label');
+            const title = document.createElement('span');
+            const input = document.createElement('input'); input.type = 'range'; input.min = min; input.max = max; input.step = step;
+            input.value = current()[key];
+            const show = () => { title.textContent = `${label}: ${input.value}`; }; show();
+            input.addEventListener('input', () => { current()[key] = Number(input.value); show(); save(); });
+            wrap.append(title, input); parent.appendChild(wrap);
+        };
+        const check = (parent, label, key, target = current()) => {
+            const wrap = document.createElement('label'); wrap.className = 'ws-check';
+            const input = document.createElement('input'); input.type = 'checkbox'; input.checked = !!target[key];
+            input.addEventListener('change', () => { target[key] = input.checked; save(); });
+            wrap.append(input, document.createTextNode(label)); parent.appendChild(wrap);
+        };
+        const render = () => {
+            ['[data-scope]', '[data-preferences]', '[data-picture]', '[data-presets]', '[data-actions]'].forEach(s => q(s).replaceChildren());
+            const scopes = q('[data-scope]');
+            button(scopes, scope === 'global' ? '✓ Global' : 'Global', () => { scope = 'global'; render(); });
+            button(scopes, scope === 'site' ? '✓ This website' : 'This website', () => {
+                if (!wsSite()) wsConfig.sites.push({ origin: wsOrigin(), subdomains: false, settings: wsNormalize(wsConfig.defaults) });
+                scope = 'site'; save(); render();
+            });
+            if (scope === 'site') {
+                const site = wsSite();
+                check(q('[data-preferences]'), 'Include subdomains', 'subdomains', site);
+                button(scopes, 'Remove website rule', () => { wsConfig.sites = wsConfig.sites.filter(x => x !== site); scope = 'global'; save(); render(); });
+            }
+            check(q('[data-preferences]'), 'Enabled', 'enabled');
+            check(q('[data-preferences]'), 'Pause globally', 'paused', wsConfig.preferences);
+            const pic = q('[data-picture]');
+            select(pic, 'Algorithm', [['spatial','Spatial Detail'],['anime4k','Anime4K approximation'],['fsrcnnx','FSRCNNX approximation']], 'algorithm');
+            select(pic, 'Upscaling', [['auto','Automatic'],['native','1× · Original'],['1.5','1.5× · More detail'],['2','2× · Maximum detail']], 'scale');
+            number(pic, 'Strength', 'strength', 0, 1, .01);
+            number(pic, 'Denoise', 'denoise', 0, 1, .01);
+            number(pic, 'Deband', 'deband', 0, 1, .01);
+            number(pic, 'Vibrance', 'vibrance', -1, 1, .01);
+            number(pic, 'Contrast', 'contrast', -1, 1, .01);
+            number(pic, 'Brightness', 'brightness', -1, 1, .01);
+            const presets = q('[data-presets]');
+            [...WS_PRESETS, ...wsConfig.presets].forEach(p => button(presets, p.name, () => {
+                Object.assign(current(), wsNormalize({ ...current(), ...p.settings, enabled: true })); save(); render(); status(`Preset “${p.name}” applied.`);
+            }));
+            const actions = q('[data-actions]');
+            button(actions, 'Save preset', () => {
+                const name = prompt('Name for the new preset:');
+                if (!name?.trim()) return;
+                const clean = name.trim().slice(0, 50);
+                wsConfig.presets = wsConfig.presets.filter(x => x.name !== clean);
+                if (wsConfig.presets.length >= 30) { status('Maximum of 30 custom presets.'); return; }
+                wsConfig.presets.push({ name: clean, settings: wsNormalize(current()) }); save(); render();
+            });
+            button(actions, 'Reset', () => { Object.assign(current(), wsNormalize()); save(); render(); });
+        };
+        modal._gvfRefresh = render;
+        const close = () => { modal.remove(); document.removeEventListener('keydown', onKey, true); };
+        modal._gvfClose = close;
+        q('[data-close]').addEventListener('click', close);
+        const onKey = e => { if (e.key === 'Escape') close(); };
+        document.addEventListener('keydown', onKey, true);
+        const fsEl = getFsEl();
+        const host = (fsEl && fsEl.tagName !== 'VIDEO') ? fsEl : (document.body || document.documentElement);
+        host.appendChild(modal);
+        makeFloatingManagerDraggable(modal, q('[data-drag-handle]'), K.WS_MANAGER_POS);
+        applyManagerPosition(modal, K.WS_MANAGER_POS);
+        render();
+        status(wsRendererSummary());
+    }
     let configMenuVisible = false;
 
     function createConfigMenu() {
@@ -15839,7 +16055,7 @@ const fileInput = document.createElement('input');
 
         const svgCodesBtn = document.createElement('button');
         svgCodesBtn.textContent = '⬡ Manage';
-        svgCodesBtn.style.cssText = `padding:4px 12px;background:rgba(100,180,255,0.18);color:#a0d4ff;border:1px solid rgba(100,180,255,0.45);border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;transition:background 0.15s;`;
+        svgCodesBtn.style.cssText = `width:96px;padding:4px 12px;background:rgba(100,180,255,0.18);color:#a0d4ff;border:1px solid rgba(100,180,255,0.45);border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;transition:background 0.15s;`;
         svgCodesBtn.addEventListener('mouseenter', () => { svgCodesBtn.style.background = 'rgba(100,180,255,0.32)'; });
         svgCodesBtn.addEventListener('mouseleave', () => { svgCodesBtn.style.background = 'rgba(100,180,255,0.18)'; });
         if (isFirefox()) {
@@ -15861,6 +16077,21 @@ const fileInput = document.createElement('input');
         svgCodesRow.appendChild(svgCodesBtn);
         svgCodesRow.appendChild(svgCodesCount);
         overlay.appendChild(svgCodesRow);
+
+        const svgUpscaleRow = document.createElement('div');
+        svgUpscaleRow.style.cssText = svgCodesRow.style.cssText;
+        const svgUpscaleLabel = document.createElement('div');
+        svgUpscaleLabel.textContent = 'SVG Detail Enhancer';
+        svgUpscaleLabel.style.cssText = svgCodesLabel.style.cssText;
+        const svgUpscaleBtn = document.createElement('button');
+        svgUpscaleBtn.textContent = '⬡ Settings';
+        svgUpscaleBtn.title = 'Open SVG Detail Enhancer settings';
+        svgUpscaleBtn.style.cssText = 'width:96px;padding:4px 12px;background:rgba(139,92,246,0.18);color:#c4b5fd;border:1px solid rgba(139,92,246,0.5);border-radius:6px;font-size:11px;font-weight:900;cursor:pointer;transition:background 0.15s;';
+        svgUpscaleBtn.addEventListener('mouseenter', () => { svgUpscaleBtn.style.background = 'rgba(139,92,246,0.32)'; });
+        svgUpscaleBtn.addEventListener('mouseleave', () => { svgUpscaleBtn.style.background = 'rgba(139,92,246,0.18)'; });
+        svgUpscaleBtn.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); wsOpenModal(); });
+        svgUpscaleRow.append(svgUpscaleLabel, svgUpscaleBtn);
+        overlay.appendChild(svgUpscaleRow);
 
 
 
@@ -16713,6 +16944,7 @@ const fileInput = document.createElement('input');
 
                 if (raw === lastIoJsonApplied) return;
 
+                const previousWsConfig = JSON.stringify(wsConfig);
                 const ok = importSettings(obj);
                 if (!ok) {
                     status.textContent = 'Invalid JSON structure.';
@@ -16726,7 +16958,9 @@ const fileInput = document.createElement('input');
                 ta.value = lastIoJsonApplied;
                 setDirty(false);
 
-                status.textContent = changed ? 'Auto-saved + applied to active profile.' : 'No settings change detected.';
+                const wsChanged = previousWsConfig !== JSON.stringify(wsConfig);
+                status.textContent = changed ? 'Auto-saved + applied to active profile.' :
+                    wsChanged ? 'Detail Enhancer settings saved + applied.' : 'No settings change detected.';
                 if (changed) {
                     showScreenNotification('', {
                         title: `Profile "${String(activeUserProfile?.name || 'Default')}" auto-saved`,
@@ -16921,6 +17155,7 @@ const fileInput = document.createElement('input');
             if (!raw) { status.textContent = 'Empty JSON.'; return; }
             try {
                 const obj = JSON.parse(raw);
+                const previousWsConfig = JSON.stringify(wsConfig);
                 const ok = importSettings(obj);
                 if (!ok) { status.textContent = 'Invalid JSON structure.'; return; }
 
@@ -16930,12 +17165,16 @@ const fileInput = document.createElement('input');
                 setDirty(false);
                 ta.value = JSON.stringify(exportSettings(), null, 2);
                 lastIoJsonApplied = ta.value;
-                status.textContent = changed ? 'Saved + applied.' : 'No settings change detected.';
-                showScreenNotification('', {
-                    title: `Profile "${String(activeUserProfile?.name || 'Default')}" saved`,
-                    detail: 'IO HUD JSON saved + applied',
-                    detailColor: '#4cff6a'
-                });
+                const wsChanged = previousWsConfig !== JSON.stringify(wsConfig);
+                status.textContent = changed ? 'Saved + applied.' :
+                    wsChanged ? 'Detail Enhancer settings saved + applied.' : 'No settings change detected.';
+                if (changed || wsChanged) {
+                    showScreenNotification('', {
+                        title: changed ? `Profile "${String(activeUserProfile?.name || 'Default')}" saved` : 'Detail Enhancer settings saved',
+                        detail: 'IO HUD JSON saved + applied',
+                        detailColor: '#4cff6a'
+                    });
+                }
             } catch (_) {
                 status.textContent = 'JSON parse error.';
             }
@@ -17583,12 +17822,15 @@ const fileInput = document.createElement('input');
             },
             debug: !!debug,
             logs: !!logs,
-            cbFilter: String(cbFilter)
+            cbFilter: String(cbFilter),
+            svgDetailEnhancer: { version: 2, ...wsConfig }
         };
     }
 
     function importSettings(obj) {
         if (!obj || typeof obj !== 'object') return false;
+        if ('svgDetailEnhancer' in obj && (!obj.svgDetailEnhancer ||
+            typeof obj.svgDetailEnhancer !== 'object' || Array.isArray(obj.svgDetailEnhancer))) return false;
 
         _suspendSync = true;
         _inSync = true;
@@ -17752,6 +17994,15 @@ if ('lutProfile' in obj) {
                 applyGpuFilter();
             } else {
                 regenerateSvgImmediately();
+            }
+            if ('svgDetailEnhancer' in obj) {
+                const nextWsConfig = wsNormalizeConfig(obj.svgDetailEnhancer);
+                if (JSON.stringify(nextWsConfig) !== JSON.stringify(wsConfig)) {
+                    wsConfig = nextWsConfig;
+                    wsSave();
+                    wsRefreshRenderer();
+                    document.getElementById(WS_MODAL_ID)?._gvfRefresh?.();
+                }
             }
             scheduleOverlayUpdate();
 
@@ -18527,7 +18778,7 @@ if ('lutProfile' in obj) {
         const fsEl = getFsEl();
         // a <video> cannot render child elements -> fall back to body in that case
         const target = (fsEl && fsEl.tagName !== 'VIDEO') ? fsEl : (document.body || document.documentElement);
-        const IDS = [CONFIG_MENU_ID, LUT_CONFIG_MENU_ID, 'gvf-custom-svg-modal', EXPERT_MODAL_ID];
+        const IDS = [CONFIG_MENU_ID, LUT_CONFIG_MENU_ID, 'gvf-custom-svg-modal', EXPERT_MODAL_ID, WS_MODAL_ID];
         IDS.forEach(id => {
             const el = document.getElementById(id);
             if (el && el.parentNode !== target) {
@@ -19357,6 +19608,54 @@ if ('lutProfile' in obj) {
         return m.map(row => `${row[0]} ${row[1]} ${row[2]} 0 0`).join(' ') + ' 0 0 0 1 0';
     }
 
+    function appendSvgDetailFilter(filter, inName) {
+        if (!wsEnabled()) return inName;
+        const s = wsActive();
+        const add = (tag, attrs) => {
+            const node = document.createElementNS(svgNS, tag);
+            Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
+            filter.appendChild(node);
+            return node;
+        };
+        let last = inName;
+        const scaleDetail = s.scale === '2' ? 0.45 : s.scale === '1.5' ? 0.22 : s.scale === 'auto' ? 0.12 : 0;
+        const algorithmFactor = s.algorithm === 'anime4k' ? 1.25 : s.algorithm === 'fsrcnnx' ? 1.5 : 0.9;
+        const detailAmount = s.strength * algorithmFactor + scaleDetail;
+        if (s.denoise > 0 || s.deband > 0 || detailAmount > 0) {
+            const radius = 0.4 + s.denoise * 1.4 + s.deband * 0.6 + scaleDetail * 0.9;
+            add('feGaussianBlur', { in: last, stdDeviation: radius.toFixed(2), result: 'r_ws_blur' });
+            if (s.denoise > 0 || s.deband > 0) {
+                const smoothing = Math.min(0.65, s.denoise * 0.42 + s.deband * 0.18);
+                add('feComposite', { in: last, in2: 'r_ws_blur', operator: 'arithmetic',
+                    k1: 0, k2: (1 - smoothing).toFixed(3), k3: smoothing.toFixed(3), k4: 0, result: 'r_ws_smooth' });
+                last = 'r_ws_smooth';
+            }
+            if (detailAmount > 0) {
+                add('feComposite', { in: last, in2: 'r_ws_blur', operator: 'arithmetic',
+                    k1: 0, k2: (1 + detailAmount).toFixed(3), k3: (-detailAmount).toFixed(3), k4: 0, result: 'r_ws_detail' });
+                last = 'r_ws_detail';
+            }
+        }
+        if (s.vibrance !== 0) {
+            add('feColorMatrix', { in: last, type: 'saturate', values: (1 + s.vibrance * 0.65).toFixed(3), result: 'r_ws_vibrance' });
+            last = 'r_ws_vibrance';
+        }
+        if (s.contrast !== 0 || s.brightness !== 0) {
+            const slope = 1 + s.contrast * 0.5;
+            const offset = (1 - slope) * 0.5 + s.brightness * 0.15;
+            const color = add('feComponentTransfer', { in: last, result: 'r_ws_color' });
+            ['feFuncR', 'feFuncG', 'feFuncB'].forEach(tag => {
+                const channel = document.createElementNS(svgNS, tag);
+                channel.setAttribute('type', 'linear');
+                channel.setAttribute('slope', slope.toFixed(3));
+                channel.setAttribute('intercept', offset.toFixed(3));
+                color.appendChild(channel);
+            });
+            last = 'r_ws_color';
+        }
+        return last;
+    }
+
     function buildFilter(svg, id, opts, radius, sharpenA, blurSigma, blackOffset, whiteAdj, dnVal, edgeVal, hdrVal, prof, toneMat = null) {
         const { moody, teal, vib } = opts;
 
@@ -19794,6 +20093,8 @@ if ('lutProfile' in obj) {
             last = 'r_tone';
         }
 
+        last = appendSvgDetailFilter(filter, last);
+
         // The last primitive is the filter output, no extra feMerge copy pass needed
         mergeChainedColorMatrices(filter);
 
@@ -19826,7 +20127,8 @@ if ('lutProfile' in obj) {
         const customSig = customSvgCodes.filter(e => e && e.enabled && e.type !== 'webgl' && e.type !== 'canvas2d' && e.type !== 'audio').map(e => e.id + ':' + e.code).join('||');
         const toneMat = svgToneInFilter() ? svgToneMatrix() : null;
         const toneSig = toneMat ? matToSvgValues(toneMat) : 'none';
-        const fullWant = `${SL}|${SR}|${R}|${A}|${BS}|${BL}|${WL}|${DN}|${EDGE}|${HDR}|${P}|U:${uSig}|CB:${CB}|LUT:${LUTN}|CSVG:${customSig}|TONE:${toneSig}`;
+        const wsSig = wsEnabled() ? JSON.stringify(wsActive()) : 'off';
+        const fullWant = `${SL}|${SR}|${R}|${A}|${BS}|${BL}|${WL}|${DN}|${EDGE}|${HDR}|${P}|U:${uSig}|CB:${CB}|LUT:${LUTN}|CSVG:${customSig}|TONE:${toneSig}|WS:${wsSig}`;
         // slider preview: only the active combo filter (full set is rebuilt when the drag ends)
         const activeOnly = _svgActiveComboOnly;
         const activeId = activeOnly ? pickComboId() : '';
@@ -19946,7 +20248,7 @@ if ('lutProfile' in obj) {
         let style = document.getElementById(STYLE_ID);
 
         const nothingOn =
-            !enabled && !darkMoody && !tealOrange && !vibrantSat && normEDGE() === 0 && normHDR() === 0 && (profile === 'off') && !autoOn && cbFilter === 'none';
+            !enabled && !darkMoody && !tealOrange && !vibrantSat && normEDGE() === 0 && normHDR() === 0 && (profile === 'off') && !autoOn && cbFilter === 'none' && !wsEnabled();
 
         if (nothingOn) {
             if (style) style.remove();
@@ -20356,6 +20658,7 @@ if ('lutProfile' in obj) {
 
         // Initialize config menu (but do not display)
         createConfigMenu();
+        if (wsEnabled()) wsRefreshRenderer();
 
         log('Init complete with WebGL2 Canvas Pipeline! RGB Gain now works correctly!', {
             enabled, darkMoody, tealOrange, vibrantSat, iconsShown,
