@@ -14,7 +14,7 @@ Sharpen blurry streams, boost colors, enhance contrast, and get a cleaner HDR\-l
 
 <b>No setup\. No config\. Just install and press a hotkey\.</b>
 
-<p><b>SVG Detail Enhancer:</b> Open the Grading HUD with Ctrl+Alt+G and choose <b>Settings</b> below <b>SVG/WebGL Codes</b>. Global and website settings, presets, detail scaling (automatic, 1×, 1.5×, 2×), smoothing, and color controls apply through the SVG filter. The browser enlarges the video; detail scaling adjusts the effect without changing the video resolution. These settings are included in the JSON export and import under Ctrl+Alt+I.</p>
+<p><b>🚨 SVG Detail Enhancer:<br></b> Open the Grading HUD with Ctrl+Alt+G and choose <b>Settings</b> below <b>SVG/WebGL Codes</b>. Global and website settings, presets, detail scaling (automatic, 1×, 1.5×, 2×), smoothing, and color controls apply through the SVG filter. The browser enlarges the video; detail scaling adjusts the effect without changing the video resolution. These settings are included in the JSON export and import under Ctrl+Alt+I.</p>
 
 <hr>
 <h2>🖥️ NEW: UVE Manager –  Desktop App</h2>
