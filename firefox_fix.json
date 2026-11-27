@@ -20,7 +20,7 @@
   "adaptiveFps": {
     "min": 2,
     "max": 10,
-    "current": 4
+    "current": 2
   },
   "user": {
     "contrast": 0,
@@ -40,5 +40,24 @@
   },
   "debug": false,
   "logs": true,
-  "cbFilter": "none"
+  "cbFilter": "none",
+  "svgDetailEnhancer": {
+    "version": 2,
+    "defaults": {
+      "enabled": true,
+      "algorithm": "fsrcnnx",
+      "scale": "1.5",
+      "strength": 0.3,
+      "denoise": 0.12,
+      "deband": 0.15,
+      "vibrance": 0.05,
+      "contrast": 0.05,
+      "brightness": 0
+    },
+    "sites": [],
+    "presets": [],
+    "preferences": {
+      "paused": false
+    }
+  }
 }
