@@ -6,10 +6,10 @@
   "darkMoody": true,
   "tealOrange": false,
   "vibrantSat": false,
-  "sl": 1.2,
-  "sr": 1.1,
-  "bl": 0.7,
-  "wl": 0.2,
+  "sl": 1.6,
+  "sr": 1,
+  "bl": -1.4,
+  "wl": 0.9,
   "dn": 0,
   "edge": 0,
   "hdr": 0,
@@ -22,7 +22,7 @@
   "adaptiveFps": {
     "min": 2,
     "max": 10,
-    "current": 2
+    "current": 2.5
   },
   "user": {
     "contrast": 0,
@@ -42,5 +42,24 @@
   },
   "debug": false,
   "logs": true,
-  "cbFilter": "none"
+  "cbFilter": "none",
+  "svgDetailEnhancer": {
+    "version": 2,
+    "defaults": {
+      "enabled": true,
+      "algorithm": "fsrcnnx",
+      "scale": "1.5",
+      "strength": 0.3,
+      "denoise": 0.12,
+      "deband": 0.15,
+      "vibrance": 0.05,
+      "contrast": 0.05,
+      "brightness": 0
+    },
+    "sites": [],
+    "presets": [],
+    "preferences": {
+      "paused": false
+    }
+  }
 }
