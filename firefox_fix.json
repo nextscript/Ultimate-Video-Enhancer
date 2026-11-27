@@ -47,12 +47,12 @@
       "enabled": true,
       "algorithm": "fsrcnnx",
       "scale": "1.5",
-      "strength": 0.3,
+      "strength": 0.29,
       "denoise": 0.12,
-      "deband": 0.15,
-      "vibrance": 0.05,
-      "contrast": 0.05,
-      "brightness": 0
+      "deband": 0.31,
+      "vibrance": -0.08,
+      "contrast": -0.03,
+      "brightness": 0.3
     },
     "sites": [],
     "presets": [],
