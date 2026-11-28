@@ -3,7 +3,7 @@
 // @name:de      Ultimate Video Enhancer (Schärfe, HDR, Farben)
 // @namespace    gvf
 // @author       Freak288
-// @version      1.17.6
+// @version      1.17.7
 // @description  Instantly improve every video on any website. Adds real-time sharpening, HDR boost, better colors and contrast to all HTML5 videos.
 // @description:de  Verbessert sofort jedes Video auf jeder Website. Fügt Schärfe, HDR, bessere Farben und Kontrast in Echtzeit hinzu – für alle HTML5-Videos.
 // @match        *://*/*
@@ -645,12 +645,14 @@
     const WS_KEY = 'gvf_webscaly_settings_v1';
     const WS_DEFAULTS = Object.freeze({ enabled: false, algorithm: 'spatial', scale: 'auto',
         strength: 0.35, denoise: 0.12, deband: 0,
-        vibrance: 0, contrast: 0, brightness: 0 });
+        vibrance: 0, contrast: 0, brightness: 0,
+        linearRgbEnabled: false, linearExposureEV: 0, displayGamma: 1 });
     const WS_PRESETS = Object.freeze([
         { name: 'Anime', settings: { algorithm: 'anime4k', scale: '1.5', strength: .15, denoise: .1, deband: .35, vibrance: .1 } },
         { name: 'Live action', settings: { algorithm: 'fsrcnnx', scale: '1.5', strength: .3, denoise: .12, deband: .15 } },
         { name: 'Low-res rescue', settings: { algorithm: 'fsrcnnx', scale: '2', strength: .45, denoise: .3, deband: .3, vibrance: .05, contrast: .05 } },
-        { name: 'Soft detail', settings: { algorithm: 'spatial', scale: 'native', strength: .3, denoise: 0, deband: 0 } }
+        { name: 'Soft detail', settings: { algorithm: 'spatial', scale: 'native', strength: .3, denoise: 0, deband: 0 } },
+        { name: 'Linear Neutral', settings: { linearRgbEnabled: true, linearExposureEV: 0, displayGamma: 1 } }
     ]);
     function wsNormalize(value) {
         const s = value && typeof value === 'object' ? value : {};
@@ -662,7 +664,10 @@
             strength: num('strength', 0, 1),
             denoise: num('denoise', 0, 1), deband: num('deband', 0, 1),
             vibrance: num('vibrance', -1, 1), contrast: num('contrast', -1, 1),
-            brightness: num('brightness', -1, 1) };
+            brightness: num('brightness', -1, 1),
+            linearRgbEnabled: typeof s.linearRgbEnabled === 'boolean' ? s.linearRgbEnabled : WS_DEFAULTS.linearRgbEnabled,
+            linearExposureEV: num('linearExposureEV', -2, 2),
+            displayGamma: num('displayGamma', 0.5, 3) };
     }
     function wsNormalizeConfig(data) {
         const sites = Array.isArray(data?.sites) ? data.sites.filter(x => x && typeof x.origin === 'string')
@@ -11853,7 +11858,8 @@ if (!gl) {
     }
     function wsRendererSummary() {
         if (!wsEnabled()) return 'Detail enhancement is off or SVG mode is not active.';
-        return 'SVG filter active.';
+        const s = wsActive();
+        return s.linearRgbEnabled ? 'SVG filter active · Linear EV' : 'SVG filter active.';
     }
     function wsRefreshRenderer() {
         if (renderMode === 'svg') regenerateSvgImmediately();
@@ -11917,6 +11923,8 @@ if (!gl) {
             part('p', 'ws-note', 'The SVG filter enhances detail while the browser enlarges the video. Upscaling settings adjust the detail effect; they do not change the video resolution. Anime4K and FSRCNNX are approximations.'),
             slot('div', 'ws-actions', 'scope'), slot('div', 'ws-grid', 'preferences'),
             part('h3', '', 'Picture'), slot('div', 'ws-grid', 'picture'),
+            part('h3', '', 'Linear RGB & Gamma Correction'), slot('div', 'ws-grid', 'linear'),
+            slot('div', 'ws-actions', 'linearActions'),
             part('h3', '', 'Presets'), slot('div', 'ws-actions', 'presets'));
         const footer = part('div', 'ws-footer');
         footer.append(slot('div', 'ws-actions', 'actions'), slot('p', 'ws-note', 'status'));
@@ -11955,7 +11963,7 @@ if (!gl) {
             wrap.append(input, document.createTextNode(label)); parent.appendChild(wrap);
         };
         const render = () => {
-            ['[data-scope]', '[data-preferences]', '[data-picture]', '[data-presets]', '[data-actions]'].forEach(s => q(s).replaceChildren());
+            ['[data-scope]', '[data-preferences]', '[data-picture]', '[data-linear]', '[data-linear-actions]', '[data-presets]', '[data-actions]'].forEach(s => q(s).replaceChildren());
             const scopes = q('[data-scope]');
             button(scopes, scope === 'global' ? '✓ Global' : 'Global', () => { scope = 'global'; render(); });
             button(scopes, scope === 'site' ? '✓ This website' : 'This website', () => {
@@ -11978,6 +11986,29 @@ if (!gl) {
             number(pic, 'Vibrance', 'vibrance', -1, 1, .01);
             number(pic, 'Contrast', 'contrast', -1, 1, .01);
             number(pic, 'Brightness', 'brightness', -1, 1, .01);
+            const lin = q('[data-linear]');
+            const linCheck = document.createElement('label'); linCheck.className = 'ws-check';
+            const linInput = document.createElement('input'); linInput.type = 'checkbox'; linInput.checked = !!current().linearRgbEnabled;
+            linInput.title = 'Enables linear-light EV exposure. Video smoothing and sharpening stay in sRGB to avoid dark-area blotches.';
+            linInput.addEventListener('change', () => { current().linearRgbEnabled = linInput.checked; save(); render(); });
+            linCheck.append(linInput, document.createTextNode('Linear RGB Exposure'));
+            lin.appendChild(linCheck);
+            const linNumber = (label, key, min, max, step, disabled, tip) => {
+                const wrap = document.createElement('label');
+                const title = document.createElement('span');
+                const input = document.createElement('input'); input.type = 'range'; input.min = min; input.max = max; input.step = step;
+                input.value = current()[key]; input.disabled = !!disabled;
+                input.title = tip || '';
+                const show = () => { title.textContent = `${label}: ${input.value}`; }; show();
+                input.addEventListener('input', () => { current()[key] = Number(input.value); show(); save(); });
+                wrap.append(title, input); lin.appendChild(wrap);
+            };
+            linNumber('Linear Exposure (EV)', 'linearExposureEV', -2, 2, 0.05, !current().linearRgbEnabled, 'EV in linear RGB domain; positive values can clip highlights.');
+            linNumber('Display Gamma', 'displayGamma', 0.5, 3, 0.05, false, '1.0 neutral; >1 brightens midtones, <1 darkens.');
+            const linActions = q('[data-linear-actions]');
+            button(linActions, 'Reset Linear & Gamma', () => {
+                current().linearRgbEnabled = false; current().linearExposureEV = 0; current().displayGamma = 1; save(); render();
+            });
             const presets = q('[data-presets]');
             [...WS_PRESETS, ...wsConfig.presets].forEach(p => button(presets, p.name, () => {
                 Object.assign(current(), wsNormalize({ ...current(), ...p.settings, enabled: true })); save(); render(); status(`Preset “${p.name}” applied.`);
@@ -19611,6 +19642,7 @@ if ('lutProfile' in obj) {
     function appendSvgDetailFilter(filter, inName) {
         if (!wsEnabled()) return inName;
         const s = wsActive();
+        const linear = !!s.linearRgbEnabled;
         const add = (tag, attrs) => {
             const node = document.createElementNS(svgNS, tag);
             Object.entries(attrs).forEach(([key, value]) => node.setAttribute(key, String(value)));
@@ -19623,16 +19655,21 @@ if ('lutProfile' in obj) {
         const detailAmount = s.strength * algorithmFactor + scaleDetail;
         if (s.denoise > 0 || s.deband > 0 || detailAmount > 0) {
             const radius = 0.4 + s.denoise * 1.4 + s.deband * 0.6 + scaleDetail * 0.9;
-            add('feGaussianBlur', { in: last, stdDeviation: radius.toFixed(2), result: 'r_ws_blur' });
-            if (s.denoise > 0 || s.deband > 0) {
+            const smoothingEnabled = s.denoise > 0 || s.deband > 0;
+            // Keep spatial operations in the filter's sRGB space. Browser SVG
+            // linearRGB conversion on video produces blotches in dark areas.
+            add('feGaussianBlur', { in: last, stdDeviation: radius.toFixed(2), result: 'r_ws_blur',
+                'color-interpolation-filters': 'sRGB' });
+            if (smoothingEnabled) {
                 const smoothing = Math.min(0.65, s.denoise * 0.42 + s.deband * 0.18);
                 add('feComposite', { in: last, in2: 'r_ws_blur', operator: 'arithmetic',
-                    k1: 0, k2: (1 - smoothing).toFixed(3), k3: smoothing.toFixed(3), k4: 0, result: 'r_ws_smooth' });
+                    k1: 0, k2: (1 - smoothing).toFixed(3), k3: smoothing.toFixed(3), k4: 0, result: 'r_ws_smooth', 'color-interpolation-filters': 'sRGB' });
                 last = 'r_ws_smooth';
             }
             if (detailAmount > 0) {
                 add('feComposite', { in: last, in2: 'r_ws_blur', operator: 'arithmetic',
-                    k1: 0, k2: (1 + detailAmount).toFixed(3), k3: (-detailAmount).toFixed(3), k4: 0, result: 'r_ws_detail' });
+                    k1: 0, k2: (1 + detailAmount).toFixed(3), k3: (-detailAmount).toFixed(3), k4: 0,
+                    result: 'r_ws_detail', 'color-interpolation-filters': 'sRGB' });
                 last = 'r_ws_detail';
             }
         }
@@ -19652,6 +19689,46 @@ if ('lutProfile' in obj) {
                 color.appendChild(channel);
             });
             last = 'r_ws_color';
+        }
+        // Apply EV in linear-light math without asking the browser to switch
+        // SVG filter color spaces for video frames. Alpha stays unchanged.
+        if (linear && Math.abs(s.linearExposureEV) > 0.0001) {
+            const gain = Math.pow(2, s.linearExposureEV);
+            const srgbToLinear = x => x <= 0.04045 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+            const linearToSrgb = x => x <= 0.0031308 ? 12.92 * x : 1.055 * Math.pow(x, 1 / 2.4) - 0.055;
+            const table = [];
+            for (let i = 0; i <= 1024; i++) {
+                const value = linearToSrgb(Math.min(1, srgbToLinear(i / 1024) * gain));
+                table.push(value.toFixed(6));
+            }
+            const tableValues = table.join(' ');
+            const exp = add('feComponentTransfer', { in: last, result: 'r_ws_exposure', 'color-interpolation-filters': 'sRGB' });
+            ['feFuncR', 'feFuncG', 'feFuncB'].forEach(tag => {
+                const channel = document.createElementNS(svgNS, tag);
+                channel.setAttribute('type', 'table');
+                channel.setAttribute('tableValues', tableValues);
+                exp.appendChild(channel);
+            });
+            const alpha = document.createElementNS(svgNS, 'feFuncA');
+            alpha.setAttribute('type', 'identity');
+            exp.appendChild(alpha);
+            last = 'r_ws_exposure';
+        }
+        // Creative display gamma on sRGB-encoded channel values.
+        if (Math.abs(s.displayGamma - 1) > 0.0001) {
+            const gam = add('feComponentTransfer', { in: last, result: 'r_ws_gamma', 'color-interpolation-filters': 'sRGB' });
+            ['feFuncR', 'feFuncG', 'feFuncB'].forEach(tag => {
+                const channel = document.createElementNS(svgNS, tag);
+                channel.setAttribute('type', 'gamma');
+                channel.setAttribute('amplitude', '1');
+                channel.setAttribute('exponent', (1 / s.displayGamma).toFixed(5));
+                channel.setAttribute('offset', '0');
+                gam.appendChild(channel);
+            });
+            const alpha = document.createElementNS(svgNS, 'feFuncA');
+            alpha.setAttribute('type', 'identity');
+            gam.appendChild(alpha);
+            last = 'r_ws_gamma';
         }
         return last;
     }
